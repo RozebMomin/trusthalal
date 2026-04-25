@@ -31,7 +31,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser, useLogout } from "@/lib/api/hooks";
 
-const PUBLIC_PATHS = new Set<string>(["/login"]);
+const PUBLIC_PATHS = new Set<string>(["/login", "/signup"]);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";

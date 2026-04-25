@@ -42,6 +42,16 @@ export type LoginResponse = {
   redirect_path: string;
 };
 
+export type SignupRequest = {
+  email: string;
+  password: string;
+  display_name: string;
+};
+
+// Same wire shape as LoginResponse — signup auto-logs the user in via
+// the session cookie so the client treats both responses identically.
+export type SignupResponse = LoginResponse;
+
 const qk = {
   me: () => ["me"] as const,
 } as const;
@@ -87,6 +97,33 @@ export function useLogin() {
   return useMutation({
     mutationFn: (payload: LoginRequest) =>
       apiFetch<LoginResponse>("/auth/login", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => {
+      void invalidateMe(qc);
+    },
+  });
+}
+
+/**
+ * POST /auth/signup. Public self-service path for restaurant owners.
+ *
+ * The server hard-codes role=OWNER and auto-logs the new user in by
+ * setting the session cookie on success — same response shape as
+ * /auth/login, so the calling page can route to ``redirect_path``
+ * identically. We invalidate /me so AppShell flips from "not signed
+ * in" to "OWNER" without a hard reload.
+ *
+ * The `EMAIL_TAKEN` failure code surfaces as ApiError on the caller —
+ * the signup page branches on it to show "this email is already
+ * registered, sign in instead?".
+ */
+export function useSignup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SignupRequest) =>
+      apiFetch<SignupResponse>("/auth/signup", {
         method: "POST",
         json: payload,
       }),

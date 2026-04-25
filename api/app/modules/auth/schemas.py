@@ -79,3 +79,44 @@ class SetPasswordResponse(BaseModel):
     role: UserRole
     display_name: str | None = None
     redirect_path: str
+
+
+class SignupRequest(BaseModel):
+    """POST /auth/signup body.
+
+    Restaurant owners create their own account here — Trust Halal staff
+    no longer mints OWNER invites by hand. The trust gate is the
+    human-reviewed ownership claim later in the flow, not the signup
+    itself.
+
+    ``display_name`` is required (unlike on the User model) so admin
+    staff reviewing claims see a human-readable name, not just an email.
+    Length matches the column (120 chars).
+
+    ``password`` minimum mirrors the invite ``SetPasswordRequest`` —
+    8 chars, no max-complexity rules. zxcvbn-style scoring can layer on
+    later if abuse warrants it.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=256)
+    display_name: str = Field(..., min_length=1, max_length=120)
+
+
+class SignupResponse(BaseModel):
+    """POST /auth/signup response.
+
+    Same shape as LoginResponse — signup auto-logs the user in via the
+    session cookie, so clients treat the two endpoints identically: read
+    /me, route to ``redirect_path``.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: UUID
+    email: EmailStr
+    role: UserRole
+    display_name: str | None = None
+    redirect_path: str
