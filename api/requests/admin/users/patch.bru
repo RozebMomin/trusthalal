@@ -1,0 +1,23 @@
+meta {
+  name: Patch user (admin)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/admin/users/{{consumer_user_id}}
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+body:json {
+  {
+    "role": "VERIFIER",
+    "display_name": "Updated Name",
+    "is_active": true
+  }
+}

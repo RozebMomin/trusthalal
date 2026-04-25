@@ -1,0 +1,8 @@
+{
+  "status": "OK",
+  "result": {
+    "place_id": "ChIJTest_Minimal",
+    "name": "Barely Any Data",
+    "geometry": {"location": {"lat": 0.0, "lng": 0.0}}
+  }
+}

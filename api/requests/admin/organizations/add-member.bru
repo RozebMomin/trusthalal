@@ -1,0 +1,27 @@
+meta {
+  name: Add member to organization (admin)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/admin/organizations/{{organization_id}}/members
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+body:json {
+  {
+    "user_id": "{{owner_user_id}}",
+    "role": "OWNER_ADMIN"
+  }
+}
+
+docs {
+  Common roles: OWNER_ADMIN, MANAGER. Re-activates an existing INACTIVE
+  membership; 409s if the user is already an ACTIVE member.
+}

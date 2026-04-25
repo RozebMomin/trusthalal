@@ -1,0 +1,15 @@
+meta {
+  name: Get place (admin)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/admin/places/{{place_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}

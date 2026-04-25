@@ -1,0 +1,20 @@
+meta {
+  name: Deactivate organization member (admin)
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/admin/organizations/{{organization_id}}/members/{{owner_user_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+docs {
+  Soft-deactivates the member (sets status=INACTIVE); does not delete the
+  row. Re-add them with POST /members to reactivate.
+}

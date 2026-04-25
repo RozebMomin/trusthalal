@@ -1,0 +1,11 @@
+meta {
+  name: List claims for a place
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/places/{{place_id}}/claims
+  body: none
+  auth: none
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Reject ownership request
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/admin/ownership-requests/{{ownership_request_id}}/reject
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+body:json {
+  {
+    "reason": "Unable to verify relationship to business"
+  }
+}

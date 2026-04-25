@@ -1,0 +1,25 @@
+meta {
+  name: List places (admin)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/admin/places?deleted=all&limit=50&offset=0
+  body: none
+  auth: none
+}
+
+params:query {
+  deleted: all
+  limit: 50
+  offset: 0
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+docs {
+  `deleted` can be true | false | all.
+}

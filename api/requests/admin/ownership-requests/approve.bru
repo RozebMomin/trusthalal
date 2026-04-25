@@ -1,0 +1,32 @@
+meta {
+  name: Approve ownership request
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/admin/ownership-requests/{{ownership_request_id}}/approve
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+body:json {
+  {
+    "new_organization_name": "Madina Grill LLC",
+    "member_role": "OWNER_ADMIN",
+    "place_owner_role": "PRIMARY",
+    "note": "Verified by phone call with manager"
+  }
+}
+
+docs {
+  Provide either organization_id (existing) OR new_organization_name.
+  Transactionally: creates/links the Organization, inserts a PlaceOwner row
+  (status=ACTIVE), upserts an OrganizationMember for the requester,
+  promotes the requester from CONSUMER -> OWNER if applicable, and logs a
+  PlaceEvent of type OWNERSHIP_GRANTED.
+}

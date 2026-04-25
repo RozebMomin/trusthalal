@@ -1,0 +1,21 @@
+meta {
+  name: List organizations (admin)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/admin/organizations?limit=50&offset=0
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 50
+  offset: 0
+  ~q:
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}

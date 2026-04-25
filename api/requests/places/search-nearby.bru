@@ -1,0 +1,19 @@
+meta {
+  name: Search places nearby
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/places?lat=40.72&lng=-74.05&radius=5000&limit=50&offset=0
+  body: none
+  auth: none
+}
+
+params:query {
+  lat: 40.72
+  lng: -74.05
+  radius: 5000
+  limit: 50
+  offset: 0
+}

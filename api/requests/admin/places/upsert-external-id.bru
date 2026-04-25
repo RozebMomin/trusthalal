@@ -1,0 +1,32 @@
+meta {
+  name: Upsert place external id (admin)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base_url}}/admin/places/{{place_id}}/external-ids?overwrite=false
+  body: json
+  auth: none
+}
+
+params:query {
+  overwrite: false
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+body:json {
+  {
+    "provider": "GOOGLE",
+    "external_id": "ChIJNewExampleExternalId00000"
+  }
+}
+
+docs {
+  Providers: GOOGLE, YELP, APPLE. Unique per (place, provider) and per
+  (provider, external_id). Set overwrite=true to replace an existing entry
+  for the same provider.
+}

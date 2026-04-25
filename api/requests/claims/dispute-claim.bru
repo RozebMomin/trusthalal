@@ -1,0 +1,25 @@
+meta {
+  name: Dispute claim
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/claims/{{claim_id}}/dispute
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{consumer_user_id}}
+}
+
+body:json {
+  {
+    "reason": "Observed non-halal meat being served on premises."
+  }
+}
+
+docs {
+  Requires CONSUMER or ADMIN. Cannot dispute expired claims.
+}

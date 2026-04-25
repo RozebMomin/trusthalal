@@ -1,0 +1,26 @@
+meta {
+  name: Test Authenticaiton
+  type: http
+  seq: 6
+}
+
+post {
+  url: https://cookies.txthttp//localhost:8000/auth/login
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "admin@trusthalal.dev",
+    "password": "testPassword"
+  }
+}
+
+settings {
+  encodeUrl: false
+}

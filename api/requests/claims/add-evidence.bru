@@ -1,0 +1,23 @@
+meta {
+  name: Add evidence to claim
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/claims/{{claim_id}}/evidence
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{owner_user_id}}
+}
+
+body:json {
+  {
+    "evidence_type": "certificate",
+    "uri": "https://example.com/certificates/sample.pdf",
+    "notes": "Halal certificate issued by local authority"
+  }
+}

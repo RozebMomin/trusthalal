@@ -1,0 +1,21 @@
+{
+  "status": "OK",
+  "result": {
+    "place_id": "ChIJTest_US_Brooklyn",
+    "name": "The Halal Guys",
+    "formatted_address": "62-01 Roosevelt Ave, Woodside, NY 11377, USA",
+    "address_components": [
+      {"long_name": "62-01", "short_name": "62-01", "types": ["street_number"]},
+      {"long_name": "Roosevelt Avenue", "short_name": "Roosevelt Ave", "types": ["route"]},
+      {"long_name": "Woodside", "short_name": "Woodside", "types": ["neighborhood", "political"]},
+      {"long_name": "Queens", "short_name": "Queens", "types": ["sublocality_level_1", "sublocality", "political"]},
+      {"long_name": "Queens County", "short_name": "Queens County", "types": ["administrative_area_level_2", "political"]},
+      {"long_name": "New York", "short_name": "NY", "types": ["administrative_area_level_1", "political"]},
+      {"long_name": "United States", "short_name": "US", "types": ["country", "political"]},
+      {"long_name": "11377", "short_name": "11377", "types": ["postal_code"]}
+    ],
+    "geometry": {
+      "location": {"lat": 40.7455, "lng": -73.8979}
+    }
+  }
+}

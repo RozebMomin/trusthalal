@@ -1,0 +1,25 @@
+meta {
+  name: Submit ownership request
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/places/{{third_place_id}}/ownership-requests
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "contact_name": "Sample Requester",
+    "contact_email": "requester@example.com",
+    "contact_phone": "+15551234567",
+    "message": "I manage this place and would like to claim ownership."
+  }
+}
+
+docs {
+  Unauthenticated endpoint. If X-User-Id is present the requester_user_id
+  is captured, otherwise it's null. One active request per (place, email).
+}

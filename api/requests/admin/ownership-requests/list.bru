@@ -1,0 +1,26 @@
+meta {
+  name: List ownership requests (admin)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/admin/ownership-requests?status=SUBMITTED&limit=50&offset=0
+  body: none
+  auth: none
+}
+
+params:query {
+  status: SUBMITTED
+  limit: 50
+  offset: 0
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+docs {
+  Valid statuses: SUBMITTED, NEEDS_EVIDENCE, UNDER_REVIEW, APPROVED,
+  REJECTED, CANCELLED. Omit the param to list all.
+}

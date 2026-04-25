@@ -1,0 +1,21 @@
+meta {
+  name: Request more evidence on ownership request
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/admin/ownership-requests/{{ownership_request_id}}/request-evidence
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+body:json {
+  {
+    "note": "Please provide a business license or utility bill."
+  }
+}

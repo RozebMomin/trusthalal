@@ -1,0 +1,15 @@
+meta {
+  name: Restore place (admin)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/admin/places/{{place_id}}/restore
+  body: none
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}

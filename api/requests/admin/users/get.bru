@@ -1,0 +1,15 @@
+meta {
+  name: Get user (admin)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/admin/users/{{consumer_user_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}

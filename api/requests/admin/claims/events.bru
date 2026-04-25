@@ -1,0 +1,20 @@
+meta {
+  name: List claim events (admin)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/admin/claims/{{claim_id}}/events?limit=50&offset=0
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 50
+  offset: 0
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}

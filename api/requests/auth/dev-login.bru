@@ -1,0 +1,22 @@
+meta {
+  name: Dev login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/auth/dev-login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "admin@trusthalal.dev"
+  }
+}
+
+docs {
+  Returns the user_id for the given email so you can set it as X-User-Id on
+  subsequent requests. Only available when ENV=local.
+}

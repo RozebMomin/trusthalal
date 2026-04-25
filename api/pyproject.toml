@@ -1,0 +1,44 @@
+[project]
+name = "trusthalal-api"
+version = "0.1.0"
+description = "The Official API of the TrustHalal"
+authors = [
+    {name = "Rozeb Momin",email = "rozebm@gmail.com"}
+]
+license = {text = "Apache License 2.0"}
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "fastapi (>=0.128.0,<0.129.0)",
+    "uvicorn[standard] (>=0.40.0,<0.41.0)",
+    "sqlalchemy (>=2.0.45,<3.0.0)",
+    "alembic (>=1.17.2,<2.0.0)",
+    "pydantic[email] (>=2.12.5,<3.0.0)",
+    "pydantic-settings (>=2.12.0,<3.0.0)",
+    "psycopg[binary] (>=3.3.2,<4.0.0)",
+    "geoalchemy2 (>=0.18.1,<0.19.0)",
+    "argon2-cffi (>=23.1.0,<24.0.0)"
+]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+httpx = "^0.28.0"
+
+[tool.pytest.ini_options]
+# We keep the import mode conservative to avoid collisions with the `app` package.
+# `tests/` is a namespace-style layout: each test file imports from `app.*` directly.
+testpaths = ["tests"]
+addopts = "-ra -q"
+filterwarnings = [
+    # FastAPI/starlette on_event deprecation is Pydantic's problem, not ours.
+    "ignore::DeprecationWarning:starlette.*",
+]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

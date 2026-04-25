@@ -1,0 +1,9 @@
+from enum import StrEnum
+
+class OwnershipRequestStatus(StrEnum):
+    SUBMITTED = "SUBMITTED"
+    NEEDS_EVIDENCE = "NEEDS_EVIDENCE"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"

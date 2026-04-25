@@ -1,0 +1,291 @@
+from __future__ import annotations
+
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.exceptions import ConflictError, NotFoundError
+from app.modules.admin.ownership_requests.schemas import (
+    OwnershipRequestAdminCreate,
+    OwnershipRequestApprove,
+    OwnershipRequestEvidence,
+    OwnershipRequestReject,
+)
+from app.modules.organizations.models import (
+    Organization,
+    OrganizationMember,
+    PlaceOwner,
+)
+from app.modules.ownership_requests.enums import OwnershipRequestStatus
+from app.modules.ownership_requests.models import PlaceOwnershipRequest
+from app.modules.ownership_requests.repo import create_ownership_request
+from app.modules.places.enums import PlaceEventType
+from app.modules.places.models import PlaceEvent
+from app.modules.places.repo import get_place
+from app.modules.users.enums import UserRole
+from app.modules.users.models import User
+
+
+TERMINAL_STATUSES = {
+    OwnershipRequestStatus.APPROVED.value,
+    OwnershipRequestStatus.REJECTED.value,
+    OwnershipRequestStatus.CANCELLED.value,
+}
+
+
+def admin_create_ownership_request(
+    db: Session, *, payload: OwnershipRequestAdminCreate
+) -> PlaceOwnershipRequest:
+    """Admin-side create for an ownership request on someone's behalf.
+
+    Validates:
+      * Place exists (and isn't soft-deleted — admins shouldn't be
+        opening new ownership conversations on dead rows).
+      * ``requester_user_id``, if supplied, points at a real user.
+
+    Then delegates to the existing public ``create_ownership_request``
+    so duplicate-prevention (active request for the same place+email)
+    and the commit shape stay in one place.
+
+    Raises:
+        NotFoundError(PLACE_NOT_FOUND)  if the place is unknown/deleted.
+        NotFoundError(USER_NOT_FOUND)   if requester_user_id is unknown.
+        ConflictError(OWNERSHIP_REQUEST_ALREADY_EXISTS) on duplicate.
+    """
+    place = get_place(db, payload.place_id)
+    if not place:
+        raise NotFoundError(
+            "PLACE_NOT_FOUND",
+            "Place not found (or has been soft-deleted).",
+        )
+
+    if payload.requester_user_id is not None:
+        user = db.execute(
+            select(User).where(User.id == payload.requester_user_id)
+        ).scalar_one_or_none()
+        if user is None:
+            raise NotFoundError(
+                "USER_NOT_FOUND",
+                "Requester user not found",
+            )
+
+    return create_ownership_request(
+        db,
+        place_id=payload.place_id,
+        requester_user_id=payload.requester_user_id,
+        contact_name=payload.contact_name,
+        contact_email=str(payload.contact_email),
+        contact_phone=payload.contact_phone,
+        message=payload.message,
+    )
+
+
+def admin_list_ownership_requests(
+    db: Session,
+    *,
+    status: str | None,
+    limit: int,
+    offset: int,
+) -> list[PlaceOwnershipRequest]:
+    stmt = select(PlaceOwnershipRequest)
+
+    if status:
+        stmt = stmt.where(PlaceOwnershipRequest.status == status)
+
+    stmt = (
+        stmt.order_by(PlaceOwnershipRequest.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    return list(db.execute(stmt).scalars().all())
+
+
+def _get_request_or_404(db: Session, request_id: UUID) -> PlaceOwnershipRequest:
+    req = db.execute(
+        select(PlaceOwnershipRequest).where(PlaceOwnershipRequest.id == request_id)
+    ).scalar_one_or_none()
+    if not req:
+        raise NotFoundError(
+            "OWNERSHIP_REQUEST_NOT_FOUND", "Ownership request not found"
+        )
+    return req
+
+
+def _assert_not_terminal(req: PlaceOwnershipRequest) -> None:
+    if req.status in TERMINAL_STATUSES:
+        raise ConflictError(
+            "OWNERSHIP_REQUEST_TERMINAL",
+            f"Ownership request is already {req.status} and cannot be modified",
+        )
+
+
+def admin_approve_ownership_request(
+    db: Session,
+    *,
+    request_id: UUID,
+    payload: OwnershipRequestApprove,
+    actor_user_id: UUID,
+) -> PlaceOwnershipRequest:
+    """Promote an ownership request into real ownership.
+
+    All writes happen in one transaction:
+      - resolve/create Organization
+      - insert/activate PlaceOwner link (status=ACTIVE)
+      - insert/activate OrganizationMember for the requester (if any)
+      - promote requester User role CONSUMER -> OWNER
+      - flip request status to APPROVED
+      - log a PlaceEvent (OWNERSHIP_GRANTED) with the actor
+    """
+    if bool(payload.organization_id) == bool(payload.new_organization_name):
+        raise ConflictError(
+            "OWNERSHIP_APPROVE_BAD_ORG",
+            "Provide exactly one of organization_id or new_organization_name",
+        )
+
+    req = _get_request_or_404(db, request_id)
+    _assert_not_terminal(req)
+
+    # Resolve organization
+    if payload.organization_id:
+        org = db.execute(
+            select(Organization).where(Organization.id == payload.organization_id)
+        ).scalar_one_or_none()
+        if not org:
+            raise NotFoundError("ORGANIZATION_NOT_FOUND", "Organization not found")
+    else:
+        assert payload.new_organization_name is not None
+        org = Organization(
+            name=payload.new_organization_name.strip(),
+            contact_email=req.contact_email,
+        )
+        db.add(org)
+        db.flush()
+
+    # Upsert PlaceOwner link
+    po = db.execute(
+        select(PlaceOwner).where(
+            PlaceOwner.place_id == req.place_id,
+            PlaceOwner.organization_id == org.id,
+        )
+    ).scalar_one_or_none()
+    if po:
+        po.status = "ACTIVE"
+        po.role = payload.place_owner_role
+    else:
+        po = PlaceOwner(
+            place_id=req.place_id,
+            organization_id=org.id,
+            role=payload.place_owner_role,
+            status="ACTIVE",
+        )
+        db.add(po)
+
+    # Wire requester into org (if we know who they are)
+    if req.requester_user_id is not None:
+        requester = db.execute(
+            select(User).where(User.id == req.requester_user_id)
+        ).scalar_one_or_none()
+        if requester:
+            member = db.execute(
+                select(OrganizationMember).where(
+                    OrganizationMember.organization_id == org.id,
+                    OrganizationMember.user_id == requester.id,
+                )
+            ).scalar_one_or_none()
+            if member:
+                member.status = "ACTIVE"
+                member.role = payload.member_role
+            else:
+                db.add(
+                    OrganizationMember(
+                        organization_id=org.id,
+                        user_id=requester.id,
+                        role=payload.member_role,
+                        status="ACTIVE",
+                    )
+                )
+
+            # Promote CONSUMER -> OWNER (leave VERIFIER/ADMIN alone)
+            if requester.role == UserRole.CONSUMER.value:
+                requester.role = UserRole.OWNER.value
+                db.add(requester)
+
+    # Flip request status
+    req.status = OwnershipRequestStatus.APPROVED.value
+    db.add(req)
+
+    # Audit trail on the place
+    db.add(
+        PlaceEvent(
+            place_id=req.place_id,
+            event_type=PlaceEventType.OWNERSHIP_GRANTED.value,
+            actor_user_id=actor_user_id,
+            message=(
+                payload.note
+                or f"Ownership granted to org {org.name} via request {req.id}"
+            ),
+        )
+    )
+
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+def admin_reject_ownership_request(
+    db: Session,
+    *,
+    request_id: UUID,
+    payload: OwnershipRequestReject,
+    actor_user_id: UUID,
+) -> PlaceOwnershipRequest:
+    req = _get_request_or_404(db, request_id)
+    _assert_not_terminal(req)
+
+    req.status = OwnershipRequestStatus.REJECTED.value
+    db.add(req)
+
+    db.add(
+        PlaceEvent(
+            place_id=req.place_id,
+            event_type=PlaceEventType.OWNERSHIP_REQUEST_REJECTED.value,
+            actor_user_id=actor_user_id,
+            message=payload.reason,
+        )
+    )
+
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+def admin_request_more_evidence(
+    db: Session,
+    *,
+    request_id: UUID,
+    payload: OwnershipRequestEvidence,
+    actor_user_id: UUID,
+) -> PlaceOwnershipRequest:
+    req = _get_request_or_404(db, request_id)
+    _assert_not_terminal(req)
+
+    if req.status == OwnershipRequestStatus.NEEDS_EVIDENCE.value:
+        return req  # idempotent
+
+    req.status = OwnershipRequestStatus.NEEDS_EVIDENCE.value
+    db.add(req)
+
+    db.add(
+        PlaceEvent(
+            place_id=req.place_id,
+            event_type=PlaceEventType.OWNERSHIP_REQUEST_NEEDS_EVIDENCE.value,
+            actor_user_id=actor_user_id,
+            message=payload.note or "Admin requested more evidence",
+        )
+    )
+
+    db.commit()
+    db.refresh(req)
+    return req

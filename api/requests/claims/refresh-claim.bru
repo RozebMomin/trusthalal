@@ -1,0 +1,27 @@
+meta {
+  name: Refresh claim
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/claims/{{claim_id}}/refresh
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{owner_user_id}}
+}
+
+body:json {
+  {
+    "reason": "Renewal after annual audit"
+  }
+}
+
+docs {
+  Owner-initiated renewal request. Requires at least one piece of evidence
+  and the claim must be expired or within CLAIM_REFRESH_WINDOW_DAYS (14).
+  Resets expires_at and flips status back to PENDING for re-verification.
+}

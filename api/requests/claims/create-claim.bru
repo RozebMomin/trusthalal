@@ -1,0 +1,28 @@
+meta {
+  name: Create claim
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/claims
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{owner_user_id}}
+}
+
+body:json {
+  {
+    "place_id": "{{place_id}}",
+    "claim_type": "ZABIHA",
+    "scope": "ALL_MENU"
+  }
+}
+
+docs {
+  OWNER must manage the place (via an active Organization membership).
+  ADMIN can create claims on any place.
+}

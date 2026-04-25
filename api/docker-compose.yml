@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: trusthalal-db
+    environment:
+      POSTGRES_USER: trusthalal
+      POSTGRES_PASSWORD: trusthalal
+      POSTGRES_DB: trusthalal
+    ports:
+      - "5432:5432"
+    volumes:
+      - trusthalal_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trusthalal -d trusthalal"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  trusthalal_pgdata:

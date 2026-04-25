@@ -1,0 +1,21 @@
+meta {
+  name: Reject claim (admin)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/admin/claims/{{claim_id}}/reject
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+body:json {
+  {
+    "reason": "Evidence does not support the claim"
+  }
+}

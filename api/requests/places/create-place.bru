@@ -1,0 +1,30 @@
+meta {
+  name: Create place
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/places
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+body:json {
+  {
+    "name": "New Halal Spot",
+    "address": "1 Sample Ave, Jersey City, NJ",
+    "lat": 40.7201,
+    "lng": -74.0400
+  }
+}
+
+docs {
+  Requires OWNER or ADMIN role. OWNER callers must already be a member of an
+  org that is linked to this place — which isn't possible for a brand-new
+  place, so in practice only ADMIN creates places directly today.
+}

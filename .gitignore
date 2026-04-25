@@ -1,0 +1,26 @@
+# Root .gitignore. Each app (api/, apps/admin/) has its own .gitignore
+# with tech-specific patterns (node_modules, __pycache__, .next, etc.).
+# This file covers OS + editor + secrets that apply across the monorepo.
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Editors / IDEs ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Secrets: belt and suspenders ---
+# Individual apps also gitignore their own .env variants, but a
+# top-level pattern guards against a fresh `.env` dropped at the root
+# by mistake (e.g. during deploy tinkering).
+.env
+.env.local
+.env.*.local
+
+# --- Logs / tmp ---
+*.log
+tmp/

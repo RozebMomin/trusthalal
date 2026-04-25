@@ -1,0 +1,16 @@
+{
+  "id": "places/ChIJTest_NEW_API",
+  "displayName": {"text": "New API Test Kitchen", "languageCode": "en"},
+  "formattedAddress": "555 Market St, San Francisco, CA 94105, USA",
+  "addressComponents": [
+    {"longText": "555", "shortText": "555", "types": ["street_number"]},
+    {"longText": "Market Street", "shortText": "Market St", "types": ["route"]},
+    {"longText": "San Francisco", "shortText": "SF", "types": ["locality", "political"]},
+    {"longText": "San Francisco County", "shortText": "San Francisco County", "types": ["administrative_area_level_2", "political"]},
+    {"longText": "California", "shortText": "CA", "types": ["administrative_area_level_1", "political"]},
+    {"longText": "United States", "shortText": "US", "types": ["country", "political"]},
+    {"longText": "94105", "shortText": "94105", "types": ["postal_code"]}
+  ],
+  "location": {"latitude": 37.7898, "longitude": -122.4002},
+  "timeZone": {"id": "America/Los_Angeles"}
+}

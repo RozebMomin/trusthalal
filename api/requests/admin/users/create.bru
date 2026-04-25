@@ -1,0 +1,27 @@
+meta {
+  name: Create user (admin)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/admin/users
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+body:json {
+  {
+    "email": "newuser@example.com",
+    "role": "CONSUMER",
+    "display_name": "New User"
+  }
+}
+
+docs {
+  Valid roles: ADMIN, OWNER, VERIFIER, CONSUMER.
+}

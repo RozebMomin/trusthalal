@@ -1,0 +1,28 @@
+meta {
+  name: List users (admin)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/admin/users?limit=50&offset=0
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 50
+  offset: 0
+  ~role:
+  ~is_active:
+  ~q:
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+docs {
+  Uncomment `role` (CONSUMER/OWNER/VERIFIER/ADMIN), `is_active`
+  (true/false), or `q` (substring over email/display_name).
+}

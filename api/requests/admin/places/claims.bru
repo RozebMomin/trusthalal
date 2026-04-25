@@ -1,0 +1,19 @@
+meta {
+  name: List place claims (admin)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/admin/places/{{place_id}}/claims
+  body: none
+  auth: none
+}
+
+headers {
+  X-User-Id: {{admin_user_id}}
+}
+
+docs {
+  Admin can view claims even if the place is soft-deleted.
+}
