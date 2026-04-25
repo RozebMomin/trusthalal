@@ -1,0 +1,112 @@
+/**
+ * Thin fetch wrapper around the Trust Halal API for the owner portal.
+ *
+ * Mirrors apps/admin's client: prefix paths with config.apiBaseUrl,
+ * send the session cookie via ``credentials: "include"``, JSON-(de)
+ * serialize bodies, normalize ``ErrorResponse`` envelopes into
+ * ``ApiError``.
+ *
+ * Auth is the same single-cookie-on-the-API-origin posture as the
+ * admin panel: sign in at /auth/login, the server sets a tht_session
+ * HttpOnly cookie on api.trusthalal.org, every request afterwards
+ * carries it.
+ *
+ * Until codegen lands a generated ``schema.d.ts`` here, the
+ * ``ApiErrorShape`` type is hand-defined to match
+ * api/app/core/exception_handlers.py's ErrorResponse model. Running
+ * ``npm run codegen`` will replace this with the canonical generated
+ * type the same way it does in the admin app.
+ */
+
+import { config } from "@/lib/config";
+
+/**
+ * Wire shape of every 4xx / 5xx body the API emits. Hand-mirrored
+ * from FastAPI's ``ErrorResponse`` until we run codegen on this app
+ * for the first time.
+ */
+export type ApiErrorShape = {
+  error: {
+    code: string;
+    message: string;
+    detail?: unknown;
+  };
+};
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly detail?: unknown;
+
+  constructor(status: number, code: string, message: string, detail?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.detail = detail;
+  }
+}
+
+export type RequestOptions = Omit<RequestInit, "body"> & {
+  /** JSON-encoded automatically if provided. */
+  json?: unknown;
+  /** Query string params; undefined values are dropped. */
+  searchParams?: Record<string, string | number | boolean | undefined | null>;
+};
+
+function buildUrl(path: string, searchParams?: RequestOptions["searchParams"]) {
+  const url = new URL(
+    path.startsWith("/") ? path : `/${path}`,
+    config.apiBaseUrl,
+  );
+  if (searchParams) {
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (value === undefined || value === null) continue;
+      url.searchParams.set(key, String(value));
+    }
+  }
+  return url.toString();
+}
+
+export async function apiFetch<T = unknown>(
+  path: string,
+  { json, searchParams, headers, ...init }: RequestOptions = {},
+): Promise<T> {
+  const res = await fetch(buildUrl(path, searchParams), {
+    ...init,
+    headers: {
+      Accept: "application/json",
+      ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(headers ?? {}),
+    },
+    body: json !== undefined ? JSON.stringify(json) : undefined,
+    // ``include`` sends the session cookie across origins (api on
+    // api.trusthalal.org, owner portal on owner.trusthalal.org). The
+    // API's CORS middleware needs ``allow_credentials=True`` and an
+    // explicit origin allow-list (no ``*``); both are configured in
+    // app/main.py and CORS_ORIGINS env var.
+    credentials: "include",
+  });
+
+  if (res.status === 204) return undefined as T;
+
+  const text = await res.text();
+  const body = text ? safeJson(text) : undefined;
+
+  if (!res.ok) {
+    const shape = body as ApiErrorShape | undefined;
+    const code = shape?.error?.code ?? "http_error";
+    const message = shape?.error?.message ?? `HTTP ${res.status}`;
+    throw new ApiError(res.status, code, message, shape?.error?.detail);
+  }
+
+  return body as T;
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
