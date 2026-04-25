@@ -20,6 +20,54 @@ import { apiFetch } from "./client";
 // Mirrors UserRole on the server. Hand-typed until codegen runs.
 export type UserRole = "ADMIN" | "VERIFIER" | "OWNER" | "CONSUMER";
 
+/** Mirrors OwnershipRequestStatus on the server. */
+export type OwnershipRequestStatus =
+  | "SUBMITTED"
+  | "NEEDS_EVIDENCE"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED";
+
+/** Result row of GET /places?q=... — lightweight place fields. */
+export type PlaceSearchResult = {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+};
+
+/** Place sub-shape embedded in MyOwnershipRequestRead. */
+export type MyOwnershipRequestPlaceSummary = {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+};
+
+/** GET /me/ownership-requests row + POST response. */
+export type MyOwnershipRequestRead = {
+  id: string;
+  place: MyOwnershipRequestPlaceSummary;
+  status: OwnershipRequestStatus;
+  message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** POST /me/ownership-requests body. */
+export type MyOwnershipRequestCreate = {
+  place_id: string;
+  message?: string | null;
+  contact_phone?: string | null;
+};
+
 /**
  * Return shape of GET /me. Same as the admin panel's MeRead — kept
  * tight on purpose so the cookie roundtrip is cheap.
@@ -54,6 +102,8 @@ export type SignupResponse = LoginResponse;
 
 const qk = {
   me: () => ["me"] as const,
+  myOwnershipRequests: () => ["me", "ownership-requests"] as const,
+  placesSearch: (q: string) => ["places", "search", q] as const,
 } as const;
 
 /**
@@ -144,6 +194,73 @@ export function useLogout() {
     mutationFn: () => apiFetch<void>("/auth/logout", { method: "POST" }),
     onSuccess: () => {
       qc.clear();
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Claim flow
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /places?q=... — text search the public catalog.
+ *
+ * Disabled while the query string is empty so the type-as-you-go
+ * search doesn't fire a request on every keystroke before the user
+ * has typed anything meaningful. The caller debounces on top.
+ *
+ * staleTime is small (10s) so a fresh-search-after-ingest doesn't
+ * keep showing stale results, but the cache still absorbs the
+ * usual back-button re-renders.
+ */
+export function usePlacesSearch(q: string, enabled = true) {
+  const trimmed = q.trim();
+  return useQuery<PlaceSearchResult[]>({
+    queryKey: qk.placesSearch(trimmed),
+    queryFn: () =>
+      apiFetch<PlaceSearchResult[]>("/places", {
+        searchParams: { q: trimmed, limit: 10 },
+      }),
+    enabled: enabled && trimmed.length > 0,
+    staleTime: 10 * 1000,
+  });
+}
+
+/**
+ * GET /me/ownership-requests — the signed-in user's claims, newest
+ * first. Powers the home page's "Recent claims" preview and the
+ * /my-claims list. Server scopes results to current_user; nothing to
+ * send.
+ */
+export function useMyOwnershipRequests() {
+  return useQuery<MyOwnershipRequestRead[]>({
+    queryKey: qk.myOwnershipRequests(),
+    queryFn: () =>
+      apiFetch<MyOwnershipRequestRead[]>("/me/ownership-requests"),
+    // Claims don't change on a hot loop — admin staff reviews in the
+    // background. Cache for 30s, refetch on focus so a freshly
+    // approved/rejected claim shows up when the user comes back to
+    // the tab.
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * POST /me/ownership-requests — submit a claim against an existing
+ * place. Server auto-fills contact_name/contact_email from the
+ * signed-in user. Invalidates the my-claims list on success so the
+ * post-submit redirect picks up the new row immediately.
+ */
+export function useCreateMyOwnershipRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MyOwnershipRequestCreate) =>
+      apiFetch<MyOwnershipRequestRead>("/me/ownership-requests", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.myOwnershipRequests() });
     },
   });
 }

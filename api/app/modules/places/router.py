@@ -5,12 +5,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import BadRequestError, NotFoundError
 from app.db.deps import get_db
 from app.core.auth import CurrentUser, require_roles
 from app.modules.users.enums import UserRole
 from app.modules.places.schemas import PlaceCreate, PlaceDetail, PlaceRead, PlaceSearchResult
-from app.modules.places.repo import create_place, get_place, search_nearby
+from app.modules.places.repo import create_place, get_place, search_by_text, search_nearby
 
 router = APIRouter(prefix="/places", tags=["Places"])
 
@@ -83,11 +83,41 @@ def get_place_claims(
 
 @router.get("", response_model=list[PlaceSearchResult])
 def search_places(
-    lat: float = Query(..., ge=-90, le=90),
-    lng: float = Query(..., ge=-180, le=180),
-    radius: int = Query(..., gt=0, le=100_000),  # meters, cap at 100km for sanity
+    q: str | None = Query(default=None, max_length=255),
+    lat: float | None = Query(default=None, ge=-90, le=90),
+    lng: float | None = Query(default=None, ge=-180, le=180),
+    radius: int | None = Query(default=None, gt=0, le=100_000),
     limit: int = Query(50, gt=0, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[PlaceSearchResult]:
-    return search_nearby(db, lat=lat, lng=lng, radius_m=radius, limit=limit, offset=offset)
+    """Browse the public places catalog.
+
+    Two search modes, mutually exclusive — pick one based on what the
+    caller has on hand:
+
+    * **Text** — pass ``q`` (case-insensitive substring on name +
+      address + city). Used by the owner portal's claim flow when the
+      restaurant owner types the name of their place.
+    * **Geo** — pass ``lat`` + ``lng`` + ``radius`` (meters). Used by
+      the consumer site to render "halal places near me".
+
+    If ``q`` is set, geo params are ignored. If neither path is
+    populated, we 400 — there's no meaningful "list everything"
+    response on a public catalog of this size.
+    """
+    has_text = q is not None and q.strip() != ""
+    has_geo = lat is not None and lng is not None and radius is not None
+
+    if has_text:
+        return search_by_text(db, q=q.strip(), limit=limit, offset=offset)
+
+    if has_geo:
+        return search_nearby(
+            db, lat=lat, lng=lng, radius_m=radius, limit=limit, offset=offset
+        )
+
+    raise BadRequestError(
+        "PLACES_SEARCH_PARAMS_REQUIRED",
+        "Provide either 'q' for text search or 'lat'+'lng'+'radius' for geo search.",
+    )

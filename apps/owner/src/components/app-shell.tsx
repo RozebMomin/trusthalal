@@ -25,6 +25,7 @@
  * source of truth is the API's /me endpoint.
  */
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
@@ -99,6 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
  */
 function PortalHeader() {
   const { data: me } = useCurrentUser();
+  const pathname = usePathname() ?? "/";
   const logout = useLogout();
   const router = useRouter();
 
@@ -115,12 +117,33 @@ function PortalHeader() {
   return (
     <header className="border-b bg-card px-4 py-3 md:px-8">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <Link
+          href="/"
+          className="flex items-center gap-3 transition hover:opacity-80"
+        >
           <span className="text-lg font-semibold tracking-tight">
             Trust Halal
           </span>
-          <span className="text-xs text-muted-foreground">Owner portal</span>
-        </div>
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            Owner portal
+          </span>
+        </Link>
+
+        {/* Nav: only render once we know the user is signed in. The
+            shell already gates so we'd never render this header for an
+            anonymous session, but keying off ``me`` keeps the links
+            from flickering during the brief loading state. */}
+        {me && (
+          <nav className="hidden items-center gap-1 md:flex">
+            <NavLink href="/claim" active={pathname.startsWith("/claim")}>
+              Claim a place
+            </NavLink>
+            <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
+              My claims
+            </NavLink>
+          </nav>
+        )}
+
         <div className="flex items-center gap-3">
           {me?.id && (
             <span
@@ -140,7 +163,45 @@ function PortalHeader() {
           </Button>
         </div>
       </div>
+
+      {/* Mobile-only secondary row: nav links wrap below the brand
+          when there's no horizontal room. */}
+      {me && (
+        <nav className="mx-auto mt-2 flex max-w-5xl items-center gap-1 md:hidden">
+          <NavLink href="/claim" active={pathname.startsWith("/claim")}>
+            Claim
+          </NavLink>
+          <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
+            My claims
+          </NavLink>
+        </nav>
+      )}
     </header>
+  );
+}
+
+function NavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={[
+        "rounded-md px-3 py-1.5 text-sm font-medium transition",
+        active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+      ].join(" ")}
+    >
+      {children}
+    </Link>
   );
 }
 

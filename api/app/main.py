@@ -54,11 +54,17 @@ def _cors_origins() -> list[str]:
     origins = list(settings.CORS_ORIGINS)
 
     if settings.ENV == "local":
+        # 3000 = next dev default; 3001 = admin panel; 3002 = owner
+        # portal. Keeping all three so local stack can run any
+        # combination of frontends against the same API without env
+        # tweaks.
         for origin in (
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "http://localhost:3001",
             "http://127.0.0.1:3001",
+            "http://localhost:3002",
+            "http://127.0.0.1:3002",
         ):
             if origin not in origins:
                 origins.append(origin)
