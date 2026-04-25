@@ -3,23 +3,34 @@
 /**
  * Owner portal — claim a place.
  *
- * Three-step flow:
+ * Three-step flow with a Google fallback for places that aren't yet
+ * in the Trust Halal catalog:
  *
  *   1. Search the Trust Halal catalog by name/address. Hit the public
  *      ``GET /places?q=...`` endpoint and render up to 10 results.
  *      Debounced 250ms so typing doesn't hammer the API.
- *   2. The user picks a result. We show a confirmation card with the
- *      place's name + address and a freeform "anything we should
- *      know?" textarea, plus an optional evidence URL. The two free-
- *      form fields concatenate client-side into the single ``message``
- *      column the server records — admin staff sees one block of
- *      structured-ish text in the review queue.
- *   3. Submit → ``POST /me/ownership-requests``. On success we route
- *      to /my-claims with the new row already in cache.
  *
- * Slice 3 will add a "Can't find it? Search Google" expansion below
- * the results list — for now an explanatory note tells the user what
- * to do if their place is missing.
+ *   2. If no Trust Halal match (or always, when the user expands the
+ *      "Search Google" panel), call the server-side proxy at
+ *      ``GET /places/google/autocomplete`` and render Google's
+ *      predictions. Routing through our backend keeps the Maps API
+ *      key off the owner origin entirely.
+ *
+ *   3. The user picks one. We show a confirmation card with the
+ *      place's identifying info and a freeform "anything we should
+ *      know?" textarea, plus an optional evidence URL. The two
+ *      free-form fields concatenate client-side into the single
+ *      ``message`` column the server records — admin staff sees one
+ *      block of structured-ish text in the review queue.
+ *
+ *   4. Submit → ``POST /me/ownership-requests``. Trust Halal places
+ *      ship as ``place_id``; Google predictions ship as
+ *      ``google_place_id`` and the server ingests first then creates
+ *      the claim. Either way the wire shape is the same to the user
+ *      — one click, one round trip from their perspective.
+ *
+ * On success we route to /my-claims with the new row already in
+ * cache.
  */
 
 import Link from "next/link";
@@ -32,17 +43,27 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
+  type GoogleAutocompletePrediction,
   type PlaceSearchResult,
   useCreateMyOwnershipRequest,
+  usePlacesGoogleAutocomplete,
   usePlacesSearch,
 } from "@/lib/api/hooks";
+
+// Discriminated union so both code paths (TH place vs. Google
+// prediction) flow through the same picked-state. ``kind`` lets the
+// submit handler know which identifier to send to the server.
+type PickedPlace =
+  | { kind: "trustHalal"; place: PlaceSearchResult }
+  | { kind: "google"; prediction: GoogleAutocompletePrediction };
 
 export default function ClaimPage() {
   const router = useRouter();
 
   const [query, setQuery] = React.useState("");
   const [debouncedQuery, setDebouncedQuery] = React.useState("");
-  const [picked, setPicked] = React.useState<PlaceSearchResult | null>(null);
+  const [showGoogleFallback, setShowGoogleFallback] = React.useState(false);
+  const [picked, setPicked] = React.useState<PickedPlace | null>(null);
   const [message, setMessage] = React.useState("");
   const [evidenceUrl, setEvidenceUrl] = React.useState("");
   const [submitError, setSubmitError] = React.useState<React.ReactNode | null>(
@@ -57,6 +78,10 @@ export default function ClaimPage() {
   }, [query]);
 
   const search = usePlacesSearch(debouncedQuery, picked === null);
+  const googleAutocomplete = usePlacesGoogleAutocomplete(
+    debouncedQuery,
+    picked === null && showGoogleFallback,
+  );
   const submit = useCreateMyOwnershipRequest();
 
   async function onSubmit(e: React.FormEvent) {
@@ -64,16 +89,21 @@ export default function ClaimPage() {
     if (!picked || submit.isPending) return;
     setSubmitError(null);
 
-    // Compose a single ``message`` payload from the structured fields
-    // we ask the user for. Empty fields are dropped so the recorded
-    // message stays tidy. Server treats this column as freeform text.
     const composed = composeMessage({ note: message, evidenceUrl });
+    const messagePayload = composed.length > 0 ? composed : null;
+
+    // Marshal the picked place into the wire shape the server
+    // expects: place_id for Trust Halal, google_place_id for Google.
+    const payload =
+      picked.kind === "trustHalal"
+        ? { place_id: picked.place.id, message: messagePayload }
+        : {
+            google_place_id: picked.prediction.google_place_id,
+            message: messagePayload,
+          };
 
     try {
-      await submit.mutateAsync({
-        place_id: picked.id,
-        message: composed.length > 0 ? composed : null,
-      });
+      await submit.mutateAsync(payload);
       router.push("/my-claims?submitted=1");
     } catch (err) {
       if (
@@ -120,18 +150,29 @@ export default function ClaimPage() {
         <SearchStep
           query={query}
           onQueryChange={setQuery}
-          isPending={search.isFetching}
+          isSearching={search.isFetching}
           results={search.data ?? []}
           hasSearched={debouncedQuery.trim().length > 0}
-          onPick={setPicked}
+          onPickTrustHalal={(place) =>
+            setPicked({ kind: "trustHalal", place })
+          }
+          showGoogleFallback={showGoogleFallback}
+          onShowGoogleFallback={() => setShowGoogleFallback(true)}
+          googleResults={googleAutocomplete.data ?? []}
+          isGoogleSearching={googleAutocomplete.isFetching}
+          googleError={googleAutocomplete.error}
+          onPickGoogle={(prediction) =>
+            setPicked({ kind: "google", prediction })
+          }
         />
       ) : (
         <form onSubmit={onSubmit} className="space-y-6">
-          <PickedPlaceCard place={picked} onChange={() => setPicked(null)} />
+          <PickedPlaceCard picked={picked} onChange={() => setPicked(null)} />
 
           <div className="space-y-2">
             <Label htmlFor="claim-message">
-              Anything we should know? <span className="text-muted-foreground">(optional)</span>
+              Anything we should know?{" "}
+              <span className="text-muted-foreground">(optional)</span>
             </Label>
             <textarea
               id="claim-message"
@@ -147,7 +188,8 @@ export default function ClaimPage() {
 
           <div className="space-y-2">
             <Label htmlFor="claim-evidence">
-              Evidence link <span className="text-muted-foreground">(optional)</span>
+              Evidence link{" "}
+              <span className="text-muted-foreground">(optional)</span>
             </Label>
             <Input
               id="claim-evidence"
@@ -199,17 +241,29 @@ export default function ClaimPage() {
 function SearchStep({
   query,
   onQueryChange,
-  isPending,
+  isSearching,
   results,
   hasSearched,
-  onPick,
+  onPickTrustHalal,
+  showGoogleFallback,
+  onShowGoogleFallback,
+  googleResults,
+  isGoogleSearching,
+  googleError,
+  onPickGoogle,
 }: {
   query: string;
   onQueryChange: (q: string) => void;
-  isPending: boolean;
+  isSearching: boolean;
   results: PlaceSearchResult[];
   hasSearched: boolean;
-  onPick: (place: PlaceSearchResult) => void;
+  onPickTrustHalal: (place: PlaceSearchResult) => void;
+  showGoogleFallback: boolean;
+  onShowGoogleFallback: () => void;
+  googleResults: GoogleAutocompletePrediction[];
+  isGoogleSearching: boolean;
+  googleError: unknown;
+  onPickGoogle: (prediction: GoogleAutocompletePrediction) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -226,68 +280,195 @@ function SearchStep({
       </div>
 
       {hasSearched && (
-        <div className="rounded-md border bg-card">
-          {isPending ? (
-            <p className="px-4 py-3 text-sm text-muted-foreground">
-              Searching…
-            </p>
-          ) : results.length === 0 ? (
-            <div className="space-y-2 px-4 py-4 text-sm">
-              <p className="font-medium">No matches.</p>
-              <p className="text-muted-foreground">
-                We can&apos;t find that place yet. Trust Halal staff
-                ingests new listings as they&apos;re reviewed —{" "}
-                <a
-                  href="mailto:support@trusthalal.org"
-                  className="underline-offset-4 hover:underline"
-                >
-                  email us
-                </a>{" "}
-                with the restaurant&apos;s name + address and we&apos;ll
-                add it.
+        <>
+          <div className="rounded-md border bg-card">
+            {isSearching ? (
+              <p className="px-4 py-3 text-sm text-muted-foreground">
+                Searching…
               </p>
-            </div>
-          ) : (
-            <ul className="divide-y">
-              {results.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => onPick(p)}
-                    className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-accent"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{p.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {[p.address, p.city, p.region, p.country_code]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    </div>
-                    <span
-                      aria-hidden
-                      className="text-xs text-muted-foreground"
+            ) : results.length === 0 ? (
+              <div className="space-y-2 px-4 py-4 text-sm">
+                <p className="font-medium">
+                  No matches in the Trust Halal catalog.
+                </p>
+                {!showGoogleFallback && (
+                  <p className="text-muted-foreground">
+                    Your restaurant may not be ingested yet —{" "}
+                    <button
+                      type="button"
+                      onClick={onShowGoogleFallback}
+                      className="font-medium text-foreground underline-offset-4 hover:underline"
                     >
-                      Pick →
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                      search Google
+                    </button>{" "}
+                    and we&apos;ll add it for you when you submit the claim.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <ul className="divide-y">
+                {results.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      onClick={() => onPickTrustHalal(p)}
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-accent"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{p.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {[p.address, p.city, p.region, p.country_code]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      </div>
+                      <span
+                        aria-hidden
+                        className="text-xs text-muted-foreground"
+                      >
+                        Pick →
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {showGoogleFallback && (
+            <GoogleResultsSection
+              isSearching={isGoogleSearching}
+              results={googleResults}
+              error={googleError}
+              onPick={onPickGoogle}
+            />
           )}
-        </div>
+
+          {!showGoogleFallback && results.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Don&apos;t see your place?{" "}
+              <button
+                type="button"
+                onClick={onShowGoogleFallback}
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                Search Google instead
+              </button>
+              .
+            </p>
+          )}
+        </>
       )}
     </div>
   );
 }
 
+function GoogleResultsSection({
+  isSearching,
+  results,
+  error,
+  onPick,
+}: {
+  isSearching: boolean;
+  results: GoogleAutocompletePrediction[];
+  error: unknown;
+  onPick: (p: GoogleAutocompletePrediction) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        From Google
+      </p>
+      <div className="rounded-md border bg-card">
+        {isSearching ? (
+          <p className="px-4 py-3 text-sm text-muted-foreground">
+            Searching Google…
+          </p>
+        ) : error ? (
+          <p className="px-4 py-3 text-sm text-destructive">
+            Google search is unavailable right now. Try again in a moment, or{" "}
+            <a
+              href="mailto:support@trusthalal.org"
+              className="underline-offset-4 hover:underline"
+            >
+              email us
+            </a>{" "}
+            with your restaurant&apos;s name + address.
+          </p>
+        ) : results.length === 0 ? (
+          <p className="px-4 py-3 text-sm text-muted-foreground">
+            No Google results for that query yet — try a different
+            spelling or include the city.
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {results.map((p) => (
+              <li key={p.google_place_id}>
+                <button
+                  type="button"
+                  onClick={() => onPick(p)}
+                  className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-accent"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">
+                      {p.primary_text ?? p.description}
+                    </p>
+                    {p.secondary_text && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {p.secondary_text}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    aria-hidden
+                    className="text-xs text-muted-foreground"
+                  >
+                    Pick →
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Picking a Google result will add the restaurant to the Trust
+        Halal catalog when you submit your claim.
+      </p>
+    </div>
+  );
+}
+
 function PickedPlaceCard({
-  place,
+  picked,
   onChange,
 }: {
-  place: PlaceSearchResult;
+  picked: PickedPlace;
   onChange: () => void;
 }) {
+  // Each kind has a slightly different secondary line — TH places
+  // have structured city/region/country, Google predictions have a
+  // "secondary_text" formatted address.
+  const { name, secondary, badge } =
+    picked.kind === "trustHalal"
+      ? {
+          name: picked.place.name,
+          secondary: [
+            picked.place.address,
+            picked.place.city,
+            picked.place.region,
+            picked.place.country_code,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          badge: null,
+        }
+      : {
+          name: picked.prediction.primary_text ?? picked.prediction.description,
+          secondary: picked.prediction.secondary_text ?? picked.prediction.description,
+          badge: "From Google — we'll ingest on submit",
+        };
+
   return (
     <div className="rounded-md border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
@@ -295,12 +476,17 @@ function PickedPlaceCard({
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Claiming
           </p>
-          <p className="mt-1 truncate text-base font-semibold">{place.name}</p>
-          <p className="mt-1 truncate text-sm text-muted-foreground">
-            {[place.address, place.city, place.region, place.country_code]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
+          <p className="mt-1 truncate text-base font-semibold">{name}</p>
+          {secondary && (
+            <p className="mt-1 truncate text-sm text-muted-foreground">
+              {secondary}
+            </p>
+          )}
+          {badge && (
+            <p className="mt-2 inline-flex items-center rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100">
+              {badge}
+            </p>
+          )}
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={onChange}>
           Change

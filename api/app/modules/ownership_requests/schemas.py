@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class OwnershipRequestCreate(BaseModel):
@@ -20,6 +21,11 @@ class MyOwnershipRequestCreate(BaseModel):
     we know?". Phone is optional and lets the user offer a callback
     line if they have one.
 
+    Exactly one of ``place_id`` (an existing Trust Halal place) and
+    ``google_place_id`` (a Google place we'll ingest first) must be
+    provided. Both-or-neither is a 422 — the wire contract is "tell us
+    which place you're claiming, with one and only one identifier."
+
     ``message`` is the catch-all freeform field admin staff sees in the
     review queue. The owner portal UI gives users a friendlier surface
     over this — separate fields for "anything we should know?" and a
@@ -29,9 +35,26 @@ class MyOwnershipRequestCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    place_id: UUID
+    place_id: UUID | None = None
+    google_place_id: str | None = Field(default=None, min_length=1, max_length=512)
     message: str | None = Field(default=None, max_length=2000)
     contact_phone: str | None = Field(default=None, max_length=50)
+
+    @model_validator(mode="after")
+    def _exactly_one_of_place_id_or_google_place_id(self) -> Self:
+        provided = sum(
+            1 for v in (self.place_id, self.google_place_id) if v is not None
+        )
+        if provided == 0:
+            raise ValueError(
+                "Provide either place_id (existing Trust Halal place) or "
+                "google_place_id (a place to ingest from Google)."
+            )
+        if provided > 1:
+            raise ValueError(
+                "Provide exactly one of place_id or google_place_id, not both."
+            )
+        return self
 
 
 class MyOwnershipRequestPlaceSummary(BaseModel):

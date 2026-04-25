@@ -87,6 +87,12 @@ class Settings(BaseSettings):
     GOOGLE_PLACES_DETAILS_URL: str = (
         "https://maps.googleapis.com/maps/api/place/details/json"
     )
+    # Autocomplete endpoint for the owner-portal claim flow's "search
+    # Google" fallback. Hit server-side via a thin proxy so the browser
+    # key never needs to be exposed on the owner origin.
+    GOOGLE_PLACES_AUTOCOMPLETE_URL: str = (
+        "https://maps.googleapis.com/maps/api/place/autocomplete/json"
+    )
 
     # ------------------------------------------------------------------
     # Pydantic settings config

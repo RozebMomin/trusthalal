@@ -19,6 +19,7 @@ from app.modules.ownership_requests.schemas import (
     OwnershipRequestRead,
     OwnershipRequestStatusRead,
 )
+from app.modules.places.ingest import ingest_google_place
 from app.modules.places.repo import get_place
 from app.modules.users.enums import UserRole
 
@@ -135,14 +136,40 @@ def submit_my_ownership_request(
     same email + still-active status) prevents an owner from
     re-submitting while their first attempt is in flight.
 
+    Two ways to identify the place being claimed (the schema enforces
+    exactly-one-of):
+
+      * ``place_id`` — a Place already in the Trust Halal catalog.
+        Path the owner takes when text-search returns a match.
+      * ``google_place_id`` — a place that's only on Google so far.
+        We ingest it server-side first (idempotent on the Google ID),
+        then create the claim against the resulting Place. The claim
+        and ingest don't share a transaction by design — if the claim
+        fails, we still keep the ingested Place since admin staff (or
+        the same owner on a retry) can use it.
+
     Contact name + email are pulled from the user's profile rather
     than the request body. ``display_name`` is non-null on signup, but
     we fall back to the email's local-part if it's somehow blank — we
     never want admin staff to see a literally empty contact_name.
     """
-    place = get_place(db, payload.place_id)
-    if not place:
-        raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
+    if payload.google_place_id is not None:
+        # Ingest first so we have a place_id to attach the claim to.
+        # The ingest is its own transaction (commits internally), so
+        # if the subsequent claim creation fails we still keep the
+        # newly-ingested place — admin staff or the owner on a retry
+        # can still use it. Idempotent on the Google ID, so retries
+        # don't dupe.
+        ingest_result = ingest_google_place(
+            db,
+            google_place_id=payload.google_place_id,
+            actor_user_id=user.id,
+        )
+        place = ingest_result.place
+    else:
+        place = get_place(db, payload.place_id)
+        if not place:
+            raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
 
     contact_name = (user.display_name or "").strip()
     if not contact_name:
@@ -155,7 +182,7 @@ def submit_my_ownership_request(
 
     req = create_ownership_request(
         db,
-        place_id=payload.place_id,
+        place_id=place.id,
         requester_user_id=user.id,
         contact_name=contact_name,
         contact_email=user.email,

@@ -41,6 +41,14 @@ export type PlaceSearchResult = {
   country_code: string | null;
 };
 
+/** Slim shape returned by GET /places/google/autocomplete. */
+export type GoogleAutocompletePrediction = {
+  google_place_id: string;
+  description: string;
+  primary_text: string | null;
+  secondary_text: string | null;
+};
+
 /** Place sub-shape embedded in MyOwnershipRequestRead. */
 export type MyOwnershipRequestPlaceSummary = {
   id: string;
@@ -61,9 +69,18 @@ export type MyOwnershipRequestRead = {
   updated_at: string;
 };
 
-/** POST /me/ownership-requests body. */
+/**
+ * POST /me/ownership-requests body.
+ *
+ * Exactly one of ``place_id`` (an existing Trust Halal place) and
+ * ``google_place_id`` (a Google place we'll ingest first) must be
+ * provided. The server validates this with a model-level check; the
+ * TypeScript type is permissive at the leaf level so the UI's
+ * picked-place union can write either field directly.
+ */
 export type MyOwnershipRequestCreate = {
-  place_id: string;
+  place_id?: string;
+  google_place_id?: string;
   message?: string | null;
   contact_phone?: string | null;
 };
@@ -104,6 +121,8 @@ const qk = {
   me: () => ["me"] as const,
   myOwnershipRequests: () => ["me", "ownership-requests"] as const,
   placesSearch: (q: string) => ["places", "search", q] as const,
+  placesGoogleAutocomplete: (q: string) =>
+    ["places", "google", "autocomplete", q] as const,
 } as const;
 
 /**
@@ -242,6 +261,32 @@ export function useMyOwnershipRequests() {
     // approved/rejected claim shows up when the user comes back to
     // the tab.
     staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * GET /places/google/autocomplete — server-side proxy to Google
+ * Places Autocomplete. Powers the "Can't find your restaurant?
+ * Search Google" fallback in the claim flow when no Trust Halal
+ * match exists for the typed query.
+ *
+ * Disabled while empty so the proxy isn't called on a no-op input
+ * (which would also 422 server-side from the min_length=1 guard).
+ */
+export function usePlacesGoogleAutocomplete(q: string, enabled = true) {
+  const trimmed = q.trim();
+  return useQuery<GoogleAutocompletePrediction[]>({
+    queryKey: qk.placesGoogleAutocomplete(trimmed),
+    queryFn: () =>
+      apiFetch<GoogleAutocompletePrediction[]>("/places/google/autocomplete", {
+        searchParams: { q: trimmed },
+      }),
+    enabled: enabled && trimmed.length > 0,
+    // Google predictions for the same query are stable for a few
+    // minutes; cache long enough to absorb a back-button rerender
+    // but short enough that a fresh search after editing the input
+    // shows current results.
+    staleTime: 60 * 1000,
   });
 }
 

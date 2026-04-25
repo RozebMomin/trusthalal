@@ -9,7 +9,17 @@ from app.core.exceptions import BadRequestError, NotFoundError
 from app.db.deps import get_db
 from app.core.auth import CurrentUser, require_roles
 from app.modules.users.enums import UserRole
-from app.modules.places.schemas import PlaceCreate, PlaceDetail, PlaceRead, PlaceSearchResult
+from app.modules.places.integrations.google_client import (
+    GoogleAPIError,
+    fetch_place_autocomplete_google,
+)
+from app.modules.places.schemas import (
+    GoogleAutocompletePrediction,
+    PlaceCreate,
+    PlaceDetail,
+    PlaceRead,
+    PlaceSearchResult,
+)
 from app.modules.places.repo import create_place, get_place, search_by_text, search_nearby
 
 router = APIRouter(prefix="/places", tags=["Places"])
@@ -29,6 +39,70 @@ def post_place(
         lng=payload.lng,
     )
     return place
+
+
+@router.get(
+    "/google/autocomplete",
+    response_model=list[GoogleAutocompletePrediction],
+)
+def google_autocomplete(
+    q: str = Query(..., min_length=1, max_length=255),
+    db: Session = Depends(get_db),
+) -> list[GoogleAutocompletePrediction]:
+    """Server-side proxy to Google Places Autocomplete.
+
+    Powers the owner portal's "Can't find your restaurant? Search
+    Google" fallback in the claim flow. Routing the call through our
+    backend keeps the Google API key off the owner origin (the existing
+    browser key is restricted to the admin domain, by design) — the
+    server uses ``GOOGLE_MAPS_API_KEY`` server-side and only ships
+    predictions back.
+
+    Public on purpose: anyone considering signing up + claiming should
+    be able to type their restaurant's name and see whether Google
+    knows it. We rely on the downstream claim creation step (which
+    requires auth) for the access gate.
+
+    Empty query is handled at the validator layer (min_length=1) so we
+    never burn a billed Google call on a no-op input.
+
+    Errors translate to a stable code so the client can render
+    "Search unavailable, try again" without parsing Google's status
+    strings.
+    """
+    # ``db`` is unused by the proxy itself, but kept in the signature
+    # to match the rest of the router and to allow future caching of
+    # popular queries to a `place_search_cache` table without a
+    # signature change.
+    del db
+
+    try:
+        raw_predictions = fetch_place_autocomplete_google(q)
+    except GoogleAPIError as exc:
+        # Surface a clean code; admins can investigate via logs.
+        # Detail is hidden from the client to avoid leaking quota /
+        # config info, but we keep the message on the exception side
+        # so it lands in the request log.
+        raise BadRequestError(
+            "GOOGLE_AUTOCOMPLETE_UNAVAILABLE",
+            f"Google Places Autocomplete is currently unavailable: {exc}",
+        )
+
+    return [
+        GoogleAutocompletePrediction(
+            google_place_id=p.get("place_id", ""),
+            description=p.get("description", ""),
+            primary_text=(p.get("structured_formatting") or {}).get("main_text"),
+            secondary_text=(p.get("structured_formatting") or {}).get(
+                "secondary_text"
+            ),
+        )
+        for p in raw_predictions
+        # Defensive: predictions without a place_id can't be acted on
+        # (the claim endpoint needs one to ingest), so drop them
+        # rather than rendering a row that 404s on submit.
+        if p.get("place_id")
+    ]
 
 
 @router.get("/{place_id}", response_model=PlaceDetail)

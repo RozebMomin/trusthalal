@@ -1,19 +1,35 @@
 """Integration tests for the owner-portal claim flow.
 
-Two surfaces under test:
+Three surfaces under test:
 
 1. ``GET /places`` extended to support text search via ``q`` (in
    addition to its existing geo-search via lat/lng/radius).
 2. ``POST /me/ownership-requests`` and ``GET /me/ownership-requests`` —
    the owner-portal-facing variants of the public claim endpoint that
    auto-fill contact info from the signed-in user.
+3. The Google fallback path: ``GET /places/google/autocomplete`` (a
+   server-side proxy that keeps the Maps API key off the owner
+   origin) and the ``google_place_id`` shortcut on POST that ingests
+   first and then creates the claim atomically from the user's
+   perspective.
 """
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 from sqlalchemy import select
 
 from app.modules.ownership_requests.enums import OwnershipRequestStatus
 from app.modules.ownership_requests.models import PlaceOwnershipRequest
+
+
+_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "google_places"
+
+
+def _google_fixture(name: str) -> dict:
+    """Load a captured Google Place Details payload for ingest tests."""
+    return json.loads((_FIXTURE_DIR / name).read_text())
 
 
 # ---------------------------------------------------------------------------
@@ -285,3 +301,199 @@ def test_my_ownership_requests_list_requires_authentication(api):
     """Unauthenticated → 401. Mirrors the POST guard."""
     resp = api.get("/me/ownership-requests")
     assert resp.status_code == 401, resp.text
+
+
+# ---------------------------------------------------------------------------
+# GET /places/google/autocomplete — server-side proxy
+# ---------------------------------------------------------------------------
+_FAKE_GOOGLE_PREDICTIONS = [
+    {
+        "place_id": "ChIJSeed_AutocompleteOne",
+        "description": "Khan Halal Grill, Atlantic Ave, Brooklyn, NY, USA",
+        "structured_formatting": {
+            "main_text": "Khan Halal Grill",
+            "secondary_text": "Atlantic Ave, Brooklyn, NY, USA",
+        },
+    },
+    {
+        "place_id": "ChIJSeed_AutocompleteTwo",
+        "description": "Khan Halal Cafe, Manhattan, NY, USA",
+        "structured_formatting": {
+            "main_text": "Khan Halal Cafe",
+            "secondary_text": "Manhattan, NY, USA",
+        },
+    },
+    # Defensive: a prediction without a place_id should be filtered
+    # out by the proxy so the client never tries to claim it.
+    {
+        "place_id": "",
+        "description": "should be filtered",
+    },
+]
+
+
+def test_google_autocomplete_returns_predictions(api, monkeypatch):
+    """The proxy maps Google's verbose response down to a stable wire
+    shape — google_place_id + description + primary/secondary text.
+    Predictions without a place_id are dropped (they can't be acted on
+    by the downstream claim endpoint)."""
+    from app.modules.places import router as places_router
+
+    monkeypatch.setattr(
+        places_router,
+        "fetch_place_autocomplete_google",
+        lambda _q: _FAKE_GOOGLE_PREDICTIONS,
+    )
+
+    resp = api.get("/places/google/autocomplete?q=khan%20halal")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body) == 2  # the empty-place_id row was filtered out
+    assert body[0]["google_place_id"] == "ChIJSeed_AutocompleteOne"
+    assert body[0]["primary_text"] == "Khan Halal Grill"
+    assert body[0]["secondary_text"] == "Atlantic Ave, Brooklyn, NY, USA"
+
+
+def test_google_autocomplete_requires_q(api):
+    """No ``q`` → 422 from the Pydantic min_length=1 guard. Saves a
+    billed Google call for a no-op input."""
+    resp = api.get("/places/google/autocomplete")
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_google_autocomplete_surfaces_clean_error_on_google_failure(
+    api, monkeypatch
+):
+    """Underlying Google failure → 400 GOOGLE_AUTOCOMPLETE_UNAVAILABLE
+    rather than leaking the raw provider error. The client can branch
+    on the code to render a generic 'try again' message."""
+    from app.modules.places import router as places_router
+    from app.modules.places.integrations.google_client import GoogleAPIError
+
+    def boom(_q):
+        raise GoogleAPIError("simulated provider outage")
+
+    monkeypatch.setattr(places_router, "fetch_place_autocomplete_google", boom)
+
+    resp = api.get("/places/google/autocomplete?q=anything")
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"]["code"] == "GOOGLE_AUTOCOMPLETE_UNAVAILABLE"
+
+
+# ---------------------------------------------------------------------------
+# POST /me/ownership-requests — google_place_id ingest path
+# ---------------------------------------------------------------------------
+def test_my_ownership_request_ingests_google_then_creates_claim(
+    api, factories, db_session, monkeypatch
+):
+    """When the body carries ``google_place_id``, the endpoint ingests
+    the Google place server-side first (creating a real Place row)
+    and then creates the claim against the resulting place_id. The
+    owner sees a single round trip — admin sees a fresh place + an
+    attached claim."""
+    from app.modules.places import ingest as ingest_mod
+
+    monkeypatch.setattr(
+        ingest_mod,
+        "fetch_place_details_google",
+        lambda _pid: _google_fixture("us_brooklyn.json"),
+    )
+
+    owner = factories.user(
+        role="OWNER",
+        email="ingestclaim@example.com",
+        display_name="Indra Ingest",
+    )
+    db_session.commit()
+
+    resp = api.as_user(owner).post(
+        "/me/ownership-requests",
+        json={"google_place_id": "ChIJSeed_OwnerClaim"},
+    )
+    assert resp.status_code == 201, resp.text
+
+    body = resp.json()
+    assert body["status"] == OwnershipRequestStatus.SUBMITTED
+    # The ingested place came from the Brooklyn fixture, so canonical
+    # fields land on the embedded place summary.
+    assert body["place"]["country_code"] == "US"
+    assert body["place"]["city"] == "Brooklyn"
+
+    # DB state: the claim is linked to this owner and to the
+    # newly-ingested place.
+    row = db_session.execute(
+        select(PlaceOwnershipRequest).where(
+            PlaceOwnershipRequest.requester_user_id == owner.id
+        )
+    ).scalar_one()
+    assert str(row.place_id) == body["place"]["id"]
+
+
+def test_my_ownership_request_rejects_both_place_id_and_google_place_id(
+    api, factories
+):
+    """Schema validator: exactly-one-of. Both → 422 so an attacker
+    can't try to ingest a Google place and then attach the claim to
+    a different existing place_id in one shot."""
+    owner = factories.user(role="OWNER")
+    place = factories.place(name="Existing")
+
+    resp = api.as_user(owner).post(
+        "/me/ownership-requests",
+        json={
+            "place_id": str(place.id),
+            "google_place_id": "ChIJSeed_BothAtOnce",
+        },
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_my_ownership_request_rejects_neither_place_id_nor_google_place_id(
+    api, factories
+):
+    """Schema validator: at least one identifier required. Empty body
+    → 422."""
+    owner = factories.user(role="OWNER")
+
+    resp = api.as_user(owner).post(
+        "/me/ownership-requests",
+        json={"message": "I'd like to claim something but didn't say what."},
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_my_ownership_request_google_ingest_is_idempotent(
+    api, factories, db_session, monkeypatch
+):
+    """Two owners claiming the same Google place: the first call
+    ingests, the second hits the existed-already branch in
+    ``ingest_google_place``. We get one Place, two distinct claims."""
+    from app.modules.places import ingest as ingest_mod
+
+    monkeypatch.setattr(
+        ingest_mod,
+        "fetch_place_details_google",
+        lambda _pid: _google_fixture("us_brooklyn.json"),
+    )
+
+    first_owner = factories.user(role="OWNER", email="first@example.com")
+    second_owner = factories.user(role="OWNER", email="second@example.com")
+    db_session.commit()
+
+    first = api.as_user(first_owner).post(
+        "/me/ownership-requests",
+        json={"google_place_id": "ChIJSeed_Idempotent"},
+    )
+    assert first.status_code == 201, first.text
+
+    second = api.as_user(second_owner).post(
+        "/me/ownership-requests",
+        json={"google_place_id": "ChIJSeed_Idempotent"},
+    )
+    assert second.status_code == 201, second.text
+
+    # Both claims point at the same place row.
+    assert first.json()["place"]["id"] == second.json()["place"]["id"]
