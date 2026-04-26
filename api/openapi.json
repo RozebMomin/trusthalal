@@ -496,6 +496,47 @@
         "title": "ExternalIdProvider",
         "type": "string"
       },
+      "GoogleAutocompletePrediction": {
+        "description": "Slim shape returned by the owner-portal Google Autocomplete proxy.\n\nWe deliberately collapse Google's verbose response (which includes\nstructured_formatting, types, terms, matched_substrings, etc.) into\njust what the claim flow needs: an opaque place_id to send back on\nsubmit, plus a single human-readable description to render in the\nlist. Anything else can come from the Place Details ingest later\nwhen the owner actually picks one and submits.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "google_place_id": {
+            "title": "Google Place Id",
+            "type": "string"
+          },
+          "primary_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Text"
+          },
+          "secondary_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary Text"
+          }
+        },
+        "required": [
+          "google_place_id",
+          "description"
+        ],
+        "title": "GoogleAutocompletePrediction",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -615,6 +656,175 @@
           "user_id"
         ],
         "title": "MemberAdminCreate",
+        "type": "object"
+      },
+      "MyOwnershipRequestCreate": {
+        "additionalProperties": false,
+        "description": "POST /me/ownership-requests body.\n\nThe owner-portal-facing variant of OwnershipRequestCreate. Contact\nname + email are pulled from the authenticated user server-side, so\nthe wire shape collapses to \"what are you claiming, and what should\nwe know?\". Phone is optional and lets the user offer a callback\nline if they have one.\n\nExactly one of ``place_id`` (an existing Trust Halal place) and\n``google_place_id`` (a Google place we'll ingest first) must be\nprovided. Both-or-neither is a 422 \u2014 the wire contract is \"tell us\nwhich place you're claiming, with one and only one identifier.\"\n\n``message`` is the catch-all freeform field admin staff sees in the\nreview queue. The owner portal UI gives users a friendlier surface\nover this \u2014 separate fields for \"anything we should know?\" and a\nURL for evidence \u2014 and concatenates them client-side. Server is\nintentionally agnostic.",
+        "properties": {
+          "contact_phone": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Phone"
+          },
+          "google_place_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Google Place Id"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "place_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Id"
+          }
+        },
+        "title": "MyOwnershipRequestCreate",
+        "type": "object"
+      },
+      "MyOwnershipRequestPlaceSummary": {
+        "description": "Lean place fields embedded in MyOwnershipRequestRead.\n\nJust enough for the /my-claims list to render \"Khan Halal \u2014 123\nMain St, Brooklyn\" without a second roundtrip per row. We avoid\nPlaceDetail because it fans out to claims + ingest fields the\nowner doesn't need at this level.",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MyOwnershipRequestPlaceSummary",
+        "type": "object"
+      },
+      "MyOwnershipRequestRead": {
+        "description": "GET /me/ownership-requests row + POST /me/ownership-requests\nresponse shape.\n\nSame status semantics as OwnershipRequestRead but with the place\nnested so the portal can render the row without a second fetch.\nContact fields aren't included \u2014 the owner already knows their\nown contact info; surfacing them here is just clutter.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "place": {
+            "$ref": "#/components/schemas/MyOwnershipRequestPlaceSummary"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "place",
+          "status",
+          "message",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "MyOwnershipRequestRead",
         "type": "object"
       },
       "OrganizationAdminCreate": {
@@ -2409,6 +2619,77 @@
         "title": "SetPasswordResponse",
         "type": "object"
       },
+      "SignupRequest": {
+        "additionalProperties": false,
+        "description": "POST /auth/signup body.\n\nRestaurant owners create their own account here \u2014 Trust Halal staff\nno longer mints OWNER invites by hand. The trust gate is the\nhuman-reviewed ownership claim later in the flow, not the signup\nitself.\n\n``display_name`` is required (unlike on the User model) so admin\nstaff reviewing claims see a human-readable name, not just an email.\nLength matches the column (120 chars).\n\n``password`` minimum mirrors the invite ``SetPasswordRequest`` \u2014\n8 chars, no max-complexity rules. zxcvbn-style scoring can layer on\nlater if abuse warrants it.",
+        "properties": {
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "display_name"
+        ],
+        "title": "SignupRequest",
+        "type": "object"
+      },
+      "SignupResponse": {
+        "description": "POST /auth/signup response.\n\nSame shape as LoginResponse \u2014 signup auto-logs the user in via the\nsession cookie, so clients treat the two endpoints identically: read\n/me, route to ``redirect_path``.",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "redirect_path": {
+            "title": "Redirect Path",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "role",
+          "redirect_path"
+        ],
+        "title": "SignupResponse",
+        "type": "object"
+      },
       "UserAdminCreate": {
         "properties": {
           "display_name": {
@@ -2823,6 +3104,7 @@
     },
     "/admin/claims": {
       "get": {
+        "description": "List claims for the admin/verifier queue.\n\nBoth ADMIN and VERIFIER can read this. The write paths below\n(verify/reject/expire) stay ADMIN-only \u2014 verifiers moderate via\nthe public ``POST /claims/{id}/verify`` route, which has its own\nrole-gated logic. Loosening the read lets the admin panel's\n/claims page work for verifiers without building a second queue\nsurface.",
         "operationId": "list_claims_admin_admin_claims_get",
         "parameters": [
           {
@@ -2911,7 +3193,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -2949,6 +3231,7 @@
     },
     "/admin/claims/{claim_id}/events": {
       "get": {
+        "description": "Event history for a claim.\n\nSame role posture as the list endpoint: ADMIN and VERIFIER can\nread the audit trail (verifiers need it to understand the\ncontext when deciding how to moderate). Events carry\n``actor_email`` / ``actor_display_name`` which is internal-staff\ninfo \u2014 safe to expose to verifiers, who are themselves staff.",
         "operationId": "list_claim_events_admin_admin_claims__claim_id__events_get",
         "parameters": [
           {
@@ -3013,7 +3296,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3092,7 +3375,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3177,7 +3460,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3262,7 +3545,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3377,7 +3660,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3444,7 +3727,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3529,7 +3812,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3603,7 +3886,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3688,7 +3971,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3783,7 +4066,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3859,7 +4142,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -3968,7 +4251,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4036,7 +4319,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4121,7 +4404,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4206,7 +4489,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4291,7 +4574,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4464,7 +4747,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4534,7 +4817,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4624,7 +4907,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4774,7 +5057,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4893,7 +5176,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -4966,7 +5249,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -5051,7 +5334,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -5154,7 +5437,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -5234,7 +5517,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -5357,7 +5640,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -5451,7 +5734,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -5573,7 +5856,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -5711,7 +5994,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -5837,7 +6120,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -5959,7 +6242,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -6081,7 +6364,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -6264,7 +6547,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -6332,7 +6615,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -6417,7 +6700,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -6490,7 +6773,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -6576,7 +6859,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -6715,7 +6998,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -6782,6 +7065,48 @@
         ]
       }
     },
+    "/auth/signup": {
+      "post": {
+        "description": "Self-service signup for restaurant owners.\n\nTrust Halal staff don't mint OWNER accounts by hand \u2014 owners create\ntheir own login and then submit ownership claims, which staff\nreview. The trust gate is the human-reviewed claim downstream, not\nthe signup itself, so this endpoint is intentionally light:\n\n  * No email verification (deliberate; revisit if abuse warrants it).\n  * Role is hard-coded to OWNER. Promotion to ADMIN/VERIFIER stays\n    an admin-only operation via the user CRUD endpoints.\n  * Email is normalized (trim + lower) before the uniqueness check\n    and persisted in the original casing \u2014 same posture as login,\n    which compares case-insensitively.\n\nOn collision we surface ``EMAIL_TAKEN`` rather than a generic 4xx\nso the client can show a useful \"this email is already registered,\nsign in instead?\" message. That's a small enumeration tradeoff \u2014\nan attacker can probe email addresses \u2014 but the mitigation cost\n(forcing a verify-by-email flow) outweighs the marginal disclosure\nhere. Login itself remains a black box.",
+        "operationId": "signup_auth_signup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Signup",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/claims": {
       "post": {
         "operationId": "post_claim_claims_post",
@@ -6815,7 +7140,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -6943,7 +7268,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -7028,7 +7353,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -7113,7 +7438,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -7198,7 +7523,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -7279,7 +7604,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -7306,6 +7631,173 @@
         "summary": "Get Me",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/me/ownership-requests": {
+      "get": {
+        "description": "List the signed-in user's claims, newest first.\n\nThe owner portal's home page calls this to render \"Recent claims\"\nand the /my-claims page to render the full list. Page size caps\nat 200 \u2014 the catalog of claims per individual owner is realistic-\nally tiny, but the bound is cheap insurance against runaway\nqueries from a copy-paste of the admin pagination shape.",
+        "operationId": "list_my_ownership_requests_me_ownership_requests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MyOwnershipRequestRead"
+                  },
+                  "title": "Response List My Ownership Requests Me Ownership Requests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List My Ownership Requests",
+        "tags": [
+          "ownership-requests"
+        ]
+      },
+      "post": {
+        "description": "Create an ownership claim on behalf of the signed-in user.\n\nSame downstream effect as the public path: the row goes into\n``place_ownership_requests`` with status SUBMITTED, the requester\nis linked back to the user, admin staff sees it in the review\nqueue. The duplicate-active-claim guard in the repo (same place +\nsame email + still-active status) prevents an owner from\nre-submitting while their first attempt is in flight.\n\nTwo ways to identify the place being claimed (the schema enforces\nexactly-one-of):\n\n  * ``place_id`` \u2014 a Place already in the Trust Halal catalog.\n    Path the owner takes when text-search returns a match.\n  * ``google_place_id`` \u2014 a place that's only on Google so far.\n    We ingest it server-side first (idempotent on the Google ID),\n    then create the claim against the resulting Place. The claim\n    and ingest don't share a transaction by design \u2014 if the claim\n    fails, we still keep the ingested Place since admin staff (or\n    the same owner on a retry) can use it.\n\nContact name + email are pulled from the user's profile rather\nthan the request body. ``display_name`` is non-null on signup, but\nwe fall back to the email's local-part if it's somehow blank \u2014 we\nnever want admin staff to see a literally empty contact_name.",
+        "operationId": "submit_my_ownership_request_me_ownership_requests_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MyOwnershipRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyOwnershipRequestRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit My Ownership Request",
+        "tags": [
+          "ownership-requests"
         ]
       }
     },
@@ -7395,7 +7887,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -7429,39 +7921,78 @@
     },
     "/places": {
       "get": {
+        "description": "Browse the public places catalog.\n\nTwo search modes, mutually exclusive \u2014 pick one based on what the\ncaller has on hand:\n\n* **Text** \u2014 pass ``q`` (case-insensitive substring on name +\n  address + city). Used by the owner portal's claim flow when the\n  restaurant owner types the name of their place.\n* **Geo** \u2014 pass ``lat`` + ``lng`` + ``radius`` (meters). Used by\n  the consumer site to render \"halal places near me\".\n\nIf ``q`` is set, geo params are ignored. If neither path is\npopulated, we 400 \u2014 there's no meaningful \"list everything\"\nresponse on a public catalog of this size.",
         "operationId": "search_places_places_get",
         "parameters": [
           {
             "in": "query",
-            "name": "lat",
-            "required": true,
+            "name": "q",
+            "required": false,
             "schema": {
-              "maximum": 90,
-              "minimum": -90,
-              "title": "Lat",
-              "type": "number"
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lat"
             }
           },
           {
             "in": "query",
             "name": "lng",
-            "required": true,
+            "required": false,
             "schema": {
-              "maximum": 180,
-              "minimum": -180,
-              "title": "Lng",
-              "type": "number"
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lng"
             }
           },
           {
             "in": "query",
             "name": "radius",
-            "required": true,
+            "required": false,
             "schema": {
-              "exclusiveMinimum": 0,
-              "maximum": 100000,
-              "title": "Radius",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 100000,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Radius"
             }
           },
           {
@@ -7551,7 +8082,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
@@ -7588,6 +8119,55 @@
           }
         },
         "summary": "Post Place",
+        "tags": [
+          "Places"
+        ]
+      }
+    },
+    "/places/google/autocomplete": {
+      "get": {
+        "description": "Server-side proxy to Google Places Autocomplete.\n\nPowers the owner portal's \"Can't find your restaurant? Search\nGoogle\" fallback in the claim flow. Routing the call through our\nbackend keeps the Google API key off the owner origin (the existing\nbrowser key is restricted to the admin domain, by design) \u2014 the\nserver uses ``GOOGLE_MAPS_API_KEY`` server-side and only ships\npredictions back.\n\nPublic on purpose: anyone considering signing up + claiming should\nbe able to type their restaurant's name and see whether Google\nknows it. We rely on the downstream claim creation step (which\nrequires auth) for the access gate.\n\nEmpty query is handled at the validator layer (min_length=1) so we\nnever burn a billed Google call on a no-op input.\n\nErrors translate to a stable code so the client can render\n\"Search unavailable, try again\" without parsing Google's status\nstrings.",
+        "operationId": "google_autocomplete_places_google_autocomplete_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GoogleAutocompletePrediction"
+                  },
+                  "title": "Response Google Autocomplete Places Google Autocomplete Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Autocomplete",
         "tags": [
           "Places"
         ]
@@ -7727,7 +8307,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Hht Session"
+              "title": "Tht Session"
             }
           }
         ],
