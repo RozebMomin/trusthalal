@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, get_current_user, get_current_user_optional
-from app.core.exceptions import ForbiddenError, NotFoundError
+from app.core.exceptions import ForbiddenError, NotFoundError, UnauthorizedError
 from app.db.deps import get_db
 from app.modules.ownership_requests.repo import (
     create_ownership_request,
@@ -22,6 +22,7 @@ from app.modules.ownership_requests.schemas import (
 from app.modules.places.ingest import ingest_google_place
 from app.modules.places.repo import get_place
 from app.modules.users.enums import UserRole
+from app.modules.users.models import User
 
 router = APIRouter(tags=["ownership-requests"])
 
@@ -152,7 +153,22 @@ def submit_my_ownership_request(
     than the request body. ``display_name`` is non-null on signup, but
     we fall back to the email's local-part if it's somehow blank — we
     never want admin staff to see a literally empty contact_name.
+
+    The auth context (``CurrentUser``) is intentionally slim — id +
+    role only — so we look up the full User row here for the
+    display_name + email fields. Cheap (single PK lookup) and keeps
+    the auth context cache-friendly.
     """
+    user_row = db.get(User, user.id)
+    if user_row is None:
+        # The session resolved to a user_id that no longer exists —
+        # rare but possible (admin hard-deleted the row mid-session).
+        # Treat as unauthenticated rather than 500ing.
+        raise UnauthorizedError(
+            "INVALID_CREDENTIALS",
+            "Your session is no longer valid. Please sign in again.",
+        )
+
     if payload.google_place_id is not None:
         # Ingest first so we have a place_id to attach the claim to.
         # The ingest is its own transaction (commits internally), so
@@ -171,21 +187,21 @@ def submit_my_ownership_request(
         if not place:
             raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
 
-    contact_name = (user.display_name or "").strip()
+    contact_name = (user_row.display_name or "").strip()
     if not contact_name:
         # Belt-and-suspenders: signup enforces a non-empty display_name,
         # but legacy rows pre-dating that rule may exist (admin-invited
         # users who never set one). The local-part of the email is a
         # reasonable fallback — admin can always check the email
         # column for the canonical identity.
-        contact_name = user.email.split("@", 1)[0] or user.email
+        contact_name = user_row.email.split("@", 1)[0] or user_row.email
 
     req = create_ownership_request(
         db,
         place_id=place.id,
         requester_user_id=user.id,
         contact_name=contact_name,
-        contact_email=user.email,
+        contact_email=user_row.email,
         contact_phone=payload.contact_phone,
         message=payload.message,
     )
