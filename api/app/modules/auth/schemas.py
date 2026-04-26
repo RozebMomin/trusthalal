@@ -7,6 +7,24 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.modules.users.enums import UserRole
 
 
+class MeResponse(BaseModel):
+    """GET /me response.
+
+    Adds ``display_name`` + ``email`` on top of the bare id+role pair
+    so clients can render "Signed in as <name>" without a second
+    roundtrip. ``display_name`` is nullable — legacy admin-invited
+    users may have NULL there. ``email`` is required for any active
+    user, but typed Optional for symmetry with the User model column.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    role: UserRole
+    display_name: str | None = None
+    email: EmailStr | None = None
+
+
 class LoginRequest(BaseModel):
     """POST /auth/login body."""
 

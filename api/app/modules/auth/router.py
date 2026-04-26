@@ -23,6 +23,7 @@ from app.modules.auth.schemas import (
     InviteInfoResponse,
     LoginRequest,
     LoginResponse,
+    MeResponse,
     SetPasswordRequest,
     SetPasswordResponse,
     SignupRequest,
@@ -102,12 +103,38 @@ def _clear_session_cookie(response: Response) -> None:
 me_router = APIRouter(prefix="/me", tags=["auth"])
 
 
-@me_router.get("")
-def get_me(user: CurrentUser = Depends(get_current_user)):
-    return {
-        "id": user.id,
-        "role": user.role,
-    }
+@me_router.get("", response_model=MeResponse)
+def get_me(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MeResponse:
+    """Who the cookie says you are.
+
+    Returns id + role + display_name + email so frontends can render
+    "Signed in as <name>" without a second roundtrip. We pull
+    display_name + email from the User row rather than caching them
+    on ``CurrentUser`` — keeps the auth context dataclass slim and
+    means a profile rename takes effect on the next /me call instead
+    of after a re-login.
+
+    The session→user resolution already happened in
+    ``get_current_user``; if the row is gone by the time we look it
+    up here (rare, but possible if admin hard-deleted between
+    middleware and handler), surface a 401 so the client clears the
+    cookie and redirects to /login rather than seeing a 500.
+    """
+    user_row = db.get(User, user.id)
+    if user_row is None:
+        raise UnauthorizedError(
+            "INVALID_CREDENTIALS",
+            "Your session is no longer valid. Please sign in again.",
+        )
+    return MeResponse(
+        id=user_row.id,
+        role=UserRole(user_row.role),
+        display_name=user_row.display_name,
+        email=user_row.email,
+    )
 
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])

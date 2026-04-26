@@ -31,28 +31,32 @@ export default function HomePage() {
   const recent = (claims ?? []).slice(0, 3);
   const hasMore = (claims ?? []).length > recent.length;
 
-  // Display name pulled via /me would be nicer, but the lean MeRead
-  // shape only carries id + role. For now we degrade gracefully —
-  // generic copy that still feels personal enough.
-  const greeting = "Welcome";
+  // First name only for the greeting — feels less formal than the
+  // full display_name. Falls back to "there" if a legacy admin-
+  // invited account has a NULL display_name; the user ID strip below
+  // still gives support staff a way to look them up.
+  const firstName = (me?.display_name ?? "").trim().split(/\s+/)[0];
+  const greeting = firstName ? `Welcome, ${firstName}` : "Welcome";
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">{greeting}</h1>
         <p className="mt-2 text-muted-foreground">
-          You&apos;re signed in to the Trust Halal owner portal
-          {me?.id && (
-            <>
-              {" "}
-              as{" "}
-              <span className="font-mono text-foreground">
-                {me.id.slice(0, 8)}…
-              </span>
-            </>
-          )}
-          .
+          You&apos;re signed in to the Trust Halal owner portal.
         </p>
+        {me?.id && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Account ID:{" "}
+            <span
+              className="font-mono text-foreground/80"
+              title={me.id}
+            >
+              {me.id.slice(0, 8)}
+            </span>{" "}
+            (share with support if needed)
+          </p>
+        )}
       </header>
 
       <section className="rounded-md border bg-card p-6">

@@ -145,13 +145,25 @@ function PortalHeader() {
         )}
 
         <div className="flex items-center gap-3">
-          {me?.id && (
-            <span
-              className="hidden font-mono text-[11px] text-muted-foreground md:inline"
-              title={me.id}
-            >
-              {me.id.slice(0, 8)}…
-            </span>
+          {me && (
+            <div className="hidden flex-col items-end leading-tight md:flex">
+              {me.display_name && (
+                <span
+                  className="text-sm font-medium text-foreground"
+                  title={me.email ?? undefined}
+                >
+                  {me.display_name}
+                </span>
+              )}
+              {me.id && (
+                <span
+                  className="font-mono text-[10px] text-muted-foreground"
+                  title={me.id}
+                >
+                  {me.id.slice(0, 8)}
+                </span>
+              )}
+            </div>
           )}
           <Button
             size="sm"

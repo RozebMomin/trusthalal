@@ -86,12 +86,17 @@ export type MyOwnershipRequestCreate = {
 };
 
 /**
- * Return shape of GET /me. Same as the admin panel's MeRead — kept
- * tight on purpose so the cookie roundtrip is cheap.
+ * Return shape of GET /me. Includes display_name + email so the
+ * portal can render "Signed in as <name>" without a second roundtrip.
+ * display_name is nullable: legacy admin-invited users may have NULL
+ * there. email is typed as nullable for symmetry with the column,
+ * but is non-null in practice for any active user.
  */
 export type MeRead = {
   id: string;
   role: UserRole;
+  display_name: string | null;
+  email: string | null;
 };
 
 export type LoginRequest = {
