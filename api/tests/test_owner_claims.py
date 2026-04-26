@@ -16,9 +16,10 @@ Three surfaces under test:
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.modules.ownership_requests.enums import OwnershipRequestStatus
 from app.modules.ownership_requests.models import PlaceOwnershipRequest
@@ -151,8 +152,13 @@ def test_my_ownership_request_falls_back_to_email_local_part_when_no_display_nam
     owner = factories.user(
         role="OWNER",
         email="solo@example.com",
-        display_name=None,
     )
+    # The factory always sets a non-null display_name (its own
+    # 'Test User <suffix>' default kicks in if you pass None). Clear
+    # it explicitly to simulate the legacy-row case this test cares
+    # about.
+    owner.display_name = None
+    db_session.add(owner)
     place = factories.place(name="Lone Diner")
     db_session.commit()
 
@@ -276,7 +282,15 @@ def test_my_ownership_requests_list_sorted_newest_first(
     api, factories, db_session
 ):
     """Two claims by the same owner: most-recent submission wins the
-    top slot. Matters for the home page's 'Recent claims' preview."""
+    top slot. Matters for the home page's 'Recent claims' preview.
+
+    Postgres ``now()`` returns the transaction-start timestamp, and
+    the test harness wraps each test in a single outer transaction
+    (with savepoint commits inside) — so two consecutive INSERTs both
+    pick up identical ``created_at`` values, making natural sort
+    order undefined. We force a 1-second gap on the second claim
+    explicitly to make the assertion deterministic.
+    """
     owner = factories.user(role="OWNER")
     place_a = factories.place(name="Place A")
     place_b = factories.place(name="Place B")
@@ -290,6 +304,14 @@ def test_my_ownership_requests_list_sorted_newest_first(
         "/me/ownership-requests",
         json={"place_id": str(place_b.id)},
     )
+
+    # Bump Place B's claim to be the newer of the two.
+    db_session.execute(
+        update(PlaceOwnershipRequest)
+        .where(PlaceOwnershipRequest.place_id == place_b.id)
+        .values(created_at=datetime.now(timezone.utc) + timedelta(seconds=1))
+    )
+    db_session.commit()
 
     resp = api.as_user(owner).get("/me/ownership-requests")
     assert resp.status_code == 200, resp.text
@@ -415,10 +437,14 @@ def test_my_ownership_request_ingests_google_then_creates_claim(
 
     body = resp.json()
     assert body["status"] == OwnershipRequestStatus.SUBMITTED
-    # The ingested place came from the Brooklyn fixture, so canonical
-    # fields land on the embedded place summary.
+    # The us_brooklyn.json fixture's address is actually a Woodside
+    # location (its sublocality_level_1 is "Queens" — there's no
+    # explicit `locality` component). The extractor uses sublocality
+    # as the city fallback, so the ingested row's city is "Queens".
+    # Pinned here so a future fixture rename doesn't silently shift
+    # what we're asserting.
     assert body["place"]["country_code"] == "US"
-    assert body["place"]["city"] == "Brooklyn"
+    assert body["place"]["city"] == "Queens"
 
     # DB state: the claim is linked to this owner and to the
     # newly-ingested place.
