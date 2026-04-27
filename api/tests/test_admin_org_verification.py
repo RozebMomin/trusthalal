@@ -7,6 +7,7 @@ fixture pattern used in the claim-attachment tests.
 """
 from __future__ import annotations
 
+import uuid
 from io import BytesIO
 
 import pytest
@@ -51,23 +52,53 @@ def fake_storage():
         fastapi_app.dependency_overrides.pop(get_storage_client, None)
 
 
-def _under_review_org(api, factories, db_session, *, name="Under Review Co"):
+def _under_review_org(
+    api, factories, db_session, *, name="Under Review Co"
+):
     """Materialize an UNDER_REVIEW org owned by a freshly-created
-    OWNER user. Returns (owner, org_id)."""
-    owner = factories.user(role="OWNER", display_name="Olivia Owner")
-    org = factories.org_for_user(
-        user=owner, name=name, status=OrganizationStatus.DRAFT
+    OWNER user. Returns (owner, org_id).
+
+    Goes through the public API for org creation + upload + submit
+    rather than mixing factory-inserted rows with API writes. The
+    test harness shares one SQLAlchemy session between the test
+    body and every HTTP handler, so a factory-inserted Organization
+    ends up in the identity map with empty .attachments; subsequent
+    HTTP-driven inserts don't refresh that cached collection, and
+    the submit handler's ``if not org.attachments`` then trips the
+    EVIDENCE_REQUIRED guard. Going through the API end-to-end keeps
+    the org out of the test's identity map entirely.
+    """
+    # Unique email per call so the same helper can run twice in
+    # the same test (e.g. test_admin_signed_url_404_on_mismatched_org_id).
+    owner = factories.user(
+        role="OWNER",
+        email=f"reviewer-{uuid.uuid4().hex[:8]}@example.com",
+        display_name="Olivia Owner",
     )
     db_session.commit()
 
-    api.as_user(owner).post(
-        f"/me/organizations/{org.id}/attachments",
+    create = api.as_user(owner).post(
+        "/me/organizations", json={"name": name}
+    )
+    assert create.status_code == 201, create.text
+    org_id = create.json()["id"]
+
+    upload = api.as_user(owner).post(
+        f"/me/organizations/{org_id}/attachments",
         files={
-            "file": ("filing.pdf", BytesIO(b"%PDF-1.4 articles"), "application/pdf"),
+            "file": (
+                "filing.pdf",
+                BytesIO(b"%PDF-1.4 articles"),
+                "application/pdf",
+            ),
         },
     )
-    api.as_user(owner).post(f"/me/organizations/{org.id}/submit")
-    return owner, str(org.id)
+    assert upload.status_code == 201, upload.text
+
+    submit = api.as_user(owner).post(f"/me/organizations/{org_id}/submit")
+    assert submit.status_code == 200, submit.text
+
+    return owner, org_id
 
 
 # ---------------------------------------------------------------------------
