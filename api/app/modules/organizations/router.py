@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, get_current_user
@@ -29,6 +29,7 @@ from app.core.exceptions import (
     BadRequestError,
     ConflictError,
 )
+from app.core.rate_limit import limiter, user_or_ip_key
 from app.core.storage import StorageClient, StorageError, get_storage_client
 from app.db.deps import get_db
 from app.modules.organizations.models import OrganizationAttachment
@@ -87,7 +88,9 @@ def list_my_organizations(
     response_model=MyOrganizationRead,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/hour", key_func=user_or_ip_key)
 def create_my_organization(
+    request: Request,
     payload: MyOrganizationCreate,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -136,7 +139,9 @@ def patch_my_organization(
     "/{organization_id}/submit",
     response_model=MyOrganizationRead,
 )
+@limiter.limit("10/hour", key_func=user_or_ip_key)
 def submit_my_organization(
+    request: Request,
     organization_id: UUID,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -158,7 +163,9 @@ def submit_my_organization(
     response_model=OrganizationAttachmentRead,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("60/hour", key_func=user_or_ip_key)
 def upload_organization_attachment(
+    request: Request,
     organization_id: UUID,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),

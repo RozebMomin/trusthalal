@@ -9,6 +9,7 @@ from app.core.auth import CurrentUser, get_current_user
 from app.core.config import settings
 from app.core.exceptions import BadRequestError, ConflictError, UnauthorizedError
 from app.core.password_hashing import hash_password, verify_password
+from app.core.rate_limit import ip_key, limiter
 from app.db.deps import get_db
 from app.modules.auth.invite_repo import (
     consume_invite,
@@ -141,7 +142,10 @@ auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @auth_router.post("/login", response_model=LoginResponse)
+@limiter.limit("10/minute", key_func=ip_key)
+@limiter.limit("100/hour", key_func=ip_key)
 def login(
+    request: Request,
     payload: LoginRequest,
     response: Response,
     db: Session = Depends(get_db),
@@ -199,7 +203,10 @@ def login(
 
 
 @auth_router.post("/signup", response_model=SignupResponse)
+@limiter.limit("5/minute", key_func=ip_key)
+@limiter.limit("20/hour", key_func=ip_key)
 def signup(
+    request: Request,
     payload: SignupRequest,
     response: Response,
     db: Session = Depends(get_db),
@@ -265,7 +272,9 @@ def signup(
 
 
 @auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("30/minute", key_func=ip_key)
 def logout(
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
     session_cookie: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
@@ -293,7 +302,9 @@ def logout(
     "/invite/{token}",
     response_model=InviteInfoResponse,
 )
+@limiter.limit("30/minute", key_func=ip_key)
 def get_invite_info(
+    request: Request,
     token: str,
     db: Session = Depends(get_db),
 ) -> InviteInfoResponse:
@@ -341,7 +352,10 @@ def get_invite_info(
     "/set-password",
     response_model=SetPasswordResponse,
 )
+@limiter.limit("10/minute", key_func=ip_key)
+@limiter.limit("50/hour", key_func=ip_key)
 def set_password_with_invite(
+    request: Request,
     payload: SetPasswordRequest,
     response: Response,
     db: Session = Depends(get_db),

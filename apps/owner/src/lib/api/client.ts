@@ -18,7 +18,37 @@
  * type the same way it does in the admin app.
  */
 
+import * as Sentry from "@sentry/nextjs";
+
 import { config } from "@/lib/config";
+
+/**
+ * Pluck ``X-Request-ID`` off every API response and tag any Sentry
+ * events that follow. This is what makes a single request show up
+ * under the same correlation key on the browser AND server sides
+ * of an issue. Frontend tags ``last_request_id`` on the scope; the
+ * FastAPI middleware tags ``request_id`` on its scope. Same value,
+ * just different tag names per side.
+ */
+function captureRequestId(res: Response): void {
+  const requestId = res.headers.get("X-Request-ID");
+  if (!requestId) return;
+  try {
+    Sentry.addBreadcrumb({
+      category: "http.request_id",
+      level: "info",
+      message: requestId,
+      data: {
+        url: new URL(res.url).pathname,
+        status: res.status,
+      },
+    });
+    Sentry.setTag("last_request_id", requestId);
+  } catch {
+    // Sentry not initialized (no DSN) — addBreadcrumb is normally a
+    // no-op, but URL parsing can throw on edge cases. Swallow.
+  }
+}
 
 /**
  * Wire shape of every 4xx / 5xx body the API emits. Hand-mirrored
@@ -108,6 +138,8 @@ export async function apiFetch<T = unknown>(
     // app/main.py and CORS_ORIGINS env var.
     credentials: "include",
   });
+
+  captureRequestId(res);
 
   if (res.status === 204) return undefined as T;
 
