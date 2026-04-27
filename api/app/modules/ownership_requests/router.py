@@ -1,6 +1,6 @@
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, get_current_user, get_current_user_optional
@@ -11,6 +11,7 @@ from app.core.exceptions import (
     NotFoundError,
     UnauthorizedError,
 )
+from app.core.rate_limit import limiter, user_or_ip_key
 from app.core.storage import StorageClient, StorageError, get_storage_client
 from app.db.deps import get_db
 from app.modules.ownership_requests.models import OwnershipRequestAttachment
@@ -134,7 +135,9 @@ def get_ownership_request_detail(
     response_model=MyOwnershipRequestRead,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("20/hour", key_func=user_or_ip_key)
 def submit_my_ownership_request(
+    request: Request,
     payload: MyOwnershipRequestCreate,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -340,7 +343,9 @@ def _load_owned_request(
     response_model=OwnershipRequestAttachmentRead,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("60/hour", key_func=user_or_ip_key)
 def upload_my_ownership_request_attachment(
+    request: Request,
     request_id: UUID,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),

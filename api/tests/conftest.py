@@ -55,6 +55,13 @@ os.environ.setdefault("ENV", "local")
 # same 401 as any other unauthenticated request.
 os.environ.setdefault("DEV_HEADER_AUTH_ENABLED", "true")
 
+# Rate limits are decorated on real endpoints (auth/signup, /me/...,
+# Google autocomplete proxy). Tests that hammer those would trip the
+# per-minute caps and become flaky. Flip the limiter to pass-through
+# mode here — a dedicated test in test_rate_limit.py re-enables it
+# locally to pin the 429 envelope contract.
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+
 import pytest
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig

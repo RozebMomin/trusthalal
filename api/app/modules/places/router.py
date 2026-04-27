@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BadRequestError, NotFoundError
+from app.core.rate_limit import ip_key, limiter
 from app.db.deps import get_db
 from app.core.auth import CurrentUser, require_roles
 from app.modules.users.enums import UserRole
@@ -45,7 +46,10 @@ def post_place(
     "/google/autocomplete",
     response_model=list[GoogleAutocompletePrediction],
 )
+@limiter.limit("30/minute", key_func=ip_key)
+@limiter.limit("300/hour", key_func=ip_key)
 def google_autocomplete(
+    request: Request,
     q: str = Query(..., min_length=1, max_length=255),
     db: Session = Depends(get_db),
 ) -> list[GoogleAutocompletePrediction]:

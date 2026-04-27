@@ -14,9 +14,38 @@
  * DEV_HEADER_AUTH_ENABLED is explicitly flipped on (test harness only).
  */
 
+import * as Sentry from "@sentry/nextjs";
+
 import { config } from "@/lib/config";
 
 import type { components } from "./schema";
+
+/**
+ * The server stamps every response with ``X-Request-ID``. We pluck it
+ * off the response and tag any Sentry events that follow with the same
+ * value, so a single request stays correlated across browser + server
+ * in the issues UI. Set as a tag (per-issue) AND as a breadcrumb (for
+ * the trail of preceding requests on the same page).
+ */
+function captureRequestId(res: Response): void {
+  const requestId = res.headers.get("X-Request-ID");
+  if (!requestId) return;
+  try {
+    Sentry.addBreadcrumb({
+      category: "http.request_id",
+      level: "info",
+      message: requestId,
+      data: {
+        url: new URL(res.url).pathname,
+        status: res.status,
+      },
+    });
+    Sentry.setTag("last_request_id", requestId);
+  } catch {
+    // Sentry not initialized (no DSN) — addBreadcrumb is normally a
+    // no-op, but the URL-parse can throw on edge cases. Swallow.
+  }
+}
 
 /**
  * Wire shape of every 4xx / 5xx body this API emits. Pulled from the
@@ -80,6 +109,8 @@ export async function apiFetch<T = unknown>(
     // are enabled. Both are configured in app/main.py.
     credentials: "include",
   });
+
+  captureRequestId(res);
 
   if (res.status === 204) return undefined as T;
 
