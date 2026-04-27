@@ -203,7 +203,9 @@ export default function SignupPage() {
               aria-invalid={passwordMismatch}
             />
             {passwordMismatch && (
-              <p className="text-xs text-destructive">Passwords don't match.</p>
+              <p className="text-xs text-destructive">
+                Passwords don&apos;t match.
+              </p>
             )}
           </div>
 
