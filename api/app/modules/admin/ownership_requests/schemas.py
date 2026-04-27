@@ -68,12 +68,21 @@ class OwnershipRequestAdminCreate(BaseModel):
 class OwnershipRequestApprove(BaseModel):
     """Approve an ownership request.
 
-    Provide either an existing `organization_id` OR `new_organization_name`
-    (to create a new org on the fly). Exactly one is required.
+    Slice 5d removed the create-org-on-approval path. The sponsoring
+    organization is now read off the claim row itself
+    (set at submission time via the owner-portal flow). Admin
+    staff verifies the org separately at /admin/organizations
+    before approving the claim — this endpoint refuses unless the
+    claim's organization is VERIFIED.
+
+    ``organization_id`` remains in the body purely as a fallback for
+    legacy claims submitted via the public anonymous endpoint
+    (POST /places/{id}/ownership-requests), which doesn't capture
+    an org. For owner-portal-filed claims the field is ignored —
+    the claim already says which org owns it.
     """
 
     organization_id: UUID | None = None
-    new_organization_name: str | None = Field(default=None, max_length=255)
 
     # Role assigned to the requester inside the organization
     member_role: str = Field(default="OWNER_ADMIN", max_length=50)

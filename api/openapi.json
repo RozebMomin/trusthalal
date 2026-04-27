@@ -30,6 +30,20 @@
         "title": "Body_upload_my_ownership_request_attachment_me_ownership_requests__request_id__attachments_post",
         "type": "object"
       },
+      "Body_upload_organization_attachment_me_organizations__organization_id__attachments_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_organization_attachment_me_organizations__organization_id__attachments_post",
+        "type": "object"
+      },
       "ClaimAdminRead": {
         "description": "Row shape for the /admin/claims queue.\n\nMirrors ClaimDetailRead minus the nested evidence/events lists.\nevidence_count is a denormalized counter so the queue table can\nsurface \"already has proof attached\" without N+1-ing /claims/{id}.",
         "properties": {
@@ -740,9 +754,140 @@
         "title": "MemberAdminCreate",
         "type": "object"
       },
+      "MyOrganizationCreate": {
+        "additionalProperties": false,
+        "description": "POST /me/organizations body.\n\nSolo operators are welcome \u2014 the bar is \"you exist as some kind\nof business entity,\" not \"you have an LLC.\" Owner can create with\njust a name and add documentation later.",
+        "properties": {
+          "contact_email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "MyOrganizationCreate",
+        "type": "object"
+      },
+      "MyOrganizationPatch": {
+        "additionalProperties": false,
+        "description": "PATCH /me/organizations/{id} body.\n\nOnly allowed while the org is DRAFT or UNDER_REVIEW \u2014 once an\nadmin reviewer has signed off (VERIFIED) or rejected, the row\nbecomes audit-immutable. Owners who need to change a verified\norg's details contact admin support; future work could add an\nexplicit \"amend\" workflow.\n\nOmitted fields are left alone. ``contact_email: null`` clears\nthe column; absent leaves it as-is.",
+        "properties": {
+          "contact_email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "MyOrganizationPatch",
+        "type": "object"
+      },
+      "MyOrganizationRead": {
+        "description": "GET /me/organizations row + most owner-facing org responses.\n\nIncludes attachments[] inline so the org detail page doesn't need\na per-row fetch. status reflects the verification state; the\n/claim flow gates on this when picking a requesting org.",
+        "properties": {
+          "attachments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OrganizationAttachmentRead"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatus"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "contact_email",
+          "status",
+          "submitted_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "MyOrganizationRead",
+        "type": "object"
+      },
       "MyOwnershipRequestCreate": {
         "additionalProperties": false,
-        "description": "POST /me/ownership-requests body.\n\nThe owner-portal-facing variant of OwnershipRequestCreate. Contact\nname + email are pulled from the authenticated user server-side, so\nthe wire shape collapses to \"what are you claiming, and what should\nwe know?\". Phone is optional and lets the user offer a callback\nline if they have one.\n\nExactly one of ``place_id`` (an existing Trust Halal place) and\n``google_place_id`` (a Google place we'll ingest first) must be\nprovided. Both-or-neither is a 422 \u2014 the wire contract is \"tell us\nwhich place you're claiming, with one and only one identifier.\"\n\n``message`` is the catch-all freeform field admin staff sees in the\nreview queue. The owner portal UI gives users a friendlier surface\nover this \u2014 separate fields for \"anything we should know?\" and a\nURL for evidence \u2014 and concatenates them client-side. Server is\nintentionally agnostic.",
+        "description": "POST /me/ownership-requests body.\n\nThe owner-portal-facing variant of OwnershipRequestCreate. Contact\nname + email are pulled from the authenticated user server-side, so\nthe wire shape collapses to \"which org is claiming what, and what\nshould we know?\". Phone is optional.\n\nExactly one of ``place_id`` (an existing Trust Halal place) and\n``google_place_id`` (a Google place we'll ingest first) must be\nprovided.\n\n``organization_id`` is required: every claim is filed by an\nOrganization, not by a bare individual. The server validates the\norg belongs to the caller and is at least UNDER_REVIEW (DRAFT\norgs can't sponsor claims \u2014 the owner needs to commit to having\nsubmitted org evidence first).\n\n``message`` is the catch-all freeform field admin staff sees in the\nreview queue. The owner portal UI gives users a friendlier surface\nover this \u2014 separate fields for \"anything we should know?\" and a\nURL for evidence \u2014 and concatenates them client-side. Server is\nintentionally agnostic.",
         "properties": {
           "contact_phone": {
             "anyOf": [
@@ -781,6 +926,11 @@
             ],
             "title": "Message"
           },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
           "place_id": {
             "anyOf": [
               {
@@ -794,7 +944,35 @@
             "title": "Place Id"
           }
         },
+        "required": [
+          "organization_id"
+        ],
         "title": "MyOwnershipRequestCreate",
+        "type": "object"
+      },
+      "MyOwnershipRequestOrgSummary": {
+        "description": "Lean org fields embedded in MyOwnershipRequestRead.\n\nSame role the place summary plays: enough to render \"Khan Halal\nLLC \u2014 UNDER_REVIEW\" inline on a claim row without a second\nfetch. Status is exposed so the /my-claims list can badge claims\nwhose sponsoring org is still pending verification.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "title": "MyOwnershipRequestOrgSummary",
         "type": "object"
       },
       "MyOwnershipRequestPlaceSummary": {
@@ -862,7 +1040,7 @@
         "type": "object"
       },
       "MyOwnershipRequestRead": {
-        "description": "GET /me/ownership-requests row + POST /me/ownership-requests\nresponse shape.\n\nSame status semantics as OwnershipRequestRead but with the place\nnested so the portal can render the row without a second fetch.\nContact fields aren't included \u2014 the owner already knows their\nown contact info; surfacing them here is just clutter.\n\n``attachments`` is included so the /my-claims page can render\n'utility-bill.pdf \u00b7 sos-filing.pdf' beneath each row without a\nper-row roundtrip. Empty list when nothing was uploaded.",
+        "description": "GET /me/ownership-requests row + POST /me/ownership-requests\nresponse shape.\n\nSame status semantics as OwnershipRequestRead but with the place\n+ sponsoring org nested so the portal can render the row without\nextra fetches. Contact fields aren't included \u2014 the owner already\nknows their own contact info; surfacing them here is just clutter.\n\n``attachments`` is included so the /my-claims page can render\n'utility-bill.pdf \u00b7 sos-filing.pdf' beneath each row without a\nper-row roundtrip. Empty list when nothing was uploaded.\n\n``organization`` is nullable for legacy rows (claims submitted\nbefore slice 5b lacked the FK). New owner-portal claims always\npopulate it.",
         "properties": {
           "attachments": {
             "default": [],
@@ -892,6 +1070,16 @@
               }
             ],
             "title": "Message"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MyOwnershipRequestOrgSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "place": {
             "$ref": "#/components/schemas/MyOwnershipRequestPlaceSummary"
@@ -979,6 +1167,14 @@
       },
       "OrganizationAdminRead": {
         "properties": {
+          "attachments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OrganizationAttachmentRead"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
           "contact_email": {
             "anyOf": [
               {
@@ -995,6 +1191,53 @@
             "title": "Created At",
             "type": "string"
           },
+          "created_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By User Id"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By User Id"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -1003,6 +1246,21 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatus"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
           },
           "updated_at": {
             "format": "date-time",
@@ -1014,14 +1272,65 @@
           "id",
           "name",
           "contact_email",
+          "status",
           "created_at",
           "updated_at"
         ],
         "title": "OrganizationAdminRead",
         "type": "object"
       },
+      "OrganizationAttachmentRead": {
+        "description": "Wire shape for an org's uploaded supporting document.",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "uploaded_at": {
+            "format": "date-time",
+            "title": "Uploaded At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "original_filename",
+          "content_type",
+          "size_bytes",
+          "uploaded_at"
+        ],
+        "title": "OrganizationAttachmentRead",
+        "type": "object"
+      },
       "OrganizationDetailRead": {
         "properties": {
+          "attachments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OrganizationAttachmentRead"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
           "contact_email": {
             "anyOf": [
               {
@@ -1037,6 +1346,53 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "created_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By User Id"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By User Id"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
           },
           "id": {
             "format": "uuid",
@@ -1054,6 +1410,21 @@
             "title": "Name",
             "type": "string"
           },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatus"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -1064,6 +1435,7 @@
           "id",
           "name",
           "contact_email",
+          "status",
           "created_at",
           "updated_at"
         ],
@@ -1211,6 +1583,33 @@
         "title": "OrganizationPlaceSummary",
         "type": "object"
       },
+      "OrganizationRejectAdmin": {
+        "additionalProperties": false,
+        "description": "POST /admin/organizations/{id}/reject body.\n\n``reason`` is required so the audit trail explains why the\norg didn't pass. Surfaced to the owner in their org detail\npage (slice 5b's UI shows decision_note when status is\nREJECTED).",
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "OrganizationRejectAdmin",
+        "type": "object"
+      },
+      "OrganizationStatus": {
+        "enum": [
+          "DRAFT",
+          "UNDER_REVIEW",
+          "VERIFIED",
+          "REJECTED"
+        ],
+        "title": "OrganizationStatus",
+        "type": "string"
+      },
       "OrganizationSummaryAdmin": {
         "description": "Compact org view nested inside a place-owner row.\n\nCarries just enough for the admin place-detail page to identify\nand contact the owning org without a second fetch. ``member_count``\nis the number of rows in ``organization_members`` with\n``status='ACTIVE'`` \u2014 a signal of whether anyone can actually\nrespond if the admin reaches out.",
         "properties": {
@@ -1245,6 +1644,26 @@
           "name"
         ],
         "title": "OrganizationSummaryAdmin",
+        "type": "object"
+      },
+      "OrganizationVerifyAdmin": {
+        "additionalProperties": false,
+        "description": "POST /admin/organizations/{id}/verify body.\n\n``note`` is optional \u2014 admins can record a brief context if\nthey want (\"verified via SOS lookup\") but mostly the act of\nverifying is enough.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "OrganizationVerifyAdmin",
         "type": "object"
       },
       "OwnershipRequestAdminCreate": {
@@ -1364,6 +1783,28 @@
             ],
             "title": "Message"
           },
+          "organization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MyOwnershipRequestOrgSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
           "place_id": {
             "format": "uuid",
             "title": "Place Id",
@@ -1395,6 +1836,7 @@
           "id",
           "place_id",
           "requester_user_id",
+          "organization_id",
           "contact_name",
           "contact_email",
           "contact_phone",
@@ -3166,6 +3608,35 @@
         "title": "_AdminAttachmentSignedUrl",
         "type": "object"
       },
+      "app__modules__admin__organizations__router___AdminAttachmentSignedUrl": {
+        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expires_in_seconds",
+          "original_filename",
+          "content_type"
+        ],
+        "title": "_AdminAttachmentSignedUrl",
+        "type": "object"
+      },
       "app__modules__claims__schemas__ClaimEventRead": {
         "properties": {
           "actor_user_id": {
@@ -3732,6 +4203,7 @@
     },
     "/admin/organizations": {
       "get": {
+        "description": "List orgs, optionally narrowed by status.\n\nPass ``?status=UNDER_REVIEW`` to get the verification queue;\nomit the param for the full catalog. Newest-first either way.",
         "operationId": "list_orgs_admin_admin_organizations_get",
         "parameters": [
           {
@@ -3749,6 +4221,22 @@
                 }
               ],
               "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OrganizationStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
             }
           },
           {
@@ -4071,6 +4559,172 @@
         ]
       }
     },
+    "/admin/organizations/{org_id}/attachments": {
+      "get": {
+        "description": "List supporting documents on an org. Same metadata shape the\nowner sees, scoped to admin role.",
+        "operationId": "list_org_attachments_admin_admin_organizations__org_id__attachments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationAttachmentRead"
+                  },
+                  "title": "Response List Org Attachments Admin Admin Organizations  Org Id  Attachments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Org Attachments Admin",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/organizations/{org_id}/attachments/{attachment_id}/url": {
+      "get": {
+        "description": "Mint a short-lived signed URL for an org attachment.\n\nMirrors the claim-attachment variant: 60s default TTL, asserts\nthe attachment belongs to the requested org so a guessed UUID\ncan't surface files from an unrelated org.",
+        "operationId": "signed_url_for_org_attachment_admin_admin_organizations__org_id__attachments__attachment_id__url_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__modules__admin__organizations__router___AdminAttachmentSignedUrl"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Signed Url For Org Attachment Admin",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/organizations/{org_id}/members": {
       "post": {
         "operationId": "add_member_admin_admin_organizations__org_id__members_post",
@@ -4316,6 +4970,178 @@
           }
         },
         "summary": "List Org Places Admin",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/organizations/{org_id}/reject": {
+      "post": {
+        "description": "Move an UNDER_REVIEW org \u2192 REJECTED with a required reason.\n\nThe reason is surfaced to the owner on their org detail page so\nthey understand why verification didn't pass. REJECTED orgs are\nread-only artifacts; the owner creates a new org if they want\nto try again.",
+        "operationId": "reject_org_admin_admin_organizations__org_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRejectAdmin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationAdminRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Org Admin",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/organizations/{org_id}/verify": {
+      "post": {
+        "description": "Move an UNDER_REVIEW org \u2192 VERIFIED.\n\nRecords the deciding admin + timestamp + optional note inline\non the org row. Once verified, the org is eligible to sponsor\nnew claims and admin claim approvals can proceed (slice 5d\nwill gate approval on this status).",
+        "operationId": "verify_org_admin_admin_organizations__org_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationVerifyAdmin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationAdminRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Org Admin",
         "tags": [
           "admin"
         ]
@@ -7943,6 +8769,550 @@
         "summary": "Get Me",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/me/organizations": {
+      "get": {
+        "description": "List every org the signed-in user is an active member of.",
+        "operationId": "list_my_organizations_me_organizations_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MyOrganizationRead"
+                  },
+                  "title": "Response List My Organizations Me Organizations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List My Organizations",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "post": {
+        "description": "Create a new DRAFT organization. The caller is auto-joined as\nOWNER_ADMIN. Status is DRAFT; submit for review separately once\nthe user has uploaded supporting documents.",
+        "operationId": "create_my_organization_me_organizations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MyOrganizationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyOrganizationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create My Organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/me/organizations/{organization_id}": {
+      "get": {
+        "description": "Detail view, including attachments. 404/403 per the lookup\nhelper's split.",
+        "operationId": "get_my_organization_me_organizations__organization_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyOrganizationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get My Organization",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "patch": {
+        "description": "Edit name / contact email. Allowed only while DRAFT or\nUNDER_REVIEW. NO_FIELDS surfaces when nothing meaningfully\nchanged; clients can no-op silently or surface a friendly toast.",
+        "operationId": "patch_my_organization_me_organizations__organization_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MyOrganizationPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyOrganizationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch My Organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/me/organizations/{organization_id}/attachments": {
+      "get": {
+        "description": "List the attachments on one of your organizations.",
+        "operationId": "list_organization_attachments_me_organizations__organization_id__attachments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationAttachmentRead"
+                  },
+                  "title": "Response List Organization Attachments Me Organizations  Organization Id  Attachments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Organization Attachments",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "post": {
+        "description": "Upload a supporting document for an org under review.\n\nSame validation grid as the claim-attachment endpoint:\n  * Caller must be an active member of the org.\n  * Per-org count cap (10).\n  * Per-file size cap (10 MB).\n  * MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF).\n\nFile goes to ``organizations/<organization_id>/<uuid>.<ext>`` in\nthe configured Supabase bucket. Storage failure rolls back\ncleanly: the metadata row only writes after the upload succeeds.\n\nEditing is only allowed while DRAFT or UNDER_REVIEW; once admin\nhas signed off the org becomes audit-immutable and additional\nuploads reject. Verified orgs that genuinely need new docs go\nthrough admin support today.",
+        "operationId": "upload_organization_attachment_me_organizations__organization_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_organization_attachment_me_organizations__organization_id__attachments_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationAttachmentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Organization Attachment",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/me/organizations/{organization_id}/submit": {
+      "post": {
+        "description": "Move DRAFT \u2192 UNDER_REVIEW. Idempotent if already\nUNDER_REVIEW. Requires at least one uploaded attachment so admin\nstaff has something to verify against.",
+        "operationId": "submit_my_organization_me_organizations__organization_id__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyOrganizationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit My Organization",
+        "tags": [
+          "organizations"
         ]
       }
     },

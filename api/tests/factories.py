@@ -246,15 +246,20 @@ class Factories:
         *,
         place: Place,
         requester: User | None = None,
+        organization: Organization | None = None,
         contact_name: str = "Jane Doe",
         contact_email: str | None = None,
         contact_phone: str | None = "+1-555-0100",
         message: str | None = "I own this restaurant",
         status: OwnershipRequestStatus = OwnershipRequestStatus.SUBMITTED,
     ) -> PlaceOwnershipRequest:
+        # ``organization`` is the slice-5b coupling: claims now carry
+        # organization_id at submission time. Tests that exercise the
+        # legacy (anonymous public submission) path leave it None.
         r = PlaceOwnershipRequest(
             place_id=place.id,
             requester_user_id=(requester.id if requester else None),
+            organization_id=(organization.id if organization else None),
             contact_name=contact_name,
             contact_email=contact_email or f"req-{_short()}@example.com",
             contact_phone=contact_phone,

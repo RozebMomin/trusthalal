@@ -124,24 +124,27 @@ def test_duplicate_active_request_for_same_place_and_email_conflicts(
 def test_admin_approve_with_existing_org_promotes_requester_and_wires_owner(
     api, factories, db_session
 ):
-    """Approving with an existing organization_id must:
+    """Approving a claim filed under a VERIFIED org (the slice-5b
+    canonical path) must:
       1. Flip request status to APPROVED.
       2. Create/activate a PlaceOwner row linking the org to the place.
       3. Create an OrganizationMember for the requester (ACTIVE).
       4. Promote requester role from CONSUMER to OWNER.
       5. Log an OWNERSHIP_GRANTED PlaceEvent.
-    All in one atomic transaction.
+    All in one atomic transaction. Body's organization_id is ignored
+    (the claim already says which org sponsors it).
     """
     admin = factories.admin()
     consumer = factories.consumer()  # will become the requester
     place = factories.place()
-    org = factories.organization(name="The Real Owner LLC")
-    req = factories.ownership_request(place=place, requester=consumer)
+    org = factories.organization(name="The Real Owner LLC")  # default VERIFIED
+    req = factories.ownership_request(
+        place=place, requester=consumer, organization=org
+    )
 
     resp = api.as_user(admin).post(
         f"/admin/ownership-requests/{req.id}/approve",
         json={
-            "organization_id": str(org.id),
             "member_role": "OWNER_ADMIN",
             "place_owner_role": "PRIMARY",
             "note": "verified via email + menu photos",
@@ -187,36 +190,115 @@ def test_admin_approve_with_existing_org_promotes_requester_and_wires_owner(
 
 
 # ---------------------------------------------------------------------------
-# Admin approve — new org path
+# Admin approve — slice 5d guards
 # ---------------------------------------------------------------------------
-def test_admin_approve_with_new_organization_name_creates_org(
+def test_admin_approve_uses_claim_organization_id_when_set(
     api, factories, db_session
 ):
-    """When no organization_id is provided but new_organization_name is,
-    the endpoint must create the Organization on the fly and link
-    everything to it."""
+    """When the claim was filed via the owner portal (slice 5b), it
+    carries organization_id directly. The body's organization_id is
+    not required and gets ignored if supplied."""
+    from app.modules.organizations.enums import OrganizationStatus
+
     admin = factories.admin()
     consumer = factories.consumer()
     place = factories.place()
-    req = factories.ownership_request(place=place, requester=consumer)
+    claim_org = factories.organization(
+        name="Claim Org",
+        status=OrganizationStatus.VERIFIED,
+    )
+    other_org = factories.organization(
+        name="Other Org",
+        status=OrganizationStatus.VERIFIED,
+    )
+    req = factories.ownership_request(
+        place=place, requester=consumer, organization=claim_org
+    )
 
+    # Pass a different org in the body — server should ignore it
+    # and use the claim's.
     resp = api.as_user(admin).post(
         f"/admin/ownership-requests/{req.id}/approve",
         json={
-            "new_organization_name": "Fresh Halal Group",
+            "organization_id": str(other_org.id),
             "member_role": "OWNER_ADMIN",
             "place_owner_role": "PRIMARY",
         },
     )
-
     assert resp.status_code == 200, resp.text
 
-    # A new Organization with that name must now exist.
-    org = db_session.execute(
-        select(Organization).where(Organization.name == "Fresh Halal Group")
+    link = db_session.execute(
+        select(PlaceOwner).where(PlaceOwner.place_id == place.id)
     ).scalar_one()
+    # Linked to the claim's org, not the body's.
+    assert link.organization_id == claim_org.id
 
-    # And the PlaceOwner must link to it.
+
+def test_admin_approve_blocks_unverified_org(api, factories, db_session):
+    """The sponsoring org must be VERIFIED. UNDER_REVIEW / DRAFT /
+    REJECTED → 409 OWNERSHIP_APPROVE_ORG_NOT_VERIFIED so admin
+    knows to verify the org first."""
+    from app.modules.organizations.enums import OrganizationStatus
+
+    admin = factories.admin()
+    place = factories.place()
+    org = factories.organization(
+        name="Pending Co", status=OrganizationStatus.UNDER_REVIEW
+    )
+    req = factories.ownership_request(place=place, organization=org)
+
+    resp = api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/approve",
+        json={"member_role": "OWNER_ADMIN", "place_owner_role": "PRIMARY"},
+    )
+    assert resp.status_code == 409, resp.text
+    assert (
+        resp.json()["error"]["code"] == "OWNERSHIP_APPROVE_ORG_NOT_VERIFIED"
+    )
+
+
+def test_admin_approve_blocks_when_claim_has_no_org(api, factories):
+    """Legacy claim filed via the public anonymous endpoint has no
+    organization_id. Without a body organization_id, approval fails
+    with OWNERSHIP_APPROVE_NO_ORG (400) so admin knows to either ask
+    the requester to re-file via owner portal or supply an existing
+    VERIFIED org."""
+    admin = factories.admin()
+    place = factories.place()
+    req = factories.ownership_request(place=place)  # no organization
+
+    resp = api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/approve",
+        json={"member_role": "OWNER_ADMIN", "place_owner_role": "PRIMARY"},
+    )
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"]["code"] == "OWNERSHIP_APPROVE_NO_ORG"
+
+
+def test_admin_approve_legacy_claim_with_body_org_works(
+    api, factories, db_session
+):
+    """Legacy anonymous claim → admin supplies organization_id in
+    body → approval works as long as that org is VERIFIED."""
+    from app.modules.organizations.enums import OrganizationStatus
+
+    admin = factories.admin()
+    place = factories.place()
+    org = factories.organization(
+        name="Picked By Admin", status=OrganizationStatus.VERIFIED
+    )
+    req = factories.ownership_request(place=place)  # no organization on claim
+
+    resp = api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/approve",
+        json={
+            "organization_id": str(org.id),
+            "member_role": "OWNER_ADMIN",
+            "place_owner_role": "PRIMARY",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
     link = db_session.execute(
         select(PlaceOwner).where(
             PlaceOwner.place_id == place.id,
@@ -226,34 +308,13 @@ def test_admin_approve_with_new_organization_name_creates_org(
     assert link.status == "ACTIVE"
 
 
-def test_admin_approve_rejects_both_or_neither_org(api, factories):
-    """Approve must take exactly one of (organization_id, new_organization_name).
-    Passing both is ambiguous; passing neither is useless. Both must 409."""
-    admin = factories.admin()
-    place = factories.place()
-    org = factories.organization()
-    req = factories.ownership_request(place=place)
-
-    # Neither field.
-    resp_neither = api.as_user(admin).post(
-        f"/admin/ownership-requests/{req.id}/approve",
-        json={"member_role": "OWNER_ADMIN", "place_owner_role": "PRIMARY"},
-    )
-    assert resp_neither.status_code == 409, resp_neither.text
-    assert resp_neither.json()["error"]["code"] == "OWNERSHIP_APPROVE_BAD_ORG"
-
-    # Both fields.
-    resp_both = api.as_user(admin).post(
-        f"/admin/ownership-requests/{req.id}/approve",
-        json={
-            "organization_id": str(org.id),
-            "new_organization_name": "Some Other Org",
-            "member_role": "OWNER_ADMIN",
-            "place_owner_role": "PRIMARY",
-        },
-    )
-    assert resp_both.status_code == 409, resp_both.text
-    assert resp_both.json()["error"]["code"] == "OWNERSHIP_APPROVE_BAD_ORG"
+# Slice 5d retired test_admin_approve_with_new_organization_name_creates_org
+# and test_admin_approve_rejects_both_or_neither_org. The
+# new_organization_name path is gone — admin no longer creates orgs
+# during approval. The replacement contract (claim's org takes
+# precedence; body fallback for legacy NULL claims; non-VERIFIED
+# rejects) is exercised by the four tests immediately above this
+# comment.
 
 
 # ---------------------------------------------------------------------------
@@ -340,11 +401,14 @@ def test_cannot_modify_terminal_ownership_request(api, factories):
         place=place, status=OwnershipRequestStatus.APPROVED
     )
 
-    # Re-approve.
+    # Re-approve. We pass an organization_id since
+    # new_organization_name is gone; what we're asserting is that
+    # the terminal-state guard fires before any org logic runs.
+    other_org = factories.organization()
     re_approve = api.as_user(admin).post(
         f"/admin/ownership-requests/{approved.id}/approve",
         json={
-            "new_organization_name": "Trying Again LLC",
+            "organization_id": str(other_org.id),
             "member_role": "OWNER_ADMIN",
             "place_owner_role": "PRIMARY",
         },
