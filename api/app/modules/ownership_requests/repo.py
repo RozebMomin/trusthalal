@@ -22,7 +22,17 @@ def create_ownership_request(
     contact_email: str,
     contact_phone: str | None,
     message: str | None,
+    organization_id: UUID | None = None,
 ) -> PlaceOwnershipRequest:
+    """Persist a claim row.
+
+    ``organization_id`` is optional for backwards compatibility with
+    callers that pre-date slice 5b (the public
+    ``POST /places/{place_id}/ownership-requests`` path and the admin
+    create-on-behalf path). New owner-portal callers always supply
+    one — validation that the org belongs to the user lives in the
+    /me/* handler, not here.
+    """
     normalized_email = contact_email.strip().lower()
 
     existing = db.execute(
@@ -41,6 +51,7 @@ def create_ownership_request(
     req = PlaceOwnershipRequest(
         place_id=place_id,
         requester_user_id=requester_user_id,
+        organization_id=organization_id,
         contact_name=contact_name.strip(),
         contact_email=normalized_email,
         contact_phone=(contact_phone.strip() if contact_phone else None),
@@ -56,3 +67,26 @@ def create_ownership_request(
 def get_ownership_request(db: Session, request_id: UUID) -> PlaceOwnershipRequest | None:
     stmt = select(PlaceOwnershipRequest).where(PlaceOwnershipRequest.id == request_id)
     return db.execute(stmt).scalar_one_or_none()
+
+
+def list_ownership_requests_for_user(
+    db: Session, *, user_id: UUID, limit: int = 50, offset: int = 0
+) -> list[PlaceOwnershipRequest]:
+    """Return every claim where the requester is ``user_id``.
+
+    Sort: created_at DESC so the most recent submission shows up at
+    the top of the user's "My claims" list. Doesn't filter by status —
+    the user wants to see approved + rejected + in-flight all in one
+    place, with the status badge differentiating them in the UI.
+
+    The model's ``place`` relationship is lazy="selectin" so the join
+    happens on the next access; no explicit eager-load needed here.
+    """
+    stmt = (
+        select(PlaceOwnershipRequest)
+        .where(PlaceOwnershipRequest.requester_user_id == user_id)
+        .order_by(PlaceOwnershipRequest.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return list(db.execute(stmt).scalars().all())

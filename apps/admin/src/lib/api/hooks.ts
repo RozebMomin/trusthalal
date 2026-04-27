@@ -570,12 +570,20 @@ export function useResyncPlace() {
 // Organizations (admin)
 // ---------------------------------------------------------------------------
 
-export function useAdminOrganizations(params: { q?: string } = {}) {
+export function useAdminOrganizations(
+  params: { q?: string; status?: string } = {},
+) {
   return useQuery({
-    queryKey: qk.organizations.list(params.q),
+    queryKey: qk.organizations.list(
+      [params.q, params.status].filter(Boolean).join("|") || undefined,
+    ),
     queryFn: () =>
       apiFetch<OrganizationAdminRead[]>("/admin/organizations", {
-        searchParams: { q: params.q, limit: 200 },
+        searchParams: {
+          q: params.q,
+          status: params.status,
+          limit: 200,
+        },
       }),
   });
 }
@@ -624,6 +632,53 @@ export function useCreateOrganization() {
         method: "POST",
         json: payload,
       }),
+    onSuccess: () => {
+      void invalidateOrganizations(qc);
+    },
+  });
+}
+
+/**
+ * POST /admin/organizations/{id}/verify — UNDER_REVIEW → VERIFIED.
+ *
+ * Optional ``note`` lets the reviewer record context (e.g. "checked
+ * SOS filing") on the audit row. Server enforces the org is
+ * UNDER_REVIEW and 409s otherwise (ORGANIZATION_NOT_REVIEWABLE).
+ */
+export function useVerifyOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; note?: string | null }) =>
+      apiFetch<OrganizationAdminRead>(
+        `/admin/organizations/${args.id}/verify`,
+        {
+          method: "POST",
+          json: { note: args.note ?? null },
+        },
+      ),
+    onSuccess: () => {
+      void invalidateOrganizations(qc);
+    },
+  });
+}
+
+/**
+ * POST /admin/organizations/{id}/reject — UNDER_REVIEW → REJECTED.
+ *
+ * ``reason`` is required (server enforces min_length=3) and surfaces
+ * to the owner on their org detail page so they know why.
+ */
+export function useRejectOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; reason: string }) =>
+      apiFetch<OrganizationAdminRead>(
+        `/admin/organizations/${args.id}/reject`,
+        {
+          method: "POST",
+          json: { reason: args.reason },
+        },
+      ),
     onSuccess: () => {
       void invalidateOrganizations(qc);
     },

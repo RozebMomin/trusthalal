@@ -25,13 +25,14 @@
  * source of truth is the API's /me endpoint.
  */
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { useCurrentUser, useLogout } from "@/lib/api/hooks";
 
-const PUBLIC_PATHS = new Set<string>(["/login"]);
+const PUBLIC_PATHS = new Set<string>(["/login", "/signup"]);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
@@ -99,6 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
  */
 function PortalHeader() {
   const { data: me } = useCurrentUser();
+  const pathname = usePathname() ?? "/";
   const logout = useLogout();
   const router = useRouter();
 
@@ -115,20 +117,59 @@ function PortalHeader() {
   return (
     <header className="border-b bg-card px-4 py-3 md:px-8">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <Link
+          href="/"
+          className="flex items-center gap-3 transition hover:opacity-80"
+        >
           <span className="text-lg font-semibold tracking-tight">
             Trust Halal
           </span>
-          <span className="text-xs text-muted-foreground">Owner portal</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {me?.id && (
-            <span
-              className="hidden font-mono text-[11px] text-muted-foreground md:inline"
-              title={me.id}
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            Owner portal
+          </span>
+        </Link>
+
+        {/* Nav: only render once we know the user is signed in. The
+            shell already gates so we'd never render this header for an
+            anonymous session, but keying off ``me`` keeps the links
+            from flickering during the brief loading state. */}
+        {me && (
+          <nav className="hidden items-center gap-1 md:flex">
+            <NavLink href="/claim" active={pathname.startsWith("/claim")}>
+              Claim a place
+            </NavLink>
+            <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
+              My claims
+            </NavLink>
+            <NavLink
+              href="/my-organizations"
+              active={pathname.startsWith("/my-organizations")}
             >
-              {me.id.slice(0, 8)}…
-            </span>
+              Organizations
+            </NavLink>
+          </nav>
+        )}
+
+        <div className="flex items-center gap-3">
+          {me && (
+            <div className="hidden flex-col items-end leading-tight md:flex">
+              {me.display_name && (
+                <span
+                  className="text-sm font-medium text-foreground"
+                  title={me.email ?? undefined}
+                >
+                  {me.display_name}
+                </span>
+              )}
+              {me.id && (
+                <span
+                  className="font-mono text-[10px] text-muted-foreground"
+                  title={me.id}
+                >
+                  {me.id.slice(0, 8)}
+                </span>
+              )}
+            </div>
           )}
           <Button
             size="sm"
@@ -140,7 +181,51 @@ function PortalHeader() {
           </Button>
         </div>
       </div>
+
+      {/* Mobile-only secondary row: nav links wrap below the brand
+          when there's no horizontal room. */}
+      {me && (
+        <nav className="mx-auto mt-2 flex max-w-5xl items-center gap-1 md:hidden">
+          <NavLink href="/claim" active={pathname.startsWith("/claim")}>
+            Claim
+          </NavLink>
+          <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
+            My claims
+          </NavLink>
+          <NavLink
+            href="/my-organizations"
+            active={pathname.startsWith("/my-organizations")}
+          >
+            Orgs
+          </NavLink>
+        </nav>
+      )}
     </header>
+  );
+}
+
+function NavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={[
+        "rounded-md px-3 py-1.5 text-sm font-medium transition",
+        active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+      ].join(" ")}
+    >
+      {children}
+    </Link>
   );
 }
 

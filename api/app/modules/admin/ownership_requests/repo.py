@@ -5,13 +5,18 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import (
+    BadRequestError,
+    ConflictError,
+    NotFoundError,
+)
 from app.modules.admin.ownership_requests.schemas import (
     OwnershipRequestAdminCreate,
     OwnershipRequestApprove,
     OwnershipRequestEvidence,
     OwnershipRequestReject,
 )
+from app.modules.organizations.enums import OrganizationStatus
 from app.modules.organizations.models import (
     Organization,
     OrganizationMember,
@@ -130,38 +135,53 @@ def admin_approve_ownership_request(
 ) -> PlaceOwnershipRequest:
     """Promote an ownership request into real ownership.
 
+    Slice 5d redesign: the sponsoring org is read off the claim row
+    itself (set at submission time via the owner-portal flow). The
+    org must be VERIFIED. Admin no longer creates orgs during
+    approval — that path moved to /me/organizations + the
+    /admin/organizations verify endpoint.
+
+    Two paths supported:
+      1. Slice 5b (canonical): the claim has organization_id. We use
+         it directly; payload.organization_id is ignored.
+      2. Legacy (anonymous public submission): the claim has no
+         organization_id. Admin must supply organization_id in the
+         body, pointing at an existing VERIFIED org.
+
     All writes happen in one transaction:
-      - resolve/create Organization
+      - resolve org (claim's, then body's)
+      - validate org is VERIFIED
       - insert/activate PlaceOwner link (status=ACTIVE)
-      - insert/activate OrganizationMember for the requester (if any)
+      - insert/activate OrganizationMember for the requester
       - promote requester User role CONSUMER -> OWNER
       - flip request status to APPROVED
       - log a PlaceEvent (OWNERSHIP_GRANTED) with the actor
     """
-    if bool(payload.organization_id) == bool(payload.new_organization_name):
-        raise ConflictError(
-            "OWNERSHIP_APPROVE_BAD_ORG",
-            "Provide exactly one of organization_id or new_organization_name",
-        )
-
     req = _get_request_or_404(db, request_id)
     _assert_not_terminal(req)
 
-    # Resolve organization
-    if payload.organization_id:
-        org = db.execute(
-            select(Organization).where(Organization.id == payload.organization_id)
-        ).scalar_one_or_none()
-        if not org:
-            raise NotFoundError("ORGANIZATION_NOT_FOUND", "Organization not found")
-    else:
-        assert payload.new_organization_name is not None
-        org = Organization(
-            name=payload.new_organization_name.strip(),
-            contact_email=req.contact_email,
+    # Pick the org id: claim's wins, body's is the legacy fallback.
+    effective_org_id = req.organization_id or payload.organization_id
+    if effective_org_id is None:
+        raise BadRequestError(
+            "OWNERSHIP_APPROVE_NO_ORG",
+            "This claim has no sponsoring organization. Ask the owner "
+            "to re-file via the owner portal, or provide organization_id "
+            "(an existing VERIFIED org) in the request body.",
         )
-        db.add(org)
-        db.flush()
+
+    org = db.execute(
+        select(Organization).where(Organization.id == effective_org_id)
+    ).scalar_one_or_none()
+    if not org:
+        raise NotFoundError("ORGANIZATION_NOT_FOUND", "Organization not found")
+
+    if org.status != OrganizationStatus.VERIFIED.value:
+        raise ConflictError(
+            "OWNERSHIP_APPROVE_ORG_NOT_VERIFIED",
+            f"Sponsoring organization is {org.status}. Verify it at "
+            "/admin/organizations before approving the claim.",
+        )
 
     # Upsert PlaceOwner link
     po = db.execute(

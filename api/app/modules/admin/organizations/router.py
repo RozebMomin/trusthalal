@@ -3,9 +3,13 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, require_roles
+from app.core.exceptions import BadRequestError, NotFoundError
+from app.core.storage import StorageClient, StorageError, get_storage_client
 from app.db.deps import get_db
 from app.modules.admin.organizations.repo import (
     admin_add_member,
@@ -16,6 +20,8 @@ from app.modules.admin.organizations.repo import (
     admin_list_org_places,
     admin_list_organizations,
     admin_patch_organization,
+    admin_reject_organization,
+    admin_verify_organization,
 )
 from app.modules.admin.organizations.schemas import (
     MemberAdminCreate,
@@ -26,8 +32,33 @@ from app.modules.admin.organizations.schemas import (
     OrganizationMemberAdminRead,
     OrganizationPlaceOwnerRead,
     OrganizationPlaceSummary,
+    OrganizationRejectAdmin,
+    OrganizationVerifyAdmin,
 )
+from app.modules.organizations.enums import OrganizationStatus
+from app.modules.organizations.models import OrganizationAttachment
+from app.modules.organizations.schemas import OrganizationAttachmentRead
 from app.modules.users.enums import UserRole
+
+
+# Signed URL TTL for admin attachment downloads. 60s matches the
+# claim-attachment endpoint — long enough for a click, short enough
+# that a stale tab can't replay later.
+_ATTACHMENT_SIGNED_URL_TTL_SECONDS = 60
+
+
+class _AdminAttachmentSignedUrl(BaseModel):
+    """Response shape for the org-attachment signed-URL endpoint.
+
+    Same shape as the claim-attachment variant: URL + filename +
+    MIME so the client can label the download or render an inline
+    preview without a second fetch.
+    """
+
+    url: str
+    expires_in_seconds: int
+    original_filename: str
+    content_type: str
 
 router = APIRouter(prefix="/admin/organizations", tags=["admin"])
 
@@ -48,12 +79,27 @@ def create_org_admin(
 @router.get("", response_model=list[OrganizationAdminRead])
 def list_orgs_admin(
     q: str | None = Query(default=None, max_length=200),
+    status_filter: OrganizationStatus | None = Query(
+        default=None, alias="status"
+    ),
     limit: int = Query(50, gt=0, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> list[OrganizationAdminRead]:
-    return admin_list_organizations(db, q=q, limit=limit, offset=offset)
+    """List orgs, optionally narrowed by status.
+
+    Pass ``?status=UNDER_REVIEW`` to get the verification queue;
+    omit the param for the full catalog. Newest-first either way.
+    """
+    rows = admin_list_organizations(
+        db,
+        q=q,
+        status=status_filter.value if status_filter is not None else None,
+        limit=limit,
+        offset=offset,
+    )
+    return [OrganizationAdminRead.model_validate(o) for o in rows]
 
 
 @router.get("/{org_id}", response_model=OrganizationDetailRead)
@@ -64,13 +110,16 @@ def get_org_admin(
 ) -> OrganizationDetailRead:
     org = admin_get_organization(db, org_id)
     members = admin_list_members(db, org_id)
+    # Build the response by validating off the ORM row (picks up
+    # status + decision fields + attachments via from_attributes),
+    # then layer on the members list which lives in the
+    # OrganizationDetailRead extension.
+    base = OrganizationAdminRead.model_validate(org)
     return OrganizationDetailRead(
-        id=org.id,
-        name=org.name,
-        contact_email=org.contact_email,
-        created_at=org.created_at,
-        updated_at=org.updated_at,
-        members=[OrganizationMemberAdminRead.model_validate(m) for m in members],
+        **base.model_dump(),
+        members=[
+            OrganizationMemberAdminRead.model_validate(m) for m in members
+        ],
     )
 
 
@@ -149,3 +198,121 @@ def deactivate_member_admin(
     _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> OrganizationMemberAdminRead:
     return admin_deactivate_member(db, org_id=org_id, user_id=user_id)
+
+
+# ---------------------------------------------------------------------------
+# Verification workflow — admin-only verify / reject decisions
+# ---------------------------------------------------------------------------
+@router.post(
+    "/{org_id}/verify",
+    response_model=OrganizationAdminRead,
+)
+def verify_org_admin(
+    org_id: UUID,
+    payload: OrganizationVerifyAdmin,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> OrganizationAdminRead:
+    """Move an UNDER_REVIEW org → VERIFIED.
+
+    Records the deciding admin + timestamp + optional note inline
+    on the org row. Once verified, the org is eligible to sponsor
+    new claims and admin claim approvals can proceed (slice 5d
+    will gate approval on this status).
+    """
+    org = admin_verify_organization(
+        db, org_id=org_id, note=payload.note, actor_user_id=user.id
+    )
+    return OrganizationAdminRead.model_validate(org)
+
+
+@router.post(
+    "/{org_id}/reject",
+    response_model=OrganizationAdminRead,
+)
+def reject_org_admin(
+    org_id: UUID,
+    payload: OrganizationRejectAdmin,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> OrganizationAdminRead:
+    """Move an UNDER_REVIEW org → REJECTED with a required reason.
+
+    The reason is surfaced to the owner on their org detail page so
+    they understand why verification didn't pass. REJECTED orgs are
+    read-only artifacts; the owner creates a new org if they want
+    to try again.
+    """
+    org = admin_reject_organization(
+        db, org_id=org_id, reason=payload.reason, actor_user_id=user.id
+    )
+    return OrganizationAdminRead.model_validate(org)
+
+
+# ---------------------------------------------------------------------------
+# Attachments viewer — list + signed-URL fetcher for admin review
+# ---------------------------------------------------------------------------
+@router.get(
+    "/{org_id}/attachments",
+    response_model=list[OrganizationAttachmentRead],
+)
+def list_org_attachments_admin(
+    org_id: UUID,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> list[OrganizationAttachmentRead]:
+    """List supporting documents on an org. Same metadata shape the
+    owner sees, scoped to admin role."""
+    org = admin_get_organization(db, org_id)
+    return [
+        OrganizationAttachmentRead.model_validate(a)
+        for a in org.attachments
+    ]
+
+
+@router.get(
+    "/{org_id}/attachments/{attachment_id}/url",
+    response_model=_AdminAttachmentSignedUrl,
+)
+def signed_url_for_org_attachment_admin(
+    org_id: UUID,
+    attachment_id: UUID,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+    storage: StorageClient = Depends(get_storage_client),
+) -> _AdminAttachmentSignedUrl:
+    """Mint a short-lived signed URL for an org attachment.
+
+    Mirrors the claim-attachment variant: 60s default TTL, asserts
+    the attachment belongs to the requested org so a guessed UUID
+    can't surface files from an unrelated org.
+    """
+    attachment = db.execute(
+        select(OrganizationAttachment).where(
+            OrganizationAttachment.id == attachment_id,
+            OrganizationAttachment.organization_id == org_id,
+        )
+    ).scalar_one_or_none()
+    if attachment is None:
+        raise NotFoundError(
+            "ATTACHMENT_NOT_FOUND",
+            "No attachment with that id on this organization.",
+        )
+
+    try:
+        url = storage.signed_url(
+            attachment.storage_path,
+            expires_in_seconds=_ATTACHMENT_SIGNED_URL_TTL_SECONDS,
+        )
+    except StorageError as exc:
+        raise BadRequestError(
+            "ATTACHMENT_SIGNED_URL_FAILED",
+            f"Couldn't generate a download link for this attachment: {exc}",
+        )
+
+    return _AdminAttachmentSignedUrl(
+        url=url,
+        expires_in_seconds=_ATTACHMENT_SIGNED_URL_TTL_SECONDS,
+        original_filename=attachment.original_filename,
+        content_type=attachment.content_type,
+    )

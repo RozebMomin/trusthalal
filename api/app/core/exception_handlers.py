@@ -157,14 +157,42 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 
+def _sanitize_validation_errors(errors: list[dict]) -> list[dict]:
+    """Make Pydantic v2 errors JSON-serializable.
+
+    When a ``model_validator(mode="after")`` raises ``ValueError``,
+    Pydantic includes the raised exception instance under ``ctx.error``
+    in the errors list. ``json.dumps`` can't serialize an exception
+    instance, so we coerce it to its ``str()`` form. Same treatment
+    for any other non-trivially-serializable value that sneaks into
+    ``ctx`` from custom validators.
+
+    Touches only the ``ctx`` sub-dict — the rest of the per-field error
+    shape (``loc``, ``msg``, ``type``, ``input``, ``url``) is already
+    JSON-safe and clients depend on it.
+    """
+    sanitized: list[dict] = []
+    for err in errors:
+        ctx = err.get("ctx")
+        if isinstance(ctx, dict):
+            new_ctx = {
+                k: (str(v) if isinstance(v, BaseException) else v)
+                for k, v in ctx.items()
+            }
+            err = {**err, "ctx": new_ctx}
+        sanitized.append(err)
+    return sanitized
+
+
 async def validation_error_handler(request: Request, exc: RequestValidationError):
-    # Pydantic's errors() list is JSON-safe and useful to clients that want
-    # to highlight the offending field. We pass it through unchanged.
+    # Pydantic's errors() list is mostly JSON-safe but can carry a raw
+    # exception under ctx.error when a model_validator raised one;
+    # sanitize before handing it to the JSON encoder.
     return JSONResponse(
         status_code=422,
         content=_envelope(
             "VALIDATION_ERROR",
             "Request validation failed",
-            exc.errors(),
+            _sanitize_validation_errors(exc.errors()),
         ),
     )

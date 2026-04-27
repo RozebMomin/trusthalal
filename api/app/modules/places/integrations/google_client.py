@@ -66,6 +66,81 @@ class GoogleAPIError(Exception):
     """Raised when Google returns a non-OK status or HTTP error."""
 
 
+class PlaceAutocompleteFetcher(Protocol):
+    """Callable that maps a free-text query to a list of Google
+    Autocomplete predictions.
+
+    Predictions come back as a list of ``{"place_id": ..., "description":
+    ..., "structured_formatting": {...}}`` objects per the Places API
+    docs. Tests inject a callable that returns captured fixture data so
+    we can drive the owner portal's claim-fallback UI without burning
+    real Google quota in CI.
+    """
+
+    def __call__(self, query: str) -> list[dict[str, Any]]: ...
+
+
+def fetch_place_autocomplete_google(
+    query: str,
+    *,
+    api_key: str | None = None,
+    url: str | None = None,
+    timeout_s: float = 10.0,
+) -> list[dict[str, Any]]:
+    """Fetch Google Place Autocomplete predictions for ``query``.
+
+    Returns just the ``predictions`` array — the caller doesn't need the
+    full envelope. The owner-portal proxy maps each prediction to a
+    smaller wire shape (place_id + a single human-readable description).
+
+    Empty / whitespace queries short-circuit to ``[]`` to avoid burning
+    a billed call on a no-op input.
+    """
+    trimmed = (query or "").strip()
+    if not trimmed:
+        return []
+
+    effective_key = api_key or settings.GOOGLE_MAPS_API_KEY
+    if not effective_key:
+        raise GoogleAPIError(
+            "GOOGLE_MAPS_API_KEY is not configured; Place Autocomplete is unavailable."
+        )
+
+    effective_url = url or settings.GOOGLE_PLACES_AUTOCOMPLETE_URL
+
+    # ``types=establishment`` filters to businesses (vs. addresses /
+    # regions / cities) — owners are looking for restaurants, not
+    # geographies. Google docs:
+    # https://developers.google.com/maps/documentation/places/web-service/autocomplete
+    params = {
+        "input": trimmed,
+        "key": effective_key,
+        "types": "establishment",
+    }
+
+    try:
+        resp = httpx.get(effective_url, params=params, timeout=timeout_s)
+        resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise GoogleAPIError(f"Google Autocomplete HTTP error: {exc}") from exc
+
+    payload = resp.json()
+    status = payload.get("status")
+
+    # ZERO_RESULTS is the "no matches" signal — return [] rather than
+    # raising, so the proxy can render an empty list cleanly.
+    if status == "ZERO_RESULTS":
+        return []
+    if status != "OK":
+        raise GoogleAPIError(
+            f"Google Autocomplete returned status={status!r}: "
+            f"{payload.get('error_message') or '(no error_message)'}"
+        )
+
+    predictions = payload.get("predictions") or []
+    return list(predictions)
+
+
 def fetch_place_details_google(
     place_id: str,
     *,

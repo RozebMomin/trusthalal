@@ -47,6 +47,23 @@ class PlaceSearchResult(BaseModel):
     country_code: str | None = None
 
 
+class GoogleAutocompletePrediction(BaseModel):
+    """Slim shape returned by the owner-portal Google Autocomplete proxy.
+
+    We deliberately collapse Google's verbose response (which includes
+    structured_formatting, types, terms, matched_substrings, etc.) into
+    just what the claim flow needs: an opaque place_id to send back on
+    submit, plus a single human-readable description to render in the
+    list. Anything else can come from the Place Details ingest later
+    when the owner actually picks one and submits.
+    """
+
+    google_place_id: str
+    description: str
+    primary_text: str | None = None
+    secondary_text: str | None = None
+
+
 class PlaceDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -87,6 +87,26 @@ class Settings(BaseSettings):
     GOOGLE_PLACES_DETAILS_URL: str = (
         "https://maps.googleapis.com/maps/api/place/details/json"
     )
+    # Autocomplete endpoint for the owner-portal claim flow's "search
+    # Google" fallback. Hit server-side via a thin proxy so the browser
+    # key never needs to be exposed on the owner origin.
+    GOOGLE_PLACES_AUTOCOMPLETE_URL: str = (
+        "https://maps.googleapis.com/maps/api/place/autocomplete/json"
+    )
+
+    # ------------------------------------------------------------------
+    # Object storage (Supabase Storage for v1)
+    # ------------------------------------------------------------------
+    # Owner-uploaded evidence (utility bills, business filings, etc.)
+    # lives in Supabase Storage. The service-role key bypasses RLS so
+    # this server can write/read freely; the bucket itself stays
+    # locked-down to the public anon key.
+    #
+    # SUPABASE_URL is the project URL (e.g. https://xyz.supabase.co).
+    # The same URL is used by the JS client; we share it.
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_ROLE_KEY: str | None = None
+    SUPABASE_STORAGE_BUCKET: str = "evidence"
 
     # ------------------------------------------------------------------
     # Pydantic settings config

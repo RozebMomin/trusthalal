@@ -12,6 +12,7 @@ import app.db.models  # noqa: F401
 from app.modules.places.router import router as places_router
 from app.modules.claims.router import router as claims_router
 from app.modules.auth.router import router as auth_router
+from app.modules.organizations.router import router as organizations_router
 from app.modules.ownership_requests.router import router as ownership_requests_router
 
 # Admin Routes
@@ -54,11 +55,17 @@ def _cors_origins() -> list[str]:
     origins = list(settings.CORS_ORIGINS)
 
     if settings.ENV == "local":
+        # 3000 = next dev default; 3001 = admin panel; 3002 = owner
+        # portal. Keeping all three so local stack can run any
+        # combination of frontends against the same API without env
+        # tweaks.
         for origin in (
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "http://localhost:3001",
             "http://127.0.0.1:3001",
+            "http://localhost:3002",
+            "http://127.0.0.1:3002",
         ):
             if origin not in origins:
                 origins.append(origin)
@@ -85,6 +92,7 @@ if cors_origins:
 app.include_router(places_router)
 app.include_router(claims_router)
 app.include_router(auth_router)
+app.include_router(organizations_router)
 app.include_router(ownership_requests_router)
 
 app.include_router(admin_router)

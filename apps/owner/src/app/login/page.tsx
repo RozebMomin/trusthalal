@@ -11,6 +11,7 @@
  * stale session.
  */
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
@@ -128,9 +129,13 @@ export default function LoginPage() {
 
         <p className="text-xs text-muted-foreground">
           New here?{" "}
-          <span className="text-foreground">Trust Halal staff</span> issues
-          owner accounts; you should have received a set-password link
-          via email or directly from your contact.
+          <Link
+            href="/signup"
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Create an owner account
+          </Link>{" "}
+          to claim your restaurant.
         </p>
       </form>
     </div>

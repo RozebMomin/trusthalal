@@ -7,7 +7,7 @@ from uuid import UUID
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.config import settings
-from app.core.exceptions import BadRequestError, UnauthorizedError
+from app.core.exceptions import BadRequestError, ConflictError, UnauthorizedError
 from app.core.password_hashing import hash_password, verify_password
 from app.db.deps import get_db
 from app.modules.auth.invite_repo import (
@@ -23,8 +23,11 @@ from app.modules.auth.schemas import (
     InviteInfoResponse,
     LoginRequest,
     LoginResponse,
+    MeResponse,
     SetPasswordRequest,
     SetPasswordResponse,
+    SignupRequest,
+    SignupResponse,
 )
 from app.modules.users.enums import UserRole
 from app.modules.users.models import User
@@ -60,9 +63,11 @@ def _redirect_path_for(role: UserRole) -> str:
         # they get their own dashboard.
         return "/claims"
     if role == UserRole.OWNER:
-        # Owner dashboard doesn't exist yet — a stub path keeps login
-        # working and makes the 404 a clear "go build /owner" TODO.
-        return "/owner"
+        # The owner portal lives at its own origin (owner.trusthalal.org)
+        # and treats "/" as the home — same routing whether the user
+        # just signed up, just logged in, or completed a set-password
+        # flow.
+        return "/"
     return "/"
 
 
@@ -98,12 +103,38 @@ def _clear_session_cookie(response: Response) -> None:
 me_router = APIRouter(prefix="/me", tags=["auth"])
 
 
-@me_router.get("")
-def get_me(user: CurrentUser = Depends(get_current_user)):
-    return {
-        "id": user.id,
-        "role": user.role,
-    }
+@me_router.get("", response_model=MeResponse)
+def get_me(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MeResponse:
+    """Who the cookie says you are.
+
+    Returns id + role + display_name + email so frontends can render
+    "Signed in as <name>" without a second roundtrip. We pull
+    display_name + email from the User row rather than caching them
+    on ``CurrentUser`` — keeps the auth context dataclass slim and
+    means a profile rename takes effect on the next /me call instead
+    of after a re-login.
+
+    The session→user resolution already happened in
+    ``get_current_user``; if the row is gone by the time we look it
+    up here (rare, but possible if admin hard-deleted between
+    middleware and handler), surface a 401 so the client clears the
+    cookie and redirects to /login rather than seeing a 500.
+    """
+    user_row = db.get(User, user.id)
+    if user_row is None:
+        raise UnauthorizedError(
+            "INVALID_CREDENTIALS",
+            "Your session is no longer valid. Please sign in again.",
+        )
+    return MeResponse(
+        id=user_row.id,
+        role=UserRole(user_row.role),
+        display_name=user_row.display_name,
+        email=user_row.email,
+    )
 
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -159,6 +190,72 @@ def login(
 
     role = UserRole(user.role)
     return LoginResponse(
+        user_id=user.id,
+        email=user.email,
+        role=role,
+        display_name=user.display_name,
+        redirect_path=_redirect_path_for(role),
+    )
+
+
+@auth_router.post("/signup", response_model=SignupResponse)
+def signup(
+    payload: SignupRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> SignupResponse:
+    """Self-service signup for restaurant owners.
+
+    Trust Halal staff don't mint OWNER accounts by hand — owners create
+    their own login and then submit ownership claims, which staff
+    review. The trust gate is the human-reviewed claim downstream, not
+    the signup itself, so this endpoint is intentionally light:
+
+      * No email verification (deliberate; revisit if abuse warrants it).
+      * Role is hard-coded to OWNER. Promotion to ADMIN/VERIFIER stays
+        an admin-only operation via the user CRUD endpoints.
+      * Email is normalized (trim + lower) before the uniqueness check
+        and persisted in the original casing — same posture as login,
+        which compares case-insensitively.
+
+    On collision we surface ``EMAIL_TAKEN`` rather than a generic 4xx
+    so the client can show a useful "this email is already registered,
+    sign in instead?" message. That's a small enumeration tradeoff —
+    an attacker can probe email addresses — but the mitigation cost
+    (forcing a verify-by-email flow) outweighs the marginal disclosure
+    here. Login itself remains a black box.
+    """
+    normalized_email = payload.email.strip().lower()
+
+    existing = db.execute(
+        select(User).where(func.lower(User.email) == normalized_email)
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise ConflictError(
+            "EMAIL_TAKEN",
+            "An account with that email already exists. Try signing in instead.",
+        )
+
+    display_name = payload.display_name.strip()
+
+    user = User(
+        email=payload.email.strip(),
+        display_name=display_name,
+        password_hash=hash_password(payload.password),
+        role=UserRole.OWNER.value,
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    # Auto-login: same cookie shape as /auth/login's happy path so the
+    # client can treat the response identically.
+    session = create_session(db, user_id=user.id)
+    _set_session_cookie(response, session.id)
+
+    role = UserRole(user.role)
+    return SignupResponse(
         user_id=user.id,
         email=user.email,
         role=role,
