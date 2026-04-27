@@ -93,10 +93,26 @@ def _build_limiter() -> Limiter:
     return Limiter(
         key_func=ip_key,  # default; per-decorator overrides via key_func=
         storage_uri=storage_uri,
-        # Emit X-RateLimit-{Limit,Remaining,Reset} headers on every
-        # response so clients can be polite without us spelling out
-        # the limits in docs.
-        headers_enabled=True,
+        # ``headers_enabled`` is intentionally OFF.
+        #
+        # When True, slowapi tries to inject X-RateLimit-{Limit,
+        # Remaining,Reset} headers into the response — but the
+        # injection path requires the route function to either
+        # accept ``response: Response`` as a parameter OR return a
+        # ``Response`` instance. Most of our endpoints return
+        # Pydantic models (``response_model=...``) and don't take
+        # an explicit Response, so slowapi raises:
+        #   "parameter `response` must be an instance of Response"
+        # on every limited request, turning rate-limit decorators
+        # into a 500 generator.
+        #
+        # The proactive headers are nice-to-have, not load-bearing —
+        # a 429 still tells clients they hit the cap, and the
+        # ErrorResponse body carries the limit string. If we ever
+        # want them back, the right path is to add ``response:
+        # Response`` to specific endpoint signatures rather than
+        # flipping this flag globally.
+        headers_enabled=False,
         # Strategy "fixed-window" is cheap and predictable; we
         # don't need sliding-window precision for this scale.
         strategy="fixed-window",
