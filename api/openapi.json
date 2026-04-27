@@ -159,7 +159,7 @@
           },
           "events": {
             "items": {
-              "$ref": "#/components/schemas/app__modules__claims__schemas__ClaimEventRead"
+              "$ref": "#/components/schemas/ClaimEventRead"
             },
             "title": "Events",
             "type": "array"
@@ -215,30 +215,7 @@
         "type": "object"
       },
       "ClaimEventRead": {
-        "description": "Admin-only event row with the actor joined in.\n\nWe surface ``actor_email`` / ``actor_display_name`` so the admin panel\ncan answer \"who did this?\" without a second round-trip. These\nfields are intentionally nullable:\n\n  * Batch-job events (``EXPIRED``) and historical rows with a\n    SET-NULL'd FK have no actor.\n  * The user may have been deleted since; the FK is ON DELETE SET\n    NULL so ``actor_user_id`` itself can be null even when a join\n    is attempted.\n\nThis shape is admin-only on purpose. The public ``/claims/{id}``\nendpoint returns the plain ``ClaimEventRead`` from\n``modules/claims/schemas.py`` which carries only the UUID \u2014 we\ndon't want to leak admin emails to anonymous callers triaging\ntheir own claims.",
         "properties": {
-          "actor_display_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actor Display Name"
-          },
-          "actor_email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actor Email"
-          },
           "actor_user_id": {
             "anyOf": [
               {
@@ -262,8 +239,7 @@
             "type": "string"
           },
           "event_type": {
-            "title": "Event Type",
-            "type": "string"
+            "$ref": "#/components/schemas/ClaimEventType"
           },
           "id": {
             "format": "uuid",
@@ -288,8 +264,6 @@
           "event_type",
           "message",
           "actor_user_id",
-          "actor_email",
-          "actor_display_name",
           "created_at"
         ],
         "title": "ClaimEventRead",
@@ -1849,25 +1823,13 @@
         "type": "object"
       },
       "OwnershipRequestApprove": {
-        "description": "Approve an ownership request.\n\nProvide either an existing `organization_id` OR `new_organization_name`\n(to create a new org on the fly). Exactly one is required.",
+        "description": "Approve an ownership request.\n\nSlice 5d removed the create-org-on-approval path. The sponsoring\norganization is now read off the claim row itself\n(set at submission time via the owner-portal flow). Admin\nstaff verifies the org separately at /admin/organizations\nbefore approving the claim \u2014 this endpoint refuses unless the\nclaim's organization is VERIFIED.\n\n``organization_id`` remains in the body purely as a fallback for\nlegacy claims submitted via the public anonymous endpoint\n(POST /places/{id}/ownership-requests), which doesn't capture\nan org. For owner-portal-filed claims the field is ignored \u2014\nthe claim already says which org owns it.",
         "properties": {
           "member_role": {
             "default": "OWNER_ADMIN",
             "maxLength": 50,
             "title": "Member Role",
             "type": "string"
-          },
-          "new_organization_name": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "New Organization Name"
           },
           "note": {
             "anyOf": [
@@ -3608,6 +3570,87 @@
         "title": "_AdminAttachmentSignedUrl",
         "type": "object"
       },
+      "app__modules__admin__claims__schemas__ClaimEventRead": {
+        "description": "Admin-only event row with the actor joined in.\n\nWe surface ``actor_email`` / ``actor_display_name`` so the admin panel\ncan answer \"who did this?\" without a second round-trip. These\nfields are intentionally nullable:\n\n  * Batch-job events (``EXPIRED``) and historical rows with a\n    SET-NULL'd FK have no actor.\n  * The user may have been deleted since; the FK is ON DELETE SET\n    NULL so ``actor_user_id`` itself can be null even when a join\n    is attempted.\n\nThis shape is admin-only on purpose. The public ``/claims/{id}``\nendpoint returns the plain ``ClaimEventRead`` from\n``modules/claims/schemas.py`` which carries only the UUID \u2014 we\ndon't want to leak admin emails to anonymous callers triaging\ntheir own claims.",
+        "properties": {
+          "actor_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Display Name"
+          },
+          "actor_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Email"
+          },
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor User Id"
+          },
+          "claim_id": {
+            "format": "uuid",
+            "title": "Claim Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "required": [
+          "id",
+          "claim_id",
+          "event_type",
+          "message",
+          "actor_user_id",
+          "actor_email",
+          "actor_display_name",
+          "created_at"
+        ],
+        "title": "ClaimEventRead",
+        "type": "object"
+      },
       "app__modules__admin__organizations__router___AdminAttachmentSignedUrl": {
         "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
         "properties": {
@@ -3635,61 +3678,6 @@
           "content_type"
         ],
         "title": "_AdminAttachmentSignedUrl",
-        "type": "object"
-      },
-      "app__modules__claims__schemas__ClaimEventRead": {
-        "properties": {
-          "actor_user_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actor User Id"
-          },
-          "claim_id": {
-            "format": "uuid",
-            "title": "Claim Id",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "event_type": {
-            "$ref": "#/components/schemas/ClaimEventType"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Message"
-          }
-        },
-        "required": [
-          "id",
-          "claim_id",
-          "event_type",
-          "message",
-          "actor_user_id",
-          "created_at"
-        ],
-        "title": "ClaimEventRead",
         "type": "object"
       }
     }
@@ -3920,7 +3908,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/ClaimEventRead"
+                    "$ref": "#/components/schemas/app__modules__admin__claims__schemas__ClaimEventRead"
                   },
                   "title": "Response List Claim Events Admin Admin Claims  Claim Id  Events Get",
                   "type": "array"

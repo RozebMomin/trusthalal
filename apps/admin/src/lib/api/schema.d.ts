@@ -1641,7 +1641,7 @@ export interface components {
             /** Created By User Id */
             created_by_user_id: string | null;
             /** Events */
-            events: components["schemas"]["app__modules__claims__schemas__ClaimEventRead"][];
+            events: components["schemas"]["ClaimEventRead"][];
             /** Evidence */
             evidence: components["schemas"]["EvidenceRead"][];
             /**
@@ -1667,31 +1667,8 @@ export interface components {
              */
             updated_at: string;
         };
-        /**
-         * ClaimEventRead
-         * @description Admin-only event row with the actor joined in.
-         *
-         *     We surface ``actor_email`` / ``actor_display_name`` so the admin panel
-         *     can answer "who did this?" without a second round-trip. These
-         *     fields are intentionally nullable:
-         *
-         *       * Batch-job events (``EXPIRED``) and historical rows with a
-         *         SET-NULL'd FK have no actor.
-         *       * The user may have been deleted since; the FK is ON DELETE SET
-         *         NULL so ``actor_user_id`` itself can be null even when a join
-         *         is attempted.
-         *
-         *     This shape is admin-only on purpose. The public ``/claims/{id}``
-         *     endpoint returns the plain ``ClaimEventRead`` from
-         *     ``modules/claims/schemas.py`` which carries only the UUID — we
-         *     don't want to leak admin emails to anonymous callers triaging
-         *     their own claims.
-         */
+        /** ClaimEventRead */
         ClaimEventRead: {
-            /** Actor Display Name */
-            actor_display_name: string | null;
-            /** Actor Email */
-            actor_email: string | null;
             /** Actor User Id */
             actor_user_id: string | null;
             /**
@@ -1704,8 +1681,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Event Type */
-            event_type: string;
+            event_type: components["schemas"]["ClaimEventType"];
             /**
              * Id
              * Format: uuid
@@ -2509,8 +2485,18 @@ export interface components {
          * OwnershipRequestApprove
          * @description Approve an ownership request.
          *
-         *     Provide either an existing `organization_id` OR `new_organization_name`
-         *     (to create a new org on the fly). Exactly one is required.
+         *     Slice 5d removed the create-org-on-approval path. The sponsoring
+         *     organization is now read off the claim row itself
+         *     (set at submission time via the owner-portal flow). Admin
+         *     staff verifies the org separately at /admin/organizations
+         *     before approving the claim — this endpoint refuses unless the
+         *     claim's organization is VERIFIED.
+         *
+         *     ``organization_id`` remains in the body purely as a fallback for
+         *     legacy claims submitted via the public anonymous endpoint
+         *     (POST /places/{id}/ownership-requests), which doesn't capture
+         *     an org. For owner-portal-filed claims the field is ignored —
+         *     the claim already says which org owns it.
          */
         OwnershipRequestApprove: {
             /**
@@ -2518,8 +2504,6 @@ export interface components {
              * @default OWNER_ADMIN
              */
             member_role: string;
-            /** New Organization Name */
-            new_organization_name?: string | null;
             /** Note */
             note?: string | null;
             /** Organization Id */
@@ -3351,6 +3335,53 @@ export interface components {
             url: string;
         };
         /**
+         * ClaimEventRead
+         * @description Admin-only event row with the actor joined in.
+         *
+         *     We surface ``actor_email`` / ``actor_display_name`` so the admin panel
+         *     can answer "who did this?" without a second round-trip. These
+         *     fields are intentionally nullable:
+         *
+         *       * Batch-job events (``EXPIRED``) and historical rows with a
+         *         SET-NULL'd FK have no actor.
+         *       * The user may have been deleted since; the FK is ON DELETE SET
+         *         NULL so ``actor_user_id`` itself can be null even when a join
+         *         is attempted.
+         *
+         *     This shape is admin-only on purpose. The public ``/claims/{id}``
+         *     endpoint returns the plain ``ClaimEventRead`` from
+         *     ``modules/claims/schemas.py`` which carries only the UUID — we
+         *     don't want to leak admin emails to anonymous callers triaging
+         *     their own claims.
+         */
+        app__modules__admin__claims__schemas__ClaimEventRead: {
+            /** Actor Display Name */
+            actor_display_name: string | null;
+            /** Actor Email */
+            actor_email: string | null;
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /**
+             * Claim Id
+             * Format: uuid
+             */
+            claim_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Event Type */
+            event_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Message */
+            message: string | null;
+        };
+        /**
          * _AdminAttachmentSignedUrl
          * @description Response shape for the org-attachment signed-URL endpoint.
          *
@@ -3367,29 +3398,6 @@ export interface components {
             original_filename: string;
             /** Url */
             url: string;
-        };
-        /** ClaimEventRead */
-        app__modules__claims__schemas__ClaimEventRead: {
-            /** Actor User Id */
-            actor_user_id: string | null;
-            /**
-             * Claim Id
-             * Format: uuid
-             */
-            claim_id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            event_type: components["schemas"]["ClaimEventType"];
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Message */
-            message: string | null;
         };
     };
     responses: never;
@@ -3482,7 +3490,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClaimEventRead"][];
+                    "application/json": components["schemas"]["app__modules__admin__claims__schemas__ClaimEventRead"][];
                 };
             };
             /** @description Validation Error */
