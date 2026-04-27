@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.modules.ownership_requests.schemas import OwnershipRequestAttachmentRead
+
 
 class OwnershipRequestAdminRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -21,6 +23,12 @@ class OwnershipRequestAdminRead(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+
+    # Attachments embedded so the admin claim-review UI can render
+    # the evidence list inline (filename + size + signed-URL link)
+    # without a per-row roundtrip to the attachments endpoint.
+    # Empty list when nothing was uploaded.
+    attachments: list[OwnershipRequestAttachmentRead] = []
 
 
 class OwnershipRequestAdminCreate(BaseModel):

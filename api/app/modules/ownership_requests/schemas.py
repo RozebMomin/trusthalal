@@ -76,6 +76,25 @@ class MyOwnershipRequestPlaceSummary(BaseModel):
     country_code: str | None = None
 
 
+class OwnershipRequestAttachmentRead(BaseModel):
+    """Wire shape for an uploaded evidence file.
+
+    Surfaced to both the owner (their own claim's attachments) and
+    admin staff (review queue). The actual file bytes aren't here —
+    only the metadata. Admin uses a separate signed-URL endpoint to
+    fetch the bytes.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    request_id: UUID
+    original_filename: str
+    content_type: str
+    size_bytes: int
+    uploaded_at: datetime
+
+
 class MyOwnershipRequestRead(BaseModel):
     """GET /me/ownership-requests row + POST /me/ownership-requests
     response shape.
@@ -84,6 +103,10 @@ class MyOwnershipRequestRead(BaseModel):
     nested so the portal can render the row without a second fetch.
     Contact fields aren't included — the owner already knows their
     own contact info; surfacing them here is just clutter.
+
+    ``attachments`` is included so the /my-claims page can render
+    'utility-bill.pdf · sos-filing.pdf' beneath each row without a
+    per-row roundtrip. Empty list when nothing was uploaded.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -94,6 +117,7 @@ class MyOwnershipRequestRead(BaseModel):
     message: str | None
     created_at: datetime
     updated_at: datetime
+    attachments: list[OwnershipRequestAttachmentRead] = []
 
 
 class OwnershipRequestRead(BaseModel):

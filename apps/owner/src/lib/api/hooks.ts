@@ -59,6 +59,16 @@ export type MyOwnershipRequestPlaceSummary = {
   country_code: string | null;
 };
 
+/** Metadata row for an uploaded evidence file. */
+export type OwnershipRequestAttachmentRead = {
+  id: string;
+  request_id: string;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+};
+
 /** GET /me/ownership-requests row + POST response. */
 export type MyOwnershipRequestRead = {
   id: string;
@@ -67,6 +77,7 @@ export type MyOwnershipRequestRead = {
   message: string | null;
   created_at: string;
   updated_at: string;
+  attachments: OwnershipRequestAttachmentRead[];
 };
 
 /**
@@ -292,6 +303,33 @@ export function usePlacesGoogleAutocomplete(q: string, enabled = true) {
     // but short enough that a fresh search after editing the input
     // shows current results.
     staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * POST /me/ownership-requests/{request_id}/attachments — upload a
+ * single file as evidence on an existing claim.
+ *
+ * Per-mutation rather than per-claim because each file is a separate
+ * multipart request. The /claim page's submit handler kicks off N
+ * uploads in parallel (one per selected file) after the parent
+ * claim is created. Invalidates the my-claims list on success so the
+ * filename appears under the claim immediately.
+ */
+export function useUploadOwnershipRequestAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { requestId: string; file: File }) => {
+      const fd = new FormData();
+      fd.append("file", args.file);
+      return apiFetch<OwnershipRequestAttachmentRead>(
+        `/me/ownership-requests/${args.requestId}/attachments`,
+        { method: "POST", formData: fd },
+      );
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.myOwnershipRequests() });
+    },
   });
 }
 

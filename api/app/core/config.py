@@ -95,6 +95,20 @@ class Settings(BaseSettings):
     )
 
     # ------------------------------------------------------------------
+    # Object storage (Supabase Storage for v1)
+    # ------------------------------------------------------------------
+    # Owner-uploaded evidence (utility bills, business filings, etc.)
+    # lives in Supabase Storage. The service-role key bypasses RLS so
+    # this server can write/read freely; the bucket itself stays
+    # locked-down to the public anon key.
+    #
+    # SUPABASE_URL is the project URL (e.g. https://xyz.supabase.co).
+    # The same URL is used by the JS client; we share it.
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_ROLE_KEY: str | None = None
+    SUPABASE_STORAGE_BUCKET: str = "evidence"
+
+    # ------------------------------------------------------------------
     # Pydantic settings config
     # ------------------------------------------------------------------
     model_config = SettingsConfigDict(

@@ -131,7 +131,7 @@
           },
           "events": {
             "items": {
-              "$ref": "#/components/schemas/ClaimEventRead"
+              "$ref": "#/components/schemas/app__modules__claims__schemas__ClaimEventRead"
             },
             "title": "Events",
             "type": "array"
@@ -187,7 +187,30 @@
         "type": "object"
       },
       "ClaimEventRead": {
+        "description": "Admin-only event row with the actor joined in.\n\nWe surface ``actor_email`` / ``actor_display_name`` so the admin panel\ncan answer \"who did this?\" without a second round-trip. These\nfields are intentionally nullable:\n\n  * Batch-job events (``EXPIRED``) and historical rows with a\n    SET-NULL'd FK have no actor.\n  * The user may have been deleted since; the FK is ON DELETE SET\n    NULL so ``actor_user_id`` itself can be null even when a join\n    is attempted.\n\nThis shape is admin-only on purpose. The public ``/claims/{id}``\nendpoint returns the plain ``ClaimEventRead`` from\n``modules/claims/schemas.py`` which carries only the UUID \u2014 we\ndon't want to leak admin emails to anonymous callers triaging\ntheir own claims.",
         "properties": {
+          "actor_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Display Name"
+          },
+          "actor_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Email"
+          },
           "actor_user_id": {
             "anyOf": [
               {
@@ -211,7 +234,8 @@
             "type": "string"
           },
           "event_type": {
-            "$ref": "#/components/schemas/ClaimEventType"
+            "title": "Event Type",
+            "type": "string"
           },
           "id": {
             "format": "uuid",
@@ -236,6 +260,8 @@
           "event_type",
           "message",
           "actor_user_id",
+          "actor_email",
+          "actor_display_name",
           "created_at"
         ],
         "title": "ClaimEventRead",
@@ -636,6 +662,48 @@
           "redirect_path"
         ],
         "title": "LoginResponse",
+        "type": "object"
+      },
+      "MeResponse": {
+        "description": "GET /me response.\n\nAdds ``display_name`` + ``email`` on top of the bare id+role pair\nso clients can render \"Signed in as <name>\" without a second\nroundtrip. ``display_name`` is nullable \u2014 legacy admin-invited\nusers may have NULL there. ``email`` is required for any active\nuser, but typed Optional for symmetry with the User model column.",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "title": "MeResponse",
         "type": "object"
       },
       "MemberAdminCreate": {
@@ -2997,31 +3065,8 @@
         "title": "ValidationError",
         "type": "object"
       },
-      "app__modules__admin__claims__schemas__ClaimEventRead": {
-        "description": "Admin-only event row with the actor joined in.\n\nWe surface ``actor_email`` / ``actor_display_name`` so the admin panel\ncan answer \"who did this?\" without a second round-trip. These\nfields are intentionally nullable:\n\n  * Batch-job events (``EXPIRED``) and historical rows with a\n    SET-NULL'd FK have no actor.\n  * The user may have been deleted since; the FK is ON DELETE SET\n    NULL so ``actor_user_id`` itself can be null even when a join\n    is attempted.\n\nThis shape is admin-only on purpose. The public ``/claims/{id}``\nendpoint returns the plain ``ClaimEventRead`` from\n``modules/claims/schemas.py`` which carries only the UUID \u2014 we\ndon't want to leak admin emails to anonymous callers triaging\ntheir own claims.",
+      "app__modules__claims__schemas__ClaimEventRead": {
         "properties": {
-          "actor_display_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actor Display Name"
-          },
-          "actor_email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actor Email"
-          },
           "actor_user_id": {
             "anyOf": [
               {
@@ -3045,8 +3090,7 @@
             "type": "string"
           },
           "event_type": {
-            "title": "Event Type",
-            "type": "string"
+            "$ref": "#/components/schemas/ClaimEventType"
           },
           "id": {
             "format": "uuid",
@@ -3071,8 +3115,6 @@
           "event_type",
           "message",
           "actor_user_id",
-          "actor_email",
-          "actor_display_name",
           "created_at"
         ],
         "title": "ClaimEventRead",
@@ -3306,7 +3348,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/app__modules__admin__claims__schemas__ClaimEventRead"
+                    "$ref": "#/components/schemas/ClaimEventRead"
                   },
                   "title": "Response List Claim Events Admin Admin Claims  Claim Id  Events Get",
                   "type": "array"
@@ -7573,6 +7615,7 @@
     },
     "/me": {
       "get": {
+        "description": "Who the cookie says you are.\n\nReturns id + role + display_name + email so frontends can render\n\"Signed in as <name>\" without a second roundtrip. We pull\ndisplay_name + email from the User row rather than caching them\non ``CurrentUser`` \u2014 keeps the auth context dataclass slim and\nmeans a profile rename takes effect on the next /me call instead\nof after a re-login.\n\nThe session\u2192user resolution already happened in\n``get_current_user``; if the row is gone by the time we look it\nup here (rare, but possible if admin hard-deleted between\nmiddleware and handler), surface a 401 so the client clears the\ncookie and redirects to /login rather than seeing a 500.",
         "operationId": "get_me_me_get",
         "parameters": [
           {
@@ -7612,7 +7655,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -7727,7 +7772,7 @@
         ]
       },
       "post": {
-        "description": "Create an ownership claim on behalf of the signed-in user.\n\nSame downstream effect as the public path: the row goes into\n``place_ownership_requests`` with status SUBMITTED, the requester\nis linked back to the user, admin staff sees it in the review\nqueue. The duplicate-active-claim guard in the repo (same place +\nsame email + still-active status) prevents an owner from\nre-submitting while their first attempt is in flight.\n\nTwo ways to identify the place being claimed (the schema enforces\nexactly-one-of):\n\n  * ``place_id`` \u2014 a Place already in the Trust Halal catalog.\n    Path the owner takes when text-search returns a match.\n  * ``google_place_id`` \u2014 a place that's only on Google so far.\n    We ingest it server-side first (idempotent on the Google ID),\n    then create the claim against the resulting Place. The claim\n    and ingest don't share a transaction by design \u2014 if the claim\n    fails, we still keep the ingested Place since admin staff (or\n    the same owner on a retry) can use it.\n\nContact name + email are pulled from the user's profile rather\nthan the request body. ``display_name`` is non-null on signup, but\nwe fall back to the email's local-part if it's somehow blank \u2014 we\nnever want admin staff to see a literally empty contact_name.",
+        "description": "Create an ownership claim on behalf of the signed-in user.\n\nSame downstream effect as the public path: the row goes into\n``place_ownership_requests`` with status SUBMITTED, the requester\nis linked back to the user, admin staff sees it in the review\nqueue. The duplicate-active-claim guard in the repo (same place +\nsame email + still-active status) prevents an owner from\nre-submitting while their first attempt is in flight.\n\nTwo ways to identify the place being claimed (the schema enforces\nexactly-one-of):\n\n  * ``place_id`` \u2014 a Place already in the Trust Halal catalog.\n    Path the owner takes when text-search returns a match.\n  * ``google_place_id`` \u2014 a place that's only on Google so far.\n    We ingest it server-side first (idempotent on the Google ID),\n    then create the claim against the resulting Place. The claim\n    and ingest don't share a transaction by design \u2014 if the claim\n    fails, we still keep the ingested Place since admin staff (or\n    the same owner on a retry) can use it.\n\nContact name + email are pulled from the user's profile rather\nthan the request body. ``display_name`` is non-null on signup, but\nwe fall back to the email's local-part if it's somehow blank \u2014 we\nnever want admin staff to see a literally empty contact_name.\n\nThe auth context (``CurrentUser``) is intentionally slim \u2014 id +\nrole only \u2014 so we look up the full User row here for the\ndisplay_name + email fields. Cheap (single PK lookup) and keeps\nthe auth context cache-friendly.",
         "operationId": "submit_my_ownership_request_me_ownership_requests_post",
         "parameters": [
           {

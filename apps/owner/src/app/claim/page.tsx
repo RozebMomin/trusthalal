@@ -48,6 +48,7 @@ import {
   useCreateMyOwnershipRequest,
   usePlacesGoogleAutocomplete,
   usePlacesSearch,
+  useUploadOwnershipRequestAttachment,
 } from "@/lib/api/hooks";
 
 // Discriminated union so both code paths (TH place vs. Google
@@ -56,6 +57,19 @@ import {
 type PickedPlace =
   | { kind: "trustHalal"; place: PlaceSearchResult }
   | { kind: "google"; prediction: GoogleAutocompletePrediction };
+
+// Mirror of the server's allow-list. Server validates independently;
+// this is for snappy client-side feedback only.
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/heif",
+]);
+const ALLOWED_HUMAN = "PDF, JPEG, PNG, HEIC";
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_FILES = 5;
 
 export default function ClaimPage() {
   const router = useRouter();
@@ -66,7 +80,12 @@ export default function ClaimPage() {
   const [picked, setPicked] = React.useState<PickedPlace | null>(null);
   const [message, setMessage] = React.useState("");
   const [evidenceUrl, setEvidenceUrl] = React.useState("");
+  const [files, setFiles] = React.useState<File[]>([]);
+  const [fileError, setFileError] = React.useState<string | null>(null);
   const [submitError, setSubmitError] = React.useState<React.ReactNode | null>(
+    null,
+  );
+  const [uploadProgress, setUploadProgress] = React.useState<string | null>(
     null,
   );
 
@@ -83,11 +102,60 @@ export default function ClaimPage() {
     picked === null && showGoogleFallback,
   );
   const submit = useCreateMyOwnershipRequest();
+  const uploadAttachment = useUploadOwnershipRequestAttachment();
+
+  // "Required evidence" gate — the server doesn't enforce this at
+  // submission since files upload after the claim is created, so we
+  // hold the line on the client. Either an evidence URL or at least
+  // one staged file unlocks the Submit button. Admin staff still
+  // reviews and can reject naked claims if a malicious caller
+  // bypasses the gate.
+  const hasEvidence = evidenceUrl.trim().length > 0 || files.length > 0;
+  const isWorking = submit.isPending || uploadAttachment.isPending;
+
+  function addFiles(incoming: FileList | File[]) {
+    setFileError(null);
+    const list = Array.from(incoming);
+    const next: File[] = [...files];
+
+    for (const f of list) {
+      if (next.length >= MAX_FILES) {
+        setFileError(`You can attach at most ${MAX_FILES} files.`);
+        break;
+      }
+      if (!ALLOWED_MIME_TYPES.has(f.type)) {
+        setFileError(
+          `${f.name}: file type not supported. Allowed: ${ALLOWED_HUMAN}.`,
+        );
+        continue;
+      }
+      if (f.size > MAX_FILE_SIZE_BYTES) {
+        setFileError(
+          `${f.name}: file is larger than ${MAX_FILE_SIZE_BYTES / 1024 / 1024} MB.`,
+        );
+        continue;
+      }
+      // Dedupe by (name, size) — defensive against the same file
+      // getting picked twice. The native picker allows duplicates
+      // which would just upload twice for no benefit.
+      if (next.some((n) => n.name === f.name && n.size === f.size)) {
+        continue;
+      }
+      next.push(f);
+    }
+    setFiles(next);
+  }
+
+  function removeFile(index: number) {
+    setFiles(files.filter((_, i) => i !== index));
+    setFileError(null);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!picked || submit.isPending) return;
+    if (!picked || isWorking) return;
     setSubmitError(null);
+    setUploadProgress(null);
 
     const composed = composeMessage({ note: message, evidenceUrl });
     const messagePayload = composed.length > 0 ? composed : null;
@@ -102,9 +170,12 @@ export default function ClaimPage() {
             message: messagePayload,
           };
 
+    // Step 1: create the claim. If this fails, no files have been
+    // touched yet so the user can retry cleanly.
+    let createdRequestId: string | undefined;
     try {
-      await submit.mutateAsync(payload);
-      router.push("/my-claims?submitted=1");
+      const created = await submit.mutateAsync(payload);
+      createdRequestId = created.id;
     } catch (err) {
       if (
         err instanceof ApiError &&
@@ -132,7 +203,32 @@ export default function ClaimPage() {
           ? "Something went wrong on our end. Please try again in a moment."
           : description,
       );
+      return;
     }
+
+    // Step 2: upload any staged files in parallel. The claim is
+    // already created; failures here are softer than the claim
+    // create path. We surface "X file(s) didn't upload" via a
+    // query param on /my-claims rather than blocking on retries
+    // here in a flow that could go on indefinitely.
+    if (files.length > 0 && createdRequestId) {
+      setUploadProgress(`Uploading ${files.length} file(s)…`);
+      const results = await Promise.allSettled(
+        files.map((file) =>
+          uploadAttachment.mutateAsync({
+            requestId: createdRequestId!,
+            file,
+          }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        router.push(`/my-claims?submitted=1&upload-failed=${failed}`);
+        return;
+      }
+    }
+
+    router.push("/my-claims?submitted=1");
   }
 
   return (
@@ -180,30 +276,44 @@ export default function ClaimPage() {
               onChange={(e) => setMessage(e.target.value)}
               maxLength={1500}
               rows={4}
-              disabled={submit.isPending}
+              disabled={isWorking}
               placeholder="e.g. I'm the operator at this location since 2019. Happy to provide a business license."
               className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="claim-evidence">
-              Evidence link{" "}
-              <span className="text-muted-foreground">(optional)</span>
-            </Label>
-            <Input
-              id="claim-evidence"
-              type="url"
-              value={evidenceUrl}
-              onChange={(e) => setEvidenceUrl(e.target.value)}
-              placeholder="https://yourrestaurant.com or a link to a public business filing"
-              disabled={submit.isPending}
+          <fieldset className="space-y-3 rounded-md border bg-card p-4">
+            <legend className="px-1 text-sm font-medium">
+              Evidence
+              <span className="ml-1 text-xs font-normal text-destructive">
+                (required — pick one or both)
+              </span>
+            </legend>
+
+            <div className="space-y-2">
+              <Label htmlFor="claim-evidence">Public link</Label>
+              <Input
+                id="claim-evidence"
+                type="url"
+                value={evidenceUrl}
+                onChange={(e) => setEvidenceUrl(e.target.value)}
+                placeholder="https://yourrestaurant.com or a public business filing"
+                disabled={isWorking}
+              />
+              <p className="text-xs text-muted-foreground">
+                A page Trust Halal staff can verify — your website, a
+                state business registry, or similar.
+              </p>
+            </div>
+
+            <FilePicker
+              files={files}
+              onAdd={addFiles}
+              onRemove={removeFile}
+              disabled={isWorking}
+              error={fileError}
             />
-            <p className="text-xs text-muted-foreground">
-              A link Trust Halal staff can use to verify your claim — your
-              restaurant&apos;s website, a state business registry page, etc.
-            </p>
-          </div>
+          </fieldset>
 
           {submitError && (
             <p
@@ -214,16 +324,37 @@ export default function ClaimPage() {
               {submitError}
             </p>
           )}
+          {uploadProgress && (
+            <p
+              role="status"
+              aria-live="polite"
+              className="text-sm text-muted-foreground"
+            >
+              {uploadProgress}
+            </p>
+          )}
 
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={submit.isPending}>
-              {submit.isPending ? "Submitting…" : "Submit claim"}
+            <Button
+              type="submit"
+              disabled={isWorking || !hasEvidence}
+              title={
+                !hasEvidence
+                  ? "Add an evidence link or attach a file to submit"
+                  : undefined
+              }
+            >
+              {submit.isPending
+                ? "Submitting claim…"
+                : uploadAttachment.isPending
+                ? "Uploading files…"
+                : "Submit claim"}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => setPicked(null)}
-              disabled={submit.isPending}
+              disabled={isWorking}
             >
               Pick a different place
             </Button>
@@ -518,4 +649,137 @@ function composeMessage({
     parts.push(trimmedNote);
   }
   return parts.join("\n\n");
+}
+
+/**
+ * File picker with drag-drop + click-to-browse + per-file remove.
+ *
+ * Validation runs in the parent's ``addFiles`` handler so the same
+ * code path covers both drag-drop and the native file input. The
+ * parent also owns the ``files`` array and the surfaced error.
+ */
+function FilePicker({
+  files,
+  onAdd,
+  onRemove,
+  disabled,
+  error,
+}: {
+  files: File[];
+  onAdd: (files: FileList | File[]) => void;
+  onRemove: (index: number) => void;
+  disabled: boolean;
+  error: string | null;
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = React.useState(false);
+
+  function onDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (disabled) return;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      onAdd(e.dataTransfer.files);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="claim-files">Files</Label>
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!disabled) setIsDragOver(true);
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={onDrop}
+        className={[
+          "rounded-md border border-dashed bg-background px-4 py-6 text-center transition",
+          isDragOver
+            ? "border-primary bg-primary/5"
+            : "border-input",
+          disabled ? "opacity-60" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <p className="text-sm text-muted-foreground">
+          Drop files here, or{" "}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={disabled}
+            className="font-medium text-foreground underline-offset-4 hover:underline disabled:cursor-not-allowed"
+          >
+            browse
+          </button>
+          .
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {ALLOWED_HUMAN} · up to {MAX_FILE_SIZE_BYTES / 1024 / 1024} MB each ·
+          max {MAX_FILES} files
+        </p>
+        <input
+          ref={inputRef}
+          id="claim-files"
+          type="file"
+          multiple
+          accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/jpeg,image/png,image/heic,image/heif"
+          className="hidden"
+          disabled={disabled}
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              onAdd(e.target.files);
+            }
+            // Reset so picking the same file twice still triggers
+            // onChange (browsers suppress identical-file change).
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      {error && (
+        <p
+          role="alert"
+          aria-live="polite"
+          className="text-xs text-destructive"
+        >
+          {error}
+        </p>
+      )}
+
+      {files.length > 0 && (
+        <ul className="space-y-1.5">
+          {files.map((file, i) => (
+            <li
+              key={`${file.name}-${file.size}-${i}`}
+              className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium">{file.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatFileSize(file.size)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                disabled={disabled}
+                className="shrink-0 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }

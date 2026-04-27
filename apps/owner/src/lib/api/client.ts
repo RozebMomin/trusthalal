@@ -50,6 +50,13 @@ export class ApiError extends Error {
 export type RequestOptions = Omit<RequestInit, "body"> & {
   /** JSON-encoded automatically if provided. */
   json?: unknown;
+  /**
+   * Multipart upload body. When set, ``json`` is ignored and the
+   * browser picks the multipart Content-Type + boundary itself
+   * (we explicitly do NOT set Content-Type on the request, since
+   * doing so breaks the browser's auto-boundary).
+   */
+  formData?: FormData;
   /** Query string params; undefined values are dropped. */
   searchParams?: Record<string, string | number | boolean | undefined | null>;
 };
@@ -70,16 +77,30 @@ function buildUrl(path: string, searchParams?: RequestOptions["searchParams"]) {
 
 export async function apiFetch<T = unknown>(
   path: string,
-  { json, searchParams, headers, ...init }: RequestOptions = {},
+  { json, formData, searchParams, headers, ...init }: RequestOptions = {},
 ): Promise<T> {
+  // Pick the body + content-type strategy. formData wins if both are
+  // somehow set (callers shouldn't, but defensive default avoids
+  // surprises).
+  let body: BodyInit | undefined;
+  let extraHeaders: Record<string, string> = {};
+  if (formData !== undefined) {
+    body = formData;
+    // Intentionally NO Content-Type — the browser sets the multipart
+    // boundary header automatically based on the FormData contents.
+  } else if (json !== undefined) {
+    body = JSON.stringify(json);
+    extraHeaders["Content-Type"] = "application/json";
+  }
+
   const res = await fetch(buildUrl(path, searchParams), {
     ...init,
     headers: {
       Accept: "application/json",
-      ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...extraHeaders,
       ...(headers ?? {}),
     },
-    body: json !== undefined ? JSON.stringify(json) : undefined,
+    body,
     // ``include`` sends the session cookie across origins (api on
     // api.trusthalal.org, owner portal on owner.trusthalal.org). The
     // API's CORS middleware needs ``allow_credentials=True`` and an
@@ -91,16 +112,16 @@ export async function apiFetch<T = unknown>(
   if (res.status === 204) return undefined as T;
 
   const text = await res.text();
-  const body = text ? safeJson(text) : undefined;
+  const parsed = text ? safeJson(text) : undefined;
 
   if (!res.ok) {
-    const shape = body as ApiErrorShape | undefined;
+    const shape = parsed as ApiErrorShape | undefined;
     const code = shape?.error?.code ?? "http_error";
     const message = shape?.error?.message ?? `HTTP ${res.status}`;
     throw new ApiError(res.status, code, message, shape?.error?.detail);
   }
 
-  return body as T;
+  return parsed as T;
 }
 
 function safeJson(text: string): unknown {

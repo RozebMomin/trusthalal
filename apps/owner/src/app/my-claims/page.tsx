@@ -27,6 +27,14 @@ import { type MyOwnershipRequestRead, useMyOwnershipRequests } from "@/lib/api/h
 export default function MyClaimsPage() {
   const params = useSearchParams();
   const justSubmitted = params?.get("submitted") === "1";
+  // /claim sets ``upload-failed=N`` when one or more attachment
+  // uploads errored after the parent claim was created. The claim
+  // itself went through, so we treat this as a soft warning rather
+  // than an error.
+  const uploadFailedRaw = params?.get("upload-failed");
+  const uploadFailedCount = uploadFailedRaw
+    ? Math.max(0, parseInt(uploadFailedRaw, 10) || 0)
+    : 0;
 
   const { data, isLoading, isError } = useMyOwnershipRequests();
   const claims = data ?? [];
@@ -46,13 +54,33 @@ export default function MyClaimsPage() {
         </Link>
       </header>
 
-      {justSubmitted && (
+      {justSubmitted && uploadFailedCount === 0 && (
         <div
           role="status"
           className="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100"
         >
           Your claim was submitted. Trust Halal staff will review it and
           follow up by email.
+        </div>
+      )}
+
+      {justSubmitted && uploadFailedCount > 0 && (
+        <div
+          role="status"
+          className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+        >
+          Your claim was submitted, but {uploadFailedCount} file{" "}
+          {uploadFailedCount === 1 ? "" : "s"} couldn&apos;t be uploaded.
+          Reply to the verification email Trust Halal staff sends and
+          attach the missing file{uploadFailedCount === 1 ? "" : "s"}{" "}
+          there, or contact{" "}
+          <a
+            href="mailto:support@trusthalal.org"
+            className="underline-offset-4 hover:underline"
+          >
+            support@trusthalal.org
+          </a>
+          .
         </div>
       )}
 
@@ -125,6 +153,19 @@ function ClaimRow({ claim }: { claim: MyOwnershipRequestRead }) {
             {claim.message}
           </pre>
         </details>
+      )}
+
+      {claim.attachments.length > 0 && (
+        <div className="mt-3 text-xs">
+          <p className="font-medium text-foreground">Files attached</p>
+          <ul className="mt-1 space-y-0.5 text-muted-foreground">
+            {claim.attachments.map((a) => (
+              <li key={a.id} className="truncate">
+                {a.original_filename}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <p className="mt-3 text-xs text-muted-foreground">
