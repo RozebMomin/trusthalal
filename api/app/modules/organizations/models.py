@@ -55,6 +55,24 @@ class Organization(Base):
         index=True,
     )
 
+    # Inline decision-audit fields for the verify/reject workflow.
+    # See migration b5c8e2a9d4f7 for the rationale (vs. a full
+    # events table). decided_* are set on UNDER_REVIEW → VERIFIED/
+    # REJECTED transitions; null otherwise. decision_note is
+    # required by the server on REJECTED, optional on VERIFIED.
+    decided_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    decided_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    decision_note: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

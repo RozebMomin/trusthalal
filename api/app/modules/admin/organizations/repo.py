@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import case, func, select
@@ -11,6 +12,7 @@ from app.modules.admin.organizations.schemas import (
     OrganizationAdminCreate,
     OrganizationAdminPatch,
 )
+from app.modules.organizations.enums import OrganizationStatus
 from app.modules.organizations.models import (
     Organization,
     OrganizationMember,
@@ -21,9 +23,13 @@ from app.modules.users.models import User
 
 
 def admin_create_organization(db: Session, payload: OrganizationAdminCreate) -> Organization:
+    # Admin-created orgs start at VERIFIED — Trust Halal staff is
+    # implicitly trusting itself. The owner-self-service path
+    # (slice 5a) is the one that starts at DRAFT.
     org = Organization(
         name=payload.name.strip(),
         contact_email=(str(payload.contact_email).lower() if payload.contact_email else None),
+        status=OrganizationStatus.VERIFIED.value,
     )
     db.add(org)
     db.commit()
@@ -35,15 +41,89 @@ def admin_list_organizations(
     db: Session,
     *,
     q: str | None = None,
+    status: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[Organization]:
+    """List orgs for the admin browse.
+
+    ``status`` filter accepts any value of OrganizationStatus
+    (DRAFT / UNDER_REVIEW / VERIFIED / REJECTED). When set, the
+    endpoint becomes a focused queue ("show me everything
+    UNDER_REVIEW"); otherwise it returns the full catalog newest-
+    first.
+    """
     stmt = select(Organization)
     if q:
         like = f"%{q.strip().lower()}%"
         stmt = stmt.where(func.lower(Organization.name).like(like))
+    if status:
+        stmt = stmt.where(Organization.status == status)
     stmt = stmt.order_by(Organization.created_at.desc()).limit(limit).offset(offset)
     return list(db.execute(stmt).scalars().all())
+
+
+def admin_verify_organization(
+    db: Session,
+    *,
+    org_id: UUID,
+    note: str | None,
+    actor_user_id: UUID,
+) -> Organization:
+    """Move an UNDER_REVIEW org → VERIFIED.
+
+    Idempotent on already-VERIFIED is a 409 (NOT_REVIEWABLE) rather
+    than a no-op — explicit errors surface stale tabs / double-
+    click race conditions to the caller instead of silently
+    pretending the action happened.
+    """
+    org = admin_get_organization(db, org_id)
+    if org.status != OrganizationStatus.UNDER_REVIEW.value:
+        raise ConflictError(
+            "ORGANIZATION_NOT_REVIEWABLE",
+            f"Only UNDER_REVIEW organizations can be verified. "
+            f"This one is currently {org.status}.",
+        )
+
+    org.status = OrganizationStatus.VERIFIED.value
+    org.decided_at = datetime.now(timezone.utc)
+    org.decided_by_user_id = actor_user_id
+    org.decision_note = note.strip() if note else None
+    db.add(org)
+    db.commit()
+    db.refresh(org)
+    return org
+
+
+def admin_reject_organization(
+    db: Session,
+    *,
+    org_id: UUID,
+    reason: str,
+    actor_user_id: UUID,
+) -> Organization:
+    """Move an UNDER_REVIEW org → REJECTED with a required reason.
+
+    ``reason`` is enforced at the schema layer (min_length=3) so this
+    repo helper trusts the input. Same NOT_REVIEWABLE guard as
+    verify.
+    """
+    org = admin_get_organization(db, org_id)
+    if org.status != OrganizationStatus.UNDER_REVIEW.value:
+        raise ConflictError(
+            "ORGANIZATION_NOT_REVIEWABLE",
+            f"Only UNDER_REVIEW organizations can be rejected. "
+            f"This one is currently {org.status}.",
+        )
+
+    org.status = OrganizationStatus.REJECTED.value
+    org.decided_at = datetime.now(timezone.utc)
+    org.decided_by_user_id = actor_user_id
+    org.decision_note = reason.strip()
+    db.add(org)
+    db.commit()
+    db.refresh(org)
+    return org
 
 
 def admin_get_organization(db: Session, org_id: UUID) -> Organization:
