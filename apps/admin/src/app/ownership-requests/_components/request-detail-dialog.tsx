@@ -13,37 +13,18 @@ import {
 import { ApiError, apiFetch } from "@/lib/api/client";
 import { type OwnershipRequestAdminRead } from "@/lib/api/hooks";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
+import type { components } from "@/lib/api/schema";
 
 import { StatusBadge } from "./status-badge";
 
-// Hand-typed until ``npm run codegen`` regenerates schema.d.ts
-// against the latest openapi.json — at which point both shapes can
-// be swapped to ``components["schemas"]["..."]`` references.
-// TODO(post-codegen): replace with codegen aliases.
-type Attachment = {
-  id: string;
-  request_id: string;
-  original_filename: string;
-  content_type: string;
-  size_bytes: number;
-  uploaded_at: string;
-};
-
-type SignedUrlResponse = {
-  url: string;
-  expires_in_seconds: number;
-  original_filename: string;
-  content_type: string;
-};
-
-// Likewise, the OwnershipRequestAdminRead codegen shape doesn't
-// include ``attachments`` until codegen reruns. Cast the parameter
-// at the call site rather than poisoning the global type alias —
-// keeps the rest of the admin code typed correctly until codegen
-// catches up.
-type RequestWithAttachments = OwnershipRequestAdminRead & {
-  attachments?: Attachment[];
-};
+// Pull the attachment + signed-URL shapes from codegen so a future
+// schema rename surfaces here as a type error instead of a runtime
+// KeyError. ``_AdminAttachmentSignedUrl`` keeps its underscore
+// prefix because the response model is declared as a private class
+// in the admin router (it's an inline-on-the-route shape, not a
+// reusable schema) — codegen mirrors that name verbatim.
+type Attachment = components["schemas"]["OwnershipRequestAttachmentRead"];
+type SignedUrlResponse = components["schemas"]["_AdminAttachmentSignedUrl"];
 
 type Props = {
   request: OwnershipRequestAdminRead;
@@ -139,7 +120,7 @@ export function RequestDetailDialog({ request, open, onOpenChange }: Props) {
 
         <EvidenceSection
           requestId={request.id}
-          attachments={(request as RequestWithAttachments).attachments ?? []}
+          attachments={request.attachments ?? []}
         />
       </DialogContent>
     </Dialog>
