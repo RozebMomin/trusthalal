@@ -329,9 +329,15 @@ function AttachmentsSection({
     <section className="space-y-3 rounded-md border bg-card p-4">
       <h2 className="text-lg font-semibold">Supporting documents</h2>
       <p className="text-sm text-muted-foreground">
-        Articles of organization, state business filing, EIN letter,
-        utility bill in the entity&apos;s name — anything that helps
-        Trust Halal staff verify this organization actually exists.
+        Upload formation or renewal filings for this entity — articles of
+        organization, certificate of incorporation, your most recent
+        state annual report, or a comparable filing from your jurisdiction.
+        These prove the entity exists and is currently in good standing.
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Documents tying the entity to a specific restaurant address (a
+        business license, lease, or sales-tax permit) belong on the
+        individual claim, not here.
       </p>
 
       {editable && (

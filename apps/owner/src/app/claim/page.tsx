@@ -267,8 +267,10 @@ export default function ClaimPage() {
         <h1 className="text-3xl font-bold tracking-tight">Claim a place</h1>
         <p className="mt-2 text-muted-foreground">
           Find your restaurant in our catalog and submit a verification
-          request. Trust Halal staff will review what you send and follow
-          up by email.
+          request. You&apos;ll be asked for evidence that ties your
+          organization to this specific location — typically a business
+          license, lease, or sales-tax permit. Trust Halal staff will
+          review what you send and follow up by email.
         </p>
       </header>
 
@@ -316,7 +318,7 @@ export default function ClaimPage() {
               maxLength={1500}
               rows={4}
               disabled={isWorking}
-              placeholder="e.g. I'm the operator at this location since 2019. Happy to provide a business license."
+              placeholder="e.g. I'm the operator at this location since 2019. Attaching our city business license and current lease."
               className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
@@ -329,6 +331,15 @@ export default function ClaimPage() {
               </span>
             </legend>
 
+            <p className="text-xs text-muted-foreground">
+              Show that <strong>this organization</strong> operates{" "}
+              <strong>this location</strong>. The strongest evidence is a
+              document issued to the entity at this address — for example
+              a business license, current lease, sales-tax permit, or
+              certificate of occupancy. Entity-formation documents go on
+              the organization itself, not here.
+            </p>
+
             <div className="space-y-2">
               <Label htmlFor="claim-evidence">Public link</Label>
               <Input
@@ -336,12 +347,13 @@ export default function ClaimPage() {
                 type="url"
                 value={evidenceUrl}
                 onChange={(e) => setEvidenceUrl(e.target.value)}
-                placeholder="https://yourrestaurant.com or a public business filing"
+                placeholder="https://yourrestaurant.com or a public license lookup"
                 disabled={isWorking}
               />
               <p className="text-xs text-muted-foreground">
-                A page Trust Halal staff can verify — your website, a
-                state business registry, or similar.
+                A page that confirms the connection — for instance a city
+                or state business-license lookup, or your website footer
+                that names the operating entity.
               </p>
             </div>
 

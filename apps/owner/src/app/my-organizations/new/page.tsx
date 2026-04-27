@@ -69,9 +69,11 @@ export default function NewMyOrganizationPage() {
           Add an organization
         </h1>
         <p className="mt-2 text-muted-foreground">
-          The business entity that operates your restaurant. You&apos;ll
-          add supporting documents (articles of organization, business
-          filing, etc.) on the next step before submitting for review.
+          The legal entity that owns or operates your restaurant. On the
+          next step you&apos;ll attach formation or renewal documents
+          (articles of organization, certificate of incorporation, your
+          most recent state annual report, etc.) so Trust Halal can
+          verify the entity exists and is in good standing.
         </p>
       </header>
 
