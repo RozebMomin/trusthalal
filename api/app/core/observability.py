@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import uuid
 from typing import Awaitable, Callable
 
@@ -35,15 +36,28 @@ REQUEST_ID_HEADER = "X-Request-ID"
 def init_sentry() -> bool:
     """Initialize Sentry if a DSN is configured.
 
-    Returns True when init ran (DSN was set), False otherwise so the
-    caller can log a "Sentry disabled, no DSN" line in dev.
+    Returns True when init ran (DSN was set + import worked), False
+    otherwise. We always emit a status line on stderr so boot-time
+    diagnostics are visible regardless of where the logging
+    configuration lands — Render shows everything written to stderr
+    in the service log, so "did Sentry init?" is answerable from the
+    log tab without having to dig.
 
     Imports sentry-sdk lazily so the dependency stays soft — the
     server still boots if the package isn't installed yet (e.g. on a
     branch that hasn't picked up the new requirements file).
     """
     dsn = os.getenv("SENTRY_DSN", "").strip()
+
     if not dsn:
+        # Print to stderr so the message survives any logging config
+        # ordering issue (the early-boot logger may be at WARNING level).
+        # ``flush=True`` so Render captures it before the next line.
+        print(
+            "[observability] SENTRY_DSN not set — Sentry disabled.",
+            file=sys.stderr,
+            flush=True,
+        )
         return False
 
     try:
@@ -51,9 +65,12 @@ def init_sentry() -> bool:
         from sentry_sdk.integrations.fastapi import FastApiIntegration
         from sentry_sdk.integrations.starlette import StarletteIntegration
         from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-    except ImportError:
-        logger.warning(
-            "SENTRY_DSN is set but sentry-sdk is not installed; skipping init."
+    except ImportError as exc:
+        print(
+            f"[observability] SENTRY_DSN is set but sentry-sdk import "
+            f"failed ({exc}); Sentry disabled.",
+            file=sys.stderr,
+            flush=True,
         )
         return False
 
@@ -64,30 +81,54 @@ def init_sentry() -> bool:
         os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.0")
     )
 
-    sentry_sdk.init(
-        dsn=dsn,
-        environment=environment,
-        release=release,
-        integrations=[
-            FastApiIntegration(),
-            StarletteIntegration(),
-            SqlalchemyIntegration(),
-        ],
-        traces_sample_rate=traces_sample_rate,
-        profiles_sample_rate=profiles_sample_rate,
-        # PII off by default — we don't want emails, IPs, or session
-        # cookies leaking into the issues UI. Flip to True with intent
-        # if a debugging session warrants it.
-        send_default_pii=False,
-        # Drop the Authorization header / Cookie before send as
-        # belt-and-suspenders even if PII flips on.
-        before_send=_strip_sensitive_headers,
-    )
-    logger.info(
-        "Sentry initialized: env=%s release=%s traces=%.2f",
-        environment,
-        release or "<none>",
-        traces_sample_rate,
+    try:
+        sentry_sdk.init(
+            dsn=dsn,
+            environment=environment,
+            release=release,
+            integrations=[
+                FastApiIntegration(),
+                StarletteIntegration(),
+                SqlalchemyIntegration(),
+            ],
+            traces_sample_rate=traces_sample_rate,
+            profiles_sample_rate=profiles_sample_rate,
+            # PII off by default — we don't want emails, IPs, or session
+            # cookies leaking into the issues UI. Flip to True with intent
+            # if a debugging session warrants it.
+            send_default_pii=False,
+            # Drop the Authorization header / Cookie before send as
+            # belt-and-suspenders even if PII flips on.
+            before_send=_strip_sensitive_headers,
+        )
+    except Exception as exc:  # pragma: no cover — defensive
+        print(
+            f"[observability] sentry_sdk.init() raised {type(exc).__name__}: "
+            f"{exc}; Sentry disabled.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return False
+
+    # Mask the host portion of the DSN before printing so we don't put
+    # the secret in the log. The DSN format is
+    # ``https://<public_key>@<host>/<project_id>``.
+    dsn_host = "<unknown>"
+    try:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(dsn)
+        if parsed.hostname:
+            dsn_host = parsed.hostname
+    except Exception:
+        pass
+
+    print(
+        f"[observability] Sentry initialized: env={environment} "
+        f"release={release or '<none>'} traces={traces_sample_rate:.2f} "
+        f"host={dsn_host}",
+        file=sys.stderr,
+        flush=True,
     )
     return True
 

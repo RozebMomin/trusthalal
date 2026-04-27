@@ -11,11 +11,27 @@ from app.core.logging import setup_logging
 from app.core.observability import RequestIDMiddleware, init_sentry
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 
-# Sentry must initialize BEFORE FastAPI is constructed and BEFORE any
-# subsequent imports that might raise at import time — events raised
-# during app boot are exactly the kind we want captured. No-op when
-# SENTRY_DSN isn't set, so local dev / tests don't ship to nowhere.
+# Configure logging FIRST so any messages emitted during Sentry init
+# (and the routers' import-time work that follows) actually land in
+# stdout/stderr at the configured level rather than getting suppressed
+# by Python's default WARNING-level root logger.
+setup_logging()
+logger = logging.getLogger(__name__)
+
+# Sentry init runs before the routers import so that any exception
+# raised during their import is captured. ``init_sentry()`` always
+# emits a status line on stderr (DSN missing / import failed / live)
+# so the Render log tab is the source of truth for "is Sentry on?".
+# No-op when SENTRY_DSN isn't set, so local dev / tests don't ship
+# events to nowhere.
 _sentry_active = init_sentry()
+if _sentry_active:
+    logger.info("Sentry observability is active for this process.")
+else:
+    logger.info(
+        "Sentry observability is NOT active — see [observability] line above "
+        "for the reason."
+    )
 
 import app.db.models  # noqa: F401  E402
 
@@ -43,10 +59,7 @@ from app.core.exception_handlers import (  # noqa: E402
     validation_error_handler,
 )
 
-setup_logging()
-logger = logging.getLogger(__name__)
-if _sentry_active:
-    logger.info("Sentry observability is active for this process.")
+# (logging + Sentry init already ran at the top of this module.)
 
 
 @asynccontextmanager
