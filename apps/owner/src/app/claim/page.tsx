@@ -44,8 +44,11 @@ import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type GoogleAutocompletePrediction,
+  type MyOrganizationRead,
   type PlaceSearchResult,
+  ORG_ELIGIBLE_FOR_CLAIM,
   useCreateMyOwnershipRequest,
+  useMyOrganizations,
   usePlacesGoogleAutocomplete,
   usePlacesSearch,
   useUploadOwnershipRequestAttachment,
@@ -78,6 +81,7 @@ export default function ClaimPage() {
   const [debouncedQuery, setDebouncedQuery] = React.useState("");
   const [showGoogleFallback, setShowGoogleFallback] = React.useState(false);
   const [picked, setPicked] = React.useState<PickedPlace | null>(null);
+  const [organizationId, setOrganizationId] = React.useState<string>("");
   const [message, setMessage] = React.useState("");
   const [evidenceUrl, setEvidenceUrl] = React.useState("");
   const [files, setFiles] = React.useState<File[]>([]);
@@ -88,6 +92,26 @@ export default function ClaimPage() {
   const [uploadProgress, setUploadProgress] = React.useState<string | null>(
     null,
   );
+
+  const myOrgs = useMyOrganizations();
+  // Filter to orgs eligible to sponsor a claim — the server only
+  // accepts UNDER_REVIEW / VERIFIED. DRAFT orgs need to be submitted
+  // first; REJECTED orgs are dead-ends.
+  const eligibleOrgs = React.useMemo(
+    () =>
+      (myOrgs.data ?? []).filter((o) =>
+        ORG_ELIGIBLE_FOR_CLAIM.includes(o.status),
+      ),
+    [myOrgs.data],
+  );
+
+  // Auto-select if there's exactly one eligible org and the user
+  // hasn't picked yet — saves a click in the common case.
+  React.useEffect(() => {
+    if (organizationId === "" && eligibleOrgs.length === 1) {
+      setOrganizationId(eligibleOrgs[0].id);
+    }
+  }, [eligibleOrgs, organizationId]);
 
   // Debounce search input so a fast typist doesn't fire 8 requests
   // for "kahn" before they land on "khan".
@@ -111,6 +135,7 @@ export default function ClaimPage() {
   // reviews and can reject naked claims if a malicious caller
   // bypasses the gate.
   const hasEvidence = evidenceUrl.trim().length > 0 || files.length > 0;
+  const hasOrg = organizationId !== "";
   const isWorking = submit.isPending || uploadAttachment.isPending;
 
   function addFiles(incoming: FileList | File[]) {
@@ -153,7 +178,7 @@ export default function ClaimPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!picked || isWorking) return;
+    if (!picked || isWorking || !hasOrg) return;
     setSubmitError(null);
     setUploadProgress(null);
 
@@ -164,8 +189,13 @@ export default function ClaimPage() {
     // expects: place_id for Trust Halal, google_place_id for Google.
     const payload =
       picked.kind === "trustHalal"
-        ? { place_id: picked.place.id, message: messagePayload }
+        ? {
+            organization_id: organizationId,
+            place_id: picked.place.id,
+            message: messagePayload,
+          }
         : {
+            organization_id: organizationId,
             google_place_id: picked.prediction.google_place_id,
             message: messagePayload,
           };
@@ -241,6 +271,15 @@ export default function ClaimPage() {
           up by email.
         </p>
       </header>
+
+      <OrganizationPicker
+        eligibleOrgs={eligibleOrgs}
+        allOrgs={myOrgs.data ?? []}
+        isLoading={myOrgs.isLoading}
+        organizationId={organizationId}
+        onChange={setOrganizationId}
+        disabled={isWorking}
+      />
 
       {!picked ? (
         <SearchStep
@@ -337,9 +376,11 @@ export default function ClaimPage() {
           <div className="flex items-center gap-3">
             <Button
               type="submit"
-              disabled={isWorking || !hasEvidence}
+              disabled={isWorking || !hasEvidence || !hasOrg}
               title={
-                !hasEvidence
+                !hasOrg
+                  ? "Pick a sponsoring organization to submit"
+                  : !hasEvidence
                   ? "Add an evidence link or attach a file to submit"
                   : undefined
               }
@@ -782,4 +823,107 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * Organization picker — required step at the top of the claim flow.
+ *
+ * Three render branches, picked off the eligible-orgs list:
+ *
+ *   * Loading — generic placeholder while /me/organizations resolves.
+ *   * No eligible orgs at all — surfaces a clear "you need to create
+ *     and submit an organization first" callout with a link to
+ *     /my-organizations. If the user has DRAFT orgs, mention it so
+ *     they know to submit an existing one rather than create another.
+ *   * One or more eligible — render a select. With exactly one, the
+ *     parent component auto-selects it (effect in ClaimPage), so
+ *     the dropdown is functional but not required to interact with.
+ */
+function OrganizationPicker({
+  eligibleOrgs,
+  allOrgs,
+  isLoading,
+  organizationId,
+  onChange,
+  disabled,
+}: {
+  eligibleOrgs: MyOrganizationRead[];
+  allOrgs: MyOrganizationRead[];
+  isLoading: boolean;
+  organizationId: string;
+  onChange: (id: string) => void;
+  disabled: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <section className="rounded-md border bg-card p-4">
+        <p className="text-sm text-muted-foreground">
+          Loading your organizations…
+        </p>
+      </section>
+    );
+  }
+
+  if (eligibleOrgs.length === 0) {
+    const draftCount = allOrgs.filter((o) => o.status === "DRAFT").length;
+    return (
+      <section className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+        <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+          You need an organization first
+        </h2>
+        <p className="text-sm text-amber-900/90 dark:text-amber-100/90">
+          {draftCount > 0
+            ? `You have ${draftCount} draft organization${
+                draftCount === 1 ? "" : "s"
+              }. Submit ${
+                draftCount === 1 ? "it" : "one"
+              } for review before filing a claim, or `
+            : "Trust Halal verifies the business entity behind every claim. "}
+          <Link
+            href={
+              draftCount > 0 ? "/my-organizations" : "/my-organizations/new"
+            }
+            className="font-medium underline-offset-4 hover:underline"
+          >
+            {draftCount > 0
+              ? "manage your organizations"
+              : "add an organization"}
+          </Link>
+          .
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-2 rounded-md border bg-card p-4">
+      <Label htmlFor="claim-org-picker">Sponsoring organization</Label>
+      <select
+        id="claim-org-picker"
+        value={organizationId}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <option value="" disabled>
+          Choose an organization…
+        </option>
+        {eligibleOrgs.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.name} — {o.status === "VERIFIED" ? "Verified" : "Under review"}
+          </option>
+        ))}
+      </select>
+      <p className="text-xs text-muted-foreground">
+        Need a different one?{" "}
+        <Link
+          href="/my-organizations"
+          className="underline-offset-4 hover:underline"
+        >
+          Manage your organizations
+        </Link>
+        .
+      </p>
+    </section>
+  );
 }
