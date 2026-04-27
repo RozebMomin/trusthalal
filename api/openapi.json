@@ -16,6 +16,20 @@
         "title": "AdminClaimAction",
         "type": "object"
       },
+      "Body_upload_my_ownership_request_attachment_me_ownership_requests__request_id__attachments_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_my_ownership_request_attachment_me_ownership_requests__request_id__attachments_post",
+        "type": "object"
+      },
       "ClaimAdminRead": {
         "description": "Row shape for the /admin/claims queue.\n\nMirrors ClaimDetailRead minus the nested evidence/events lists.\nevidence_count is a denormalized counter so the queue table can\nsurface \"already has proof attached\" without N+1-ing /claims/{id}.",
         "properties": {
@@ -848,8 +862,16 @@
         "type": "object"
       },
       "MyOwnershipRequestRead": {
-        "description": "GET /me/ownership-requests row + POST /me/ownership-requests\nresponse shape.\n\nSame status semantics as OwnershipRequestRead but with the place\nnested so the portal can render the row without a second fetch.\nContact fields aren't included \u2014 the owner already knows their\nown contact info; surfacing them here is just clutter.",
+        "description": "GET /me/ownership-requests row + POST /me/ownership-requests\nresponse shape.\n\nSame status semantics as OwnershipRequestRead but with the place\nnested so the portal can render the row without a second fetch.\nContact fields aren't included \u2014 the owner already knows their\nown contact info; surfacing them here is just clutter.\n\n``attachments`` is included so the /my-claims page can render\n'utility-bill.pdf \u00b7 sos-filing.pdf' beneath each row without a\nper-row roundtrip. Empty list when nothing was uploaded.",
         "properties": {
+          "attachments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OwnershipRequestAttachmentRead"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -1293,6 +1315,14 @@
       },
       "OwnershipRequestAdminRead": {
         "properties": {
+          "attachments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OwnershipRequestAttachmentRead"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
           "contact_email": {
             "format": "email",
             "title": "Contact Email",
@@ -1429,6 +1459,48 @@
           }
         },
         "title": "OwnershipRequestApprove",
+        "type": "object"
+      },
+      "OwnershipRequestAttachmentRead": {
+        "description": "Wire shape for an uploaded evidence file.\n\nSurfaced to both the owner (their own claim's attachments) and\nadmin staff (review queue). The actual file bytes aren't here \u2014\nonly the metadata. Admin uses a separate signed-URL endpoint to\nfetch the bytes.",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "uploaded_at": {
+            "format": "date-time",
+            "title": "Uploaded At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "request_id",
+          "original_filename",
+          "content_type",
+          "size_bytes",
+          "uploaded_at"
+        ],
+        "title": "OwnershipRequestAttachmentRead",
         "type": "object"
       },
       "OwnershipRequestCreate": {
@@ -3065,6 +3137,35 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "_AdminAttachmentSignedUrl": {
+        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expires_in_seconds",
+          "original_filename",
+          "content_type"
+        ],
+        "title": "_AdminAttachmentSignedUrl",
+        "type": "object"
+      },
       "app__modules__claims__schemas__ClaimEventRead": {
         "properties": {
           "actor_user_id": {
@@ -4483,6 +4584,172 @@
           }
         },
         "summary": "Approve Ownership Request",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/ownership-requests/{request_id}/attachments": {
+      "get": {
+        "description": "List every file attached to a claim under admin review.",
+        "operationId": "list_attachments_admin_admin_ownership_requests__request_id__attachments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OwnershipRequestAttachmentRead"
+                  },
+                  "title": "Response List Attachments Admin Admin Ownership Requests  Request Id  Attachments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Attachments Admin",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/ownership-requests/{request_id}/attachments/{attachment_id}/url": {
+      "get": {
+        "description": "Mint a short-lived signed URL the admin browser can use to\ndownload or preview an attachment.\n\nThe endpoint takes both ``request_id`` and ``attachment_id`` and\nasserts the attachment belongs to that request. Defends against\na guessed UUID surfacing files for an unrelated claim.",
+        "operationId": "signed_url_for_attachment_admin_admin_ownership_requests__request_id__attachments__attachment_id__url_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Signed Url For Attachment Admin",
         "tags": [
           "admin"
         ]
@@ -7841,6 +8108,170 @@
           }
         },
         "summary": "Submit My Ownership Request",
+        "tags": [
+          "ownership-requests"
+        ]
+      }
+    },
+    "/me/ownership-requests/{request_id}/attachments": {
+      "get": {
+        "description": "List the attachments an owner has uploaded for one of their\nclaims. Same auth gate as the upload endpoint.\n\nMostly used so the owner portal can render the file list on a\nre-open of the /claim page (e.g. coming back via the claims list\nto add another file). The /my-claims list itself already embeds\nattachments via MyOwnershipRequestRead.",
+        "operationId": "list_my_ownership_request_attachments_me_ownership_requests__request_id__attachments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OwnershipRequestAttachmentRead"
+                  },
+                  "title": "Response List My Ownership Request Attachments Me Ownership Requests  Request Id  Attachments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List My Ownership Request Attachments",
+        "tags": [
+          "ownership-requests"
+        ]
+      },
+      "post": {
+        "description": "Upload a file as evidence on an existing ownership claim.\n\nMultipart upload. Validates ownership, file count cap, size cap,\nand MIME allow-list. Streams the bytes to object storage at\n``<bucket>/ownership-requests/<request_id>/<uuid>.<ext>`` and\ninserts the metadata row.\n\nOn any upload failure (storage outage, network error), we surface\na clean 503 \u2014 the file isn't half-recorded; the metadata row\nonly writes after the storage upload succeeds.",
+        "operationId": "upload_my_ownership_request_attachment_me_ownership_requests__request_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_my_ownership_request_attachment_me_ownership_requests__request_id__attachments_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnershipRequestAttachmentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload My Ownership Request Attachment",
         "tags": [
           "ownership-requests"
         ]
