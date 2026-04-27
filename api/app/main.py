@@ -12,6 +12,7 @@ import app.db.models  # noqa: F401
 from app.modules.places.router import router as places_router
 from app.modules.claims.router import router as claims_router
 from app.modules.auth.router import router as auth_router
+from app.modules.organizations.router import router as organizations_router
 from app.modules.ownership_requests.router import router as ownership_requests_router
 
 # Admin Routes
@@ -91,6 +92,7 @@ if cors_origins:
 app.include_router(places_router)
 app.include_router(claims_router)
 app.include_router(auth_router)
+app.include_router(organizations_router)
 app.include_router(ownership_requests_router)
 
 app.include_router(admin_router)

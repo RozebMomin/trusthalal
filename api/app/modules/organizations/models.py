@@ -4,11 +4,21 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func, text
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.modules.organizations.enums import OrganizationStatus
 
 
 class Organization(Base):
@@ -19,6 +29,31 @@ class Organization(Base):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     contact_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+
+    # Verification workflow status. New owner-self-service rows start
+    # at DRAFT; admin-created rows start at VERIFIED. Migration
+    # ``f1a3b8d6c2e9`` backfilled existing rows to VERIFIED.
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        server_default=text(f"'{OrganizationStatus.DRAFT.value}'"),
+    )
+
+    # Set when DRAFT → UNDER_REVIEW. Useful for admin queue triage
+    # ("longest-waiting at the top").
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # Who started this org. Null for legacy admin-created rows. ON
+    # DELETE SET NULL so a user delete doesn't take their orgs with
+    # them — orgs are business entities, not personal possessions.
+    created_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -43,6 +78,14 @@ class Organization(Base):
         back_populates="organization",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+
+    attachments: Mapped[list["OrganizationAttachment"]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+        order_by="OrganizationAttachment.uploaded_at",
     )
 
 
@@ -132,3 +175,48 @@ class OrganizationMember(Base):
     organization: Mapped["Organization"] = relationship(back_populates="members")
     # User relationship back-population can be added later if needed
     user: Mapped["User"] = relationship("User", lazy="selectin")
+
+
+class OrganizationAttachment(Base):
+    """Owner-uploaded supporting document attached to an Organization.
+
+    Mirror of OwnershipRequestAttachment: bytes live in object storage
+    (Supabase for v1, see ``app/core/storage.py``), this row holds the
+    metadata. Powers the org review queue admin staff uses to verify
+    legitimacy — articles of organization, business filings, EIN
+    letters, etc.
+
+    Write-once: re-uploading is "add a new row" rather than "edit an
+    existing one." Keeps the audit trail honest.
+    """
+
+    __tablename__ = "organization_attachments"
+    __table_args__ = {"schema": "app"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    storage_path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    original_filename: Mapped[str] = mapped_column(
+        String(512), nullable=False
+    )
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+
+    organization: Mapped["Organization"] = relationship(
+        back_populates="attachments"
+    )
