@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.claims.enums import ClaimScope, ClaimStatus, ClaimType
 from app.modules.claims.models import Evidence, HalalClaim
+from app.modules.organizations.enums import OrganizationStatus
 from app.modules.organizations.models import (
     Organization,
     OrganizationMember,
@@ -103,15 +104,41 @@ class Factories:
         *,
         name: str | None = None,
         contact_email: str | None = None,
+        status: OrganizationStatus | str = OrganizationStatus.VERIFIED,
+        created_by: User | None = None,
     ) -> Organization:
+        # Default to VERIFIED so existing tests that build orgs to
+        # back claims keep passing without each one having to set
+        # status explicitly. Tests that exercise the lifecycle pass
+        # status=OrganizationStatus.DRAFT etc. directly.
         o = Organization(
             name=name or f"Test Org {_short()}",
             contact_email=contact_email,
+            status=status.value if isinstance(status, OrganizationStatus) else status,
+            created_by_user_id=(created_by.id if created_by else None),
         )
         self.db.add(o)
         self.db.flush()
         self.db.refresh(o)
         return o
+
+    def org_for_user(
+        self,
+        *,
+        user: User,
+        name: str | None = None,
+        status: OrganizationStatus | str = OrganizationStatus.VERIFIED,
+    ) -> Organization:
+        """Create an org with ``user`` as an ACTIVE OWNER_ADMIN member.
+
+        Convenience wrapper for tests that need a "user X has an org"
+        precondition without ceremonially calling factories.organization()
+        + factories.org_member() back to back. Mirrors the auto-
+        membership behavior of the /me/organizations create endpoint.
+        """
+        org = self.organization(name=name, status=status, created_by=user)
+        self.org_member(organization=org, user=user)
+        return org
 
     def place_owner_link(
         self,

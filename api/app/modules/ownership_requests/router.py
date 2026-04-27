@@ -28,6 +28,8 @@ from app.modules.ownership_requests.schemas import (
     OwnershipRequestRead,
     OwnershipRequestStatusRead,
 )
+from app.modules.organizations.enums import OrganizationStatus
+from app.modules.organizations.repo import get_organization_for_user
 from app.modules.places.ingest import ingest_google_place
 from app.modules.places.repo import get_place
 from app.modules.users.enums import UserRole
@@ -178,6 +180,28 @@ def submit_my_ownership_request(
             "Your session is no longer valid. Please sign in again.",
         )
 
+    # Resolve + authorize the sponsoring organization. Must:
+    #   * Exist.
+    #   * Belong to this user (active membership).
+    #   * Be at least UNDER_REVIEW. DRAFT orgs can't sponsor claims —
+    #     submitting evidence-free claims under a junk DRAFT org
+    #     would be a spam vector. The owner has to commit by
+    #     submitting their org for review first.
+    org = get_organization_for_user(
+        db,
+        organization_id=payload.organization_id,
+        user_id=user.id,
+    )
+    if org.status not in (
+        OrganizationStatus.UNDER_REVIEW.value,
+        OrganizationStatus.VERIFIED.value,
+    ):
+        raise BadRequestError(
+            "OWNER_ORGANIZATION_NOT_ELIGIBLE",
+            "Submit your organization for review (DRAFT → UNDER_REVIEW) "
+            "before filing a claim under it.",
+        )
+
     if payload.google_place_id is not None:
         # Ingest first so we have a place_id to attach the claim to.
         # The ingest is its own transaction (commits internally), so
@@ -213,6 +237,7 @@ def submit_my_ownership_request(
         contact_email=user_row.email,
         contact_phone=payload.contact_phone,
         message=payload.message,
+        organization_id=org.id,
     )
     # The model_validator's from_attributes=True reads place +
     # attachments off the SQLAlchemy relationship — both are

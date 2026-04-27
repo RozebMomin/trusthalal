@@ -5,7 +5,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.modules.ownership_requests.schemas import OwnershipRequestAttachmentRead
+from app.modules.ownership_requests.schemas import (
+    MyOwnershipRequestOrgSummary,
+    OwnershipRequestAttachmentRead,
+)
 
 
 class OwnershipRequestAdminRead(BaseModel):
@@ -14,6 +17,7 @@ class OwnershipRequestAdminRead(BaseModel):
     id: UUID
     place_id: UUID
     requester_user_id: UUID | None
+    organization_id: UUID | None
 
     contact_name: str
     contact_email: EmailStr
@@ -29,6 +33,11 @@ class OwnershipRequestAdminRead(BaseModel):
     # without a per-row roundtrip to the attachments endpoint.
     # Empty list when nothing was uploaded.
     attachments: list[OwnershipRequestAttachmentRead] = []
+
+    # Sponsoring organization summary so admin queue can show
+    # "Khan Halal LLC — UNDER_REVIEW" inline. Nullable because
+    # legacy claims (pre-slice-5b) didn't carry an org.
+    organization: MyOwnershipRequestOrgSummary | None = None
 
 
 class OwnershipRequestAdminCreate(BaseModel):

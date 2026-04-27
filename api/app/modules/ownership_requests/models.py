@@ -31,6 +31,17 @@ class PlaceOwnershipRequest(Base):
         index=True,  # optional but useful
     )
 
+    # The organization on whose behalf the claim is being made. New
+    # owner-portal claims require this; legacy / admin-created rows
+    # may carry NULL until admin approval reassigns. SET NULL on
+    # org delete preserves the claim as audit context.
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.organizations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     contact_name: Mapped[str] = mapped_column(String(255), nullable=False)
     contact_email: Mapped[str] = mapped_column(String(255), nullable=False)
     contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -60,6 +71,7 @@ class PlaceOwnershipRequest(Base):
     # Optional relationships (safe to add now or later)
     place = relationship("Place", lazy="selectin")
     requester_user = relationship("User", lazy="selectin")
+    organization = relationship("Organization", lazy="selectin")
     attachments = relationship(
         "OwnershipRequestAttachment",
         back_populates="request",

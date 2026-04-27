@@ -111,12 +111,14 @@ def test_my_ownership_request_create_autofills_contact_from_user(
         email="claimer@example.com",
         display_name="Claire Claimer",
     )
+    org = factories.org_for_user(user=owner)
     place = factories.place(name="Claimable Eats")
     db_session.commit()
 
     resp = api.as_user(owner).post(
         "/me/ownership-requests",
         json={
+            "organization_id": str(org.id),
             "place_id": str(place.id),
             "message": "I'm the operator at this location.",
         },
@@ -159,12 +161,13 @@ def test_my_ownership_request_falls_back_to_email_local_part_when_no_display_nam
     # about.
     owner.display_name = None
     db_session.add(owner)
+    org = factories.org_for_user(user=owner)
     place = factories.place(name="Lone Diner")
     db_session.commit()
 
     resp = api.as_user(owner).post(
         "/me/ownership-requests",
-        json={"place_id": str(place.id)},
+        json={"organization_id": str(org.id), "place_id": str(place.id)},
     )
     assert resp.status_code == 201, resp.text
 
@@ -193,10 +196,14 @@ def test_my_ownership_request_404_on_unknown_place(api, factories):
     gets a 404 with a stable code so the frontend can show 'we
     couldn't find that place'."""
     owner = factories.user(role="OWNER")
+    org = factories.org_for_user(user=owner)
 
     resp = api.as_user(owner).post(
         "/me/ownership-requests",
-        json={"place_id": "00000000-0000-0000-0000-000000000000"},
+        json={
+            "organization_id": str(org.id),
+            "place_id": "00000000-0000-0000-0000-000000000000",
+        },
     )
     assert resp.status_code == 404, resp.text
     assert resp.json()["error"]["code"] == "PLACE_NOT_FOUND"
@@ -209,18 +216,19 @@ def test_my_ownership_request_blocks_duplicate_active_claim(
     can't have two SUBMITTED claims for the same place at the same
     email."""
     owner = factories.user(role="OWNER", email="dup@example.com")
+    org = factories.org_for_user(user=owner)
     place = factories.place(name="Duplicate Diner")
     db_session.commit()
 
     first = api.as_user(owner).post(
         "/me/ownership-requests",
-        json={"place_id": str(place.id)},
+        json={"organization_id": str(org.id), "place_id": str(place.id)},
     )
     assert first.status_code == 201, first.text
 
     second = api.as_user(owner).post(
         "/me/ownership-requests",
-        json={"place_id": str(place.id)},
+        json={"organization_id": str(org.id), "place_id": str(place.id)},
     )
     assert second.status_code == 409, second.text
     assert second.json()["error"]["code"] == "OWNERSHIP_REQUEST_ALREADY_EXISTS"
@@ -231,11 +239,13 @@ def test_my_ownership_request_extra_fields_rejected(api, factories):
     sneaking in ``contact_email``, ``status``, etc. Server controls
     those server-side."""
     owner = factories.user(role="OWNER")
+    org = factories.org_for_user(user=owner)
     place = factories.place(name="Strict Diner")
 
     resp = api.as_user(owner).post(
         "/me/ownership-requests",
         json={
+            "organization_id": str(org.id),
             "place_id": str(place.id),
             "contact_email": "attacker@example.com",
         },
@@ -256,6 +266,9 @@ def test_my_ownership_requests_list_scoped_to_caller(
     me = factories.user(role="OWNER", email="me@example.com")
     other = factories.user(role="OWNER", email="other@example.com")
 
+    my_org = factories.org_for_user(user=me)
+    their_org = factories.org_for_user(user=other)
+
     my_place = factories.place(name="Mine")
     their_place = factories.place(name="Theirs")
     db_session.commit()
@@ -263,12 +276,12 @@ def test_my_ownership_requests_list_scoped_to_caller(
     # I submit a claim for my place.
     api.as_user(me).post(
         "/me/ownership-requests",
-        json={"place_id": str(my_place.id)},
+        json={"organization_id": str(my_org.id), "place_id": str(my_place.id)},
     )
     # Someone else submits a claim for theirs.
     api.as_user(other).post(
         "/me/ownership-requests",
-        json={"place_id": str(their_place.id)},
+        json={"organization_id": str(their_org.id), "place_id": str(their_place.id)},
     )
 
     resp = api.as_user(me).get("/me/ownership-requests")
@@ -292,17 +305,18 @@ def test_my_ownership_requests_list_sorted_newest_first(
     explicitly to make the assertion deterministic.
     """
     owner = factories.user(role="OWNER")
+    org = factories.org_for_user(user=owner)
     place_a = factories.place(name="Place A")
     place_b = factories.place(name="Place B")
     db_session.commit()
 
     api.as_user(owner).post(
         "/me/ownership-requests",
-        json={"place_id": str(place_a.id)},
+        json={"organization_id": str(org.id), "place_id": str(place_a.id)},
     )
     api.as_user(owner).post(
         "/me/ownership-requests",
-        json={"place_id": str(place_b.id)},
+        json={"organization_id": str(org.id), "place_id": str(place_b.id)},
     )
 
     # Bump Place B's claim to be the newer of the two.
@@ -427,11 +441,15 @@ def test_my_ownership_request_ingests_google_then_creates_claim(
         email="ingestclaim@example.com",
         display_name="Indra Ingest",
     )
+    org = factories.org_for_user(user=owner)
     db_session.commit()
 
     resp = api.as_user(owner).post(
         "/me/ownership-requests",
-        json={"google_place_id": "ChIJSeed_OwnerClaim"},
+        json={
+            "organization_id": str(org.id),
+            "google_place_id": "ChIJSeed_OwnerClaim",
+        },
     )
     assert resp.status_code == 201, resp.text
 
@@ -463,11 +481,13 @@ def test_my_ownership_request_rejects_both_place_id_and_google_place_id(
     can't try to ingest a Google place and then attach the claim to
     a different existing place_id in one shot."""
     owner = factories.user(role="OWNER")
+    org = factories.org_for_user(user=owner)
     place = factories.place(name="Existing")
 
     resp = api.as_user(owner).post(
         "/me/ownership-requests",
         json={
+            "organization_id": str(org.id),
             "place_id": str(place.id),
             "google_place_id": "ChIJSeed_BothAtOnce",
         },
@@ -482,13 +502,135 @@ def test_my_ownership_request_rejects_neither_place_id_nor_google_place_id(
     """Schema validator: at least one identifier required. Empty body
     → 422."""
     owner = factories.user(role="OWNER")
+    org = factories.org_for_user(user=owner)
 
     resp = api.as_user(owner).post(
         "/me/ownership-requests",
-        json={"message": "I'd like to claim something but didn't say what."},
+        json={
+            "organization_id": str(org.id),
+            "message": "I'd like to claim something but didn't say what.",
+        },
     )
     assert resp.status_code == 422, resp.text
     assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+# ---------------------------------------------------------------------------
+# POST /me/ownership-requests — organization gate (slice 5b)
+# ---------------------------------------------------------------------------
+def test_my_ownership_request_requires_organization_id(api, factories):
+    """The schema requires organization_id; missing → 422."""
+    owner = factories.user(role="OWNER")
+    place = factories.place(name="Org Required Diner")
+
+    resp = api.as_user(owner).post(
+        "/me/ownership-requests",
+        json={"place_id": str(place.id)},
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_my_ownership_request_rejects_org_not_owned_by_caller(
+    api, factories, db_session
+):
+    """Caller passes an organization_id they aren't a member of →
+    403 OWNER_ORGANIZATION_FORBIDDEN. Same posture as the org
+    self-service endpoints."""
+    me = factories.user(role="OWNER", email="me@example.com")
+    other = factories.user(role="OWNER", email="other@example.com")
+    other_org = factories.org_for_user(user=other)
+    place = factories.place(name="Cross-Tenant Diner")
+    db_session.commit()
+
+    resp = api.as_user(me).post(
+        "/me/ownership-requests",
+        json={
+            "organization_id": str(other_org.id),
+            "place_id": str(place.id),
+        },
+    )
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["error"]["code"] == "OWNER_ORGANIZATION_FORBIDDEN"
+
+
+def test_my_ownership_request_rejects_draft_org(api, factories, db_session):
+    """DRAFT orgs can't sponsor claims. Owner has to commit by
+    submitting their org for review first — otherwise junk DRAFT orgs
+    become a spam vector for evidence-free claims."""
+    from app.modules.organizations.enums import OrganizationStatus
+
+    owner = factories.user(role="OWNER")
+    org = factories.org_for_user(
+        user=owner, status=OrganizationStatus.DRAFT
+    )
+    place = factories.place(name="Draft Org Diner")
+    db_session.commit()
+
+    resp = api.as_user(owner).post(
+        "/me/ownership-requests",
+        json={
+            "organization_id": str(org.id),
+            "place_id": str(place.id),
+        },
+    )
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"]["code"] == "OWNER_ORGANIZATION_NOT_ELIGIBLE"
+
+
+def test_my_ownership_request_accepts_under_review_org(
+    api, factories, db_session
+):
+    """An UNDER_REVIEW org can sponsor claims — owner showed intent
+    by submitting; we let them keep moving while admin reviews."""
+    from app.modules.organizations.enums import OrganizationStatus
+
+    owner = factories.user(role="OWNER", email="under-review@example.com")
+    org = factories.org_for_user(
+        user=owner, status=OrganizationStatus.UNDER_REVIEW
+    )
+    place = factories.place(name="Under-Review Diner")
+    db_session.commit()
+
+    resp = api.as_user(owner).post(
+        "/me/ownership-requests",
+        json={
+            "organization_id": str(org.id),
+            "place_id": str(place.id),
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["organization"]["status"] == "UNDER_REVIEW"
+
+
+def test_my_ownership_request_persists_organization_id(
+    api, factories, db_session
+):
+    """The organization_id is recorded on the claim row and surfaces
+    in the response's nested ``organization`` summary."""
+    owner = factories.user(role="OWNER")
+    org = factories.org_for_user(user=owner, name="Khan Halal LLC")
+    place = factories.place(name="Persist Test")
+    db_session.commit()
+
+    resp = api.as_user(owner).post(
+        "/me/ownership-requests",
+        json={
+            "organization_id": str(org.id),
+            "place_id": str(place.id),
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["organization"]["id"] == str(org.id)
+    assert body["organization"]["name"] == "Khan Halal LLC"
+
+    row = db_session.execute(
+        select(PlaceOwnershipRequest).where(
+            PlaceOwnershipRequest.id == body["id"]
+        )
+    ).scalar_one()
+    assert row.organization_id == org.id
 
 
 def test_my_ownership_request_google_ingest_is_idempotent(
@@ -507,17 +649,25 @@ def test_my_ownership_request_google_ingest_is_idempotent(
 
     first_owner = factories.user(role="OWNER", email="first@example.com")
     second_owner = factories.user(role="OWNER", email="second@example.com")
+    first_org = factories.org_for_user(user=first_owner)
+    second_org = factories.org_for_user(user=second_owner)
     db_session.commit()
 
     first = api.as_user(first_owner).post(
         "/me/ownership-requests",
-        json={"google_place_id": "ChIJSeed_Idempotent"},
+        json={
+            "organization_id": str(first_org.id),
+            "google_place_id": "ChIJSeed_Idempotent",
+        },
     )
     assert first.status_code == 201, first.text
 
     second = api.as_user(second_owner).post(
         "/me/ownership-requests",
-        json={"google_place_id": "ChIJSeed_Idempotent"},
+        json={
+            "organization_id": str(second_org.id),
+            "google_place_id": "ChIJSeed_Idempotent",
+        },
     )
     assert second.status_code == 201, second.text
 

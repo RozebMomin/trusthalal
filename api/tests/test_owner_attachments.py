@@ -74,13 +74,21 @@ def fake_storage():
         fastapi_app.dependency_overrides.pop(get_storage_client, None)
 
 
-def _claim_for(api, owner, place):
+def _claim_for(api, factories, db_session, owner, place):
     """Submit a real ownership request via the API so subsequent
     upload tests have a request_id to attach against. Returns the
-    new request's UUID."""
+    new request's UUID.
+
+    Slice 5b coupling: every claim now requires a sponsoring org
+    that's at least UNDER_REVIEW. This helper materializes a
+    VERIFIED org for the owner inline so per-test setup doesn't
+    repeat the boilerplate.
+    """
+    org = factories.org_for_user(user=owner)
+    db_session.commit()
     resp = api.as_user(owner).post(
         "/me/ownership-requests",
-        json={"place_id": str(place.id)},
+        json={"organization_id": str(org.id), "place_id": str(place.id)},
     )
     assert resp.status_code == 201, resp.text
     return resp.json()["id"]
@@ -100,7 +108,7 @@ def test_upload_attachment_writes_storage_and_persists_metadata(
     place = factories.place(name="Khan Halal")
     db_session.commit()
 
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     pdf_bytes = b"%PDF-1.4\n%fake-pdf-content"
     resp = api.as_user(owner).post(
@@ -142,7 +150,7 @@ def test_upload_attachment_truncates_overlong_filename(
     place = factories.place(name="Long Filename")
     db_session.commit()
 
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     long_name = ("a" * 600) + ".pdf"
     resp = api.as_user(owner).post(
@@ -163,7 +171,7 @@ def test_upload_attachment_requires_authentication(api, factories, db_session, f
     owner = factories.user(role="OWNER")
     place = factories.place(name="Auth Required")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     # Anonymous: pass an empty client (no as_user) and watch it 401.
     resp = api.post(
@@ -180,7 +188,7 @@ def test_upload_attachment_blocks_non_owner_caller(api, factories, db_session, f
     other = factories.user(role="OWNER", email="other@example.com")
     place = factories.place(name="Cross Tenant")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     resp = api.as_user(other).post(
         f"/me/ownership-requests/{request_id}/attachments",
@@ -213,7 +221,7 @@ def test_upload_attachment_rejects_disallowed_mime_type(
     owner = factories.user(role="OWNER")
     place = factories.place(name="No Macros Plz")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     resp = api.as_user(owner).post(
         f"/me/ownership-requests/{request_id}/attachments",
@@ -235,7 +243,7 @@ def test_upload_attachment_rejects_empty_file(api, factories, db_session, fake_s
     owner = factories.user(role="OWNER")
     place = factories.place(name="Empty Body")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     resp = api.as_user(owner).post(
         f"/me/ownership-requests/{request_id}/attachments",
@@ -250,7 +258,7 @@ def test_upload_attachment_rejects_oversize_file(api, factories, db_session, fak
     owner = factories.user(role="OWNER")
     place = factories.place(name="Too Big")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     oversize = b"\x00" * (10 * 1024 * 1024 + 1)  # one byte over the cap
     resp = api.as_user(owner).post(
@@ -269,7 +277,7 @@ def test_upload_attachment_enforces_per_claim_count_cap(
     owner = factories.user(role="OWNER")
     place = factories.place(name="Cap Test")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     # Five succeed.
     for i in range(5):
@@ -305,7 +313,7 @@ def test_list_my_attachments_scoped_to_caller(api, factories, db_session, fake_s
     other = factories.user(role="OWNER", email="other@example.com")
     place = factories.place(name="List Test")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     api.as_user(owner).post(
         f"/me/ownership-requests/{request_id}/attachments",
@@ -339,7 +347,7 @@ def test_admin_list_attachments_returns_metadata(
     owner = factories.user(role="OWNER")
     place = factories.place(name="Admin Lists")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     api.as_user(owner).post(
         f"/me/ownership-requests/{request_id}/attachments",
@@ -362,7 +370,7 @@ def test_admin_list_attachments_requires_admin_role(api, factories, db_session, 
     other_owner = factories.user(role="OWNER", email="other@example.com")
     place = factories.place(name="Role Gate")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     resp = api.as_user(other_owner).get(
         f"/admin/ownership-requests/{request_id}/attachments"
@@ -380,7 +388,7 @@ def test_admin_signed_url_calls_storage_with_short_ttl(
     owner = factories.user(role="OWNER")
     place = factories.place(name="Signed URL Test")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     upload = api.as_user(owner).post(
         f"/me/ownership-requests/{request_id}/attachments",
@@ -423,8 +431,8 @@ def test_admin_signed_url_404_on_mismatched_request_id(
     place_a = factories.place(name="Place A")
     place_b = factories.place(name="Place B")
     db_session.commit()
-    request_a = _claim_for(api, owner, place_a)
-    request_b = _claim_for(api, owner, place_b)
+    request_a = _claim_for(api, factories, db_session, owner, place_a)
+    request_b = _claim_for(api, factories, db_session, owner, place_b)
 
     upload = api.as_user(owner).post(
         f"/me/ownership-requests/{request_a}/attachments",
@@ -451,7 +459,7 @@ def test_admin_ownership_request_list_embeds_attachments(
     owner = factories.user(role="OWNER")
     place = factories.place(name="Admin Embed")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     api.as_user(owner).post(
         f"/me/ownership-requests/{request_id}/attachments",
@@ -474,7 +482,7 @@ def test_my_ownership_requests_list_embeds_attachments(
     owner = factories.user(role="OWNER")
     place = factories.place(name="Embedded")
     db_session.commit()
-    request_id = _claim_for(api, owner, place)
+    request_id = _claim_for(api, factories, db_session, owner, place)
 
     api.as_user(owner).post(
         f"/me/ownership-requests/{request_id}/attachments",

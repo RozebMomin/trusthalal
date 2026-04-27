@@ -17,14 +17,18 @@ class MyOwnershipRequestCreate(BaseModel):
 
     The owner-portal-facing variant of OwnershipRequestCreate. Contact
     name + email are pulled from the authenticated user server-side, so
-    the wire shape collapses to "what are you claiming, and what should
-    we know?". Phone is optional and lets the user offer a callback
-    line if they have one.
+    the wire shape collapses to "which org is claiming what, and what
+    should we know?". Phone is optional.
 
     Exactly one of ``place_id`` (an existing Trust Halal place) and
     ``google_place_id`` (a Google place we'll ingest first) must be
-    provided. Both-or-neither is a 422 — the wire contract is "tell us
-    which place you're claiming, with one and only one identifier."
+    provided.
+
+    ``organization_id`` is required: every claim is filed by an
+    Organization, not by a bare individual. The server validates the
+    org belongs to the caller and is at least UNDER_REVIEW (DRAFT
+    orgs can't sponsor claims — the owner needs to commit to having
+    submitted org evidence first).
 
     ``message`` is the catch-all freeform field admin staff sees in the
     review queue. The owner portal UI gives users a friendlier surface
@@ -35,6 +39,7 @@ class MyOwnershipRequestCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    organization_id: UUID
     place_id: UUID | None = None
     google_place_id: str | None = Field(default=None, min_length=1, max_length=512)
     message: str | None = Field(default=None, max_length=2000)
@@ -76,6 +81,22 @@ class MyOwnershipRequestPlaceSummary(BaseModel):
     country_code: str | None = None
 
 
+class MyOwnershipRequestOrgSummary(BaseModel):
+    """Lean org fields embedded in MyOwnershipRequestRead.
+
+    Same role the place summary plays: enough to render "Khan Halal
+    LLC — UNDER_REVIEW" inline on a claim row without a second
+    fetch. Status is exposed so the /my-claims list can badge claims
+    whose sponsoring org is still pending verification.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    status: str
+
+
 class OwnershipRequestAttachmentRead(BaseModel):
     """Wire shape for an uploaded evidence file.
 
@@ -100,19 +121,24 @@ class MyOwnershipRequestRead(BaseModel):
     response shape.
 
     Same status semantics as OwnershipRequestRead but with the place
-    nested so the portal can render the row without a second fetch.
-    Contact fields aren't included — the owner already knows their
-    own contact info; surfacing them here is just clutter.
+    + sponsoring org nested so the portal can render the row without
+    extra fetches. Contact fields aren't included — the owner already
+    knows their own contact info; surfacing them here is just clutter.
 
     ``attachments`` is included so the /my-claims page can render
     'utility-bill.pdf · sos-filing.pdf' beneath each row without a
     per-row roundtrip. Empty list when nothing was uploaded.
+
+    ``organization`` is nullable for legacy rows (claims submitted
+    before slice 5b lacked the FK). New owner-portal claims always
+    populate it.
     """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     place: MyOwnershipRequestPlaceSummary
+    organization: MyOwnershipRequestOrgSummary | None = None
     status: str
     message: str | None
     created_at: datetime
