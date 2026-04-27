@@ -28,8 +28,27 @@ import {
   type OrganizationAdminRead,
   useAdminOrganizations,
 } from "@/lib/api/hooks";
+import type { components } from "@/lib/api/schema";
 
 import { CreateOrganizationDialog } from "./_components/create-org-dialog";
+import { OrgStatusBadge } from "./_components/org-status-badge";
+
+type OrganizationStatus = components["schemas"]["OrganizationStatus"];
+
+// Order matches the natural admin workflow: Under review first
+// (the queue), then Verified (the bulk of healthy orgs), then the
+// edge cases. Empty string = "All", which the server treats as no
+// filter.
+const STATUS_OPTIONS: ReadonlyArray<{
+  value: "" | OrganizationStatus;
+  label: string;
+}> = [
+  { value: "UNDER_REVIEW", label: "Under review" },
+  { value: "", label: "All" },
+  { value: "DRAFT", label: "Draft" },
+  { value: "VERIFIED", label: "Verified" },
+  { value: "REJECTED", label: "Rejected" },
+];
 
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = React.useState(value);
@@ -53,11 +72,15 @@ function formatTimestamp(iso: string): string {
 
 export default function OrganizationsPage() {
   const [rawQuery, setRawQuery] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState<
+    "" | OrganizationStatus
+  >("UNDER_REVIEW");
   const [createOpen, setCreateOpen] = React.useState(false);
   const query = useDebounced(rawQuery.trim(), 250);
 
   const { data, isLoading, error, isFetching } = useAdminOrganizations({
     q: query || undefined,
+    status: statusFilter || undefined,
   });
   const rows = data ?? [];
 
@@ -87,6 +110,28 @@ export default function OrganizationsPage() {
             placeholder="Search organization name"
           />
         </div>
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="org-status-filter"
+            className="text-xs text-muted-foreground"
+          >
+            Status
+          </label>
+          <select
+            id="org-status-filter"
+            value={statusFilter}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as "" | OrganizationStatus)
+            }
+            className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error && <ErrorState error={error as Error} />}
@@ -103,8 +148,9 @@ export default function OrganizationsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Contact email</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Documents</TableHead>
+                <TableHead>Submitted</TableHead>
                 <TableHead>Org id</TableHead>
               </TableRow>
             </TableHeader>
@@ -125,6 +171,7 @@ export default function OrganizationsPage() {
 }
 
 function OrgRow({ org }: { org: OrganizationAdminRead }) {
+  const attachmentCount = org.attachments?.length ?? 0;
   return (
     <TableRow className="hover:bg-accent/50">
       <TableCell className="font-medium">
@@ -134,18 +181,28 @@ function OrgRow({ org }: { org: OrganizationAdminRead }) {
         >
           {org.name}
         </Link>
+        {org.contact_email && (
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {org.contact_email}
+          </p>
+        )}
+      </TableCell>
+      <TableCell>
+        <OrgStatusBadge status={org.status} />
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
-        {org.contact_email ? (
-          <a href={`mailto:${org.contact_email}`} className="hover:underline">
-            {org.contact_email}
-          </a>
+        {attachmentCount === 0 ? (
+          <span className="italic">none</span>
         ) : (
-          <span className="italic">&mdash;</span>
+          `${attachmentCount} file${attachmentCount === 1 ? "" : "s"}`
         )}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
-        {formatTimestamp(org.created_at)}
+        {org.submitted_at ? (
+          formatTimestamp(org.submitted_at)
+        ) : (
+          <span className="italic">&mdash;</span>
+        )}
       </TableCell>
       <TableCell>
         <code className="font-mono text-xs text-muted-foreground">
