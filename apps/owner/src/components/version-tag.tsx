@@ -12,9 +12,21 @@
  */
 import packageJson from "../../package.json";
 
+/**
+ * A SHA looks like 40 hex chars. Anything else is almost certainly
+ * a misconfigured env var — most commonly the literal string
+ * ``$VERCEL_GIT_COMMIT_SHA`` saved as the value because Vercel doesn't
+ * do shell-style $VAR expansion. Drop those rather than rendering a
+ * confusing "v0.1.0 · $VERCEL" tag.
+ */
+function looksLikeRealSha(s: string): boolean {
+  return /^[0-9a-f]{7,40}$/i.test(s);
+}
+
 export function VersionTag({ className }: { className?: string }) {
   const version = packageJson.version;
-  const sha = (process.env.NEXT_PUBLIC_APP_RELEASE_SHA || "").trim();
+  const raw = (process.env.NEXT_PUBLIC_APP_RELEASE_SHA || "").trim();
+  const sha = looksLikeRealSha(raw) ? raw : "";
   const shortSha = sha ? sha.slice(0, 7) : null;
 
   const display = shortSha ? `v${version} · ${shortSha}` : `v${version}`;
