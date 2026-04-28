@@ -8,6 +8,15 @@ const nextConfig = {
     // Sentry can wire its server-side integrations on boot.
     instrumentationHook: true,
   },
+  env: {
+    // See apps/admin/next.config.mjs for the long version. Short
+    // version: Vercel doesn't expand $VARs in env-var values, so we
+    // forward VERCEL_GIT_COMMIT_SHA into the public bundle here.
+    NEXT_PUBLIC_APP_RELEASE_SHA:
+      process.env.NEXT_PUBLIC_APP_RELEASE_SHA ||
+      process.env.VERCEL_GIT_COMMIT_SHA ||
+      "",
+  },
 };
 
 // Same posture as apps/admin's next.config.mjs — withSentryConfig

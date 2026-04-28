@@ -27,13 +27,23 @@ on the "this tool isn't for you" pane. Same component, same value.
 1. **Manual semver** comes from the app's `package.json` `version`
    field. Bump this when you ship something users should know about.
 2. **Short git SHA** comes from `NEXT_PUBLIC_APP_RELEASE_SHA` (the
-   first 7 chars). Vercel auto-populates `VERCEL_GIT_COMMIT_SHA` —
-   wire it on the project's env-var page:
-   ```
-   NEXT_PUBLIC_APP_RELEASE_SHA=$VERCEL_GIT_COMMIT_SHA
-   ```
-   When the SHA env var is empty (e.g. local dev) the tag falls back
-   to just `v0.1.0` — no broken-looking placeholder.
+   first 7 chars). Vercel auto-populates `VERCEL_GIT_COMMIT_SHA` on
+   every build, and each app's `next.config.mjs` forwards that value
+   into the browser bundle as `NEXT_PUBLIC_APP_RELEASE_SHA`. **Do
+   NOT** add `NEXT_PUBLIC_APP_RELEASE_SHA=$VERCEL_GIT_COMMIT_SHA` to
+   the Vercel env vars page — Vercel doesn't do shell-style $VAR
+   expansion, so that bakes the literal string `$VERCEL_GIT_COMMIT_SHA`
+   into the bundle and the version tag renders as `v0.1.0 · $VERCEL`.
+
+   If you've already done that, **delete the env var** on Vercel for
+   both projects; the forwarder in `next.config.mjs` picks up the
+   real SHA automatically.
+
+   When the SHA env var is empty (e.g. local dev outside Vercel) the
+   tag falls back to just `v0.1.0` — no broken-looking placeholder.
+   The component also filters out values that don't look like a real
+   git SHA (40 hex chars), so even if a junk value sneaks in, the tag
+   degrades gracefully instead of showing nonsense.
 
 ## When to bump the semver
 

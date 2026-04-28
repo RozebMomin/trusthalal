@@ -8,6 +8,33 @@ const nextConfig = {
     // Sentry can wire its server-side integrations on boot.
     instrumentationHook: true,
   },
+  env: {
+    // Promote Vercel's auto-populated VERCEL_GIT_COMMIT_SHA into the
+    // browser bundle so the VersionTag component (and Sentry release
+    // tagging) can use it.
+    //
+    // Why this forwarder: Vercel does NOT do shell-style $VAR
+    // expansion on env-var values. Setting
+    //   NEXT_PUBLIC_APP_RELEASE_SHA=$VERCEL_GIT_COMMIT_SHA
+    // in the project env tab gives you the literal string
+    // "$VERCEL_GIT_COMMIT_SHA" baked into the bundle, which then
+    // shows up in the UI as "v0.1.0 · $VERCEL". This block reads
+    // the actual server-side env var at build time and inlines its
+    // value, so the bundle gets the real SHA.
+    //
+    // Precedence:
+    //   1. NEXT_PUBLIC_APP_RELEASE_SHA — explicit override (rarely
+    //      needed; useful for local builds you want to "stamp"
+    //      manually).
+    //   2. VERCEL_GIT_COMMIT_SHA — Vercel's auto-populated build
+    //      env var. Available on every Vercel build.
+    //   3. Empty — VersionTag falls back to just ``v<semver>``,
+    //      which looks intentional rather than half-broken.
+    NEXT_PUBLIC_APP_RELEASE_SHA:
+      process.env.NEXT_PUBLIC_APP_RELEASE_SHA ||
+      process.env.VERCEL_GIT_COMMIT_SHA ||
+      "",
+  },
 };
 
 // withSentryConfig is a no-op when SENTRY_DSN isn't set — safe to
