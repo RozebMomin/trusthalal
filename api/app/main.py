@@ -160,3 +160,65 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Sentry diagnostic routes
+# ---------------------------------------------------------------------------
+# These exist to verify the Sentry pipeline end-to-end in production.
+# Sentry's FastAPI integration only captures UNHANDLED exceptions; our
+# domain errors all flow through registered exception handlers and are
+# considered "handled," so they never reach Sentry. That makes it hard
+# to tell from outside whether Sentry is wired up correctly until a
+# real bug actually 500s.
+#
+# Two endpoints, both gated behind ``SENTRY_DEBUG_ENABLED=true`` env
+# var so they can't be hit accidentally in normal prod:
+#
+#   * GET /debug/sentry/message  → emits an INFO event via
+#     sentry_sdk.capture_message(). Tests "is the SDK installed +
+#     can it reach the Sentry ingest URL?"
+#
+#   * GET /debug/sentry/exception → raises an unhandled RuntimeError.
+#     Tests "does the FastAPI integration capture exceptions on the
+#     normal request path?"
+#
+# Once you've confirmed both arrive in the Sentry UI, flip the env
+# var off (or leave it on — they're rate-limited and harmless).
+import os as _os  # noqa: E402
+
+if _os.getenv("SENTRY_DEBUG_ENABLED", "").strip().lower() == "true":
+    from fastapi import HTTPException as _HTTPException  # noqa: E402
+
+    @app.get("/debug/sentry/message")
+    def _debug_sentry_message():
+        try:
+            import sentry_sdk
+
+            event_id = sentry_sdk.capture_message(
+                "Trust Halal API: debug capture_message ping",
+                level="info",
+            )
+            return {
+                "status": "captured",
+                "event_id": event_id,
+                "hint": (
+                    "Search Sentry Issues for this message. If event_id "
+                    "is null or 'captured' but nothing arrives in ~60s, "
+                    "the ingest URL is unreachable from this server."
+                ),
+            }
+        except ImportError:
+            raise _HTTPException(
+                status_code=500,
+                detail="sentry-sdk is not installed in this deploy.",
+            )
+
+    @app.get("/debug/sentry/exception")
+    def _debug_sentry_exception():
+        # Raise something the FastAPI integration will see as a real
+        # unhandled exception. The 500 IS the success signal here —
+        # Sentry should also capture it.
+        raise RuntimeError(
+            "Trust Halal API: debug-sentry-exception (intentional)."
+        )
