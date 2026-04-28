@@ -33,6 +33,7 @@ import * as React from "react";
 
 import { AppNav } from "@/components/app-nav";
 import { Button } from "@/components/ui/button";
+import { VersionTag } from "@/components/version-tag";
 import { useCurrentUser, useLogout } from "@/lib/api/hooks";
 import { canAccess, homeFor } from "@/lib/auth/panel-access";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -219,6 +220,9 @@ function NoAccessPane({ role }: { role: "OWNER" | "CONSUMER" | string }) {
         >
           {logout.isPending ? "Signing out…" : "Sign out"}
         </Button>
+        <div className="flex justify-center pt-1">
+          <VersionTag />
+        </div>
       </div>
     </div>
   );
@@ -286,6 +290,9 @@ function SignedInIndicator() {
       >
         {logout.isPending ? "Signing out…" : "Sign out"}
       </Button>
+      <div className="mt-2 flex justify-center">
+        <VersionTag />
+      </div>
     </div>
   );
 }

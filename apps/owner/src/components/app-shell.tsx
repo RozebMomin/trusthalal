@@ -30,6 +30,7 @@ import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
+import { VersionTag } from "@/components/version-tag";
 import { useCurrentUser, useLogout } from "@/lib/api/hooks";
 
 const PUBLIC_PATHS = new Set<string>(["/login", "/signup"]);
@@ -179,6 +180,7 @@ function PortalHeader() {
           >
             {logout.isPending ? "Signing out…" : "Sign out"}
           </Button>
+          <VersionTag className="hidden sm:inline" />
         </div>
       </div>
 
@@ -277,6 +279,9 @@ function NotForYouPane({ role }: { role: string }) {
         >
           {logout.isPending ? "Signing out…" : "Sign out"}
         </Button>
+        <div className="flex justify-center pt-1">
+          <VersionTag />
+        </div>
       </div>
     </div>
   );
