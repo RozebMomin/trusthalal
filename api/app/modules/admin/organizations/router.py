@@ -60,13 +60,20 @@ class _AdminAttachmentSignedUrl(BaseModel):
     original_filename: str
     content_type: str
 
-router = APIRouter(prefix="/admin/organizations", tags=["admin"])
+router = APIRouter(prefix="/admin/organizations", tags=["admin: organizations"])
 
 
 @router.post(
     "",
     response_model=OrganizationAdminRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Create an organization (admin path)",
+    description=(
+        "Admin can mint an org directly without going through the "
+        "owner self-service draft → submit flow. Lands in any status "
+        "the admin specifies (typically VERIFIED for orgs vetted "
+        "out-of-band)."
+    ),
 )
 def create_org_admin(
     payload: OrganizationAdminCreate,
@@ -76,7 +83,15 @@ def create_org_admin(
     return admin_create_organization(db, payload)
 
 
-@router.get("", response_model=list[OrganizationAdminRead])
+@router.get(
+    "",
+    response_model=list[OrganizationAdminRead],
+    summary="List organizations (filterable by status)",
+    description=(
+        "Pass `?status=UNDER_REVIEW` to get the verification queue; "
+        "omit for the full catalog. Newest-first."
+    ),
+)
 def list_orgs_admin(
     q: str | None = Query(default=None, max_length=200),
     status_filter: OrganizationStatus | None = Query(
@@ -102,7 +117,11 @@ def list_orgs_admin(
     return [OrganizationAdminRead.model_validate(o) for o in rows]
 
 
-@router.get("/{org_id}", response_model=OrganizationDetailRead)
+@router.get(
+    "/{org_id}",
+    response_model=OrganizationDetailRead,
+    summary="Get an organization with members + attachments",
+)
 def get_org_admin(
     org_id: UUID,
     db: Session = Depends(get_db),
@@ -126,6 +145,12 @@ def get_org_admin(
 @router.get(
     "/{org_id}/places",
     response_model=list[OrganizationPlaceOwnerRead],
+    summary="List places this org owns (live + historical)",
+    description=(
+        "ACTIVE first, then REVOKED. Includes soft-deleted places "
+        "(`place.is_deleted` lets the UI fade them). Powers the org "
+        "detail page's 'Places owned' section."
+    ),
 )
 def list_org_places_admin(
     org_id: UUID,
@@ -158,7 +183,11 @@ def list_org_places_admin(
     ]
 
 
-@router.patch("/{org_id}", response_model=OrganizationAdminRead)
+@router.patch(
+    "/{org_id}",
+    response_model=OrganizationAdminRead,
+    summary="Edit an organization (admin)",
+)
 def patch_org_admin(
     org_id: UUID,
     payload: OrganizationAdminPatch,
@@ -177,6 +206,7 @@ def patch_org_admin(
     "/{org_id}/members",
     response_model=OrganizationMemberAdminRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Add a user as a member of an organization",
 )
 def add_member_admin(
     org_id: UUID,
@@ -190,6 +220,8 @@ def add_member_admin(
 @router.delete(
     "/{org_id}/members/{user_id}",
     response_model=OrganizationMemberAdminRead,
+    summary="Deactivate an organization membership",
+    description="Soft-removes the membership; the row stays for audit history.",
 )
 def deactivate_member_admin(
     org_id: UUID,
@@ -206,6 +238,11 @@ def deactivate_member_admin(
 @router.post(
     "/{org_id}/verify",
     response_model=OrganizationAdminRead,
+    summary="Verify an organization (UNDER_REVIEW → VERIFIED)",
+    description=(
+        "Records the deciding admin, timestamp, and optional note. "
+        "Once VERIFIED, the org can sponsor claim approvals (slice 5d)."
+    ),
 )
 def verify_org_admin(
     org_id: UUID,
@@ -229,6 +266,12 @@ def verify_org_admin(
 @router.post(
     "/{org_id}/reject",
     response_model=OrganizationAdminRead,
+    summary="Reject an organization (UNDER_REVIEW → REJECTED, requires reason)",
+    description=(
+        "The reason is surfaced to the owner so they understand why "
+        "verification didn't pass. REJECTED orgs are read-only — "
+        "the owner creates a fresh org if they want to retry."
+    ),
 )
 def reject_org_admin(
     org_id: UUID,
@@ -255,6 +298,7 @@ def reject_org_admin(
 @router.get(
     "/{org_id}/attachments",
     response_model=list[OrganizationAttachmentRead],
+    summary="List supporting documents on an org (admin view)",
 )
 def list_org_attachments_admin(
     org_id: UUID,
@@ -273,6 +317,12 @@ def list_org_attachments_admin(
 @router.get(
     "/{org_id}/attachments/{attachment_id}/url",
     response_model=_AdminAttachmentSignedUrl,
+    summary="Mint a short-lived signed URL for an org attachment",
+    description=(
+        "Returns a Supabase Storage signed URL the admin panel can "
+        "render in an iframe / image tag for review. Short TTL so a "
+        "shared screenshot doesn't keep working forever."
+    ),
 )
 def signed_url_for_org_attachment_admin(
     org_id: UUID,

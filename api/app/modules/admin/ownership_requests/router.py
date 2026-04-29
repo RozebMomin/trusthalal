@@ -30,13 +30,22 @@ from app.modules.ownership_requests.repo import get_ownership_request
 from app.modules.ownership_requests.schemas import OwnershipRequestAttachmentRead
 from app.modules.users.enums import UserRole
 
-router = APIRouter(prefix="/admin/ownership-requests", tags=["admin"])
+router = APIRouter(
+    prefix="/admin/ownership-requests",
+    tags=["admin: ownership-requests"],
+)
 
 
 @router.post(
     "",
     response_model=OwnershipRequestAdminRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Create an ownership request on someone's behalf (admin intake)",
+    description=(
+        "For when an admin captures an inbound request from phone, "
+        "email, or in-person without making the claimant go through "
+        "the public submit flow."
+    ),
 )
 def create_ownership_request_admin(
     payload: OwnershipRequestAdminCreate,
@@ -55,7 +64,12 @@ def create_ownership_request_admin(
     return admin_create_ownership_request(db, payload=payload)
 
 
-@router.get("", response_model=list[OwnershipRequestAdminRead])
+@router.get(
+    "",
+    response_model=list[OwnershipRequestAdminRead],
+    summary="List ownership requests (filterable by status)",
+    description="The admin claim-review queue. Pass `?status=SUBMITTED` for new claims awaiting decision.",
+)
 def list_ownership_requests(
     status: str | None = Query(default=None, max_length=50),
     limit: int = Query(50, gt=0, le=200),
@@ -66,7 +80,16 @@ def list_ownership_requests(
     return admin_list_ownership_requests(db, status=status, limit=limit, offset=offset)
 
 
-@router.post("/{request_id}/approve", response_model=OwnershipRequestAdminRead)
+@router.post(
+    "/{request_id}/approve",
+    response_model=OwnershipRequestAdminRead,
+    summary="Approve a claim and create the ownership relationship",
+    description=(
+        "Promotes the claim to APPROVED, ties the place to the "
+        "sponsoring organization (must be VERIFIED — see slice 5d), "
+        "and records the deciding admin + timestamp + optional note."
+    ),
+)
 def approve_ownership_request(
     request_id: UUID,
     payload: OwnershipRequestApprove,
@@ -81,7 +104,15 @@ def approve_ownership_request(
     )
 
 
-@router.post("/{request_id}/reject", response_model=OwnershipRequestAdminRead)
+@router.post(
+    "/{request_id}/reject",
+    response_model=OwnershipRequestAdminRead,
+    summary="Reject a claim with a reason",
+    description=(
+        "REJECTED is terminal — the owner sees the reason on their "
+        "claim detail and can submit a fresh claim if appropriate."
+    ),
+)
 def reject_ownership_request(
     request_id: UUID,
     payload: OwnershipRequestReject,
@@ -99,6 +130,13 @@ def reject_ownership_request(
 @router.post(
     "/{request_id}/request-evidence",
     response_model=OwnershipRequestAdminRead,
+    summary="Ask the owner to upload more evidence",
+    description=(
+        "Holds the claim in REVIEW state with an attached note. The "
+        "owner sees the message on their claim detail page and can "
+        "upload additional files via "
+        "`POST /me/ownership-requests/{id}/attachments`."
+    ),
 )
 def request_more_evidence(
     request_id: UUID,
@@ -152,6 +190,7 @@ class _AdminAttachmentSignedUrl(BaseModel):
 @router.get(
     "/{request_id}/attachments",
     response_model=list[OwnershipRequestAttachmentRead],
+    summary="List evidence files attached to a claim (admin)",
 )
 def list_attachments_admin(
     request_id: UUID,
@@ -173,6 +212,12 @@ def list_attachments_admin(
 @router.get(
     "/{request_id}/attachments/{attachment_id}/url",
     response_model=_AdminAttachmentSignedUrl,
+    summary="Mint a short-lived signed URL for an attachment (admin review)",
+    description=(
+        "Asserts the attachment belongs to the claim before signing — "
+        "guards against UUID guesses surfacing files for an unrelated "
+        "claim. TTL is intentionally tight (60s)."
+    ),
 )
 def signed_url_for_attachment_admin(
     request_id: UUID,

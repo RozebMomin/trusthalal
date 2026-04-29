@@ -40,7 +40,7 @@ from app.modules.places.schemas import (
 from app.core.auth import CurrentUser, get_current_user
 from app.modules.users.enums import UserRole
 
-router = APIRouter(prefix="/places", tags=["Places"])
+router = APIRouter(prefix="/places", tags=["places"])
 
 # A second router for /me-prefixed place-ownership reads. Kept in
 # this file because it's about the Place model, but it doesn't fit
@@ -84,7 +84,19 @@ def list_my_owned_places(
     ]
 
 
-@router.post("", response_model=PlaceRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=PlaceRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a place (legacy)",
+    description=(
+        "Admin-only path that bypasses the Google ingest flow. Most "
+        "callers should use `POST /admin/places/ingest` instead — that "
+        "ingest helper enriches the place with canonical address fields "
+        "from Google Place Details. Kept for the rare case where an "
+        "admin wants to seed a place by hand."
+    ),
+)
 def post_place(
     payload: PlaceCreate,
     db: Session = Depends(get_db),
@@ -103,6 +115,16 @@ def post_place(
 @router.get(
     "/google/autocomplete",
     response_model=list[GoogleAutocompletePrediction],
+    summary="Google Places Autocomplete proxy",
+    description=(
+        "Server-side proxy to the Google Places Autocomplete endpoint. "
+        "Powers the owner portal's 'can't find your restaurant?' "
+        "fallback in the claim flow — the browser key is restricted to "
+        "the admin domain by referrer, so the owner origin can't call "
+        "Google directly. Public on purpose so the user can see "
+        "matches before they decide to sign up. Rate-limited per-IP "
+        "(30/min, 300/hour) to keep Google quota in check."
+    ),
 )
 @limiter.limit("30/minute", key_func=ip_key)
 @limiter.limit("300/hour", key_func=ip_key)
@@ -167,7 +189,19 @@ def google_autocomplete(
     ]
 
 
-@router.get("/{place_id}", response_model=PlaceDetail)
+@router.get(
+    "/{place_id}",
+    response_model=PlaceDetail,
+    summary="Get a place's full detail with attached claims",
+    description=(
+        "Public read of a single place: name, canonical address fields "
+        "(city / region / country / postal_code / timezone), lat/lng, "
+        "soft-delete state, and the list of halal claims attached to "
+        "it. Returns 404 (`PLACE_NOT_FOUND`) if the place doesn't "
+        "exist or is hard-deleted. Soft-deleted places are still "
+        "returned with `is_deleted: true` for context."
+    ),
+)
 def get_place_by_id(
     place_id: UUID,
     db: Session = Depends(get_db),
@@ -209,6 +243,14 @@ def get_place_by_id(
 @router.get(
     "/{place_id}/halal-profile",
     response_model=HalalProfileRead,
+    summary="Public halal profile for a place",
+    description=(
+        "Consumer-facing halal-posture snapshot for a single place. "
+        "Returns the derived `HalalProfile` (validation tier, menu "
+        "posture, alcohol policy, per-meat slaughter, dispute state) "
+        "without re-fetching the full place row. Returns 404 if the "
+        "place doesn't exist or has no halal profile yet."
+    ),
 )
 def get_place_halal_profile(
     place_id: UUID,
@@ -244,7 +286,22 @@ def get_place_halal_profile(
     return HalalProfileRead.model_validate(profile)
 
 
-@router.get("", response_model=list[PlaceSearchResult])
+@router.get(
+    "",
+    response_model=list[PlaceSearchResult],
+    summary="Search the public places catalog (text or geo)",
+    description=(
+        "Two search modes, mutually exclusive:\n\n"
+        "* **Text** — pass `q` (case-insensitive substring on name + "
+        "address + city). Powers the owner portal's claim flow.\n"
+        "* **Geo** — pass `lat` + `lng` + `radius` (meters). Powers "
+        "the consumer site's 'halal places near me'.\n\n"
+        "If `q` is set, geo params are ignored. If neither is "
+        "populated, returns 400 (`PLACES_SEARCH_PARAMS_REQUIRED`) — "
+        "there's no meaningful 'list everything' on a public catalog "
+        "of this size."
+    ),
+)
 def search_places(
     q: str | None = Query(default=None, max_length=255),
     lat: float | None = Query(default=None, ge=-90, le=90),

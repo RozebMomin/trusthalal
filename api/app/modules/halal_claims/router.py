@@ -87,7 +87,16 @@ _MAX_FILES_PER_CLAIM = 8
 # ---------------------------------------------------------------------------
 
 
-@router.get("", response_model=list[MyHalalClaimRead])
+@router.get(
+    "",
+    response_model=list[MyHalalClaimRead],
+    summary="List the caller's halal claims",
+    description=(
+        "Newest-first list of every halal claim the signed-in user "
+        "has submitted across all the orgs they belong to. Powers the "
+        "owner portal's Halal claims page."
+    ),
+)
 def list_my_halal_claims(
     limit: int = Query(default=50, gt=0, le=200),
     offset: int = Query(default=0, ge=0),
@@ -110,6 +119,14 @@ def list_my_halal_claims(
     "/batch",
     response_model=list[MyHalalClaimRead],
     status_code=status.HTTP_201_CREATED,
+    summary="Create N draft halal claims with one shared questionnaire",
+    description=(
+        "Chain-restaurant convenience path: owner picks every "
+        "applicable place, fills the questionnaire once, and the "
+        "server fans out N independent draft claims (each later "
+        "reviewed on its own). Authorization runs upfront for every "
+        "selection — any failure rolls the whole batch back."
+    ),
 )
 @limiter.limit("10/hour", key_func=user_or_ip_key)
 def batch_create_my_halal_claims(
@@ -144,6 +161,15 @@ def batch_create_my_halal_claims(
     "",
     response_model=MyHalalClaimRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Create a DRAFT halal claim",
+    description=(
+        "Starts a new claim for one (place, sponsoring org) pair. "
+        "Authorization gates: caller is an ACTIVE member of the org, "
+        "the org is UNDER_REVIEW or VERIFIED, and the org has an "
+        "ACTIVE `PlaceOwner` link for the place. The questionnaire is "
+        "optional at create — strict validation runs on submit. "
+        "Rate-limited at 10/hour per session."
+    ),
 )
 @limiter.limit("10/hour", key_func=user_or_ip_key)
 def create_my_halal_claim(
@@ -172,7 +198,16 @@ def create_my_halal_claim(
     return MyHalalClaimRead.model_validate(claim)
 
 
-@router.get("/{claim_id}", response_model=MyHalalClaimRead)
+@router.get(
+    "/{claim_id}",
+    response_model=MyHalalClaimRead,
+    summary="Get one of the caller's halal claims",
+    description=(
+        "Returns the full claim with embedded place + org summaries "
+        "and the attachment metadata list. 404 on unknown id; 403 "
+        "if the id exists but belongs to another user."
+    ),
+)
 def get_my_halal_claim(
     claim_id: UUID,
     db: Session = Depends(get_db),
@@ -185,7 +220,18 @@ def get_my_halal_claim(
     return MyHalalClaimRead.model_validate(claim)
 
 
-@router.patch("/{claim_id}", response_model=MyHalalClaimRead)
+@router.patch(
+    "/{claim_id}",
+    response_model=MyHalalClaimRead,
+    summary="Update a DRAFT claim's questionnaire",
+    description=(
+        "Only the `structured_response` payload can change; "
+        "`place_id` and `organization_id` are immutable post-create. "
+        "Owners who picked the wrong values discard and restart. "
+        "Conflict 409 (`HALAL_CLAIM_NOT_EDITABLE`) once the claim "
+        "leaves DRAFT."
+    ),
+)
 def patch_my_halal_claim(
     claim_id: UUID,
     patch: MyHalalClaimPatch,
@@ -209,6 +255,14 @@ def patch_my_halal_claim(
 @router.post(
     "/{claim_id}/submit",
     response_model=MyHalalClaimRead,
+    summary="Submit a DRAFT claim for admin review",
+    description=(
+        "Re-validates the stored questionnaire against the strict "
+        "`HalalQuestionnaireResponse` shape. Missing required fields "
+        "return 400 with field-level details under `error.detail` so "
+        "the frontend can surface inline validation. Idempotent on a "
+        "claim already in PENDING_REVIEW. Rate-limited 20/hour."
+    ),
 )
 @limiter.limit("20/hour", key_func=user_or_ip_key)
 def submit_my_halal_claim(
@@ -241,6 +295,15 @@ def submit_my_halal_claim(
     "/{claim_id}/attachments",
     response_model=HalalClaimAttachmentRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Upload evidence to a halal claim",
+    description=(
+        "Multipart upload with optional metadata (document_type, "
+        "issuing_authority, certificate_number, valid_until). "
+        "Allowed only while the claim is DRAFT or NEEDS_MORE_INFO; "
+        "MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF), 10 MB "
+        "size cap, 8-files-per-claim count cap. Storage key is "
+        "`halal-claims/{claim_id}/{uuid}.{ext}`."
+    ),
 )
 @limiter.limit("60/hour", key_func=user_or_ip_key)
 def upload_my_halal_claim_attachment(
@@ -389,6 +452,14 @@ def upload_my_halal_claim_attachment(
 @router.get(
     "/{claim_id}/events",
     response_model=list[HalalClaimEventRead],
+    summary="Audit timeline for one of the caller's halal claims",
+    description=(
+        "Oldest-first list of every transition on this claim "
+        "(DRAFT_CREATED, SUBMITTED, ATTACHMENT_ADDED, admin "
+        "decisions, supersession, expiry). Powers the owner "
+        "portal's per-claim Activity section. Same 404/403 split "
+        "as the rest of `/me/halal-claims/*`."
+    ),
 )
 def list_my_halal_claim_events(
     claim_id: UUID,
@@ -411,6 +482,12 @@ def list_my_halal_claim_events(
 @router.get(
     "/{claim_id}/attachments",
     response_model=list[HalalClaimAttachmentRead],
+    summary="List metadata for the claim's evidence files",
+    description=(
+        "File bytes are not returned — frontends fetch via the admin "
+        "signed-URL endpoint when needed. This list covers filename, "
+        "MIME, size, document_type, and certificate metadata."
+    ),
 )
 def list_my_halal_claim_attachments(
     claim_id: UUID,

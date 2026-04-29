@@ -24,13 +24,20 @@ from app.modules.admin.users.schemas import (
 )
 from app.modules.users.enums import UserRole
 
-router = APIRouter(prefix="/admin/users", tags=["admin"])
+router = APIRouter(prefix="/admin/users", tags=["admin: users"])
 
 
 @router.post(
     "",
     response_model=UserAdminCreateResponse,
     status_code=status.HTTP_201_CREATED,
+    summary="Create a user and mint a single-use invite token",
+    description=(
+        "Used to onboard new staff (ADMIN, VERIFIER) and the rare "
+        "admin-created OWNER. Returns a one-time invite URL the admin "
+        "can share with the new user. The plaintext token is visible "
+        "ONLY in this response — there's no endpoint to re-fetch it."
+    ),
 )
 def create_user_admin(
     payload: UserAdminCreate,
@@ -63,7 +70,11 @@ def create_user_admin(
     )
 
 
-@router.get("", response_model=list[UserAdminRead])
+@router.get(
+    "",
+    response_model=list[UserAdminRead],
+    summary="List users with role / active / search filters",
+)
 def list_users_admin(
     role: UserRole | None = Query(default=None),
     is_active: bool | None = Query(default=None),
@@ -76,7 +87,11 @@ def list_users_admin(
     return admin_list_users(db, role=role, is_active=is_active, q=q, limit=limit, offset=offset)
 
 
-@router.get("/{user_id}", response_model=UserAdminRead)
+@router.get(
+    "/{user_id}",
+    response_model=UserAdminRead,
+    summary="Get a user by id",
+)
 def get_user_admin(
     user_id: UUID,
     db: Session = Depends(get_db),
@@ -85,7 +100,16 @@ def get_user_admin(
     return admin_get_user(db, user_id)
 
 
-@router.patch("/{user_id}", response_model=UserAdminRead)
+@router.patch(
+    "/{user_id}",
+    response_model=UserAdminRead,
+    summary="Edit a user (display_name, role, is_active)",
+    description=(
+        "Self-demotion and self-deactivation are blocked at the repo "
+        "layer — an ADMIN can't accidentally lock themselves out by "
+        "editing their own row."
+    ),
+)
 def patch_user_admin(
     user_id: UUID,
     payload: UserAdminPatch,
@@ -103,6 +127,12 @@ def patch_user_admin(
 @router.get(
     "/{user_id}/organizations",
     response_model=list[UserOrganizationMembershipRead],
+    summary="List a user's organization memberships",
+    description=(
+        "Includes REMOVED memberships — the admin UI decides whether "
+        "to surface them. Used by the admin user-detail page's "
+        "Organizations section."
+    ),
 )
 def list_user_organizations_admin(
     user_id: UUID,
