@@ -143,6 +143,12 @@ function PortalHeader() {
               My claims
             </NavLink>
             <NavLink
+              href="/my-halal-claims"
+              active={pathname.startsWith("/my-halal-claims")}
+            >
+              Halal claims
+            </NavLink>
+            <NavLink
               href="/my-organizations"
               active={pathname.startsWith("/my-organizations")}
             >
@@ -193,6 +199,12 @@ function PortalHeader() {
           </NavLink>
           <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
             My claims
+          </NavLink>
+          <NavLink
+            href="/my-halal-claims"
+            active={pathname.startsWith("/my-halal-claims")}
+          >
+            Halal
           </NavLink>
           <NavLink
             href="/my-organizations"

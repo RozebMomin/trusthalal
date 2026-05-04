@@ -199,6 +199,9 @@ const qk = {
   myOwnershipRequests: () => ["me", "ownership-requests"] as const,
   myOrganizations: () => ["me", "organizations"] as const,
   myOrganization: (id: string) => ["me", "organizations", id] as const,
+  myOwnedPlaces: () => ["me", "owned-places"] as const,
+  myHalalClaims: () => ["me", "halal-claims"] as const,
+  myHalalClaim: (id: string) => ["me", "halal-claims", id] as const,
   placesSearch: (q: string) => ["places", "search", q] as const,
   placesGoogleAutocomplete: (q: string) =>
     ["places", "google", "autocomplete", q] as const,
@@ -532,6 +535,252 @@ export function useUploadMyOrganizationAttachment() {
       void qc.invalidateQueries({ queryKey: qk.myOrganizations() });
       void qc.invalidateQueries({
         queryKey: qk.myOrganization(args.organizationId),
+      });
+    },
+  });
+}
+
+
+// ===========================================================================
+// Halal claims (Phase 5 of the halal-trust v2 rebuild)
+// ===========================================================================
+// Hand-typed shapes mirror the server-side Pydantic models in
+// app/modules/halal_claims/schemas.py. Replace with
+// ``components["schemas"][...]`` after running ``npm run codegen``
+// against the Phase 4 OpenAPI export.
+
+export type HalalClaimStatus =
+  | "DRAFT"
+  | "PENDING_REVIEW"
+  | "NEEDS_MORE_INFO"
+  | "APPROVED"
+  | "REJECTED"
+  | "EXPIRED"
+  | "REVOKED"
+  | "SUPERSEDED";
+
+export type HalalClaimType = "INITIAL" | "RENEWAL" | "RECONCILIATION";
+
+export type HalalClaimAttachmentType =
+  | "HALAL_CERTIFICATE"
+  | "SUPPLIER_LETTER"
+  | "INVOICE"
+  | "PHOTO"
+  | "OTHER";
+
+export type MenuPosture =
+  | "FULLY_HALAL"
+  | "MIXED_SEPARATE_KITCHENS"
+  | "HALAL_OPTIONS_ADVERTISED"
+  | "HALAL_UPON_REQUEST"
+  | "MIXED_SHARED_KITCHEN";
+
+export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
+
+export type SlaughterMethod = "ZABIHAH" | "MACHINE" | "NOT_SERVED";
+
+/** Per-meat sourcing — repeated across chicken/beef/lamb/goat. */
+export type MeatSourcing = {
+  slaughter_method: SlaughterMethod;
+  supplier_name?: string | null;
+  supplier_location?: string | null;
+};
+
+/**
+ * The structured questionnaire shape — server stores as JSONB.
+ * The DRAFT shape (every field optional) is what the form posts
+ * during edits; submit re-validates against the strict shape on
+ * the server side.
+ */
+export type HalalQuestionnaireDraft = {
+  questionnaire_version?: number;
+  menu_posture?: MenuPosture | null;
+  has_pork?: boolean | null;
+  alcohol_policy?: AlcoholPolicy | null;
+  alcohol_in_cooking?: boolean | null;
+  chicken?: MeatSourcing | null;
+  beef?: MeatSourcing | null;
+  lamb?: MeatSourcing | null;
+  goat?: MeatSourcing | null;
+  seafood_only?: boolean | null;
+  has_certification?: boolean | null;
+  certifying_body_name?: string | null;
+  caveats?: string | null;
+};
+
+export type HalalClaimAttachmentRead = {
+  id: string;
+  claim_id: string;
+  document_type: HalalClaimAttachmentType;
+  issuing_authority: string | null;
+  certificate_number: string | null;
+  valid_until: string | null;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+};
+
+export type MyHalalClaimRead = {
+  id: string;
+  place_id: string;
+  organization_id: string | null;
+  claim_type: HalalClaimType;
+  status: HalalClaimStatus;
+  structured_response: HalalQuestionnaireDraft | null;
+  attachments: HalalClaimAttachmentRead[];
+  submitted_at: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MyHalalClaimCreate = {
+  place_id: string;
+  organization_id: string;
+  structured_response?: HalalQuestionnaireDraft | null;
+};
+
+export type MyHalalClaimPatch = {
+  structured_response: HalalQuestionnaireDraft;
+};
+
+/** Row shape from GET /me/owned-places — drives the picker. */
+export type OwnedPlaceRead = {
+  place_id: string;
+  place_name: string;
+  place_address: string | null;
+  place_city: string | null;
+  place_country_code: string | null;
+  organization_id: string;
+  organization_name: string;
+  has_halal_profile: boolean;
+};
+
+/**
+ * Statuses where the owner can patch the questionnaire / upload
+ * attachments / re-submit. Phase 2's status guards on the server
+ * are the source of truth; this is the client-side mirror.
+ */
+export const HALAL_CLAIM_EDITABLE_STATUSES: ReadonlyArray<HalalClaimStatus> = [
+  "DRAFT",
+  "NEEDS_MORE_INFO",
+];
+
+// ---- Read hooks ----------------------------------------------------------
+
+/** GET /me/owned-places — places the user can submit halal info for. */
+export function useMyOwnedPlaces() {
+  return useQuery<OwnedPlaceRead[]>({
+    queryKey: qk.myOwnedPlaces(),
+    queryFn: () => apiFetch<OwnedPlaceRead[]>("/me/owned-places"),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useMyHalalClaims() {
+  return useQuery<MyHalalClaimRead[]>({
+    queryKey: qk.myHalalClaims(),
+    queryFn: () => apiFetch<MyHalalClaimRead[]>("/me/halal-claims"),
+    staleTime: 15 * 1000,
+  });
+}
+
+export function useMyHalalClaim(id: string | null | undefined) {
+  return useQuery<MyHalalClaimRead>({
+    queryKey: qk.myHalalClaim(id ?? "__nil__"),
+    queryFn: () => apiFetch<MyHalalClaimRead>(`/me/halal-claims/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+    staleTime: 15 * 1000,
+  });
+}
+
+// ---- Mutations -----------------------------------------------------------
+
+export function useCreateMyHalalClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MyHalalClaimCreate) =>
+      apiFetch<MyHalalClaimRead>("/me/halal-claims", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
+    },
+  });
+}
+
+export function usePatchMyHalalClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { claimId: string; patch: MyHalalClaimPatch }) =>
+      apiFetch<MyHalalClaimRead>(`/me/halal-claims/${args.claimId}`, {
+        method: "PATCH",
+        json: args.patch,
+      }),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaim(data.id) });
+    },
+  });
+}
+
+export function useSubmitMyHalalClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (claimId: string) =>
+      apiFetch<MyHalalClaimRead>(`/me/halal-claims/${claimId}/submit`, {
+        method: "POST",
+      }),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaim(data.id) });
+    },
+  });
+}
+
+/**
+ * Multipart upload for halal-claim evidence. Optional metadata
+ * (document_type / issuing_authority / certificate_number /
+ * valid_until) rides as form fields alongside the file.
+ */
+export function useUploadMyHalalClaimAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      claimId: string;
+      file: File;
+      document_type?: HalalClaimAttachmentType;
+      issuing_authority?: string | null;
+      certificate_number?: string | null;
+      valid_until?: string | null;
+    }) => {
+      const fd = new FormData();
+      fd.append("file", args.file);
+      if (args.document_type) {
+        fd.append("document_type", args.document_type);
+      }
+      if (args.issuing_authority) {
+        fd.append("issuing_authority", args.issuing_authority);
+      }
+      if (args.certificate_number) {
+        fd.append("certificate_number", args.certificate_number);
+      }
+      if (args.valid_until) {
+        fd.append("valid_until", args.valid_until);
+      }
+      return apiFetch<HalalClaimAttachmentRead>(
+        `/me/halal-claims/${args.claimId}/attachments`,
+        { method: "POST", formData: fd },
+      );
+    },
+    onSuccess: (_data, args) => {
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
+      void qc.invalidateQueries({
+        queryKey: qk.myHalalClaim(args.claimId),
       });
     },
   });

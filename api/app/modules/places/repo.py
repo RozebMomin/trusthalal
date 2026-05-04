@@ -15,6 +15,11 @@ from app.modules.halal_profiles.enums import (
     ValidationTier,
 )
 from app.modules.halal_profiles.models import HalalProfile
+from app.modules.organizations.models import (
+    Organization,
+    OrganizationMember,
+    PlaceOwner,
+)
 from app.modules.places.enums import PlaceEventType
 from app.modules.places.models import Place, PlaceEvent
 
@@ -259,6 +264,56 @@ def search_by_text(
         stmt = _apply_halal_filters(stmt, halal_filters)
     stmt = stmt.order_by(Place.name.asc()).limit(limit).offset(offset)
     return list(db.execute(stmt).scalars().all())
+
+
+def list_owned_places_for_user(
+    db: Session, *, user_id: UUID
+) -> list[tuple[Place, Organization, bool]]:
+    """List places the user can submit halal info for.
+
+    Joins:
+      organization_members (active for this user)
+        → organizations
+        → place_owners (active)
+        → places (not soft-deleted)
+        ⟕ halal_profiles (left join — to surface "already has a
+                          profile" so the picker can show a different
+                          CTA for first-time vs update flows)
+
+    Returns triples of (place, organization, has_profile) so the
+    router can build the OwnedPlaceRead response shape without a
+    second query per row.
+    """
+    has_profile_subquery = (
+        select(HalalProfile.id)
+        .where(
+            HalalProfile.place_id == Place.id,
+            HalalProfile.revoked_at.is_(None),
+        )
+        .exists()
+        .label("has_profile")
+    )
+
+    rows = db.execute(
+        select(Place, Organization, has_profile_subquery)
+        .join(PlaceOwner, PlaceOwner.place_id == Place.id)
+        .join(
+            Organization, Organization.id == PlaceOwner.organization_id
+        )
+        .join(
+            OrganizationMember,
+            OrganizationMember.organization_id == Organization.id,
+        )
+        .where(
+            OrganizationMember.user_id == user_id,
+            OrganizationMember.status == "ACTIVE",
+            PlaceOwner.status == "ACTIVE",
+            Place.is_deleted.is_(False),
+        )
+        .order_by(Organization.name.asc(), Place.name.asc())
+    ).all()
+
+    return [(place, org, bool(has_profile)) for place, org, has_profile in rows]
 
 
 def search_nearby(

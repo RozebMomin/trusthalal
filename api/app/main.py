@@ -35,7 +35,10 @@ else:
 
 import app.db.models  # noqa: F401  E402
 
-from app.modules.places.router import router as places_router  # noqa: E402
+from app.modules.places.router import (  # noqa: E402
+    me_places_router as me_places_router,
+    router as places_router,
+)
 from app.modules.auth.router import router as auth_router  # noqa: E402
 from app.modules.organizations.router import router as organizations_router  # noqa: E402
 from app.modules.ownership_requests.router import router as ownership_requests_router  # noqa: E402
@@ -139,6 +142,7 @@ if cors_origins:
 app.add_middleware(RequestIDMiddleware)
 
 app.include_router(places_router)
+app.include_router(me_places_router)
 app.include_router(auth_router)
 app.include_router(organizations_router)
 app.include_router(ownership_requests_router)

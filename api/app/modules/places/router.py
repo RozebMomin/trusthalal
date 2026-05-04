@@ -24,20 +24,64 @@ from app.modules.places.repo import (
     HalalSearchFilters,
     create_place,
     get_place,
+    list_owned_places_for_user,
     search_by_text,
     search_nearby,
 )
 from app.modules.places.schemas import (
     GoogleAutocompletePrediction,
     HalalProfileEmbed,
+    OwnedPlaceRead,
     PlaceCreate,
     PlaceDetail,
     PlaceRead,
     PlaceSearchResult,
 )
+from app.core.auth import CurrentUser, get_current_user
 from app.modules.users.enums import UserRole
 
 router = APIRouter(prefix="/places", tags=["Places"])
+
+# A second router for /me-prefixed place-ownership reads. Kept in
+# this file because it's about the Place model, but it doesn't fit
+# under the /places prefix.
+me_places_router = APIRouter(prefix="/me", tags=["Places"])
+
+
+@me_places_router.get(
+    "/owned-places",
+    response_model=list[OwnedPlaceRead],
+)
+def list_my_owned_places(
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> list[OwnedPlaceRead]:
+    """Places this user can submit halal information for.
+
+    Backed by an active OrganizationMember → Organization →
+    PlaceOwner chain. Each (place, owning org) pair is a separate
+    row, so a user who runs multiple orgs can see which place is
+    owned by which entity. Drives the picker on the owner-portal
+    "New halal claim" flow.
+
+    ``has_halal_profile`` is true when a non-revoked HalalProfile
+    exists for the place — lets the picker render different copy
+    for first-time vs update flows.
+    """
+    rows = list_owned_places_for_user(db, user_id=user.id)
+    return [
+        OwnedPlaceRead(
+            place_id=place.id,
+            place_name=place.name,
+            place_address=place.address,
+            place_city=place.city,
+            place_country_code=place.country_code,
+            organization_id=org.id,
+            organization_name=org.name,
+            has_halal_profile=has_profile,
+        )
+        for place, org, has_profile in rows
+    ]
 
 
 @router.post("", response_model=PlaceRead, status_code=status.HTTP_201_CREATED)
