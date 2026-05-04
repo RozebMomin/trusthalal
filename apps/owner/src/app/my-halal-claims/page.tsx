@@ -65,39 +65,53 @@ export default function MyHalalClaimsPage() {
 
       {claims && claims.length > 0 && (
         <ul className="space-y-3">
-          {claims.map((c) => (
-            <li
-              key={c.id}
-              className="rounded-md border bg-card p-4 transition hover:bg-accent/40"
-            >
-              <Link
-                href={`/my-halal-claims/${c.id}`}
-                className="flex items-start justify-between gap-3"
+          {claims.map((c) => {
+            const placeLine = c.place
+              ? [c.place.address, c.place.city, c.place.country_code]
+                  .filter(Boolean)
+                  .join(" · ")
+              : null;
+            return (
+              <li
+                key={c.id}
+                className="rounded-md border bg-card p-4 transition hover:bg-accent/40"
               >
-                <div className="min-w-0">
-                  <p className="truncate font-mono text-xs text-muted-foreground">
-                    {c.id.slice(0, 8)}
-                  </p>
-                  <p className="mt-1 text-sm">
-                    Place{" "}
-                    <span className="font-mono text-xs">
-                      {c.place_id.slice(0, 8)}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Created {new Date(c.created_at).toLocaleDateString()}
-                    {c.submitted_at && (
-                      <>
-                        {" · Submitted "}
-                        {new Date(c.submitted_at).toLocaleDateString()}
-                      </>
+                <Link
+                  href={`/my-halal-claims/${c.id}`}
+                  className="flex items-start justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold">
+                      {c.place?.name ?? "Unknown place"}
+                    </p>
+                    {placeLine && (
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {placeLine}
+                      </p>
                     )}
-                  </p>
-                </div>
-                <HalalClaimStatusBadge status={c.status} />
-              </Link>
-            </li>
-          ))}
+                    {c.organization && (
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        Owned by{" "}
+                        <span className="font-medium text-foreground">
+                          {c.organization.name}
+                        </span>
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Created {new Date(c.created_at).toLocaleDateString()}
+                      {c.submitted_at && (
+                        <>
+                          {" · Submitted "}
+                          {new Date(c.submitted_at).toLocaleDateString()}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <HalalClaimStatusBadge status={c.status} />
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

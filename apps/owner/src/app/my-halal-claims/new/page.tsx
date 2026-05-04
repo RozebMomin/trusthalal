@@ -1,19 +1,20 @@
 "use client";
 
 /**
- * Owner portal — start a new halal claim.
+ * Owner portal — start one or many halal claims.
  *
- * The owner picks one of the (place, sponsoring org) pairs they
- * already own. We don't show a free-form catalog search here —
- * halal claims are about places the owner already runs, not random
- * restaurants. The /me/owned-places endpoint (Phase 5 backend bit)
- * supplies the picker rows.
+ * Multi-select picker over the (place, sponsoring org) pairs the
+ * owner already runs. Two paths from here:
  *
- * Behavior:
- *   * No owned places → guide the user to /claim first.
- *   * Owned places exist → render a list. Clicking a row creates a
- *     DRAFT halal claim for that (place, org) pair and redirects
- *     to the detail page.
+ *   * Exactly one selection → POST /me/halal-claims (existing
+ *     single-create flow), redirect to detail.
+ *   * Two or more → continue to /my-halal-claims/new/batch which
+ *     captures the shared questionnaire once and fans out to N
+ *     drafts on submit. Use case: chain restaurants where every
+ *     location maintains the same halal standard.
+ *
+ * Place-name + city render directly so owners recognize their own
+ * stores without squinting at UUIDs.
  */
 
 import Link from "next/link";
@@ -29,39 +30,77 @@ import {
   useMyOwnedPlaces,
 } from "@/lib/api/hooks";
 
+function selectionKey(row: OwnedPlaceRead): string {
+  // place_id alone isn't unique — same place can be owned by
+  // multiple of the user's orgs. Pair the IDs so the checkbox
+  // state can disambiguate.
+  return `${row.place_id}:${row.organization_id}`;
+}
+
 export default function NewHalalClaimPage() {
   const router = useRouter();
   const ownedPlaces = useMyOwnedPlaces();
   const create = useCreateMyHalalClaim();
 
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [pickedKey, setPickedKey] = React.useState<string | null>(null);
 
-  async function startClaim(row: OwnedPlaceRead) {
-    if (create.isPending) return;
+  function toggle(row: OwnedPlaceRead) {
+    const key = selectionKey(row);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  const selectedRows = React.useMemo(
+    () =>
+      (ownedPlaces.data ?? []).filter((row) =>
+        selected.has(selectionKey(row)),
+      ),
+    [ownedPlaces.data, selected],
+  );
+
+  async function continueWithSelection() {
+    if (selectedRows.length === 0 || create.isPending) return;
     setErrorMsg(null);
-    // Track which row the spinner is on while the create call
-    // is in flight — useful when a user clicks the wrong row by
-    // accident and clicks again while the first request is still
-    // pending.
-    setPickedKey(`${row.place_id}:${row.organization_id}`);
-    try {
-      const created = await create.mutateAsync({
-        place_id: row.place_id,
-        organization_id: row.organization_id,
-      });
-      router.push(`/my-halal-claims/${created.id}`);
-    } catch (err) {
-      const { description } = friendlyApiError(err, {
-        defaultTitle: "Couldn't start the halal claim",
-      });
-      setErrorMsg(
-        err instanceof ApiError && err.status >= 500
-          ? "Something went wrong on our end. Please try again in a moment."
-          : description,
-      );
-      setPickedKey(null);
+
+    if (selectedRows.length === 1) {
+      // Single-claim path: existing flow.
+      const row = selectedRows[0];
+      try {
+        const created = await create.mutateAsync({
+          place_id: row.place_id,
+          organization_id: row.organization_id,
+        });
+        router.push(`/my-halal-claims/${created.id}`);
+      } catch (err) {
+        const { description } = friendlyApiError(err, {
+          defaultTitle: "Couldn't start the halal claim",
+        });
+        setErrorMsg(
+          err instanceof ApiError && err.status >= 500
+            ? "Something went wrong on our end. Please try again."
+            : description,
+        );
+      }
+      return;
     }
+
+    // Multi-select: forward to the batch-create page with the
+    // selections in the query string. That page captures the shared
+    // questionnaire and fires one POST /me/halal-claims/batch.
+    const params = new URLSearchParams();
+    for (const row of selectedRows) {
+      params.append("p", row.place_id);
+      params.append("o", row.organization_id);
+    }
+    router.push(`/my-halal-claims/new/batch?${params.toString()}`);
   }
 
   return (
@@ -77,9 +116,10 @@ export default function NewHalalClaimPage() {
           Start a halal claim
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Pick a place to share halal information about. You&apos;ll
-          fill in the questionnaire on the next step and can save
-          drafts before submitting for review.
+          Pick the places you want to share halal information for.
+          Select multiple if every location maintains the same
+          standard — you&apos;ll fill out the questionnaire once and
+          we&apos;ll create a draft for each place.
         </p>
       </header>
 
@@ -115,70 +155,129 @@ export default function NewHalalClaimPage() {
       )}
 
       {ownedPlaces.data && ownedPlaces.data.length > 0 && (
-        <ul className="space-y-3">
-          {ownedPlaces.data.map((row) => {
-            const key = `${row.place_id}:${row.organization_id}`;
-            const isPending = create.isPending && pickedKey === key;
-            return (
-              <li
-                key={key}
-                className="rounded-md border bg-card p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">
-                      {row.place_name}
-                    </p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
-                      {[
-                        row.place_address,
-                        row.place_city,
-                        row.place_country_code,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "No address on file"}
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Owned by{" "}
-                      <span className="font-medium text-foreground">
-                        {row.organization_name}
-                      </span>
+        <>
+          <PlaceList
+            rows={ownedPlaces.data}
+            selected={selected}
+            onToggle={toggle}
+          />
+
+          {errorMsg && (
+            <p
+              role="alert"
+              aria-live="polite"
+              className="text-sm text-destructive"
+            >
+              {errorMsg}
+            </p>
+          )}
+
+          <div className="sticky bottom-0 -mx-4 flex items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-md sm:border">
+            <p className="text-sm text-muted-foreground">
+              {selectedRows.length === 0
+                ? "No places selected."
+                : selectedRows.length === 1
+                ? "1 place selected."
+                : `${selectedRows.length} places selected — fill out the questionnaire once, we'll create a draft for each.`}
+            </p>
+            <Button
+              type="button"
+              onClick={() => void continueWithSelection()}
+              disabled={selectedRows.length === 0 || create.isPending}
+            >
+              {create.isPending
+                ? "Starting…"
+                : selectedRows.length > 1
+                ? `Continue with ${selectedRows.length}`
+                : "Continue"}
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PlaceList({
+  rows,
+  selected,
+  onToggle,
+}: {
+  rows: OwnedPlaceRead[];
+  selected: Set<string>;
+  onToggle: (row: OwnedPlaceRead) => void;
+}) {
+  // Group rows by organization so the picker stays scannable when
+  // an owner runs places under multiple orgs.
+  const grouped = React.useMemo(() => {
+    const map = new Map<string, { name: string; rows: OwnedPlaceRead[] }>();
+    for (const row of rows) {
+      const existing = map.get(row.organization_id);
+      if (existing) {
+        existing.rows.push(row);
+      } else {
+        map.set(row.organization_id, {
+          name: row.organization_name,
+          rows: [row],
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [rows]);
+
+  return (
+    <div className="space-y-5">
+      {grouped.map((group) => (
+        <section key={group.name} className="space-y-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            {group.name}
+          </h2>
+          <ul className="space-y-2">
+            {group.rows.map((row) => {
+              const key = selectionKey(row);
+              const isSelected = selected.has(key);
+              return (
+                <li key={key}>
+                  <label
+                    className={[
+                      "flex cursor-pointer items-start gap-3 rounded-md border bg-card p-3 transition",
+                      isSelected
+                        ? "border-foreground bg-accent/50"
+                        : "hover:bg-accent/30",
+                    ].join(" ")}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggle(row)}
+                      className="mt-1"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
+                        {row.place_name}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {[
+                          row.place_address,
+                          row.place_city,
+                          row.place_country_code,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "No address on file"}
+                      </p>
                       {row.has_halal_profile && (
-                        <span className="ml-2 inline-flex items-center rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100">
-                          Has live profile
+                        <span className="mt-2 inline-flex items-center rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100">
+                          Has live halal profile
                         </span>
                       )}
-                    </p>
-                    {row.has_halal_profile && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Submitting a new claim here will replace the
-                        current profile when admin approves it.
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => void startClaim(row)}
-                    disabled={create.isPending}
-                  >
-                    {isPending ? "Starting…" : "Start claim"}
-                  </Button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {errorMsg && (
-        <p
-          className="text-sm text-destructive"
-          role="alert"
-          aria-live="polite"
-        >
-          {errorMsg}
-        </p>
-      )}
+                    </div>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }

@@ -621,10 +621,28 @@ export type HalalClaimAttachmentRead = {
   uploaded_at: string;
 };
 
+/** Place fields embedded inside MyHalalClaimRead. Slim shape. */
+export type MyHalalClaimPlaceSummary = {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+};
+
+/** Org fields embedded inside MyHalalClaimRead. */
+export type MyHalalClaimOrgSummary = {
+  id: string;
+  name: string;
+};
+
 export type MyHalalClaimRead = {
   id: string;
   place_id: string;
   organization_id: string | null;
+  place: MyHalalClaimPlaceSummary | null;
+  organization: MyHalalClaimOrgSummary | null;
   claim_type: HalalClaimType;
   status: HalalClaimStatus;
   structured_response: HalalQuestionnaireDraft | null;
@@ -645,6 +663,17 @@ export type MyHalalClaimCreate = {
 
 export type MyHalalClaimPatch = {
   structured_response: HalalQuestionnaireDraft;
+};
+
+/** One (place, sponsoring org) pair for a batch create. */
+export type MyHalalClaimBatchSelection = {
+  place_id: string;
+  organization_id: string;
+};
+
+export type MyHalalClaimBatchCreate = {
+  selections: MyHalalClaimBatchSelection[];
+  structured_response?: HalalQuestionnaireDraft | null;
 };
 
 /** Row shape from GET /me/owned-places — drives the picker. */
@@ -704,6 +733,27 @@ export function useCreateMyHalalClaim() {
   return useMutation({
     mutationFn: (payload: MyHalalClaimCreate) =>
       apiFetch<MyHalalClaimRead>("/me/halal-claims", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
+    },
+  });
+}
+
+/**
+ * POST /me/halal-claims/batch — create N drafts at once with a
+ * shared questionnaire payload. For chain restaurants where every
+ * location maintains the same halal standard. Server runs the
+ * authorization gates per-selection and rolls back the whole batch
+ * if any selection fails.
+ */
+export function useBatchCreateMyHalalClaims() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MyHalalClaimBatchCreate) =>
+      apiFetch<MyHalalClaimRead[]>("/me/halal-claims/batch", {
         method: "POST",
         json: payload,
       }),

@@ -188,12 +188,31 @@ function ClaimDetailBody({ claim }: { claim: MyHalalClaimRead }) {
           ← All halal claims
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-3xl font-bold tracking-tight">
-              Halal claim
+              {claim.place?.name ?? "Halal claim"}
             </h1>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">
-              {claim.id.slice(0, 8)}
+            {claim.place && (
+              <p className="mt-1 truncate text-sm text-muted-foreground">
+                {[
+                  claim.place.address,
+                  claim.place.city,
+                  claim.place.country_code,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "No address on file"}
+              </p>
+            )}
+            {claim.organization && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Sponsored by{" "}
+                <span className="font-medium text-foreground">
+                  {claim.organization.name}
+                </span>
+              </p>
+            )}
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+              Claim {claim.id.slice(0, 8)}
             </p>
           </div>
           <HalalClaimStatusBadge status={claim.status} />
