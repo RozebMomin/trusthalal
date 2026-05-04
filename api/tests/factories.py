@@ -19,8 +19,6 @@ from dataclasses import dataclass
 from geoalchemy2.elements import WKTElement
 from sqlalchemy.orm import Session
 
-from app.modules.claims.enums import ClaimScope, ClaimStatus, ClaimType
-from app.modules.claims.models import Evidence, HalalClaim
 from app.modules.organizations.enums import OrganizationStatus
 from app.modules.organizations.models import (
     Organization,
@@ -195,51 +193,6 @@ class Factories:
         self.org_member(organization=org, user=owner)
         return place, org
 
-    # ----- Claims -----
-    def claim(
-        self,
-        *,
-        place: Place,
-        claim_type: ClaimType = ClaimType.ZABIHA,
-        scope: ClaimScope = ClaimScope.ALL_MENU,
-        status: ClaimStatus = ClaimStatus.PENDING,
-        created_by: User | None = None,
-        expires_in_days: int = 90,
-    ) -> HalalClaim:
-        c = HalalClaim(
-            place_id=place.id,
-            claim_type=claim_type,
-            scope=scope,
-            status=status,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=expires_in_days),
-            created_by_user_id=(created_by.id if created_by else None),
-        )
-        self.db.add(c)
-        self.db.flush()
-        self.db.refresh(c)
-        return c
-
-    def evidence(
-        self,
-        *,
-        claim: HalalClaim,
-        evidence_type: str = "certificate",
-        uri: str = "https://example.test/cert.pdf",
-        notes: str | None = None,
-        uploaded_by: User | None = None,
-    ) -> Evidence:
-        e = Evidence(
-            claim_id=claim.id,
-            evidence_type=evidence_type,
-            uri=uri,
-            notes=notes,
-            uploaded_by_user_id=(uploaded_by.id if uploaded_by else None),
-        )
-        self.db.add(e)
-        self.db.flush()
-        self.db.refresh(e)
-        return e
-
     # ----- Ownership requests -----
     def ownership_request(
         self,
@@ -272,15 +225,6 @@ class Factories:
         return r
 
     # ----- Helpers for backdating -----
-    def make_claim_expire_in(
-        self,
-        claim: HalalClaim,
-        *,
-        days: int,
-    ) -> HalalClaim:
-        """Bump the claim's ``expires_at`` to now + ``days`` (can be negative)."""
-        claim.expires_at = datetime.now(timezone.utc) + timedelta(days=days)
-        self.db.add(claim)
-        self.db.flush()
-        self.db.refresh(claim)
-        return claim
+    # The legacy ``make_claim_expire_in`` helper was removed alongside
+    # the legacy halal_claims schema. Phase 2 adds equivalent helpers
+    # for the new HalalClaim model.

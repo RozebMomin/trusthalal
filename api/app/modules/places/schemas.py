@@ -83,5 +83,8 @@ class PlaceDetail(BaseModel):
     # created_at would duplicate that with strictly less information.
     updated_at: datetime | None = None
 
-    # Optional: include claims here (recommended)
-    claims: list[dict] = []  # replace with ClaimRead later if you want strong typing
+    # Halal v2 transition: the legacy ``claims`` field used to embed
+    # the deprecated ``HalalClaim`` rows here. Phase 4 of the halal-
+    # trust rebuild will surface the consumer-facing ``HalalProfile``
+    # instead. Until then PlaceDetail intentionally omits halal data
+    # — frontends should rely on dedicated endpoints once those land.

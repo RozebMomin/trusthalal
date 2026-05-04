@@ -118,12 +118,14 @@ def get_place_by_id(
     place = get_place(db, place_id)
     if not place:
         raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
-    from app.modules.claims.repo import get_claims_for_place
-    claims = get_claims_for_place(db, place_id=place_id)
 
     # Build response. Passing through the ORM object via model_validate picks up
     # the canonical address fields (city/region/country_code/postal_code/timezone)
     # without us having to enumerate them here.
+    #
+    # Halal v2 transition: the legacy embedded `claims` field is gone.
+    # Phase 4 will introduce GET /places/{id}/halal-profile for the
+    # consumer-facing halal data.
     return PlaceDetail.model_validate(
         {
             "id": place.id,
@@ -138,25 +140,8 @@ def get_place_by_id(
             "postal_code": place.postal_code,
             "timezone": place.timezone,
             "updated_at": place.updated_at,
-            "claims": claims,
         }
     )
-
-
-@router.get("/{place_id}/claims", response_model=list[dict])
-def get_place_claims(
-    place_id: UUID,
-    db: Session = Depends(get_db),
-) -> list[dict]:
-    # Ensure place exists
-    place = get_place(db, place_id)
-    if not place:
-        raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
-
-    # Local import to avoid circular imports while the claims module evolves
-    from app.modules.claims.repo import get_claims_for_place  # noqa: WPS433
-
-    return get_claims_for_place(db, place_id=place_id)
 
 
 @router.get("", response_model=list[PlaceSearchResult])

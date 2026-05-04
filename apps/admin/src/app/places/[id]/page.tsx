@@ -11,11 +11,9 @@ import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type PlaceAdminRead,
-  type PlaceClaimSummary,
   type PlaceEventRead,
   type PlaceExternalIdAdminRead,
   type PlaceOwnerAdminRead,
-  useAdminPlaceClaims,
   useAdminPlaceDetail,
   useAdminPlaceEvents,
   useAdminPlaceExternalIds,
@@ -24,11 +22,10 @@ import {
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
 
-import {
-  ClaimStatusBadge,
-  claimScopeLabel,
-  claimTypeLabel,
-} from "../../claims/_components/status-badge";
+// Halal-trust v2 transition: the Claims section that lived on this
+// page is hidden until Phase 3 reintroduces the new halal-claims
+// queue. The legacy /claims/_components/status-badge module was
+// deleted alongside the schema migration.
 import { CreateRequestDialog } from "../../ownership-requests/_components/create-request-dialog";
 import { DeletePlaceDialog } from "../_components/delete-place-dialog";
 import { PlaceEventBadge } from "../_components/event-badge";
@@ -151,7 +148,7 @@ export default function PlaceDetailPage() {
 
           <ProviderLinksSection place={place} />
           <OwnershipSection place={place} />
-          <ClaimsSection placeId={place.id} />
+          {/* Halal claims section returns in Phase 3 of the v2 rebuild. */}
           <EventsSection placeId={place.id} />
         </>
       )}
@@ -228,59 +225,8 @@ function PlaceActions({
   );
 }
 
-function ClaimsSection({ placeId }: { placeId: string }) {
-  const { data, isLoading, error } = useAdminPlaceClaims(placeId);
-
-  return (
-    <section className="rounded-md border p-4">
-      <h2 className="mb-3 text-sm font-semibold">Claims</h2>
-      {isLoading && <Skeleton className="h-20 w-full" />}
-      {error && (
-        <p className="text-sm text-destructive">
-          Couldn&apos;t load claims: {(error as Error).message}
-        </p>
-      )}
-      {data && data.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          No claims attached to this place yet.
-        </p>
-      )}
-      {data && data.length > 0 && (
-        <ul className="space-y-2">
-          {data.map((c) => (
-            <ClaimRow key={c.id} claim={c} />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function ClaimRow({ claim }: { claim: PlaceClaimSummary }) {
-  return (
-    <li className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{claimTypeLabel(claim.claim_type)}</span>
-          <ClaimStatusBadge status={claim.status} />
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          scope {claimScopeLabel(claim.scope)} · {claim.evidence_count} evidence
-          {claim.confidence_score != null &&
-            ` · confidence ${claim.confidence_score}`}
-          {" · expires "}
-          {formatTimestamp(claim.expires_at)}
-        </div>
-      </div>
-      <Link
-        href={`/claims?focus=${claim.id}`}
-        className="whitespace-nowrap text-xs text-primary hover:underline"
-      >
-        View in claims →
-      </Link>
-    </li>
-  );
-}
+// ClaimsSection + ClaimRow removed during halal-trust v2 Phase 1.
+// Phase 3 reintroduces this with the new HalalProfile-backed shape.
 
 // ---------------------------------------------------------------------------
 // Provider links (PlaceExternalId)

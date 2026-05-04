@@ -9,11 +9,13 @@ from app.core.config import settings
 from app.db.base import Base
 import app.db.models  # noqa: F401
 
-# Import models so Alembic "sees" them during autogenerate
+# ``app.db.models`` (imported above) registers all models on
+# Base.metadata in one place. The individual imports below are kept
+# only for autogenerate clarity — they're already covered by the
+# centralised registry.
 from app.modules.places.models import Place  # noqa: F401
 from app.modules.users.models import User  # noqa: F401
 from app.modules.organizations.models import Organization, PlaceOwner  # noqa: F401
-from app.modules.claims.models import HalalClaim, Evidence, ClaimEvent  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

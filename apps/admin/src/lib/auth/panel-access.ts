@@ -40,7 +40,12 @@ import type { UserRole } from "@/lib/api/hooks";
  */
 export const PANEL_HOME_FOR_ROLE: Record<UserRole, string | null> = {
   ADMIN: "/places",
-  VERIFIER: "/claims",
+  // VERIFIER points at /claims again once Phase 3 reintroduces the
+  // halal-claims queue. During the v2 rebuild they land on the
+  // ownership-requests queue (also in the verifier-readable path
+  // list below) so the "you're signed in but the page is gone"
+  // problem doesn't materialize.
+  VERIFIER: "/ownership-requests",
   OWNER: null,
   CONSUMER: null,
 };
@@ -57,8 +62,14 @@ const PATH_ALLOWED_ROLES: ReadonlyArray<{
   pattern: RegExp;
   roles: ReadonlyArray<UserRole>;
 }> = [
-  // /claims list + detail → ADMIN and VERIFIER.
+  // /claims list + detail → ADMIN and VERIFIER. The page itself is
+  // a v2-transition placeholder until Phase 3 lands the new queue,
+  // but we keep the access rule here so the placeholder is reachable
+  // by both roles (and stale bookmarks don't 403).
   { pattern: /^\/claims(\/|$)/, roles: ["ADMIN", "VERIFIER"] },
+  // Ownership-requests is the VERIFIER home during the halal-trust
+  // v2 rebuild — they need a working queue to land on.
+  { pattern: /^\/ownership-requests(\/|$)/, roles: ["ADMIN", "VERIFIER"] },
 ];
 
 /**
