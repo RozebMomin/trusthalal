@@ -69,12 +69,18 @@ class MeatSourcing(BaseModel):
 
 
 class HalalQuestionnaireResponse(BaseModel):
-    """The structured answers an owner submits with each claim.
+    """STRICT shape — all required fields populated.
 
-    Versioned via the ``questionnaire_version`` field so future
-    additions don't break old rows. v1 covers the questions the user
-    settled on in the design pass: menu posture, alcohol, per-meat
-    sourcing, certification, supplier info, free-text caveats.
+    Used at submit-time to validate that a draft is complete. Fields
+    that are conceptually required for a real submission live here as
+    non-Optional. Owners save partial progress with the draft
+    shape (``HalalQuestionnaireDraft``) and we re-parse the stored
+    JSONB through this strict shape when they hit submit.
+
+    Versioned via ``questionnaire_version`` so future additions don't
+    break old rows. v1 covers the questions the user settled on in
+    the design pass: menu posture, alcohol, per-meat sourcing,
+    certification, free-text caveats.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -143,6 +149,42 @@ class HalalQuestionnaireResponse(BaseModel):
     )
 
 
+class HalalQuestionnaireDraft(BaseModel):
+    """PERMISSIVE shape — every field optional.
+
+    Used as the ``structured_response`` payload while the claim is in
+    DRAFT, so owners can save partial progress across multiple
+    sessions without Pydantic rejecting incomplete answers. The
+    submit endpoint re-validates the stored dict through the strict
+    ``HalalQuestionnaireResponse`` and returns a 422 with field-level
+    errors if anything's missing.
+
+    Field set is identical to ``HalalQuestionnaireResponse`` minus
+    the requiredness — keep both shapes in lock-step when adding new
+    questions.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    questionnaire_version: int = Field(default=1, ge=1)
+
+    menu_posture: Optional[MenuPosture] = None
+    has_pork: Optional[bool] = None
+    alcohol_policy: Optional[AlcoholPolicy] = None
+    alcohol_in_cooking: Optional[bool] = None
+
+    chicken: Optional[MeatSourcing] = None
+    beef: Optional[MeatSourcing] = None
+    lamb: Optional[MeatSourcing] = None
+    goat: Optional[MeatSourcing] = None
+    seafood_only: Optional[bool] = None
+
+    has_certification: Optional[bool] = None
+    certifying_body_name: Optional[str] = Field(default=None, max_length=255)
+
+    caveats: Optional[str] = Field(default=None, max_length=2000)
+
+
 # ---------------------------------------------------------------------------
 # HalalClaim — read/create/patch shapes
 # ---------------------------------------------------------------------------
@@ -173,29 +215,39 @@ class MyHalalClaimCreate(BaseModel):
     approved ``ownership_request``) and a sponsoring organization
     in UNDER_REVIEW or VERIFIED status.
 
-    The questionnaire is optional at creation — owners typically
-    save a draft, fill in answers across multiple sessions, then
-    submit. Validation that all required fields are populated runs
-    at the submit step instead.
+    The questionnaire is optional at creation and accepts the
+    ``HalalQuestionnaireDraft`` shape — owners save partial progress
+    across multiple sessions, then submit. Validation that all
+    required fields are populated runs at the submit step.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     place_id: UUID
     organization_id: UUID
-    structured_response: Optional[HalalQuestionnaireResponse] = None
+    structured_response: Optional[HalalQuestionnaireDraft] = None
 
 
 class MyHalalClaimPatch(BaseModel):
-    """Payload for ``PATCH /me/halal-claims/{id}``. DRAFT-only."""
+    """Payload for ``PATCH /me/halal-claims/{id}``. DRAFT-only.
+
+    Accepts the permissive draft shape so partial saves don't 422.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    structured_response: Optional[HalalQuestionnaireResponse] = None
+    structured_response: Optional[HalalQuestionnaireDraft] = None
 
 
 class MyHalalClaimRead(BaseModel):
-    """Owner-side read shape. Includes attachments + decision context."""
+    """Owner-side read shape. Includes attachments + decision context.
+
+    ``structured_response`` is returned as a raw dict because the
+    stored JSONB may be a draft (partial answers) or a complete
+    response — the read shape stays loose to cover both. Frontends
+    parse it through ``HalalQuestionnaireDraft`` if they want
+    typed access.
+    """
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -204,7 +256,7 @@ class MyHalalClaimRead(BaseModel):
     organization_id: Optional[UUID]
     claim_type: HalalClaimType
     status: HalalClaimStatus
-    structured_response: Optional[HalalQuestionnaireResponse]
+    structured_response: Optional[dict] = None
     attachments: list[HalalClaimAttachmentRead] = Field(default_factory=list)
 
     submitted_at: Optional[datetime]
