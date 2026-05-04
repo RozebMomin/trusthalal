@@ -99,40 +99,11 @@ export type PlaceResyncResponse =
 export type PlaceOwnerRevokeRequest = 
 components["schemas"]["PlaceOwnerRevokeRequest"];
 
-/**
- * `GET /admin/places/{id}/claims` is typed as `list[dict]` on the API side
- * (see app/modules/admin/places/router.py). We mirror the dict keys that
- * `get_claims_for_place` actually returns so the UI stays typesafe.
- */
-export type PlaceClaimSummary = {
-  id: string;
-  place_id: string;
-  claim_type: string;
-  scope: string;
-  status: string;
-  expires_at: string;
-  evidence_count: number;
-  confidence_score: number | null;
-};
-
-export type ClaimAdminRead = components["schemas"]["ClaimAdminRead"];
-export type ClaimDetailRead = components["schemas"]["ClaimDetailRead"];
-/**
- * Admin event row. The generated ``components["schemas"]["ClaimEventRead"]``
- * still points at the public shape (no actor fields) until the next
- * codegen pass. Intersecting with the admin-enriched fields keeps the
- * dialog type-safe today; when codegen catches up, drop the intersection
- * and this type reduces to the plain generated alias.
- */
-export type ClaimEventRead = components["schemas"]["ClaimEventRead"] & {
-  actor_email: string | null;
-  actor_display_name: string | null;
-};
-export type EvidenceRead = components["schemas"]["EvidenceRead"];
-export type AdminClaimAction = components["schemas"]["AdminClaimAction"];
-export type ClaimStatus = components["schemas"]["ClaimStatus"];
-export type ClaimType = components["schemas"]["ClaimType"];
-export type ClaimScope = components["schemas"]["ClaimScope"];
+// Halal-trust v2 transition: the legacy claim types
+// (PlaceClaimSummary, ClaimAdminRead, ClaimDetailRead, ClaimEventRead,
+// EvidenceRead, AdminClaimAction, ClaimStatus, ClaimType, ClaimScope)
+// were removed alongside the schema migration. Phase 3 adds the new
+// halal-claim types when the v2 router lands.
 
 export type UserAdminRead = components["schemas"]["UserAdminRead"];
 export type UserAdminCreate = components["schemas"]["UserAdminCreate"];
@@ -249,11 +220,8 @@ export const qk = {
   orgPlaces: {
     list: (orgId: string) => ["organizations", "places", orgId] as const,
   },
-  claims: {
-    list: (status?: string) => ["claims", "list", { status }] as const,
-    detail: (id: string) => ["claims", "detail", id] as const,
-    events: (id: string) => ["claims", "events", id] as const,
-  },
+  // ``claims`` query keys removed alongside the legacy schema. Phase 3
+  // adds halalClaims keys for the v2 queue.
   users: {
     list: (params: { q?: string; role?: string; isActive?: string }) =>
       ["users", "list", params] as const,
@@ -346,11 +314,18 @@ export function useAdminPlaceEvents(id: string | undefined) {
   });
 }
 
+/**
+ * Halal-trust v2 transition stub. The server-side endpoint at
+ * ``/admin/places/{id}/claims`` returns an empty list while the v2
+ * rebuild is in flight — the legacy halal_claims schema is gone and
+ * the new halal-claims surface arrives in Phase 3. This hook stays
+ * to keep the place-detail page rendering, just with no claim rows.
+ */
 export function useAdminPlaceClaims(id: string | undefined) {
   return useQuery({
     queryKey: qk.places.claims(id ?? ""),
     queryFn: () =>
-      apiFetch<PlaceClaimSummary[]>(`/admin/places/${id}/claims`),
+      apiFetch<unknown[]>(`/admin/places/${id}/claims`),
     enabled: Boolean(id),
   });
 }
@@ -831,100 +806,13 @@ export function useRequestEvidenceOwnershipRequest() {
 }
 
 // ---------------------------------------------------------------------------
-// Claims (admin)
+// Claims (admin) — DEFERRED to halal-trust v2 Phase 3
 // ---------------------------------------------------------------------------
-
-export function useAdminClaims(params: { status?: string } = {}) {
-  return useQuery({
-    queryKey: qk.claims.list(params.status),
-    queryFn: () =>
-      apiFetch<ClaimAdminRead[]>("/admin/claims", {
-        searchParams: { status: params.status, limit: 200 },
-      }),
-  });
-}
-
-/**
- * Reuses the public /claims/{id} endpoint for evidence + base claim
- * metadata. Events are NOT read from here anymore — see
- * ``useAdminClaimEvents`` below for the actor-enriched timeline that
- * powers ClaimDetailDialog.
- */
-export function useClaimDetail(id: string | undefined) {
-  return useQuery({
-    queryKey: qk.claims.detail(id ?? ""),
-    queryFn: () => apiFetch<ClaimDetailRead>(`/claims/${id}`),
-    enabled: Boolean(id),
-  });
-}
-
-/**
- * Admin-only event timeline. Mirrors ``GET /admin/claims/{id}/events``
- * which LEFT-joins users so each row carries ``actor_email`` and
- * ``actor_display_name`` — needed for "who did this?" audit triage.
- *
- * We don't reuse ``useClaimDetail``'s events list because the public
- * endpoint only surfaces ``actor_user_id`` (to avoid leaking admin
- * emails to anonymous callers). Admin-only callers pay one extra
- * round-trip for the enriched shape, which is fine — the dialog
- * already fetches both in parallel.
- */
-export function useAdminClaimEvents(id: string | undefined) {
-  return useQuery({
-    queryKey: qk.claims.events(id ?? ""),
-    queryFn: () =>
-      apiFetch<ClaimEventRead[]>(`/admin/claims/${id}/events`, {
-        searchParams: { limit: 200 },
-      }),
-    enabled: Boolean(id),
-  });
-}
-
-function invalidateClaims(qc: ReturnType<typeof useQueryClient>) {
-  return qc.invalidateQueries({ queryKey: ["claims"] });
-}
-
-export function useVerifyClaim() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (args: { id: string; payload: AdminClaimAction }) =>
-      apiFetch(`/admin/claims/${args.id}/verify`, {
-        method: "POST",
-        json: args.payload,
-      }),
-    onSuccess: () => {
-      void invalidateClaims(qc);
-    },
-  });
-}
-
-export function useRejectClaim() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (args: { id: string; payload: AdminClaimAction }) =>
-      apiFetch(`/admin/claims/${args.id}/reject`, {
-        method: "POST",
-        json: args.payload,
-      }),
-    onSuccess: () => {
-      void invalidateClaims(qc);
-    },
-  });
-}
-
-export function useExpireClaim() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (args: { id: string; payload: AdminClaimAction }) =>
-      apiFetch(`/admin/claims/${args.id}/expire`, {
-        method: "POST",
-        json: args.payload,
-      }),
-    onSuccess: () => {
-      void invalidateClaims(qc);
-    },
-  });
-}
+// The legacy claim hooks (useAdminClaims, useClaimDetail,
+// useAdminClaimEvents, useVerifyClaim, useRejectClaim, useExpireClaim)
+// were removed alongside the schema migration. Phase 3 introduces
+// new hooks under the v2 ``/admin/halal-claims`` path with the
+// validation_tier + structured_response shape from the questionnaire.
 
 // ---------------------------------------------------------------------------
 // Users (admin)

@@ -7,12 +7,9 @@ const surfaces = [
       "Review merchant-submitted claim-this-place requests, approve with an existing or new organization, or reject.",
     href: "/ownership-requests",
   },
-  {
-    title: "Claims",
-    description:
-      "Verify, refresh, or dispute halal claims across places. Filter by status, method, or expiry window.",
-    href: "/claims",
-  },
+  // The Claims tile is hidden during the halal-trust v2 rebuild
+  // (Phase 1+ in flight). Phase 3 reintroduces it pointing at the
+  // new /admin/halal-claims surface.
   {
     title: "Places",
     description:
