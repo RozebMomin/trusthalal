@@ -41,8 +41,8 @@ from app.modules.organizations.router import router as organizations_router  # n
 from app.modules.ownership_requests.router import router as ownership_requests_router  # noqa: E402
 
 # Halal v2 — Phase 2 lights up the owner submission surface at
-# /me/halal-claims. Phase 3 will add /admin/halal-claims for the
-# admin queue + decision flow.
+# /me/halal-claims; Phase 3 adds /admin/halal-claims for review +
+# the profile-derivation service.
 from app.modules.halal_claims.router import router as halal_claims_router  # noqa: E402
 
 # Admin Routes
@@ -51,6 +51,7 @@ from app.modules.admin.places.router import router as admin_places_router  # noq
 from app.modules.admin.ownership_requests.router import router as admin_ownership_requests_router  # noqa: E402
 from app.modules.admin.users.router import router as admin_users_router  # noqa: E402
 from app.modules.admin.organizations.router import router as admin_organizations_router  # noqa: E402
+from app.modules.admin.halal_claims.router import router as admin_halal_claims_router  # noqa: E402
 
 from fastapi import HTTPException  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
@@ -148,6 +149,7 @@ app.include_router(admin_places_router)
 app.include_router(admin_ownership_requests_router)
 app.include_router(admin_users_router)
 app.include_router(admin_organizations_router)
+app.include_router(admin_halal_claims_router)
 
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
