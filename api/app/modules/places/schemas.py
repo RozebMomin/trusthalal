@@ -83,8 +83,55 @@ class PlaceDetail(BaseModel):
     # created_at would duplicate that with strictly less information.
     updated_at: datetime | None = None
 
-    # Halal v2 transition: the legacy ``claims`` field used to embed
-    # the deprecated ``HalalClaim`` rows here. Phase 4 of the halal-
-    # trust rebuild will surface the consumer-facing ``HalalProfile``
-    # instead. Until then PlaceDetail intentionally omits halal data
-    # — frontends should rely on dedicated endpoints once those land.
+    # Embedded halal profile (Phase 4 of the halal-trust v2 rebuild).
+    # Null when:
+    #   * The place has no approved halal claim yet, OR
+    #   * The most recent profile was revoked by an admin.
+    # Frontends that want to render the consumer trust labels read
+    # from here directly. The dedicated
+    # ``GET /places/{id}/halal-profile`` endpoint returns the same
+    # shape with a 404 when the embedded value would be null —
+    # useful for "did this place lose its profile?" semantics.
+    halal_profile: "HalalProfileEmbed | None" = None
+
+
+class HalalProfileEmbed(BaseModel):
+    """Inline halal-profile shape, kept here (rather than imported
+    from app.modules.halal_profiles.schemas) to avoid a Pydantic-
+    forward-reference rebuild dance. Field set MUST stay in lock-step
+    with ``HalalProfileRead`` over there — when one changes, update
+    the other.
+
+    Why duplicate the shape: importing HalalProfileRead here would
+    create an import cycle (halal_profiles → places.schemas references
+    halal_profiles → halal_profiles is being imported). Cheaper to
+    duplicate the column list than to refactor.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    place_id: UUID
+    validation_tier: str
+    menu_posture: str
+    has_pork: bool
+    alcohol_policy: str
+    alcohol_in_cooking: bool
+    chicken_slaughter: str
+    beef_slaughter: str
+    lamb_slaughter: str
+    goat_slaughter: str
+    seafood_only: bool
+    has_certification: bool
+    certifying_body_name: str | None
+    certificate_expires_at: datetime | None
+    caveats: str | None
+    dispute_state: str
+    last_verified_at: datetime
+    expires_at: datetime | None
+    revoked_at: datetime | None
+    updated_at: datetime
+
+
+# Resolve the forward reference to HalalProfileEmbed declared above.
+PlaceDetail.model_rebuild()
