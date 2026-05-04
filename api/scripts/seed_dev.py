@@ -46,8 +46,6 @@ from sqlalchemy.orm import Session
 import app.db.models  # noqa: F401
 
 from app.db.session import SessionLocal
-from app.modules.claims.enums import ClaimEventType, ClaimScope, ClaimStatus, ClaimType
-from app.modules.claims.models import ClaimEvent, Evidence, HalalClaim
 from app.modules.organizations.models import (
     Organization,
     OrganizationMember,
@@ -321,97 +319,11 @@ def upsert_place_owner(
 
 
 # ---------------------------------------------------------------------------
-# Claims + evidence
+# Halal claims + evidence — DEFERRED to Phase 2.
 # ---------------------------------------------------------------------------
-
-
-def upsert_claim(
-    db: Session,
-    *,
-    place: Place,
-    claim_type: ClaimType,
-    scope: ClaimScope,
-    status: ClaimStatus,
-    created_by: User,
-    ttl_days: int = 90,
-) -> HalalClaim:
-    claim = db.execute(
-        select(HalalClaim).where(
-            HalalClaim.place_id == place.id,
-            HalalClaim.claim_type == claim_type,
-        )
-    ).scalar_one_or_none()
-
-    if claim:
-        return claim
-
-    now = datetime.now(timezone.utc)
-    claim = HalalClaim(
-        place_id=place.id,
-        claim_type=claim_type,
-        scope=scope,
-        status=status,
-        expires_at=now + timedelta(days=ttl_days),
-        created_by_user_id=created_by.id,
-    )
-    db.add(claim)
-    db.flush()
-
-    db.add(
-        ClaimEvent(
-            claim_id=claim.id,
-            event_type=ClaimEventType.SUBMITTED,
-            message="Seeded claim (submitted)",
-            actor_user_id=created_by.id,
-        )
-    )
-    terminal_event_type = {
-        ClaimStatus.VERIFIED: ClaimEventType.ADMIN_VERIFIED,
-        ClaimStatus.REJECTED: ClaimEventType.ADMIN_REJECTED,
-        ClaimStatus.EXPIRED: ClaimEventType.ADMIN_EXPIRED,
-        ClaimStatus.DISPUTED: ClaimEventType.DISPUTED,
-    }.get(status)
-    if terminal_event_type:
-        db.add(
-            ClaimEvent(
-                claim_id=claim.id,
-                event_type=terminal_event_type,
-                message=f"Seeded claim ({status.value.lower()})",
-                actor_user_id=created_by.id,
-            )
-        )
-    db.flush()
-    return claim
-
-
-def upsert_evidence(
-    db: Session,
-    *,
-    claim: HalalClaim,
-    evidence_type: str,
-    uri: str,
-    uploader: User,
-    notes: str | None = None,
-) -> Evidence:
-    ev = db.execute(
-        select(Evidence).where(
-            Evidence.claim_id == claim.id,
-            Evidence.uri == uri,
-        )
-    ).scalar_one_or_none()
-    if ev:
-        return ev
-
-    ev = Evidence(
-        claim_id=claim.id,
-        evidence_type=evidence_type,
-        uri=uri,
-        notes=notes,
-        uploaded_by_user_id=uploader.id,
-    )
-    db.add(ev)
-    db.flush()
-    return ev
+# The legacy claim seeding was removed alongside the legacy schema.
+# Phase 2 of the halal-trust rebuild will add v2-equivalent helpers
+# here once the new HalalClaim model has its router + repo built.
 
 
 # ---------------------------------------------------------------------------
@@ -537,55 +449,10 @@ def main(users_only: bool = False) -> None:
             status="ACTIVE",
         )
 
-        # First place: verified claim + evidence
-        verified_claim = upsert_claim(
-            db,
-            place=places[0],
-            claim_type=ClaimType.ZABIHA,
-            scope=ClaimScope.ALL_MENU,
-            status=ClaimStatus.VERIFIED,
-            created_by=users["owner@trusthalal.dev"],
-        )
-        upsert_evidence(
-            db,
-            claim=verified_claim,
-            evidence_type="certificate",
-            uri="https://example.com/seed/al-noor-certificate.pdf",
-            uploader=users["owner@trusthalal.dev"],
-            notes="Seeded halal certificate (sample)",
-        )
-
-        # Second place: pending claim, no evidence yet
-        upsert_claim(
-            db,
-            place=places[1],
-            claim_type=ClaimType.HALAL_CHICKEN_ONLY,
-            scope=ClaimScope.SPECIFIC_ITEMS,
-            status=ClaimStatus.PENDING,
-            created_by=users["owner@trusthalal.dev"],
-        )
-
-        # Fourth place: rejected claim — exercises the REJECTED filter
-        upsert_claim(
-            db,
-            place=places[3],
-            claim_type=ClaimType.PORK_FREE,
-            scope=ClaimScope.ALL_MENU,
-            status=ClaimStatus.REJECTED,
-            created_by=users["owner@trusthalal.dev"],
-        )
-
-        # Fifth place: expired claim — exercises the EXPIRED filter.
-        # Negative ttl_days pushes expires_at into the past.
-        upsert_claim(
-            db,
-            place=places[4],
-            claim_type=ClaimType.NO_ALCOHOL,
-            scope=ClaimScope.ALL_MENU,
-            status=ClaimStatus.EXPIRED,
-            created_by=users["owner@trusthalal.dev"],
-            ttl_days=-30,
-        )
+        # Halal claim seeding lives in Phase 2 — this script will
+        # gain v2 ``upsert_halal_claim`` helpers once the new model
+        # is wired to a router. For now, places exist but have no
+        # halal_profile until the owner submits and admin approves.
 
         # Third place: open ownership request (SUBMITTED)
         ownership_req = upsert_ownership_request(

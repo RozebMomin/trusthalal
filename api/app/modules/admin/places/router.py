@@ -628,13 +628,21 @@ def get_place_claims_admin(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> list[dict]:
-    # Admin can view claims even if the place is deleted
+    """Halal v2 transition stub.
+
+    The legacy ``HalalClaim`` listing endpoint that lived here was
+    dropped alongside the v2 schema migration. The new admin halal-
+    claim queue lives at ``/admin/halal-claims`` (Phase 3 of the
+    halal-trust rebuild). This endpoint stays so existing admin-panel
+    code that calls it doesn't 404 — it now returns an empty list
+    until Phase 3 wires the new shape in. After that, this stub
+    should either redirect to /admin/halal-claims?place_id={id} or
+    be removed entirely.
+    """
     place = get_place(db, place_id, include_deleted=True)
     if not place:
         raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
-
-    from app.modules.claims.repo import get_claims_for_place  # noqa: WPS433
-    return get_claims_for_place(db, place_id=place_id)
+    return []
 
 
 @router.post(
