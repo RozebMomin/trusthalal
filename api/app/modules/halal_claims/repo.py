@@ -47,6 +47,7 @@ from app.modules.halal_claims.models import HalalClaim
 from app.modules.halal_claims.schemas import (
     HalalQuestionnaireDraft,
     HalalQuestionnaireResponse,
+    MyHalalClaimBatchCreate,
     MyHalalClaimCreate,
     MyHalalClaimPatch,
 )
@@ -269,6 +270,74 @@ def create_halal_claim_for_user(
     db.commit()
     db.refresh(claim)
     return claim
+
+
+def batch_create_halal_claims_for_user(
+    db: Session,
+    *,
+    user_id: UUID,
+    payload: MyHalalClaimBatchCreate,
+) -> list[HalalClaim]:
+    """Create N DRAFT claims sharing one questionnaire payload.
+
+    Use case: a chain restaurant whose locations all maintain the
+    same halal standard — the owner fills out the questionnaire
+    once and we fan it out across every selected place.
+
+    Each (place, org) selection runs the same gates as the
+    single-create path. The first one that fails raises and the
+    whole transaction rolls back — no half-created batches.
+    Authorization runs upfront (before any inserts) so the all-or-
+    nothing posture is cheap.
+
+    Schema-level uniqueness on the selections is the caller's
+    job; if the same (place, org) appears twice we'll happily
+    create two duplicate drafts, since the model has no UNIQUE
+    constraint there. Frontends should de-dupe before posting.
+    """
+    if not payload.selections:
+        # Pydantic min_length already guards this, but defensive
+        # never hurts.
+        raise BadRequestError(
+            "HALAL_CLAIM_BATCH_EMPTY",
+            "At least one place must be selected.",
+        )
+
+    # Validate every selection upfront so a later failure doesn't
+    # leave a partial set of inserts.
+    for sel in payload.selections:
+        _assert_user_can_act_on_org(
+            db, user_id=user_id, organization_id=sel.organization_id
+        )
+        _assert_org_owns_place(
+            db,
+            organization_id=sel.organization_id,
+            place_id=sel.place_id,
+        )
+
+    structured_dict: Optional[dict[str, Any]] = (
+        payload.structured_response.model_dump(exclude_none=False)
+        if payload.structured_response is not None
+        else None
+    )
+
+    created: list[HalalClaim] = []
+    for sel in payload.selections:
+        claim = HalalClaim(
+            place_id=sel.place_id,
+            submitted_by_user_id=user_id,
+            organization_id=sel.organization_id,
+            claim_type=HalalClaimType.INITIAL.value,
+            status=HalalClaimStatus.DRAFT.value,
+            structured_response=structured_dict,
+        )
+        db.add(claim)
+        created.append(claim)
+
+    db.commit()
+    for claim in created:
+        db.refresh(claim)
+    return created
 
 
 def patch_halal_claim_for_user(

@@ -208,6 +208,34 @@ class HalalClaimAttachmentRead(BaseModel):
     uploaded_at: datetime
 
 
+class MyHalalClaimPlaceSummary(BaseModel):
+    """Embedded place fields on the owner-side claim read shape.
+
+    Surfaces enough context for the list page to render a real
+    place name + address line without a second fetch. Stays slim
+    so the wire shape doesn't carry geom/timezone/etc the UI
+    doesn't need.
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    id: UUID
+    name: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    region: Optional[str] = None
+    country_code: Optional[str] = None
+
+
+class MyHalalClaimOrgSummary(BaseModel):
+    """Embedded org fields on the owner-side claim read shape."""
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    id: UUID
+    name: str
+
+
 class MyHalalClaimCreate(BaseModel):
     """Payload for ``POST /me/halal-claims``. Creates a DRAFT.
 
@@ -247,6 +275,12 @@ class MyHalalClaimRead(BaseModel):
     response — the read shape stays loose to cover both. Frontends
     parse it through ``HalalQuestionnaireDraft`` if they want
     typed access.
+
+    ``place`` and ``organization`` summaries are embedded so the
+    list page renders 'Khan Halal Grill — owned by Khan LLC' without
+    a second fetch per row. Both are nullable: a claim's referenced
+    org could go away (FK ondelete=SET NULL), and place is
+    technically nullable post-cascade for the same reason.
     """
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
@@ -254,6 +288,8 @@ class MyHalalClaimRead(BaseModel):
     id: UUID
     place_id: UUID
     organization_id: Optional[UUID]
+    place: Optional[MyHalalClaimPlaceSummary] = None
+    organization: Optional[MyHalalClaimOrgSummary] = None
     claim_type: HalalClaimType
     status: HalalClaimStatus
     structured_response: Optional[dict] = None
@@ -267,6 +303,46 @@ class MyHalalClaimRead(BaseModel):
 
     created_at: datetime
     updated_at: datetime
+
+
+class MyHalalClaimBatchSelection(BaseModel):
+    """One (place, sponsoring org) pair inside a batch create."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    place_id: UUID
+    organization_id: UUID
+
+
+class MyHalalClaimBatchCreate(BaseModel):
+    """Payload for ``POST /me/halal-claims/batch``.
+
+    Lets an owner create N draft claims in one call, all sharing
+    the same questionnaire payload. Use case: a chain restaurant
+    where every location maintains the same halal standard — the
+    owner fills out the questionnaire once and applies it to each
+    place.
+
+    Limits:
+      * 1..20 selections per batch — beyond that, performance and
+        UX both degrade. Owners with more locations submit in
+        smaller groups.
+      * Every selection runs the same authorization gates as the
+        single-create path (membership + place ownership). If any
+        selection fails, the whole batch rolls back so the owner
+        gets a clean retry rather than a partial mess.
+
+    After creation the claims are independent — each can be edited,
+    submitted, and decided on separately. The shared questionnaire
+    is just the starting point.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    selections: list[MyHalalClaimBatchSelection] = Field(
+        ..., min_length=1, max_length=20
+    )
+    structured_response: Optional[HalalQuestionnaireDraft] = None
 
 
 class HalalClaimAdminRead(MyHalalClaimRead):

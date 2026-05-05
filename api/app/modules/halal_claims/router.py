@@ -41,6 +41,7 @@ from app.modules.halal_claims.enums import (
 )
 from app.modules.halal_claims.models import HalalClaimAttachment
 from app.modules.halal_claims.repo import (
+    batch_create_halal_claims_for_user,
     create_halal_claim_for_user,
     get_halal_claim_for_user,
     list_halal_claims_for_user,
@@ -49,6 +50,7 @@ from app.modules.halal_claims.repo import (
 )
 from app.modules.halal_claims.schemas import (
     HalalClaimAttachmentRead,
+    MyHalalClaimBatchCreate,
     MyHalalClaimCreate,
     MyHalalClaimPatch,
     MyHalalClaimRead,
@@ -98,6 +100,40 @@ def list_my_halal_claims(
         db, user_id=user.id, limit=limit, offset=offset
     )
     return [MyHalalClaimRead.model_validate(r) for r in rows]
+
+
+@router.post(
+    "/batch",
+    response_model=list[MyHalalClaimRead],
+    status_code=status.HTTP_201_CREATED,
+)
+@limiter.limit("10/hour", key_func=user_or_ip_key)
+def batch_create_my_halal_claims(
+    request: Request,
+    payload: MyHalalClaimBatchCreate,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> list[MyHalalClaimRead]:
+    """Create N draft halal claims in one call, sharing one
+    questionnaire payload.
+
+    Use case: a chain restaurant whose locations all maintain the
+    same halal standard. The owner picks every applicable place,
+    fills out the questionnaire once, and we fan it out as N
+    independent draft claims (each subject to admin review on its
+    own merits).
+
+    Authorization gates run for every selection upfront. The whole
+    transaction rolls back on any failure — no half-created
+    batches.
+
+    Routed at the same prefix as the single-create POST; FastAPI
+    matches /batch first because it's a longer literal path.
+    """
+    claims = batch_create_halal_claims_for_user(
+        db, user_id=user.id, payload=payload
+    )
+    return [MyHalalClaimRead.model_validate(c) for c in claims]
 
 
 @router.post(

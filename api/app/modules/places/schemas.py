@@ -135,3 +135,33 @@ class HalalProfileEmbed(BaseModel):
 
 # Resolve the forward reference to HalalProfileEmbed declared above.
 PlaceDetail.model_rebuild()
+
+
+class OwnedPlaceRead(BaseModel):
+    """A place the calling user can submit halal information for.
+
+    "Owns" here means: there's an ACTIVE PlaceOwner row for some org
+    the user is an ACTIVE OrganizationMember of. This is what backs
+    the picker on the owner portal's "New halal claim" flow — the
+    owner shouldn't be searching the catalog for a place they
+    already run; they should be picking from their own list.
+
+    A user might own a place via more than one org (rare, but
+    possible). Each owning org gets its own row in the response, so
+    the picker can show "Khan Halal LLC owns 5 places" alongside
+    "Khan Catering Co. owns 2 places" without deduping.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    place_id: UUID
+    place_name: str
+    place_address: str | None = None
+    place_city: str | None = None
+    place_country_code: str | None = None
+    organization_id: UUID
+    organization_name: str
+    # Whether this place currently has a non-revoked halal profile.
+    # Drives the picker's "first-time submission" vs "renewal /
+    # update" copy on the new-claim screen.
+    has_halal_profile: bool = False

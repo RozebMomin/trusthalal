@@ -178,6 +178,21 @@ class HalalClaim(Base):
         order_by="HalalClaimAttachment.uploaded_at",
     )
 
+    # Read-side relationships for embedding place + org summaries in
+    # the response shape. ``lazy="joined"`` means the LEFT JOIN runs
+    # alongside the claim fetch — one query per list view rather than
+    # N+1.
+    place = relationship(
+        "Place",
+        lazy="joined",
+        viewonly=True,
+    )
+    organization = relationship(
+        "Organization",
+        lazy="joined",
+        viewonly=True,
+    )
+
 
 class HalalClaimAttachment(Base):
     """Owner-uploaded evidence supporting a halal claim.
