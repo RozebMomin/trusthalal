@@ -473,6 +473,12 @@ function ProviderLinkRow({
  * ``place_owners`` join, with role/status context and active member
  * count so the admin can see whether anyone in the org can actually
  * respond if contacted.
+ *
+ * Revoked rows are historical audit context: useful when admin wants
+ * to know "who used to run this place," but noisy on the typical
+ * read because they're never the answer to "who runs this today."
+ * They're hidden by default behind a toggle and surface inline when
+ * an admin opts in.
  */
 function OwnershipSection({ place }: { place: PlaceAdminRead }) {
   const { data, isLoading, error } = useAdminPlaceOwners(place.id);
@@ -482,6 +488,16 @@ function OwnershipSection({ place }: { place: PlaceAdminRead }) {
   const [revokeTarget, setRevokeTarget] =
     React.useState<PlaceOwnerAdminRead | null>(null);
   const [createRequestOpen, setCreateRequestOpen] = React.useState(false);
+  const [showRevoked, setShowRevoked] = React.useState(false);
+
+  const rows = data ?? [];
+  const activeRows = rows.filter(
+    (r) => r.status.toUpperCase() !== "REVOKED",
+  );
+  const revokedRows = rows.filter(
+    (r) => r.status.toUpperCase() === "REVOKED",
+  );
+  const visibleRows = showRevoked ? rows : activeRows;
 
   return (
     <section className="rounded-md border p-4">
@@ -518,7 +534,7 @@ function OwnershipSection({ place }: { place: PlaceAdminRead }) {
         </p>
       )}
 
-      {data && data.length === 0 && (
+      {data && activeRows.length === 0 && revokedRows.length === 0 && (
         <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
           No organizations linked to this place yet. If someone has asked
           to claim it, check{" "}
@@ -532,9 +548,24 @@ function OwnershipSection({ place }: { place: PlaceAdminRead }) {
         </div>
       )}
 
-      {data && data.length > 0 && (
+      {data && activeRows.length === 0 && revokedRows.length > 0 && !showRevoked && (
+        <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+          No active owners. {revokedRows.length}{" "}
+          revoked owner{revokedRows.length === 1 ? "" : "s"} on file —{" "}
+          <button
+            type="button"
+            onClick={() => setShowRevoked(true)}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            show history
+          </button>
+          .
+        </div>
+      )}
+
+      {data && visibleRows.length > 0 && (
         <ul className="space-y-3">
-          {data.map((owner) => (
+          {visibleRows.map((owner) => (
             <OwnerRow
               key={owner.id}
               owner={owner}
@@ -542,6 +573,24 @@ function OwnershipSection({ place }: { place: PlaceAdminRead }) {
             />
           ))}
         </ul>
+      )}
+
+      {/* Toggle for the revoked-owners history. Hidden when there's
+          nothing to toggle, plus skipped on the "no active, has
+          revoked, history hidden" branch above (which renders its own
+          inline link instead of a stand-alone toggle). */}
+      {data && revokedRows.length > 0 && !(activeRows.length === 0 && !showRevoked) && (
+        <div className="mt-3 text-xs">
+          <button
+            type="button"
+            onClick={() => setShowRevoked((v) => !v)}
+            className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            {showRevoked
+              ? `Hide revoked (${revokedRows.length})`
+              : `Show ${revokedRows.length} revoked owner${revokedRows.length === 1 ? "" : "s"}`}
+          </button>
+        </div>
       )}
 
       {revokeTarget && (
