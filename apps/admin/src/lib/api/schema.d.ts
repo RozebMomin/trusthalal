@@ -4083,10 +4083,15 @@ export interface components {
              */
             updated_at: string;
         };
-        /** OwnershipRequestEvidence */
+        /**
+         * OwnershipRequestEvidence
+         * @description POST /admin/ownership-requests/{id}/request-evidence body.
+         *
+         *     ``note`` is required (min_length=3, mirrors reject + verify) so the owner has actionable guidance on what to upload next. Without it, NEEDS_EVIDENCE is a dead-end status — the owner sees the state change but no instructions, and admin staff just bounce the claim around without driving it to a decision.
+         */
         OwnershipRequestEvidence: {
             /** Note */
-            note?: string | null;
+            note: string;
         };
         /** OwnershipRequestRead */
         OwnershipRequestRead: {

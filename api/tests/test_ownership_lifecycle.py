@@ -424,6 +424,35 @@ def test_admin_request_evidence_is_idempotent(api, factories, db_session):
     assert len(events) == 1
 
 
+def test_admin_request_evidence_requires_note(api, factories):
+    """note is required now (mirrors reject + verify) so the owner
+    has actionable guidance on what to upload next. Empty body →
+    422; the audit trail and the NEEDS_EVIDENCE state are
+    pointless without it."""
+    admin = factories.admin()
+    place = factories.place()
+    req = factories.ownership_request(place=place)
+
+    resp = api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/request-evidence",
+        json={},
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_admin_request_evidence_rejects_short_note(api, factories):
+    """min_length=3 keeps a 1-char fat-finger from clearing the bar."""
+    admin = factories.admin()
+    place = factories.place()
+    req = factories.ownership_request(place=place)
+
+    resp = api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/request-evidence",
+        json={"note": "x"},
+    )
+    assert resp.status_code == 422, resp.text
+
+
 # ---------------------------------------------------------------------------
 # Terminal-status lock
 # ---------------------------------------------------------------------------

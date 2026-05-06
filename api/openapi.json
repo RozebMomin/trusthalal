@@ -4253,20 +4253,18 @@
       "OwnershipRequestEvidence": {
         "properties": {
           "note": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Note",
+            "type": "string"
           }
         },
         "title": "OwnershipRequestEvidence",
-        "type": "object"
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "description": "POST /admin/ownership-requests/{id}/request-evidence body.\n\n``note`` is required (min_length=3, mirrors reject + verify) so the owner has actionable guidance on what to upload next. Without it, NEEDS_EVIDENCE is a dead-end status \u2014 the owner sees the state change but no instructions, and admin staff just bounce the claim around without driving it to a decision."
       },
       "OwnershipRequestRead": {
         "properties": {

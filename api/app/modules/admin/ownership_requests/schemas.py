@@ -106,4 +106,13 @@ class OwnershipRequestReject(BaseModel):
 
 
 class OwnershipRequestEvidence(BaseModel):
-    note: str | None = Field(default=None, max_length=2000)
+    """POST /admin/ownership-requests/{id}/request-evidence body.
+
+    ``note`` is required (min_length=3, mirrors reject + verify) so
+    the owner has actionable guidance on what to upload next. Without
+    it, NEEDS_EVIDENCE is a dead-end status — the owner sees the
+    state change but no instructions, and admin staff just bounce
+    the claim around without driving it to a decision.
+    """
+
+    note: str = Field(..., min_length=3, max_length=2000)

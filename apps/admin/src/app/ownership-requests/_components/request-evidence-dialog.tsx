@@ -1,5 +1,19 @@
 "use client";
 
+/**
+ * Request-more-evidence confirmation dialog.
+ *
+ * Moves the request to NEEDS_EVIDENCE and surfaces the admin's note
+ * on the owner side as actionable guidance ("upload a business
+ * license", "send the most recent annual report", etc.). The note
+ * is required server-side (min_length=3) so the owner is never
+ * stuck staring at a NEEDS_EVIDENCE badge with no instructions.
+ *
+ * Idempotent — calling again on an already-NEEDS_EVIDENCE request
+ * is a no-op for the status but logs a fresh note in the audit
+ * trail.
+ */
+
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +40,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
+const MIN_NOTE_LENGTH = 3;
+
 export function RequestEvidenceDialog({ request, open, onOpenChange }: Props) {
   const [note, setNote] = React.useState<string>("");
   const { toast } = useToast();
@@ -35,20 +51,25 @@ export function RequestEvidenceDialog({ request, open, onOpenChange }: Props) {
     if (open) setNote("");
   }, [open, request.id]);
 
+  const trimmed = note.trim();
+  const canSubmit =
+    trimmed.length >= MIN_NOTE_LENGTH && !requestEvidence.isPending;
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (requestEvidence.isPending) return;
+    if (!canSubmit) return;
 
     try {
       await requestEvidence.mutateAsync({
         id: request.id,
-        payload: { note: note.trim() || null },
+        payload: { note: trimmed },
       });
       toast({
         title: "Evidence requested",
-        description: request.status === "NEEDS_EVIDENCE"
-          ? "Request was already in NEEDS_EVIDENCE — we recorded a new note."
-          : "Status moved to NEEDS_EVIDENCE.",
+        description:
+          request.status === "NEEDS_EVIDENCE"
+            ? "Request was already in NEEDS_EVIDENCE — we recorded a new note."
+            : "Status moved to NEEDS_EVIDENCE.",
       });
       onOpenChange(false);
     } catch (err) {
@@ -73,20 +94,34 @@ export function RequestEvidenceDialog({ request, open, onOpenChange }: Props) {
           <DialogHeader>
             <DialogTitle>Request more evidence</DialogTitle>
             <DialogDescription>
-              Moves the request to the NEEDS_EVIDENCE state. Idempotent &mdash;
-              safe to call again if you need to leave another note.
+              Tell the owner exactly what they need to upload next.
+              The note is shown verbatim on their /my-claims detail
+              view, so be specific — vague instructions just bounce
+              the claim back without progress.
             </DialogDescription>
           </DialogHeader>
 
           <div className="mt-4 space-y-2">
-            <Label htmlFor="evidence-note">Note (optional)</Label>
+            <Label htmlFor="evidence-note">
+              Note{" "}
+              <span aria-hidden className="text-destructive">
+                *
+              </span>
+            </Label>
             <Textarea
               id="evidence-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Please upload a business license or utility bill."
+              placeholder="e.g. Please upload a business license or a utility bill addressed to the business."
               maxLength={2000}
+              rows={4}
+              required
+              disabled={requestEvidence.isPending}
             />
+            <p className="text-xs text-muted-foreground">
+              Minimum {MIN_NOTE_LENGTH} characters. Visible to the
+              owner on their claim detail page.
+            </p>
           </div>
 
           <DialogFooter className="mt-6">
@@ -94,10 +129,11 @@ export function RequestEvidenceDialog({ request, open, onOpenChange }: Props) {
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={requestEvidence.isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={requestEvidence.isPending}>
+            <Button type="submit" disabled={!canSubmit}>
               {requestEvidence.isPending
                 ? "Requesting…"
                 : "Request evidence"}
