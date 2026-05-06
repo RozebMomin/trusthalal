@@ -10,10 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
+  type HalalClaimAdminRead,
   type PlaceAdminRead,
   type PlaceEventRead,
   type PlaceExternalIdAdminRead,
   type PlaceOwnerAdminRead,
+  useAdminHalalClaims,
   useAdminPlaceDetail,
   useAdminPlaceEvents,
   useAdminPlaceExternalIds,
@@ -21,11 +23,8 @@ import {
   useResyncPlace,
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
+import { HalalClaimStatusBadge } from "@/components/halal-claim-status-badge";
 
-// Halal-trust v2 transition: the Claims section that lived on this
-// page is hidden until Phase 3 reintroduces the new halal-claims
-// queue. The legacy /claims/_components/status-badge module was
-// deleted alongside the schema migration.
 import { CreateRequestDialog } from "../../ownership-requests/_components/create-request-dialog";
 import { DeletePlaceDialog } from "../_components/delete-place-dialog";
 import { PlaceEventBadge } from "../_components/event-badge";
@@ -148,7 +147,7 @@ export default function PlaceDetailPage() {
 
           <ProviderLinksSection place={place} />
           <OwnershipSection place={place} />
-          {/* Halal claims section returns in Phase 3 of the v2 rebuild. */}
+          <HalalClaimsSection placeId={place.id} />
           <EventsSection placeId={place.id} />
         </>
       )}
@@ -225,8 +224,66 @@ function PlaceActions({
   );
 }
 
-// ClaimsSection + ClaimRow removed during halal-trust v2 Phase 1.
-// Phase 3 reintroduces this with the new HalalProfile-backed shape.
+// ---------------------------------------------------------------------------
+// Halal claims for this place — read-only summary
+// ---------------------------------------------------------------------------
+//
+// Lists every halal claim filed against this place, newest first,
+// with click-through to the per-claim review surface. The admin
+// halal-claim API supports a ``place_id`` filter, so we hit the
+// canonical queue endpoint with that one parameter — no separate
+// per-place collection to maintain.
+function HalalClaimsSection({ placeId }: { placeId: string }) {
+  const { data, isLoading, error } = useAdminHalalClaims({ placeId });
+  return (
+    <section className="rounded-md border p-4">
+      <h2 className="mb-2 text-sm font-semibold">Halal claims</h2>
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      )}
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          Couldn&apos;t load halal claims for this place.
+        </p>
+      )}
+      {!isLoading && !error && data && data.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No halal claims filed yet.
+        </p>
+      )}
+      {!isLoading && !error && data && data.length > 0 && (
+        <ul className="space-y-2">
+          {data.map((claim: HalalClaimAdminRead) => (
+            <li
+              key={claim.id}
+              className="flex items-start justify-between gap-3 rounded-md border bg-card px-3 py-2"
+            >
+              <div className="min-w-0">
+                <Link
+                  href={`/halal-claims/${claim.id}`}
+                  className="text-sm font-medium hover:underline"
+                >
+                  {claim.organization?.name ?? "Unknown org"}
+                </Link>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {claim.claim_type} · created{" "}
+                  {formatTimestamp(claim.created_at)}
+                  {claim.submitted_at && (
+                    <>
+                      {" · submitted "}
+                      {formatTimestamp(claim.submitted_at)}
+                    </>
+                  )}
+                </p>
+              </div>
+              <HalalClaimStatusBadge status={claim.status} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Provider links (PlaceExternalId)

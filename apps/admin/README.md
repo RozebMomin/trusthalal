@@ -75,10 +75,14 @@ signed in.
 Role gating is centralized in `src/lib/auth/panel-access.ts`. Today:
 
 - **ADMIN** — full panel
-- **VERIFIER** — `/claims` queue (read-only, no moderation buttons)
+- **VERIFIER** — `/halal-claims` review queue plus
+  `/ownership-requests` for cross-referencing the underlying
+  ownership claim while reviewing a halal claim. Verifiers land on
+  `/halal-claims` after sign-in. Phase 8 of the halal-trust v2
+  rebuild adds verifier-specific moderation surfaces.
 - **OWNER** / **CONSUMER** — no panel access; render a friendly
-  dead-end page with a sign-out button. Owners will get their own
-  portal (future `apps/portal/`).
+  dead-end page with a sign-out button. Owners use the dedicated
+  owner portal (`apps/owner/`).
 
 ## Project layout
 
@@ -91,10 +95,11 @@ src/
     login/                 Public sign-in
     set-password/          Public token-gated set-password landing
     places/                ADMIN only
-    claims/                ADMIN + VERIFIER
+    halal-claims/          ADMIN + VERIFIER
+    claims/                Legacy redirect → /halal-claims
     users/                 ADMIN only
     organizations/         ADMIN only
-    ownership-requests/    ADMIN only
+    ownership-requests/    ADMIN + VERIFIER
   components/
     ui/                    shadcn/ui primitives
     app-nav.tsx            Sidebar, filtered by role
