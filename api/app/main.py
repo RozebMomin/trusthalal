@@ -65,6 +65,14 @@ from app.modules.consumer_preferences.router import (  # noqa: E402
     router as consumer_preferences_router,
 )
 
+# Halal v2 — Phase 8a: verifier system. Two routers ship from the
+# verifier module: the public application form (anonymous-OK) and
+# the applicant-self surface for tracking + withdrawing.
+from app.modules.verifiers.router import (  # noqa: E402
+    me_router as me_verifier_applications_router,
+    public_router as public_verifier_applications_router,
+)
+
 # Admin Routes
 from app.modules.admin.router import router as admin_router  # noqa: E402
 from app.modules.admin.places.router import router as admin_places_router  # noqa: E402
@@ -73,6 +81,9 @@ from app.modules.admin.users.router import router as admin_users_router  # noqa:
 from app.modules.admin.organizations.router import router as admin_organizations_router  # noqa: E402
 from app.modules.admin.halal_claims.router import router as admin_halal_claims_router  # noqa: E402
 from app.modules.admin.disputes.router import router as admin_disputes_router  # noqa: E402
+from app.modules.admin.verifiers.router import (  # noqa: E402
+    router as admin_verifiers_router,
+)
 
 from fastapi import HTTPException  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
@@ -400,6 +411,8 @@ app.include_router(halal_claims_router)
 app.include_router(place_disputes_router)
 app.include_router(me_disputes_router)
 app.include_router(consumer_preferences_router)
+app.include_router(public_verifier_applications_router)
+app.include_router(me_verifier_applications_router)
 
 app.include_router(admin_router)
 app.include_router(admin_places_router)
@@ -408,6 +421,7 @@ app.include_router(admin_users_router)
 app.include_router(admin_organizations_router)
 app.include_router(admin_halal_claims_router)
 app.include_router(admin_disputes_router)
+app.include_router(admin_verifiers_router)
 
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
