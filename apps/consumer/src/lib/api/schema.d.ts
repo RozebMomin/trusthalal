@@ -1576,6 +1576,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/organizations/{organization_id}/attachments/{attachment_id}/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mint a short-lived signed URL for one of your org's attachments
+         * @description Owner-self download path. 60-second TTL — the client opens the URL in a new tab, the URL expires before it could be shared meaningfully. Asserts the attachment belongs to one of the caller's orgs before signing; otherwise 404 (same posture as the admin variant).
+         */
+        get: operations["signed_url_for_my_org_attachment_me_organizations__organization_id__attachments__attachment_id__url_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/organizations/{organization_id}/submit": {
         parameters: {
             query?: never;
@@ -3259,32 +3279,42 @@ export interface components {
          * MyOrganizationCreate
          * @description POST /me/organizations body.
          *
-         *     Solo operators are welcome — the bar is "you exist as some kind
-         *     of business entity," not "you have an LLC." Owner can create with
-         *     just a name and add documentation later.
+         *     Address is now REQUIRED on create — admin staff need it to
+         *     disambiguate same-name LLCs across states, and a fresh org with
+         *     no address is too easy a path to "we'll fix it later" that
+         *     never gets fixed. Existing rows in the DB with NULL address
+         *     fields are unaffected (the column is still nullable in the
+         *     schema); this validator runs only on the create payload.
          *
-         *     Address fields are all optional. We collect them so admin staff
-         *     can disambiguate same-name LLCs operating in different states;
-         *     legacy rows + owners who skip the section still work.
+         *     ``country_code`` defaults server-side to "US" when omitted
+         *     rather than failing validation, since the platform is US-only
+         *     for v1. The owner UI doesn't surface a country picker yet.
          */
         MyOrganizationCreate: {
             /** Address */
-            address?: string | null;
+            address: string;
             /** City */
-            city?: string | null;
-            /** Contact Email */
-            contact_email?: string | null;
+            city: string;
+            /**
+             * Contact Email
+             * Format: email
+             */
+            contact_email: string;
             /**
              * Country Code
-             * @description ISO-3166-1 alpha-2 country code (e.g. 'US').
+             * @description ISO-3166-1 alpha-2 country code. Defaults to 'US' since the platform is US-only for v1; widen the UI before loosening the default.
+             * @default US
              */
-            country_code?: string | null;
+            country_code: string;
             /** Name */
             name: string;
             /** Postal Code */
-            postal_code?: string | null;
-            /** Region */
-            region?: string | null;
+            postal_code: string;
+            /**
+             * Region
+             * @description State / region. For US the UI ships a 50-state + DC + territories dropdown; the server stores the chosen value verbatim so future jurisdictions don't need a schema migration.
+             */
+            region: string;
         };
         /**
          * MyOrganizationPatch
@@ -5028,6 +5058,23 @@ export interface components {
          *     given filename, render an inline preview, etc.
          */
         _AdminAttachmentSignedUrl: {
+            /** Content Type */
+            content_type: string;
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /** Original Filename */
+            original_filename: string;
+            /** Url */
+            url: string;
+        };
+        /**
+         * _MyOrgAttachmentSignedUrl
+         * @description Response shape — URL + expiry + filename + MIME so the
+         *     client can label the open + render hints inline. Same fields
+         *     as the admin variant for symmetry; different prefix lets a
+         *     future change diverge cleanly.
+         */
+        _MyOrgAttachmentSignedUrl: {
             /** Content Type */
             content_type: string;
             /** Expires In Seconds */
@@ -8675,6 +8722,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizationAttachmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signed_url_for_my_org_attachment_me_organizations__organization_id__attachments__attachment_id__url_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                organization_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["_MyOrgAttachmentSignedUrl"];
                 };
             };
             /** @description Validation Error */

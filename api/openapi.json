@@ -2504,57 +2504,32 @@
       },
       "MyOrganizationCreate": {
         "additionalProperties": false,
-        "description": "POST /me/organizations body.\n\nSolo operators are welcome \u2014 the bar is \"you exist as some kind\nof business entity,\" not \"you have an LLC.\" Owner can create with\njust a name and add documentation later.\n\nAddress fields are all optional. We collect them so admin staff\ncan disambiguate same-name LLCs operating in different states;\nlegacy rows + owners who skip the section still work.",
+        "description": "POST /me/organizations body.\n\nAddress is now REQUIRED on create \u2014 admin staff need it to\ndisambiguate same-name LLCs across states, and a fresh org with\nno address is too easy a path to \"we'll fix it later\" that\nnever gets fixed. Existing rows in the DB with NULL address\nfields are unaffected (the column is still nullable in the\nschema); this validator runs only on the create payload.\n\n``country_code`` defaults server-side to \"US\" when omitted\nrather than failing validation, since the platform is US-only\nfor v1. The owner UI doesn't surface a country picker yet.",
         "properties": {
           "address": {
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Address"
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
           },
           "city": {
-            "anyOf": [
-              {
-                "maxLength": 120,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "City"
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "City",
+            "type": "string"
           },
           "contact_email": {
-            "anyOf": [
-              {
-                "format": "email",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Email"
+            "format": "email",
+            "title": "Contact Email",
+            "type": "string"
           },
           "country_code": {
-            "anyOf": [
-              {
-                "maxLength": 2,
-                "minLength": 2,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "ISO-3166-1 alpha-2 country code (e.g. 'US').",
-            "title": "Country Code"
+            "default": "US",
+            "description": "ISO-3166-1 alpha-2 country code. Defaults to 'US' since the platform is US-only for v1; widen the UI before loosening the default.",
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Country Code",
+            "type": "string"
           },
           "name": {
             "maxLength": 255,
@@ -2563,32 +2538,26 @@
             "type": "string"
           },
           "postal_code": {
-            "anyOf": [
-              {
-                "maxLength": 20,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Postal Code"
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Postal Code",
+            "type": "string"
           },
           "region": {
-            "anyOf": [
-              {
-                "maxLength": 120,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Region"
+            "description": "State / region. For US the UI ships a 50-state + DC + territories dropdown; the server stores the chosen value verbatim so future jurisdictions don't need a schema migration.",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Region",
+            "type": "string"
           }
         },
         "required": [
-          "name"
+          "name",
+          "contact_email",
+          "address",
+          "city",
+          "region",
+          "postal_code"
         ],
         "title": "MyOrganizationCreate",
         "type": "object"
@@ -6439,6 +6408,35 @@
           "content_type"
         ],
         "title": "_AdminAttachmentSignedUrl",
+        "type": "object"
+      },
+      "_MyOrgAttachmentSignedUrl": {
+        "description": "Response shape \u2014 URL + expiry + filename + MIME so the\nclient can label the open + render hints inline. Same fields\nas the admin variant for symmetry; different prefix lets a\nfuture change diverge cleanly.",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expires_in_seconds",
+          "original_filename",
+          "content_type"
+        ],
+        "title": "_MyOrgAttachmentSignedUrl",
         "type": "object"
       },
       "app__modules__admin__organizations__router___AdminAttachmentSignedUrl": {
@@ -14272,6 +14270,92 @@
           }
         },
         "summary": "Upload a supporting document for an organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/me/organizations/{organization_id}/attachments/{attachment_id}/url": {
+      "get": {
+        "description": "Owner-self download path. 60-second TTL \u2014 the client opens the URL in a new tab, the URL expires before it could be shared meaningfully. Asserts the attachment belongs to one of the caller's orgs before signing; otherwise 404 (same posture as the admin variant).",
+        "operationId": "signed_url_for_my_org_attachment_me_organizations__organization_id__attachments__attachment_id__url_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_MyOrgAttachmentSignedUrl"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mint a short-lived signed URL for one of your org's attachments",
         "tags": [
           "organizations"
         ]
