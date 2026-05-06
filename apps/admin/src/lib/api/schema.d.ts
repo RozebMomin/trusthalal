@@ -965,6 +965,193 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/verification-visits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List verification visits
+         * @description Newest-first queue. Optional filters by status, place_id, and verifier_user_id. Pagination 1–100. Admin UI typically defaults to ?status=SUBMITTED.
+         */
+        get: operations["admin_list_verification_visits_admin_verification_visits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/verification-visits/{visit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a verification visit */
+        get: operations["admin_get_verification_visit_admin_verification_visits__visit_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/verification-visits/{visit_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List attachment metadata for a visit */
+        get: operations["admin_list_visit_attachments_admin_verification_visits__visit_id__attachments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/verification-visits/{visit_id}/attachments/{attachment_id}/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mint a short-lived signed URL for an attachment
+         * @description Returns a signed URL valid for 60 seconds. The admin UI fetches it on hover/click rather than embedding so we don't have a stable pre-rendered link to leak.
+         */
+        get: operations["admin_visit_attachment_signed_url_admin_verification_visits__visit_id__attachments__attachment_id__url_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/verification-visits/{visit_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept or reject a verification visit
+         * @description Apply an admin decision. ACCEPTED promotes the place's halal_profile.validation_tier to TRUST_HALAL_VERIFIED (when a profile exists; otherwise 409 VERIFICATION_VISIT_NO_PROFILE) and refreshes last_verified_at to the visit's visited_at. REJECTED requires a decision_note for the verifier's context. Re-deciding a terminal row returns 409.
+         *
+         *     Failure modes:
+         *       * 404 — visit not found.
+         *       * 409 ``VERIFICATION_VISIT_NOT_DECIDABLE`` — already decided / withdrawn.
+         *       * 409 ``VERIFICATION_VISIT_REJECT_NOTE_REQUIRED`` — missing decision_note on REJECTED.
+         *       * 409 ``VERIFICATION_VISIT_NO_PROFILE`` — ACCEPTED with no halal profile to elevate.
+         */
+        post: operations["admin_decide_verification_visit_admin_verification_visits__visit_id__decide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/verification-visits/{visit_id}/under-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a SUBMITTED visit UNDER_REVIEW
+         * @description Soft-claim a visit so other admins know it's being looked at. Idempotent against already-UNDER_REVIEW. The verifier loses the right to withdraw at this point.
+         */
+        post: operations["admin_mark_visit_under_review_admin_verification_visits__visit_id__under_review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/verifier-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List verifier applications
+         * @description Newest-first queue. Filter by status (default none = all). Pagination capped at 100. Admin UI typically defaults to ?status=PENDING to focus on actionable rows.
+         */
+        get: operations["admin_list_verifier_applications_admin_verifier_applications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/verifier-applications/{application_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a verifier application
+         * @description Single-row detail. 404 on unknown id.
+         */
+        get: operations["admin_get_verifier_application_admin_verifier_applications__application_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/verifier-applications/{application_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve or reject a verifier application
+         * @description Apply an admin decision. ``decision`` must be APPROVED or REJECTED — WITHDRAWN is applicant-driven, PENDING is the starting state. Approval flips the linked user's role to VERIFIER and creates their VerifierProfile. Rejection requires a ``decision_note`` so the applicant gets context.
+         *
+         *     Failure modes:
+         *       * 404 — application not found.
+         *       * 409 ``VERIFIER_APPLICATION_NOT_DECIDABLE`` — already decided / withdrawn.
+         *       * 409 ``VERIFIER_APPLICATION_REJECT_NOTE_REQUIRED`` — missing decision_note on a REJECTED decision.
+         *       * 409 ``VERIFIER_APPLICATION_USER_MISSING`` — no Trust Halal user matches the applicant; ask them to sign up first.
+         *       * 409 ``VERIFIER_APPLICATION_USER_WRONG_ROLE`` — user has role OWNER/ADMIN; promotion only flows from CONSUMER.
+         */
+        post: operations["admin_decide_verifier_application_admin_verifier_applications__application_id__decide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/invite/{token}": {
         parameters: {
             query?: never;
@@ -1494,6 +1681,174 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the caller's saved consumer search preferences
+         * @description Returns an all-null payload when the user hasn't saved any preferences yet — the frontend renders the same form in both states. ``updated_at`` is null in the empty case.
+         */
+        get: operations["get_my_preferences_me_preferences_get"];
+        /**
+         * Replace the caller's consumer search preferences
+         * @description Full-replace upsert. Any field omitted from the payload is reset to ``null`` ("no preference"). Sending ``{}`` is the canonical 'reset everything' operation.
+         */
+        put: operations["put_my_preferences_me_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/verification-visits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the verifier's own visits
+         * @description Newest-first, optional status filter. Pagination capped at 100. Includes WITHDRAWN rows — verifiers should be able to see their full history.
+         */
+        get: operations["list_my_verification_visits_me_verification_visits_get"];
+        put?: never;
+        /**
+         * Submit a verification visit
+         * @description Verifier files a site-visit record. The structured findings shape mirrors the owner's halal-claim questionnaire so admin review can diff them. Status starts as SUBMITTED; admin moves it from there. Rate-limited 30/hour per verifier — high-throughput shouldn't be a thing here.
+         */
+        post: operations["submit_verification_visit_me_verification_visits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/verification-visits/{visit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one of the verifier's visits
+         * @description Read with ownership check — 404 (not 403) on visits filed by another verifier so we don't leak existence.
+         */
+        get: operations["get_my_verification_visit_me_verification_visits__visit_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/verification-visits/{visit_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload evidence to a verification visit
+         * @description Multipart upload. Allowed only while the visit is SUBMITTED — once admin starts reviewing, the evidence set is frozen. MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF), 10 MB per file, 10 files per visit. Storage key is `verification_visits/{visit_id}/{uuid}.{ext}`.
+         */
+        post: operations["upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/verification-visits/{visit_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw a SUBMITTED visit
+         * @description Pull a SUBMITTED visit before admin acts on it. Idempotent against already-WITHDRAWN. Returns 409 once admin moved the visit to UNDER_REVIEW or beyond — at that point the decision channel is the only path forward.
+         */
+        post: operations["withdraw_my_verification_visit_me_verification_visits__visit_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/verifier-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the applicant's own verifier applications
+         * @description Newest-first, includes every status — PENDING, APPROVED, REJECTED, WITHDRAWN — so the applicant can read their full history. Pagination capped at 50; realistic applicants will have a single-digit count of rows.
+         */
+        get: operations["list_my_verifier_applications_me_verifier_applications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/verifier-applications/{application_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one of the applicant's verifier applications
+         * @description Applicant-self read. 404 on unknown id and on rows owned by a different user — same posture as the rest of the /me/* surface, no existence-leak.
+         */
+        get: operations["get_my_verifier_application_me_verifier_applications__application_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/verifier-applications/{application_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw a pending verifier application
+         * @description Pull a PENDING application before admin acts on it. Idempotent against already-WITHDRAWN. Returns 409 once admin has APPROVED or REJECTED — the decision is final on the applicant side.
+         */
+        post: operations["withdraw_my_verifier_application_me_verifier_applications__application_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ownership-requests/{request_id}": {
         parameters: {
             query?: never;
@@ -1663,6 +2018,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/verifier-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a verifier application
+         * @description Open a verifier application. Anonymous-OK: applicants may submit before creating an account, so the form captures applicant_email + applicant_name independently of any session. When a session is present, the applicant's user_id is recorded for admin context. Rate-limited (5/hour per user-or-IP) to keep noise out of the admin queue.
+         */
+        post: operations["submit_verifier_application_verifier_applications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1739,6 +2114,14 @@ export interface components {
         };
         /** Body_upload_organization_attachment_me_organizations__organization_id__attachments_post */
         Body_upload_organization_attachment_me_organizations__organization_id__attachments_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+        };
+        /** Body_upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post */
+        Body_upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post: {
             /**
              * File
              * Format: binary
@@ -1864,6 +2247,52 @@ export interface components {
              * Format: date-time
              */
             submitted_at: string;
+        };
+        /**
+         * ConsumerPreferencesRead
+         * @description GET /me/preferences response.
+         *
+         *     Returned even when the underlying row doesn't exist yet — the
+         *     repo's ``get_or_default`` returns an all-null record so the
+         *     frontend can render the same form regardless of whether the user
+         *     has saved anything.
+         */
+        ConsumerPreferencesRead: {
+            /** Has Certification */
+            has_certification?: boolean | null;
+            min_menu_posture?: components["schemas"]["MenuPosture"] | null;
+            min_validation_tier?: components["schemas"]["ValidationTier"] | null;
+            /** No Alcohol Served */
+            no_alcohol_served?: boolean | null;
+            /** No Pork */
+            no_pork?: boolean | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * ConsumerPreferencesUpdate
+         * @description PUT /me/preferences payload.
+         *
+         *     All fields are optional — a PUT with the empty body resets every
+         *     preference to NULL ("no minimum, accept anything"). That's
+         *     deliberately the default semantics: a "Reset" button on the
+         *     preferences page is a `PUT /me/preferences` with `{}`.
+         *
+         *     Filter values not present in the payload are coerced to NULL on
+         *     the server side (full replace, not patch) — this matches the PUT
+         *     verb. A future PATCH endpoint could give granular field updates,
+         *     but the form-driven UI we're shipping always sends the complete
+         *     state, so the simpler verb fits.
+         */
+        ConsumerPreferencesUpdate: {
+            /** Has Certification */
+            has_certification?: boolean | null;
+            min_menu_posture?: components["schemas"]["MenuPosture"] | null;
+            min_validation_tier?: components["schemas"]["ValidationTier"] | null;
+            /** No Alcohol Served */
+            no_alcohol_served?: boolean | null;
+            /** No Pork */
+            no_pork?: boolean | null;
         };
         /**
          * DisputeRequestReconciliation
@@ -2405,6 +2834,126 @@ export interface components {
             seafood_only?: boolean | null;
         };
         /**
+         * HalalQuestionnaireResponse
+         * @description STRICT shape — all required fields populated.
+         *
+         *     Used at submit-time to validate that a draft is complete. Fields
+         *     that are conceptually required for a real submission live here as
+         *     non-Optional. Owners save partial progress with the draft
+         *     shape (``HalalQuestionnaireDraft``) and we re-parse the stored
+         *     JSONB through this strict shape when they hit submit.
+         *
+         *     Versioned via ``questionnaire_version`` so future additions don't
+         *     break old rows. v1 covers the questions the user settled on in
+         *     the design pass: menu posture, alcohol, per-meat sourcing,
+         *     certification, free-text caveats.
+         */
+        "HalalQuestionnaireResponse-Input": {
+            /**
+             * Alcohol In Cooking
+             * @description True if alcohol is used in any cooking process (wine reductions, mirin, etc.).
+             */
+            alcohol_in_cooking: boolean;
+            alcohol_policy: components["schemas"]["AlcoholPolicy"];
+            beef?: components["schemas"]["MeatSourcing"] | null;
+            /**
+             * Caveats
+             * @description Anything else a halal-conscious diner should know. Examples: 'Halal only at lunch', 'No halal on holidays.'
+             */
+            caveats?: string | null;
+            /**
+             * Certifying Body Name
+             * @description Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). Required if has_certification.
+             */
+            certifying_body_name?: string | null;
+            chicken?: components["schemas"]["MeatSourcing"] | null;
+            goat?: components["schemas"]["MeatSourcing"] | null;
+            /**
+             * Has Certification
+             * @description True if the restaurant or supplier holds a halal certificate from a recognized authority. Owner uploads the document as a HALAL_CERTIFICATE attachment.
+             */
+            has_certification: boolean;
+            /**
+             * Has Pork
+             * @description True if pork or pork products are on the menu.
+             */
+            has_pork: boolean;
+            lamb?: components["schemas"]["MeatSourcing"] | null;
+            menu_posture: components["schemas"]["MenuPosture"];
+            /**
+             * Questionnaire Version
+             * @description Questionnaire schema version.
+             * @default 1
+             */
+            questionnaire_version: number;
+            /**
+             * Seafood Only
+             * @description True if the kitchen serves no land-meat at all. Mutually exclusive with the per-meat fields above (admin can flag).
+             * @default false
+             */
+            seafood_only: boolean;
+        };
+        /**
+         * HalalQuestionnaireResponse
+         * @description STRICT shape — all required fields populated.
+         *
+         *     Used at submit-time to validate that a draft is complete. Fields
+         *     that are conceptually required for a real submission live here as
+         *     non-Optional. Owners save partial progress with the draft
+         *     shape (``HalalQuestionnaireDraft``) and we re-parse the stored
+         *     JSONB through this strict shape when they hit submit.
+         *
+         *     Versioned via ``questionnaire_version`` so future additions don't
+         *     break old rows. v1 covers the questions the user settled on in
+         *     the design pass: menu posture, alcohol, per-meat sourcing,
+         *     certification, free-text caveats.
+         */
+        "HalalQuestionnaireResponse-Output": {
+            /**
+             * Alcohol In Cooking
+             * @description True if alcohol is used in any cooking process (wine reductions, mirin, etc.).
+             */
+            alcohol_in_cooking: boolean;
+            alcohol_policy: components["schemas"]["AlcoholPolicy"];
+            beef?: components["schemas"]["MeatSourcing"] | null;
+            /**
+             * Caveats
+             * @description Anything else a halal-conscious diner should know. Examples: 'Halal only at lunch', 'No halal on holidays.'
+             */
+            caveats?: string | null;
+            /**
+             * Certifying Body Name
+             * @description Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). Required if has_certification.
+             */
+            certifying_body_name?: string | null;
+            chicken?: components["schemas"]["MeatSourcing"] | null;
+            goat?: components["schemas"]["MeatSourcing"] | null;
+            /**
+             * Has Certification
+             * @description True if the restaurant or supplier holds a halal certificate from a recognized authority. Owner uploads the document as a HALAL_CERTIFICATE attachment.
+             */
+            has_certification: boolean;
+            /**
+             * Has Pork
+             * @description True if pork or pork products are on the menu.
+             */
+            has_pork: boolean;
+            lamb?: components["schemas"]["MeatSourcing"] | null;
+            menu_posture: components["schemas"]["MenuPosture"];
+            /**
+             * Questionnaire Version
+             * @description Questionnaire schema version.
+             * @default 1
+             */
+            questionnaire_version: number;
+            /**
+             * Seafood Only
+             * @description True if the kitchen serves no land-meat at all. Mutually exclusive with the per-meat fields above (admin can flag).
+             * @default false
+             */
+            seafood_only: boolean;
+        };
+        /**
          * InviteInfoResponse
          * @description Prefetch response for GET /auth/invite/{token}.
          *
@@ -2713,12 +3262,29 @@ export interface components {
          *     Solo operators are welcome — the bar is "you exist as some kind
          *     of business entity," not "you have an LLC." Owner can create with
          *     just a name and add documentation later.
+         *
+         *     Address fields are all optional. We collect them so admin staff
+         *     can disambiguate same-name LLCs operating in different states;
+         *     legacy rows + owners who skip the section still work.
          */
         MyOrganizationCreate: {
+            /** Address */
+            address?: string | null;
+            /** City */
+            city?: string | null;
             /** Contact Email */
             contact_email?: string | null;
+            /**
+             * Country Code
+             * @description ISO-3166-1 alpha-2 country code (e.g. 'US').
+             */
+            country_code?: string | null;
             /** Name */
             name: string;
+            /** Postal Code */
+            postal_code?: string | null;
+            /** Region */
+            region?: string | null;
         };
         /**
          * MyOrganizationPatch
@@ -2731,13 +3297,24 @@ export interface components {
          *     explicit "amend" workflow.
          *
          *     Omitted fields are left alone. ``contact_email: null`` clears
-         *     the column; absent leaves it as-is.
+         *     the column; absent leaves it as-is. Same null-vs-absent semantics
+         *     apply to the address fields.
          */
         MyOrganizationPatch: {
+            /** Address */
+            address?: string | null;
+            /** City */
+            city?: string | null;
             /** Contact Email */
             contact_email?: string | null;
+            /** Country Code */
+            country_code?: string | null;
             /** Name */
             name?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
+            /** Region */
+            region?: string | null;
         };
         /**
          * MyOrganizationRead
@@ -2746,20 +3323,34 @@ export interface components {
          *     Includes attachments[] inline so the org detail page doesn't need
          *     a per-row fetch. status reflects the verification state; the
          *     /claim flow gates on this when picking a requesting org.
+         *
+         *     ``decision_note`` mirrors the admin-side column. We surface it on
+         *     the owner shape so a REJECTED org tells the owner WHY (per the
+         *     polish-pass requirement) rather than leaving them in the dark.
          */
         MyOrganizationRead: {
+            /** Address */
+            address?: string | null;
             /**
              * Attachments
              * @default []
              */
             attachments: components["schemas"]["OrganizationAttachmentRead"][];
+            /** City */
+            city?: string | null;
             /** Contact Email */
             contact_email: string | null;
+            /** Country Code */
+            country_code?: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /** Decided At */
+            decided_at?: string | null;
+            /** Decision Note */
+            decision_note?: string | null;
             /**
              * Id
              * Format: uuid
@@ -2767,6 +3358,10 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Postal Code */
+            postal_code?: string | null;
+            /** Region */
+            region?: string | null;
             status: components["schemas"]["OrganizationStatus"];
             /** Submitted At */
             submitted_at: string | null;
@@ -2910,10 +3505,20 @@ export interface components {
         };
         /** OrganizationAdminCreate */
         OrganizationAdminCreate: {
+            /** Address */
+            address?: string | null;
+            /** City */
+            city?: string | null;
             /** Contact Email */
             contact_email?: string | null;
+            /** Country Code */
+            country_code?: string | null;
             /** Name */
             name: string;
+            /** Postal Code */
+            postal_code?: string | null;
+            /** Region */
+            region?: string | null;
         };
         /**
          * OrganizationAdminPatch
@@ -2921,23 +3526,40 @@ export interface components {
          *
          *     Omitted fields are left alone (not cleared). ``contact_email`` accepts
          *     either an EmailStr or explicit null — null means "remove the contact
-         *     email", absent means "don't touch".
+         *     email", absent means "don't touch". Same null-vs-absent semantics
+         *     on address fields.
          */
         OrganizationAdminPatch: {
+            /** Address */
+            address?: string | null;
+            /** City */
+            city?: string | null;
             /** Contact Email */
             contact_email?: string | null;
+            /** Country Code */
+            country_code?: string | null;
             /** Name */
             name?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
+            /** Region */
+            region?: string | null;
         };
         /** OrganizationAdminRead */
         OrganizationAdminRead: {
+            /** Address */
+            address?: string | null;
             /**
              * Attachments
              * @default []
              */
             attachments: components["schemas"]["OrganizationAttachmentRead"][];
+            /** City */
+            city?: string | null;
             /** Contact Email */
             contact_email: string | null;
+            /** Country Code */
+            country_code?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2958,6 +3580,10 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Postal Code */
+            postal_code?: string | null;
+            /** Region */
+            region?: string | null;
             status: components["schemas"]["OrganizationStatus"];
             /** Submitted At */
             submitted_at?: string | null;
@@ -2996,13 +3622,19 @@ export interface components {
         };
         /** OrganizationDetailRead */
         OrganizationDetailRead: {
+            /** Address */
+            address?: string | null;
             /**
              * Attachments
              * @default []
              */
             attachments: components["schemas"]["OrganizationAttachmentRead"][];
+            /** City */
+            city?: string | null;
             /** Contact Email */
             contact_email: string | null;
+            /** Country Code */
+            country_code?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -3025,6 +3657,10 @@ export interface components {
             members?: components["schemas"]["OrganizationMemberAdminRead"][];
             /** Name */
             name: string;
+            /** Postal Code */
+            postal_code?: string | null;
+            /** Region */
+            region?: string | null;
             status: components["schemas"]["OrganizationStatus"];
             /** Submitted At */
             submitted_at?: string | null;
@@ -3034,7 +3670,15 @@ export interface components {
              */
             updated_at: string;
         };
-        /** OrganizationMemberAdminRead */
+        /**
+         * OrganizationMemberAdminRead
+         * @description One ``organization_members`` row for the admin org-detail view.
+         *
+         *     Embeds the linked user's ``display_name`` + ``email`` so the
+         *     admin members panel renders human labels instead of UUIDs. Both
+         *     nullable: a SET-NULL FK on the user side or a missing display
+         *     name shouldn't break the member row from appearing.
+         */
         OrganizationMemberAdminRead: {
             /**
              * Created At
@@ -3060,6 +3704,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** User Display Name */
+            user_display_name?: string | null;
+            /** User Email */
+            user_email?: string | null;
             /**
              * User Id
              * Format: uuid
@@ -4153,13 +4801,231 @@ export interface components {
          * @enum {string}
          */
         ValidationTier: "SELF_ATTESTED" | "CERTIFICATE_ON_FILE" | "TRUST_HALAL_VERIFIED";
+        /** VerificationVisitAttachmentRead */
+        VerificationVisitAttachmentRead: {
+            /** Caption */
+            caption: string | null;
+            /** Content Type */
+            content_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Original Filename */
+            original_filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+            /**
+             * Visit Id
+             * Format: uuid
+             */
+            visit_id: string;
+        };
+        /**
+         * VerificationVisitCreate
+         * @description Verifier submitting a site-visit record.
+         *
+         *     Findings are validated via HalalQuestionnaireResponse — same
+         *     shape the owner submits, so admin can diff them.
+         */
+        VerificationVisitCreate: {
+            /** @default SELF_FUNDED */
+            disclosure: components["schemas"]["VisitDisclosure"];
+            /** Disclosure Note */
+            disclosure_note?: string | null;
+            /** Notes For Admin */
+            notes_for_admin?: string | null;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            /** Public Review Url */
+            public_review_url?: string | null;
+            structured_findings?: components["schemas"]["HalalQuestionnaireResponse-Input"] | null;
+            /**
+             * Visited At
+             * Format: date-time
+             */
+            visited_at: string;
+        };
+        /**
+         * VerificationVisitDecision
+         * @description Admin decision payload.
+         */
+        VerificationVisitDecision: {
+            /** @description Must be ACCEPTED or REJECTED. */
+            decision: components["schemas"]["VerificationVisitStatus"];
+            /** Decision Note */
+            decision_note?: string | null;
+        };
+        /**
+         * VerificationVisitRead
+         * @description Verifier-self + admin-shared read shape.
+         */
+        VerificationVisitRead: {
+            /** Attachments */
+            attachments?: components["schemas"]["VerificationVisitAttachmentRead"][];
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By User Id */
+            decided_by_user_id: string | null;
+            /** Decision Note */
+            decision_note: string | null;
+            disclosure: components["schemas"]["VisitDisclosure"];
+            /** Disclosure Note */
+            disclosure_note: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Notes For Admin */
+            notes_for_admin: string | null;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            /** Public Review Url */
+            public_review_url: string | null;
+            status: components["schemas"]["VerificationVisitStatus"];
+            structured_findings: components["schemas"]["HalalQuestionnaireResponse-Output"] | null;
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Verifier User Id
+             * Format: uuid
+             */
+            verifier_user_id: string;
+            /**
+             * Visited At
+             * Format: date-time
+             */
+            visited_at: string;
+        };
+        /**
+         * VerificationVisitStatus
+         * @enum {string}
+         */
+        VerificationVisitStatus: "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
+        /**
+         * VerifierApplicationCreate
+         * @description Public ``POST /verifier-applications`` payload.
+         */
+        VerifierApplicationCreate: {
+            /**
+             * Applicant Email
+             * Format: email
+             */
+            applicant_email: string;
+            /** Applicant Name */
+            applicant_name: string;
+            /** Background */
+            background?: string | null;
+            /** Motivation */
+            motivation: string;
+            /**
+             * Social Links
+             * @description Free-form social handles. Suggested keys: instagram, tiktok, youtube, website. Frontends should validate the handle shapes; backend just stores.
+             */
+            social_links?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * VerifierApplicationDecision
+         * @description Admin payload for approving or rejecting an application.
+         */
+        VerifierApplicationDecision: {
+            /** @description Must be APPROVED or REJECTED. Other values rejected at validation. */
+            decision: components["schemas"]["VerifierApplicationStatus"];
+            /**
+             * Decision Note
+             * @description Required on REJECTED so applicant gets context.
+             */
+            decision_note?: string | null;
+        };
+        /**
+         * VerifierApplicationRead
+         * @description Read shape — admin sees this in the queue.
+         */
+        VerifierApplicationRead: {
+            /** Applicant Email */
+            applicant_email: string;
+            /** Applicant Name */
+            applicant_name: string;
+            /** Applicant User Id */
+            applicant_user_id: string | null;
+            /** Background */
+            background: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By User Id */
+            decided_by_user_id: string | null;
+            /** Decision Note */
+            decision_note: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Motivation */
+            motivation: string;
+            /** Resulting Verifier Profile Id */
+            resulting_verifier_profile_id: string | null;
+            /** Social Links */
+            social_links: {
+                [key: string]: unknown;
+            } | null;
+            status: components["schemas"]["VerifierApplicationStatus"];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * VerifierApplicationStatus
+         * @enum {string}
+         */
+        VerifierApplicationStatus: "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
+        /**
+         * VisitDisclosure
+         * @description Was the verifier compensated or comped for this visit?
+         *
+         *     Influencer angle: a verifier may also be a food creator who
+         *     receives free meals or partnerships. We don't bar comped visits,
+         *     but they MUST be disclosed so admin can weigh accordingly.
+         * @enum {string}
+         */
+        VisitDisclosure: "SELF_FUNDED" | "MEAL_COMPED" | "PAID_PARTNERSHIP" | "OTHER_DISCLOSURE";
         /**
          * _AdminAttachmentSignedUrl
-         * @description Response shape for the org-attachment signed-URL endpoint.
+         * @description Response shape for the signed-URL endpoint.
          *
-         *     Same shape as the claim-attachment variant: URL + filename +
-         *     MIME so the client can label the download or render an inline
-         *     preview without a second fetch.
+         *     Plain object instead of returning a redirect so the client can
+         *     decide whether to open the URL in a new tab, download with a
+         *     given filename, render an inline preview, etc.
          */
         _AdminAttachmentSignedUrl: {
             /** Content Type */
@@ -4173,13 +5039,13 @@ export interface components {
         };
         /**
          * _AdminAttachmentSignedUrl
-         * @description Response shape for the signed-URL endpoint.
+         * @description Response shape for the org-attachment signed-URL endpoint.
          *
-         *     Plain object instead of returning a redirect so the client can
-         *     decide whether to open the URL in a new tab, download with a
-         *     given filename, render an inline preview, etc.
+         *     Same shape as the claim-attachment variant: URL + filename +
+         *     MIME so the client can label the download or render an inline
+         *     preview without a second fetch.
          */
-        app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl: {
+        app__modules__admin__organizations__router___AdminAttachmentSignedUrl: {
             /** Content Type */
             content_type: string;
             /** Expires In Seconds */
@@ -4983,7 +5849,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["_AdminAttachmentSignedUrl"];
+                    "application/json": components["schemas"]["app__modules__admin__organizations__router___AdminAttachmentSignedUrl"];
                 };
             };
             /** @description Validation Error */
@@ -5355,7 +6221,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"];
+                    "application/json": components["schemas"]["_AdminAttachmentSignedUrl"];
                 };
             };
             /** @description Validation Error */
@@ -6584,6 +7450,341 @@ export interface operations {
             };
         };
     };
+    admin_list_verification_visits_admin_verification_visits_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["VerificationVisitStatus"] | null;
+                place_id?: string | null;
+                verifier_user_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationVisitRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_get_verification_visit_admin_verification_visits__visit_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                visit_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationVisitRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_list_visit_attachments_admin_verification_visits__visit_id__attachments_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                visit_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_visit_attachment_signed_url_admin_verification_visits__visit_id__attachments__attachment_id__url_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                visit_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_decide_verification_visit_admin_verification_visits__visit_id__decide_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                visit_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerificationVisitDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationVisitRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_mark_visit_under_review_admin_verification_visits__visit_id__under_review_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                visit_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationVisitRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_list_verifier_applications_admin_verifier_applications_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by application status. Omit for all statuses. */
+                status?: components["schemas"]["VerifierApplicationStatus"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifierApplicationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_get_verifier_application_admin_verifier_applications__application_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                application_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifierApplicationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_decide_verifier_application_admin_verifier_applications__application_id__decide_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                application_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifierApplicationDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifierApplicationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_invite_info_auth_invite__token__get: {
         parameters: {
             query?: never;
@@ -7702,6 +8903,366 @@ export interface operations {
             };
         };
     };
+    get_my_preferences_me_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerPreferencesRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_my_preferences_me_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsumerPreferencesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerPreferencesRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_verification_visits_me_verification_visits_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by status. Omit for all statuses. */
+                status?: components["schemas"]["VerificationVisitStatus"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationVisitRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_verification_visit_me_verification_visits_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerificationVisitCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationVisitRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_verification_visit_me_verification_visits__visit_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                visit_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationVisitRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                visit_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationVisitAttachmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_my_verification_visit_me_verification_visits__visit_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                visit_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationVisitRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_verifier_applications_me_verifier_applications_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifierApplicationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_verifier_application_me_verifier_applications__application_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                application_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifierApplicationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_my_verifier_application_me_verifier_applications__application_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                application_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifierApplicationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_ownership_request_status_ownership_requests__request_id__get: {
         parameters: {
             query?: never;
@@ -8010,6 +9571,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OwnershipRequestRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_verifier_application_verifier_applications_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifierApplicationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifierApplicationRead"];
                 };
             };
             /** @description Validation Error */

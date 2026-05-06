@@ -165,6 +165,20 @@
         "title": "Body_upload_organization_attachment_me_organizations__organization_id__attachments_post",
         "type": "object"
       },
+      "Body_upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post",
+        "type": "object"
+      },
       "ConsumerDisputeAdminRead": {
         "additionalProperties": false,
         "description": "Full admin view \u2014 sees everything.\n\nReporter identity is here for pattern detection (repeat\noffenders / repeat targets). Admin UI surfaces it; admin staff\nis responsible for not leaking it sideways.",
@@ -418,6 +432,140 @@
           "admin_decision_note"
         ],
         "title": "ConsumerDisputeReporterRead",
+        "type": "object"
+      },
+      "ConsumerPreferencesRead": {
+        "additionalProperties": false,
+        "description": "GET /me/preferences response.\n\nReturned even when the underlying row doesn't exist yet \u2014 the\nrepo's ``get_or_default`` returns an all-null record so the\nfrontend can render the same form regardless of whether the user\nhas saved anything.",
+        "properties": {
+          "has_certification": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Certification"
+          },
+          "min_menu_posture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MenuPosture"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_validation_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValidationTier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "no_alcohol_served": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Alcohol Served"
+          },
+          "no_pork": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Pork"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "title": "ConsumerPreferencesRead",
+        "type": "object"
+      },
+      "ConsumerPreferencesUpdate": {
+        "additionalProperties": false,
+        "description": "PUT /me/preferences payload.\n\nAll fields are optional \u2014 a PUT with the empty body resets every\npreference to NULL (\"no minimum, accept anything\"). That's\ndeliberately the default semantics: a \"Reset\" button on the\npreferences page is a `PUT /me/preferences` with `{}`.\n\nFilter values not present in the payload are coerced to NULL on\nthe server side (full replace, not patch) \u2014 this matches the PUT\nverb. A future PATCH endpoint could give granular field updates,\nbut the form-driven UI we're shipping always sends the complete\nstate, so the simpler verb fits.",
+        "properties": {
+          "has_certification": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Certification"
+          },
+          "min_menu_posture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MenuPosture"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_validation_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValidationTier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "no_alcohol_served": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Alcohol Served"
+          },
+          "no_pork": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Pork"
+          }
+        },
+        "title": "ConsumerPreferencesUpdate",
         "type": "object"
       },
       "DisputeRequestReconciliation": {
@@ -1588,6 +1736,236 @@
         "title": "HalalQuestionnaireDraft",
         "type": "object"
       },
+      "HalalQuestionnaireResponse-Input": {
+        "additionalProperties": false,
+        "description": "STRICT shape \u2014 all required fields populated.\n\nUsed at submit-time to validate that a draft is complete. Fields\nthat are conceptually required for a real submission live here as\nnon-Optional. Owners save partial progress with the draft\nshape (``HalalQuestionnaireDraft``) and we re-parse the stored\nJSONB through this strict shape when they hit submit.\n\nVersioned via ``questionnaire_version`` so future additions don't\nbreak old rows. v1 covers the questions the user settled on in\nthe design pass: menu posture, alcohol, per-meat sourcing,\ncertification, free-text caveats.",
+        "properties": {
+          "alcohol_in_cooking": {
+            "description": "True if alcohol is used in any cooking process (wine reductions, mirin, etc.).",
+            "title": "Alcohol In Cooking",
+            "type": "boolean"
+          },
+          "alcohol_policy": {
+            "$ref": "#/components/schemas/AlcoholPolicy"
+          },
+          "beef": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeatSourcing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "caveats": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Anything else a halal-conscious diner should know. Examples: 'Halal only at lunch', 'No halal on holidays.'",
+            "title": "Caveats"
+          },
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). Required if has_certification.",
+            "title": "Certifying Body Name"
+          },
+          "chicken": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeatSourcing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "goat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeatSourcing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "has_certification": {
+            "description": "True if the restaurant or supplier holds a halal certificate from a recognized authority. Owner uploads the document as a HALAL_CERTIFICATE attachment.",
+            "title": "Has Certification",
+            "type": "boolean"
+          },
+          "has_pork": {
+            "description": "True if pork or pork products are on the menu.",
+            "title": "Has Pork",
+            "type": "boolean"
+          },
+          "lamb": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeatSourcing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "menu_posture": {
+            "$ref": "#/components/schemas/MenuPosture"
+          },
+          "questionnaire_version": {
+            "default": 1,
+            "description": "Questionnaire schema version.",
+            "minimum": 1.0,
+            "title": "Questionnaire Version",
+            "type": "integer"
+          },
+          "seafood_only": {
+            "default": false,
+            "description": "True if the kitchen serves no land-meat at all. Mutually exclusive with the per-meat fields above (admin can flag).",
+            "title": "Seafood Only",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "menu_posture",
+          "has_pork",
+          "alcohol_policy",
+          "alcohol_in_cooking",
+          "has_certification"
+        ],
+        "title": "HalalQuestionnaireResponse",
+        "type": "object"
+      },
+      "HalalQuestionnaireResponse-Output": {
+        "additionalProperties": false,
+        "description": "STRICT shape \u2014 all required fields populated.\n\nUsed at submit-time to validate that a draft is complete. Fields\nthat are conceptually required for a real submission live here as\nnon-Optional. Owners save partial progress with the draft\nshape (``HalalQuestionnaireDraft``) and we re-parse the stored\nJSONB through this strict shape when they hit submit.\n\nVersioned via ``questionnaire_version`` so future additions don't\nbreak old rows. v1 covers the questions the user settled on in\nthe design pass: menu posture, alcohol, per-meat sourcing,\ncertification, free-text caveats.",
+        "properties": {
+          "alcohol_in_cooking": {
+            "description": "True if alcohol is used in any cooking process (wine reductions, mirin, etc.).",
+            "title": "Alcohol In Cooking",
+            "type": "boolean"
+          },
+          "alcohol_policy": {
+            "$ref": "#/components/schemas/AlcoholPolicy"
+          },
+          "beef": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeatSourcing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "caveats": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Anything else a halal-conscious diner should know. Examples: 'Halal only at lunch', 'No halal on holidays.'",
+            "title": "Caveats"
+          },
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). Required if has_certification.",
+            "title": "Certifying Body Name"
+          },
+          "chicken": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeatSourcing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "goat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeatSourcing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "has_certification": {
+            "description": "True if the restaurant or supplier holds a halal certificate from a recognized authority. Owner uploads the document as a HALAL_CERTIFICATE attachment.",
+            "title": "Has Certification",
+            "type": "boolean"
+          },
+          "has_pork": {
+            "description": "True if pork or pork products are on the menu.",
+            "title": "Has Pork",
+            "type": "boolean"
+          },
+          "lamb": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeatSourcing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "menu_posture": {
+            "$ref": "#/components/schemas/MenuPosture"
+          },
+          "questionnaire_version": {
+            "default": 1,
+            "description": "Questionnaire schema version.",
+            "minimum": 1.0,
+            "title": "Questionnaire Version",
+            "type": "integer"
+          },
+          "seafood_only": {
+            "default": false,
+            "description": "True if the kitchen serves no land-meat at all. Mutually exclusive with the per-meat fields above (admin can flag).",
+            "title": "Seafood Only",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "menu_posture",
+          "has_pork",
+          "alcohol_policy",
+          "alcohol_in_cooking",
+          "has_certification"
+        ],
+        "title": "HalalQuestionnaireResponse",
+        "type": "object"
+      },
       "InviteInfoResponse": {
         "description": "Prefetch response for GET /auth/invite/{token}.\n\nThe set-password page calls this to render \"Set your password for\n<email>\" before the user submits. We expose the minimum identifying\ninfo (email + display_name) and nothing else \u2014 no role, no user id,\nno created-at \u2014 so the endpoint can't be used as an oracle for\nenumerating the user table.",
         "properties": {
@@ -2126,8 +2504,32 @@
       },
       "MyOrganizationCreate": {
         "additionalProperties": false,
-        "description": "POST /me/organizations body.\n\nSolo operators are welcome \u2014 the bar is \"you exist as some kind\nof business entity,\" not \"you have an LLC.\" Owner can create with\njust a name and add documentation later.",
+        "description": "POST /me/organizations body.\n\nSolo operators are welcome \u2014 the bar is \"you exist as some kind\nof business entity,\" not \"you have an LLC.\" Owner can create with\njust a name and add documentation later.\n\nAddress fields are all optional. We collect them so admin staff\ncan disambiguate same-name LLCs operating in different states;\nlegacy rows + owners who skip the section still work.",
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
           "contact_email": {
             "anyOf": [
               {
@@ -2140,11 +2542,49 @@
             ],
             "title": "Contact Email"
           },
+          "country_code": {
+            "anyOf": [
+              {
+                "maxLength": 2,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ISO-3166-1 alpha-2 country code (e.g. 'US').",
+            "title": "Country Code"
+          },
           "name": {
             "maxLength": 255,
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
           }
         },
         "required": [
@@ -2155,8 +2595,32 @@
       },
       "MyOrganizationPatch": {
         "additionalProperties": false,
-        "description": "PATCH /me/organizations/{id} body.\n\nOnly allowed while the org is DRAFT or UNDER_REVIEW \u2014 once an\nadmin reviewer has signed off (VERIFIED) or rejected, the row\nbecomes audit-immutable. Owners who need to change a verified\norg's details contact admin support; future work could add an\nexplicit \"amend\" workflow.\n\nOmitted fields are left alone. ``contact_email: null`` clears\nthe column; absent leaves it as-is.",
+        "description": "PATCH /me/organizations/{id} body.\n\nOnly allowed while the org is DRAFT or UNDER_REVIEW \u2014 once an\nadmin reviewer has signed off (VERIFIED) or rejected, the row\nbecomes audit-immutable. Owners who need to change a verified\norg's details contact admin support; future work could add an\nexplicit \"amend\" workflow.\n\nOmitted fields are left alone. ``contact_email: null`` clears\nthe column; absent leaves it as-is. Same null-vs-absent semantics\napply to the address fields.",
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
           "contact_email": {
             "anyOf": [
               {
@@ -2168,6 +2632,19 @@
               }
             ],
             "title": "Contact Email"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "maxLength": 2,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
           },
           "name": {
             "anyOf": [
@@ -2181,14 +2658,49 @@
               }
             ],
             "title": "Name"
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
           }
         },
         "title": "MyOrganizationPatch",
         "type": "object"
       },
       "MyOrganizationRead": {
-        "description": "GET /me/organizations row + most owner-facing org responses.\n\nIncludes attachments[] inline so the org detail page doesn't need\na per-row fetch. status reflects the verification state; the\n/claim flow gates on this when picking a requesting org.",
+        "description": "GET /me/organizations row + most owner-facing org responses.\n\nIncludes attachments[] inline so the org detail page doesn't need\na per-row fetch. status reflects the verification state; the\n/claim flow gates on this when picking a requesting org.\n\n``decision_note`` mirrors the admin-side column. We surface it on\nthe owner shape so a REJECTED org tells the owner WHY (per the\npolish-pass requirement) rather than leaving them in the dark.",
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
           "attachments": {
             "default": [],
             "items": {
@@ -2196,6 +2708,17 @@
             },
             "title": "Attachments",
             "type": "array"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
           },
           "contact_email": {
             "anyOf": [
@@ -2208,10 +2731,44 @@
             ],
             "title": "Contact Email"
           },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
           },
           "id": {
             "format": "uuid",
@@ -2221,6 +2778,28 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
           },
           "status": {
             "$ref": "#/components/schemas/OrganizationStatus"
@@ -2477,6 +3056,30 @@
       },
       "OrganizationAdminCreate": {
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
           "contact_email": {
             "anyOf": [
               {
@@ -2489,11 +3092,48 @@
             ],
             "title": "Contact Email"
           },
+          "country_code": {
+            "anyOf": [
+              {
+                "maxLength": 2,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
           "name": {
             "maxLength": 255,
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
           }
         },
         "required": [
@@ -2504,8 +3144,32 @@
       },
       "OrganizationAdminPatch": {
         "additionalProperties": false,
-        "description": "Partial update for an organization.\n\nOmitted fields are left alone (not cleared). ``contact_email`` accepts\neither an EmailStr or explicit null \u2014 null means \"remove the contact\nemail\", absent means \"don't touch\".",
+        "description": "Partial update for an organization.\n\nOmitted fields are left alone (not cleared). ``contact_email`` accepts\neither an EmailStr or explicit null \u2014 null means \"remove the contact\nemail\", absent means \"don't touch\". Same null-vs-absent semantics\non address fields.",
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
           "contact_email": {
             "anyOf": [
               {
@@ -2517,6 +3181,19 @@
               }
             ],
             "title": "Contact Email"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "maxLength": 2,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
           },
           "name": {
             "anyOf": [
@@ -2530,6 +3207,30 @@
               }
             ],
             "title": "Name"
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
           }
         },
         "title": "OrganizationAdminPatch",
@@ -2537,6 +3238,17 @@
       },
       "OrganizationAdminRead": {
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
           "attachments": {
             "default": [],
             "items": {
@@ -2544,6 +3256,17 @@
             },
             "title": "Attachments",
             "type": "array"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
           },
           "contact_email": {
             "anyOf": [
@@ -2555,6 +3278,17 @@
               }
             ],
             "title": "Contact Email"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
           },
           "created_at": {
             "format": "date-time",
@@ -2616,6 +3350,28 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
           },
           "status": {
             "$ref": "#/components/schemas/OrganizationStatus"
@@ -2693,6 +3449,17 @@
       },
       "OrganizationDetailRead": {
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
           "attachments": {
             "default": [],
             "items": {
@@ -2700,6 +3467,17 @@
             },
             "title": "Attachments",
             "type": "array"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
           },
           "contact_email": {
             "anyOf": [
@@ -2711,6 +3489,17 @@
               }
             ],
             "title": "Contact Email"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
           },
           "created_at": {
             "format": "date-time",
@@ -2780,6 +3569,28 @@
             "title": "Name",
             "type": "string"
           },
+          "postal_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
           "status": {
             "$ref": "#/components/schemas/OrganizationStatus"
           },
@@ -2813,6 +3624,7 @@
         "type": "object"
       },
       "OrganizationMemberAdminRead": {
+        "description": "One ``organization_members`` row for the admin org-detail view.\n\nEmbeds the linked user's ``display_name`` + ``email`` so the\nadmin members panel renders human labels instead of UUIDs. Both\nnullable: a SET-NULL FK on the user side or a missing display\nname shouldn't break the member row from appearing.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -2841,6 +3653,28 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "user_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Display Name"
+          },
+          "user_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Email"
           },
           "user_id": {
             "format": "uuid",
@@ -5028,8 +5862,558 @@
         "title": "ValidationTier",
         "type": "string"
       },
+      "VerificationVisitAttachmentRead": {
+        "additionalProperties": false,
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "uploaded_at": {
+            "format": "date-time",
+            "title": "Uploaded At",
+            "type": "string"
+          },
+          "visit_id": {
+            "format": "uuid",
+            "title": "Visit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "visit_id",
+          "original_filename",
+          "content_type",
+          "size_bytes",
+          "caption",
+          "uploaded_at"
+        ],
+        "title": "VerificationVisitAttachmentRead",
+        "type": "object"
+      },
+      "VerificationVisitCreate": {
+        "additionalProperties": false,
+        "description": "Verifier submitting a site-visit record.\n\nFindings are validated via HalalQuestionnaireResponse \u2014 same\nshape the owner submits, so admin can diff them.",
+        "properties": {
+          "disclosure": {
+            "$ref": "#/components/schemas/VisitDisclosure",
+            "default": "SELF_FUNDED"
+          },
+          "disclosure_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disclosure Note"
+          },
+          "notes_for_admin": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes For Admin"
+          },
+          "place_id": {
+            "format": "uuid",
+            "title": "Place Id",
+            "type": "string"
+          },
+          "public_review_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Review Url"
+          },
+          "structured_findings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HalalQuestionnaireResponse-Input"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visited_at": {
+            "format": "date-time",
+            "title": "Visited At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "place_id",
+          "visited_at"
+        ],
+        "title": "VerificationVisitCreate",
+        "type": "object"
+      },
+      "VerificationVisitDecision": {
+        "additionalProperties": false,
+        "description": "Admin decision payload.",
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/VerificationVisitStatus",
+            "description": "Must be ACCEPTED or REJECTED."
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "VerificationVisitDecision",
+        "type": "object"
+      },
+      "VerificationVisitRead": {
+        "additionalProperties": false,
+        "description": "Verifier-self + admin-shared read shape.",
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationVisitAttachmentRead"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By User Id"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "disclosure": {
+            "$ref": "#/components/schemas/VisitDisclosure"
+          },
+          "disclosure_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disclosure Note"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "notes_for_admin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes For Admin"
+          },
+          "place_id": {
+            "format": "uuid",
+            "title": "Place Id",
+            "type": "string"
+          },
+          "public_review_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Review Url"
+          },
+          "status": {
+            "$ref": "#/components/schemas/VerificationVisitStatus"
+          },
+          "structured_findings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HalalQuestionnaireResponse-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "verifier_user_id": {
+            "format": "uuid",
+            "title": "Verifier User Id",
+            "type": "string"
+          },
+          "visited_at": {
+            "format": "date-time",
+            "title": "Visited At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "verifier_user_id",
+          "place_id",
+          "visited_at",
+          "structured_findings",
+          "notes_for_admin",
+          "public_review_url",
+          "disclosure",
+          "disclosure_note",
+          "status",
+          "decided_at",
+          "decided_by_user_id",
+          "decision_note",
+          "submitted_at",
+          "updated_at"
+        ],
+        "title": "VerificationVisitRead",
+        "type": "object"
+      },
+      "VerificationVisitStatus": {
+        "enum": [
+          "SUBMITTED",
+          "UNDER_REVIEW",
+          "ACCEPTED",
+          "REJECTED",
+          "WITHDRAWN"
+        ],
+        "title": "VerificationVisitStatus",
+        "type": "string"
+      },
+      "VerifierApplicationCreate": {
+        "additionalProperties": false,
+        "description": "Public ``POST /verifier-applications`` payload.",
+        "properties": {
+          "applicant_email": {
+            "format": "email",
+            "title": "Applicant Email",
+            "type": "string"
+          },
+          "applicant_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Applicant Name",
+            "type": "string"
+          },
+          "background": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Background"
+          },
+          "motivation": {
+            "maxLength": 2000,
+            "minLength": 20,
+            "title": "Motivation",
+            "type": "string"
+          },
+          "social_links": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free-form social handles. Suggested keys: instagram, tiktok, youtube, website. Frontends should validate the handle shapes; backend just stores.",
+            "title": "Social Links"
+          }
+        },
+        "required": [
+          "applicant_email",
+          "applicant_name",
+          "motivation"
+        ],
+        "title": "VerifierApplicationCreate",
+        "type": "object"
+      },
+      "VerifierApplicationDecision": {
+        "additionalProperties": false,
+        "description": "Admin payload for approving or rejecting an application.",
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/VerifierApplicationStatus",
+            "description": "Must be APPROVED or REJECTED. Other values rejected at validation."
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required on REJECTED so applicant gets context.",
+            "title": "Decision Note"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "VerifierApplicationDecision",
+        "type": "object"
+      },
+      "VerifierApplicationRead": {
+        "additionalProperties": false,
+        "description": "Read shape \u2014 admin sees this in the queue.",
+        "properties": {
+          "applicant_email": {
+            "title": "Applicant Email",
+            "type": "string"
+          },
+          "applicant_name": {
+            "title": "Applicant Name",
+            "type": "string"
+          },
+          "applicant_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applicant User Id"
+          },
+          "background": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Background"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By User Id"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "motivation": {
+            "title": "Motivation",
+            "type": "string"
+          },
+          "resulting_verifier_profile_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resulting Verifier Profile Id"
+          },
+          "social_links": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Social Links"
+          },
+          "status": {
+            "$ref": "#/components/schemas/VerifierApplicationStatus"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "applicant_user_id",
+          "applicant_email",
+          "applicant_name",
+          "motivation",
+          "background",
+          "social_links",
+          "status",
+          "decided_at",
+          "decided_by_user_id",
+          "decision_note",
+          "resulting_verifier_profile_id",
+          "submitted_at",
+          "updated_at"
+        ],
+        "title": "VerifierApplicationRead",
+        "type": "object"
+      },
+      "VerifierApplicationStatus": {
+        "enum": [
+          "PENDING",
+          "APPROVED",
+          "REJECTED",
+          "WITHDRAWN"
+        ],
+        "title": "VerifierApplicationStatus",
+        "type": "string"
+      },
+      "VisitDisclosure": {
+        "description": "Was the verifier compensated or comped for this visit?\n\nInfluencer angle: a verifier may also be a food creator who\nreceives free meals or partnerships. We don't bar comped visits,\nbut they MUST be disclosed so admin can weigh accordingly.",
+        "enum": [
+          "SELF_FUNDED",
+          "MEAL_COMPED",
+          "PAID_PARTNERSHIP",
+          "OTHER_DISCLOSURE"
+        ],
+        "title": "VisitDisclosure",
+        "type": "string"
+      },
       "_AdminAttachmentSignedUrl": {
-        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
+        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -5057,8 +6441,8 @@
         "title": "_AdminAttachmentSignedUrl",
         "type": "object"
       },
-      "app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl": {
-        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
+      "app__modules__admin__organizations__router___AdminAttachmentSignedUrl": {
+        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -6991,7 +8375,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/app__modules__admin__organizations__router___AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -7850,7 +9234,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -10248,6 +11632,827 @@
         ]
       }
     },
+    "/admin/verification-visits": {
+      "get": {
+        "description": "Newest-first queue. Optional filters by status, place_id, and verifier_user_id. Pagination 1\u2013100. Admin UI typically defaults to ?status=SUBMITTED.",
+        "operationId": "admin_list_verification_visits_admin_verification_visits_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/VerificationVisitStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "place_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Place Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "verifier_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Verifier User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VerificationVisitRead"
+                  },
+                  "title": "Response Admin List Verification Visits Admin Verification Visits Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List verification visits",
+        "tags": [
+          "admin: verifiers"
+        ]
+      }
+    },
+    "/admin/verification-visits/{visit_id}": {
+      "get": {
+        "operationId": "admin_get_verification_visit_admin_verification_visits__visit_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationVisitRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get a verification visit",
+        "tags": [
+          "admin: verifiers"
+        ]
+      }
+    },
+    "/admin/verification-visits/{visit_id}/attachments": {
+      "get": {
+        "operationId": "admin_list_visit_attachments_admin_verification_visits__visit_id__attachments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Admin List Visit Attachments Admin Verification Visits  Visit Id  Attachments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List attachment metadata for a visit",
+        "tags": [
+          "admin: verifiers"
+        ]
+      }
+    },
+    "/admin/verification-visits/{visit_id}/attachments/{attachment_id}/url": {
+      "get": {
+        "description": "Returns a signed URL valid for 60 seconds. The admin UI fetches it on hover/click rather than embedding so we don't have a stable pre-rendered link to leak.",
+        "operationId": "admin_visit_attachment_signed_url_admin_verification_visits__visit_id__attachments__attachment_id__url_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Admin Visit Attachment Signed Url Admin Verification Visits  Visit Id  Attachments  Attachment Id  Url Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mint a short-lived signed URL for an attachment",
+        "tags": [
+          "admin: verifiers"
+        ]
+      }
+    },
+    "/admin/verification-visits/{visit_id}/decide": {
+      "post": {
+        "description": "Apply an admin decision. ACCEPTED promotes the place's halal_profile.validation_tier to TRUST_HALAL_VERIFIED (when a profile exists; otherwise 409 VERIFICATION_VISIT_NO_PROFILE) and refreshes last_verified_at to the visit's visited_at. REJECTED requires a decision_note for the verifier's context. Re-deciding a terminal row returns 409.\n\nFailure modes:\n  * 404 \u2014 visit not found.\n  * 409 ``VERIFICATION_VISIT_NOT_DECIDABLE`` \u2014 already decided / withdrawn.\n  * 409 ``VERIFICATION_VISIT_REJECT_NOTE_REQUIRED`` \u2014 missing decision_note on REJECTED.\n  * 409 ``VERIFICATION_VISIT_NO_PROFILE`` \u2014 ACCEPTED with no halal profile to elevate.",
+        "operationId": "admin_decide_verification_visit_admin_verification_visits__visit_id__decide_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationVisitDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationVisitRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept or reject a verification visit",
+        "tags": [
+          "admin: verifiers"
+        ]
+      }
+    },
+    "/admin/verification-visits/{visit_id}/under-review": {
+      "post": {
+        "description": "Soft-claim a visit so other admins know it's being looked at. Idempotent against already-UNDER_REVIEW. The verifier loses the right to withdraw at this point.",
+        "operationId": "admin_mark_visit_under_review_admin_verification_visits__visit_id__under_review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationVisitRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark a SUBMITTED visit UNDER_REVIEW",
+        "tags": [
+          "admin: verifiers"
+        ]
+      }
+    },
+    "/admin/verifier-applications": {
+      "get": {
+        "description": "Newest-first queue. Filter by status (default none = all). Pagination capped at 100. Admin UI typically defaults to ?status=PENDING to focus on actionable rows.",
+        "operationId": "admin_list_verifier_applications_admin_verifier_applications_get",
+        "parameters": [
+          {
+            "description": "Filter by application status. Omit for all statuses.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/VerifierApplicationStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by application status. Omit for all statuses.",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VerifierApplicationRead"
+                  },
+                  "title": "Response Admin List Verifier Applications Admin Verifier Applications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List verifier applications",
+        "tags": [
+          "admin: verifiers"
+        ]
+      }
+    },
+    "/admin/verifier-applications/{application_id}": {
+      "get": {
+        "description": "Single-row detail. 404 on unknown id.",
+        "operationId": "admin_get_verifier_application_admin_verifier_applications__application_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Application Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifierApplicationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get a verifier application",
+        "tags": [
+          "admin: verifiers"
+        ]
+      }
+    },
+    "/admin/verifier-applications/{application_id}/decide": {
+      "post": {
+        "description": "Apply an admin decision. ``decision`` must be APPROVED or REJECTED \u2014 WITHDRAWN is applicant-driven, PENDING is the starting state. Approval flips the linked user's role to VERIFIER and creates their VerifierProfile. Rejection requires a ``decision_note`` so the applicant gets context.\n\nFailure modes:\n  * 404 \u2014 application not found.\n  * 409 ``VERIFIER_APPLICATION_NOT_DECIDABLE`` \u2014 already decided / withdrawn.\n  * 409 ``VERIFIER_APPLICATION_REJECT_NOTE_REQUIRED`` \u2014 missing decision_note on a REJECTED decision.\n  * 409 ``VERIFIER_APPLICATION_USER_MISSING`` \u2014 no Trust Halal user matches the applicant; ask them to sign up first.\n  * 409 ``VERIFIER_APPLICATION_USER_WRONG_ROLE`` \u2014 user has role OWNER/ADMIN; promotion only flows from CONSUMER.",
+        "operationId": "admin_decide_verifier_application_admin_verifier_applications__application_id__decide_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Application Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifierApplicationDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifierApplicationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve or reject a verifier application",
+        "tags": [
+          "admin: verifiers"
+        ]
+      }
+    },
     "/auth/invite/{token}": {
       "get": {
         "description": "Pre-fetched by the admin panel's set-password page so the form can render 'Set your password for foo@example.com' before the user submits. Does NOT consume the token \u2014 that happens in `POST /auth/set-password`. Invalid / expired / already-used tokens all collapse to a single generic `INVITE_INVALID` to avoid token-state oracling.",
@@ -12549,6 +14754,814 @@
         ]
       }
     },
+    "/me/preferences": {
+      "get": {
+        "description": "Returns an all-null payload when the user hasn't saved any preferences yet \u2014 the frontend renders the same form in both states. ``updated_at`` is null in the empty case.",
+        "operationId": "get_my_preferences_me_preferences_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerPreferencesRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get the caller's saved consumer search preferences",
+        "tags": [
+          "consumer-preferences"
+        ]
+      },
+      "put": {
+        "description": "Full-replace upsert. Any field omitted from the payload is reset to ``null`` (\"no preference\"). Sending ``{}`` is the canonical 'reset everything' operation.",
+        "operationId": "put_my_preferences_me_preferences_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsumerPreferencesUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerPreferencesRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace the caller's consumer search preferences",
+        "tags": [
+          "consumer-preferences"
+        ]
+      }
+    },
+    "/me/verification-visits": {
+      "get": {
+        "description": "Newest-first, optional status filter. Pagination capped at 100. Includes WITHDRAWN rows \u2014 verifiers should be able to see their full history.",
+        "operationId": "list_my_verification_visits_me_verification_visits_get",
+        "parameters": [
+          {
+            "description": "Filter by status. Omit for all statuses.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/VerificationVisitStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status. Omit for all statuses.",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VerificationVisitRead"
+                  },
+                  "title": "Response List My Verification Visits Me Verification Visits Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List the verifier's own visits",
+        "tags": [
+          "verifier-visits"
+        ]
+      },
+      "post": {
+        "description": "Verifier files a site-visit record. The structured findings shape mirrors the owner's halal-claim questionnaire so admin review can diff them. Status starts as SUBMITTED; admin moves it from there. Rate-limited 30/hour per verifier \u2014 high-throughput shouldn't be a thing here.",
+        "operationId": "submit_verification_visit_me_verification_visits_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationVisitCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationVisitRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit a verification visit",
+        "tags": [
+          "verifier-visits"
+        ]
+      }
+    },
+    "/me/verification-visits/{visit_id}": {
+      "get": {
+        "description": "Read with ownership check \u2014 404 (not 403) on visits filed by another verifier so we don't leak existence.",
+        "operationId": "get_my_verification_visit_me_verification_visits__visit_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationVisitRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get one of the verifier's visits",
+        "tags": [
+          "verifier-visits"
+        ]
+      }
+    },
+    "/me/verification-visits/{visit_id}/attachments": {
+      "post": {
+        "description": "Multipart upload. Allowed only while the visit is SUBMITTED \u2014 once admin starts reviewing, the evidence set is frozen. MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF), 10 MB per file, 10 files per visit. Storage key is `verification_visits/{visit_id}/{uuid}.{ext}`.",
+        "operationId": "upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationVisitAttachmentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload evidence to a verification visit",
+        "tags": [
+          "verifier-visits"
+        ]
+      }
+    },
+    "/me/verification-visits/{visit_id}/withdraw": {
+      "post": {
+        "description": "Pull a SUBMITTED visit before admin acts on it. Idempotent against already-WITHDRAWN. Returns 409 once admin moved the visit to UNDER_REVIEW or beyond \u2014 at that point the decision channel is the only path forward.",
+        "operationId": "withdraw_my_verification_visit_me_verification_visits__visit_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationVisitRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw a SUBMITTED visit",
+        "tags": [
+          "verifier-visits"
+        ]
+      }
+    },
+    "/me/verifier-applications": {
+      "get": {
+        "description": "Newest-first, includes every status \u2014 PENDING, APPROVED, REJECTED, WITHDRAWN \u2014 so the applicant can read their full history. Pagination capped at 50; realistic applicants will have a single-digit count of rows.",
+        "operationId": "list_my_verifier_applications_me_verifier_applications_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "exclusiveMinimum": 0,
+              "maximum": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VerifierApplicationRead"
+                  },
+                  "title": "Response List My Verifier Applications Me Verifier Applications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List the applicant's own verifier applications",
+        "tags": [
+          "verifier-applications"
+        ]
+      }
+    },
+    "/me/verifier-applications/{application_id}": {
+      "get": {
+        "description": "Applicant-self read. 404 on unknown id and on rows owned by a different user \u2014 same posture as the rest of the /me/* surface, no existence-leak.",
+        "operationId": "get_my_verifier_application_me_verifier_applications__application_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Application Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifierApplicationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get one of the applicant's verifier applications",
+        "tags": [
+          "verifier-applications"
+        ]
+      }
+    },
+    "/me/verifier-applications/{application_id}/withdraw": {
+      "post": {
+        "description": "Pull a PENDING application before admin acts on it. Idempotent against already-WITHDRAWN. Returns 409 once admin has APPROVED or REJECTED \u2014 the decision is final on the applicant side.",
+        "operationId": "withdraw_my_verifier_application_me_verifier_applications__application_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Application Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifierApplicationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw a pending verifier application",
+        "tags": [
+          "verifier-applications"
+        ]
+      }
+    },
     "/ownership-requests/{request_id}": {
       "get": {
         "description": "Returns just the status fields \u2014 used by the public 'check the status of my submission' page. The richer detail view (message, attachments) lives at `/ownership-requests/{id}/detail` and is access-gated.",
@@ -13341,6 +16354,82 @@
         "summary": "Public ownership claim submission (anonymous OK)",
         "tags": [
           "ownership-requests"
+        ]
+      }
+    },
+    "/verifier-applications": {
+      "post": {
+        "description": "Open a verifier application. Anonymous-OK: applicants may submit before creating an account, so the form captures applicant_email + applicant_name independently of any session. When a session is present, the applicant's user_id is recorded for admin context. Rate-limited (5/hour per user-or-IP) to keep noise out of the admin queue.",
+        "operationId": "submit_verifier_application_verifier_applications_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifierApplicationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifierApplicationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit a verifier application",
+        "tags": [
+          "verifier-applications"
         ]
       }
     }
