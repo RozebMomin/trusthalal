@@ -3829,6 +3829,7 @@ export interface components {
             city?: string | null;
             /** Country Code */
             country_code?: string | null;
+            halal_profile?: components["schemas"]["HalalProfileEmbed"] | null;
             /**
              * Id
              * Format: uuid
@@ -4154,11 +4155,11 @@ export interface components {
         ValidationTier: "SELF_ATTESTED" | "CERTIFICATE_ON_FILE" | "TRUST_HALAL_VERIFIED";
         /**
          * _AdminAttachmentSignedUrl
-         * @description Response shape for the signed-URL endpoint.
+         * @description Response shape for the org-attachment signed-URL endpoint.
          *
-         *     Plain object instead of returning a redirect so the client can
-         *     decide whether to open the URL in a new tab, download with a
-         *     given filename, render an inline preview, etc.
+         *     Same shape as the claim-attachment variant: URL + filename +
+         *     MIME so the client can label the download or render an inline
+         *     preview without a second fetch.
          */
         _AdminAttachmentSignedUrl: {
             /** Content Type */
@@ -4172,13 +4173,13 @@ export interface components {
         };
         /**
          * _AdminAttachmentSignedUrl
-         * @description Response shape for the org-attachment signed-URL endpoint.
+         * @description Response shape for the signed-URL endpoint.
          *
-         *     Same shape as the claim-attachment variant: URL + filename +
-         *     MIME so the client can label the download or render an inline
-         *     preview without a second fetch.
+         *     Plain object instead of returning a redirect so the client can
+         *     decide whether to open the URL in a new tab, download with a
+         *     given filename, render an inline preview, etc.
          */
-        app__modules__admin__organizations__router___AdminAttachmentSignedUrl: {
+        app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl: {
             /** Content Type */
             content_type: string;
             /** Expires In Seconds */
@@ -4982,7 +4983,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__modules__admin__organizations__router___AdminAttachmentSignedUrl"];
+                    "application/json": components["schemas"]["_AdminAttachmentSignedUrl"];
                 };
             };
             /** @description Validation Error */
@@ -5354,7 +5355,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["_AdminAttachmentSignedUrl"];
+                    "application/json": components["schemas"]["app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"];
                 };
             };
             /** @description Validation Error */

@@ -4484,6 +4484,16 @@
             ],
             "title": "Country Code"
           },
+          "halal_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HalalProfileEmbed"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -5019,7 +5029,7 @@
         "type": "string"
       },
       "_AdminAttachmentSignedUrl": {
-        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
+        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -5047,8 +5057,8 @@
         "title": "_AdminAttachmentSignedUrl",
         "type": "object"
       },
-      "app__modules__admin__organizations__router___AdminAttachmentSignedUrl": {
-        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
+      "app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl": {
+        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -6981,7 +6991,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__modules__admin__organizations__router___AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -7840,7 +7850,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"
                 }
               }
             },
