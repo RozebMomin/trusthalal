@@ -28,6 +28,11 @@ export default function NewMyOrganizationPage() {
 
   const [name, setName] = React.useState("");
   const [contactEmail, setContactEmail] = React.useState("");
+  const [address, setAddress] = React.useState("");
+  const [city, setCity] = React.useState("");
+  const [region, setRegion] = React.useState("");
+  const [countryCode, setCountryCode] = React.useState("");
+  const [postalCode, setPostalCode] = React.useState("");
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   const trimmedName = name.trim();
@@ -38,10 +43,24 @@ export default function NewMyOrganizationPage() {
     if (formInvalid) return;
     setErrorMsg(null);
 
+    // Country code arrives as a 2-char string from the input; we
+    // upper-case client-side too so a "us" entry doesn't trip the
+    // server's ISO-3166-1 normalization.
+    const trimmedCountry = countryCode.trim().toUpperCase();
+    if (trimmedCountry && trimmedCountry.length !== 2) {
+      setErrorMsg("Country code must be exactly 2 letters (e.g. US).");
+      return;
+    }
+
     try {
       const created = await create.mutateAsync({
         name: trimmedName,
         contact_email: contactEmail.trim() || null,
+        address: address.trim() || null,
+        city: city.trim() || null,
+        region: region.trim() || null,
+        country_code: trimmedCountry || null,
+        postal_code: postalCode.trim() || null,
       });
       router.push(`/my-organizations/${created.id}`);
     } catch (err) {
@@ -116,6 +135,97 @@ export default function NewMyOrganizationPage() {
             questions about this organization specifically.
           </p>
         </div>
+
+        {/* Address block — all fields optional. We collect them so
+            admin staff can tell same-name LLCs in different states
+            apart. The fields render expanded by default rather than
+            behind a collapsible because filling them in materially
+            speeds up the verification review. */}
+        <fieldset className="space-y-4 rounded-md border bg-muted/20 p-4">
+          <legend className="-ml-1 px-1 text-sm font-semibold">
+            Address{" "}
+            <span className="text-xs font-normal text-muted-foreground">
+              (optional, but speeds up review)
+            </span>
+          </legend>
+          <p className="text-xs text-muted-foreground">
+            Helps Trust Halal disambiguate from other entities with
+            similar names — especially for chains or regional
+            franchisees operating across states.
+          </p>
+
+          <div className="space-y-2">
+            <Label htmlFor="org-address">Street address</Label>
+            <Input
+              id="org-address"
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              disabled={create.isPending}
+              maxLength={500}
+              placeholder="123 Main St, Suite 200"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="org-city">City</Label>
+              <Input
+                id="org-city"
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                disabled={create.isPending}
+                maxLength={120}
+                placeholder="Detroit"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="org-region">State / region</Label>
+              <Input
+                id="org-region"
+                type="text"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                disabled={create.isPending}
+                maxLength={120}
+                placeholder="MI"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="org-postal">Postal code</Label>
+              <Input
+                id="org-postal"
+                type="text"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                disabled={create.isPending}
+                maxLength={20}
+                placeholder="48201"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="org-country">
+                Country (2-letter code)
+              </Label>
+              <Input
+                id="org-country"
+                type="text"
+                value={countryCode}
+                onChange={(e) =>
+                  setCountryCode(e.target.value.toUpperCase())
+                }
+                disabled={create.isPending}
+                maxLength={2}
+                minLength={countryCode.length > 0 ? 2 : 0}
+                placeholder="US"
+              />
+            </div>
+          </div>
+        </fieldset>
 
         {errorMsg && (
           <p

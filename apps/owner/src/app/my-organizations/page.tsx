@@ -23,7 +23,41 @@ import {
 
 export default function MyOrganizationsPage() {
   const { data, isLoading, isError } = useMyOrganizations();
-  const orgs = data ?? [];
+  // Memoize so the ``orgs ?? []`` substitution doesn't allocate a
+  // fresh array literal on every render — the downstream useMemo
+  // for ``verifiedOrgs`` depends on a stable reference.
+  const orgs = React.useMemo(() => data ?? [], [data]);
+
+  // Default-filter to the VERIFIED bucket when the owner has any
+  // verified orgs — that's "the orgs you can actually file claims
+  // under." DRAFT / UNDER_REVIEW / REJECTED are still reachable
+  // via the toggle so the owner can pick up an in-flight submission
+  // or revisit a rejection. When the owner has no verified orgs we
+  // default to "All" instead so the page isn't empty out of the box.
+  const verifiedOrgs = React.useMemo(
+    () => orgs.filter((o) => o.status === "VERIFIED"),
+    [orgs],
+  );
+  const hasVerified = verifiedOrgs.length > 0;
+  const [showAll, setShowAll] = React.useState(false);
+
+  // Initial show-all flips to true when the user has zero verified
+  // orgs; flips back to false once at least one verified row lands.
+  // A ref keeps the latest "did the user click toggle?" state so we
+  // don't fight their explicit choice.
+  const userToggledRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!userToggledRef.current) {
+      setShowAll(!hasVerified);
+    }
+  }, [hasVerified]);
+
+  function onToggle(next: boolean) {
+    userToggledRef.current = true;
+    setShowAll(next);
+  }
+
+  const visibleOrgs = showAll ? orgs : verifiedOrgs;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -41,6 +75,33 @@ export default function MyOrganizationsPage() {
           <Button>Add organization</Button>
         </Link>
       </header>
+
+      {/* Filter chips. Hidden when the user has no orgs at all —
+          there's nothing to filter on a fresh account. */}
+      {!isLoading && !isError && orgs.length > 0 && hasVerified && (
+        <div className="flex items-center gap-2 border-b pb-3">
+          <Button
+            variant={showAll ? "ghost" : "default"}
+            size="sm"
+            onClick={() => onToggle(false)}
+          >
+            Verified
+            <span className="ml-1.5 rounded-full bg-foreground/10 px-1.5 text-[10px] font-medium">
+              {verifiedOrgs.length}
+            </span>
+          </Button>
+          <Button
+            variant={showAll ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onToggle(true)}
+          >
+            All
+            <span className="ml-1.5 rounded-full bg-foreground/10 px-1.5 text-[10px] font-medium">
+              {orgs.length}
+            </span>
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">
@@ -63,13 +124,30 @@ export default function MyOrganizationsPage() {
         </p>
       ) : orgs.length === 0 ? (
         <EmptyState />
+      ) : visibleOrgs.length === 0 ? (
+        <FilterEmptyState onShowAll={() => onToggle(true)} />
       ) : (
         <ul className="space-y-3">
-          {orgs.map((o) => (
+          {visibleOrgs.map((o) => (
             <OrgRow key={o.id} org={o} />
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function FilterEmptyState({ onShowAll }: { onShowAll: () => void }) {
+  return (
+    <div className="rounded-md border border-dashed bg-card px-6 py-8 text-center text-sm text-muted-foreground">
+      <p>No verified organizations yet.</p>
+      <button
+        type="button"
+        onClick={onShowAll}
+        className="mt-2 text-xs underline-offset-4 hover:underline"
+      >
+        Show all organizations
+      </button>
     </div>
   );
 }

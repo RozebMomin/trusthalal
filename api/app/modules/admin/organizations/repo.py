@@ -29,12 +29,32 @@ def admin_create_organization(db: Session, payload: OrganizationAdminCreate) -> 
     org = Organization(
         name=payload.name.strip(),
         contact_email=(str(payload.contact_email).lower() if payload.contact_email else None),
+        # Address pass-through. Same trim-and-collapse-empty posture
+        # as the owner-side repo, with country_code uppercased to
+        # match the ISO-3166-1 norm.
+        address=_clean_address_str(payload.address),
+        city=_clean_address_str(payload.city),
+        region=_clean_address_str(payload.region),
+        country_code=(
+            payload.country_code.upper() if payload.country_code else None
+        ),
+        postal_code=_clean_address_str(payload.postal_code),
         status=OrganizationStatus.VERIFIED.value,
     )
     db.add(org)
     db.commit()
     db.refresh(org)
     return org
+
+
+def _clean_address_str(value: str | None) -> str | None:
+    """Trim + collapse-empty for the org address columns. Mirrors
+    the owner-side ``_clean_str``; duplicated here to keep the two
+    repos independent of each other."""
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
 
 
 def admin_list_organizations(
@@ -162,6 +182,22 @@ def admin_patch_organization(
         new_email = str(raw).lower() if raw is not None else None
         if new_email != org.contact_email:
             org.contact_email = new_email
+            changed = True
+
+    # Address fields share a uniform null-vs-absent contract; loop
+    # so adding more later is one-line.
+    for column in ("address", "city", "region", "postal_code"):
+        if column in data:
+            new_val = _clean_address_str(data[column])
+            if new_val != getattr(org, column):
+                setattr(org, column, new_val)
+                changed = True
+
+    if "country_code" in data:
+        raw = data["country_code"]
+        new_country = raw.upper() if raw else None
+        if new_country != org.country_code:
+            org.country_code = new_country
             changed = True
 
     if not changed:

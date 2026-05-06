@@ -13,19 +13,39 @@ class OrganizationAdminCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     contact_email: EmailStr | None = None
 
+    # Address fields are optional on admin-create too — admin may
+    # provision a stub org from a phone call before the address is
+    # known. The owner can fill in via PATCH later.
+    address: str | None = Field(default=None, max_length=500)
+    city: str | None = Field(default=None, max_length=120)
+    region: str | None = Field(default=None, max_length=120)
+    country_code: str | None = Field(
+        default=None, min_length=2, max_length=2
+    )
+    postal_code: str | None = Field(default=None, max_length=20)
+
 
 class OrganizationAdminPatch(BaseModel):
     """Partial update for an organization.
 
     Omitted fields are left alone (not cleared). ``contact_email`` accepts
     either an EmailStr or explicit null — null means "remove the contact
-    email", absent means "don't touch".
+    email", absent means "don't touch". Same null-vs-absent semantics
+    on address fields.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
     contact_email: EmailStr | None = None
+
+    address: str | None = Field(default=None, max_length=500)
+    city: str | None = Field(default=None, max_length=120)
+    region: str | None = Field(default=None, max_length=120)
+    country_code: str | None = Field(
+        default=None, min_length=2, max_length=2
+    )
+    postal_code: str | None = Field(default=None, max_length=20)
 
 
 class OrganizationAdminRead(BaseModel):
@@ -34,6 +54,11 @@ class OrganizationAdminRead(BaseModel):
     id: UUID
     name: str
     contact_email: str | None
+    address: str | None = None
+    city: str | None = None
+    region: str | None = None
+    country_code: str | None = None
+    postal_code: str | None = None
     status: OrganizationStatus
     submitted_at: datetime | None = None
     decided_at: datetime | None = None
@@ -76,11 +101,21 @@ class OrganizationRejectAdmin(BaseModel):
 
 
 class OrganizationMemberAdminRead(BaseModel):
+    """One ``organization_members`` row for the admin org-detail view.
+
+    Embeds the linked user's ``display_name`` + ``email`` so the
+    admin members panel renders human labels instead of UUIDs. Both
+    nullable: a SET-NULL FK on the user side or a missing display
+    name shouldn't break the member row from appearing.
+    """
+
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     organization_id: UUID
     user_id: UUID
+    user_email: str | None = None
+    user_display_name: str | None = None
     role: str
     status: str
     created_at: datetime

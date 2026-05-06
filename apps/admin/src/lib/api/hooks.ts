@@ -29,12 +29,29 @@ export type OwnershipRequestEvidence =
 export type OwnershipRequestAdminCreate = 
 components["schemas"]["OwnershipRequestAdminCreate"];
 
+// Pending the next codegen pass, layer the org-polish fields onto the
+// generated shapes so the admin UI can reference them. Once
+// ``make export-openapi && npm run codegen`` runs, these intersections
+// become redundant but harmless — the generated types will already
+// carry the same fields.
+type _OrgAddressExtras = {
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country_code?: string | null;
+  postal_code?: string | null;
+};
+type _MemberUserExtras = {
+  user_email?: string | null;
+  user_display_name?: string | null;
+};
+
 export type OrganizationAdminRead =
-  components["schemas"]["OrganizationAdminRead"];
+  components["schemas"]["OrganizationAdminRead"] & _OrgAddressExtras;
 export type OrganizationDetailRead =
-  components["schemas"]["OrganizationDetailRead"];
+  components["schemas"]["OrganizationDetailRead"] & _OrgAddressExtras;
 export type OrganizationMemberAdminRead =
-  components["schemas"]["OrganizationMemberAdminRead"];
+  components["schemas"]["OrganizationMemberAdminRead"] & _MemberUserExtras;
 
 // Org create / patch / member-create types (OrganizationAdminCreate,
 // OrganizationAdminPatch, MemberAdminCreate) live in the generated

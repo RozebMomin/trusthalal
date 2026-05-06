@@ -63,13 +63,26 @@ export type MyOwnershipRequestOrgSummary = {
   status: OrganizationStatus;
 };
 
-/** GET /me/organizations row + most owner-facing org responses. */
+/** GET /me/organizations row + most owner-facing org responses.
+ *
+ * Address fields landed in the org-polish migration so admin staff
+ * can disambiguate same-name LLCs across states. ``decision_note``
+ * surfaces an admin's rejection reason on REJECTED so the owner
+ * sees WHY before they reapply.
+ */
 export type MyOrganizationRead = {
   id: string;
   name: string;
   contact_email: string | null;
+  address: string | null;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+  postal_code: string | null;
   status: OrganizationStatus;
   submitted_at: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
   created_at: string;
   updated_at: string;
   attachments: OrganizationAttachmentRead[];
@@ -78,11 +91,21 @@ export type MyOrganizationRead = {
 export type MyOrganizationCreate = {
   name: string;
   contact_email?: string | null;
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country_code?: string | null;
+  postal_code?: string | null;
 };
 
 export type MyOrganizationPatch = {
   name?: string;
   contact_email?: string | null;
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country_code?: string | null;
+  postal_code?: string | null;
 };
 
 /** Result row of GET /places?q=... — lightweight place fields. */
