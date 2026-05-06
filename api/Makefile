@@ -5,7 +5,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev test test-db seed seed-users export-openapi migrate
+.PHONY: help dev test test-db seed seed-users reset-db export-openapi migrate
 
 help:  ## Show available targets
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -39,6 +39,9 @@ seed:  ## Seed the dev database with the full fixture (idempotent)
 
 seed-users:  ## Seed only the dev users (admin + others) — empty catalog
 	poetry run python -m scripts.seed_dev --users-only
+
+reset-db:  ## Wipe app schema clean and seed a single admin user (local-only by default)
+	poetry run python -m scripts.reset_db
 
 migrate:  ## Apply alembic migrations to head
 	poetry run alembic upgrade head
