@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError
@@ -20,9 +20,9 @@ def create_ownership_request(
     requester_user_id: UUID | None,
     contact_name: str,
     contact_email: str,
-    contact_phone: str | None,
     message: str | None,
     organization_id: UUID | None = None,
+    skip_duplicate_check: bool = False,
 ) -> PlaceOwnershipRequest:
     """Persist a claim row.
 
@@ -32,21 +32,38 @@ def create_ownership_request(
     create-on-behalf path). New owner-portal callers always supply
     one — validation that the org belongs to the user lives in the
     /me/* handler, not here.
+
+    Duplicate-prevention scope is the **place**: if any active claim
+    (SUBMITTED / UNDER_REVIEW / NEEDS_EVIDENCE) exists for the place,
+    a new claim from anyone else is rejected with
+    ``OWNERSHIP_REQUEST_ALREADY_EXISTS``. This keeps the admin queue
+    free of competing duplicates — staff finishes the open one first,
+    and a second legitimate claimant can re-submit after the first
+    decision lands. The admin "create on behalf of someone" path
+    bypasses this guard via ``skip_duplicate_check=True`` so staff
+    can still record an inbound intake even while another claim is
+    in flight.
     """
     normalized_email = contact_email.strip().lower()
 
-    existing = db.execute(
-        select(PlaceOwnershipRequest.id)
-        .where(PlaceOwnershipRequest.place_id == place_id)
-        .where(func.lower(PlaceOwnershipRequest.contact_email) == normalized_email)
-        .where(PlaceOwnershipRequest.status.in_([s.value for s in ACTIVE_STATUSES]))
-    ).scalar_one_or_none()
+    if not skip_duplicate_check:
+        existing = db.execute(
+            select(PlaceOwnershipRequest.id)
+            .where(PlaceOwnershipRequest.place_id == place_id)
+            .where(
+                PlaceOwnershipRequest.status.in_(
+                    [s.value for s in ACTIVE_STATUSES]
+                )
+            )
+        ).scalar_one_or_none()
 
-    if existing:
-        raise ConflictError(
-            "OWNERSHIP_REQUEST_ALREADY_EXISTS",
-            "An active ownership request already exists for this place and email.",
-        )
+        if existing:
+            raise ConflictError(
+                "OWNERSHIP_REQUEST_ALREADY_EXISTS",
+                "An ownership claim is already pending review for this "
+                "place. Wait for the current claim to be decided before "
+                "submitting another.",
+            )
 
     req = PlaceOwnershipRequest(
         place_id=place_id,
@@ -54,7 +71,6 @@ def create_ownership_request(
         organization_id=organization_id,
         contact_name=contact_name.strip(),
         contact_email=normalized_email,
-        contact_phone=(contact_phone.strip() if contact_phone else None),
         message=(message.strip() if message else None),
     )
 

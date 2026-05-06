@@ -202,7 +202,6 @@ class Factories:
         organization: Organization | None = None,
         contact_name: str = "Jane Doe",
         contact_email: str | None = None,
-        contact_phone: str | None = "+1-555-0100",
         message: str | None = "I own this restaurant",
         status: OwnershipRequestStatus = OwnershipRequestStatus.SUBMITTED,
     ) -> PlaceOwnershipRequest:
@@ -215,7 +214,6 @@ class Factories:
             organization_id=(organization.id if organization else None),
             contact_name=contact_name,
             contact_email=contact_email or f"req-{_short()}@example.com",
-            contact_phone=contact_phone,
             message=message,
             status=status.value,
         )

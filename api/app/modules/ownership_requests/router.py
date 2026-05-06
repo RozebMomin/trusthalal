@@ -47,9 +47,10 @@ router = APIRouter(tags=["ownership-requests"])
     description=(
         "Public path used by the consumer site or any 'I own this "
         "restaurant, get me on your list' flow. Caller can be "
-        "unauthenticated — the contact_name + contact_email + "
-        "contact_phone come from the request body. Rejects with "
-        "`PLACE_NOT_FOUND` if the place is missing or hard-deleted. "
+        "unauthenticated — the contact_name + contact_email come from "
+        "the request body. Rejects with `PLACE_NOT_FOUND` if the place "
+        "is missing or hard-deleted, or `OWNERSHIP_REQUEST_ALREADY_EXISTS` "
+        "if any active claim is already pending review for the place. "
         "Owners signed into the portal should use `POST /me/ownership-"
         "requests` instead — that path enforces the org-sponsor "
         "requirement and ties claims back to their account."
@@ -72,7 +73,6 @@ def submit_ownership_request(
         requester_user_id=(user.id if user else None),
         contact_name=payload.contact_name,
         contact_email=str(payload.contact_email),
-        contact_phone=payload.contact_phone,
         message=payload.message,
     )
     return req
@@ -284,7 +284,6 @@ def submit_my_ownership_request(
         requester_user_id=user.id,
         contact_name=contact_name,
         contact_email=user_row.email,
-        contact_phone=payload.contact_phone,
         message=payload.message,
         organization_id=org.id,
     )

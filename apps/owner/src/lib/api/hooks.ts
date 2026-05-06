@@ -177,7 +177,6 @@ export type MyOwnershipRequestCreate = {
   place_id?: string;
   google_place_id?: string;
   message?: string | null;
-  contact_phone?: string | null;
 };
 
 /**

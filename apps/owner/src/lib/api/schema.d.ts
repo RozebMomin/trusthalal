@@ -2029,7 +2029,7 @@ export interface paths {
         put?: never;
         /**
          * Public ownership claim submission (anonymous OK)
-         * @description Public path used by the consumer site or any 'I own this restaurant, get me on your list' flow. Caller can be unauthenticated — the contact_name + contact_email + contact_phone come from the request body. Rejects with `PLACE_NOT_FOUND` if the place is missing or hard-deleted. Owners signed into the portal should use `POST /me/ownership-requests` instead — that path enforces the org-sponsor requirement and ties claims back to their account.
+         * @description Public path used by the consumer site or any 'I own this restaurant, get me on your list' flow. Caller can be unauthenticated — the contact_name + contact_email come from the request body. Rejects with `PLACE_NOT_FOUND` if the place is missing or hard-deleted, or `OWNERSHIP_REQUEST_ALREADY_EXISTS` if any active claim is already pending review for the place. Owners signed into the portal should use `POST /me/ownership-requests` instead — that path enforces the org-sponsor requirement and ties claims back to their account.
          */
         post: operations["submit_ownership_request_places__place_id__ownership_requests_post"];
         delete?: never;
@@ -3427,8 +3427,6 @@ export interface components {
          *     intentionally agnostic.
          */
         MyOwnershipRequestCreate: {
-            /** Contact Phone */
-            contact_phone?: string | null;
             /** Google Place Id */
             google_place_id?: string | null;
             /** Message */
@@ -3917,8 +3915,6 @@ export interface components {
             contact_email: string;
             /** Contact Name */
             contact_name: string;
-            /** Contact Phone */
-            contact_phone?: string | null;
             /** Message */
             message?: string | null;
             /**
@@ -3943,8 +3939,6 @@ export interface components {
             contact_email: string;
             /** Contact Name */
             contact_name: string;
-            /** Contact Phone */
-            contact_phone: string | null;
             /**
              * Created At
              * Format: date-time
@@ -4050,8 +4044,6 @@ export interface components {
             contact_email: string;
             /** Contact Name */
             contact_name: string;
-            /** Contact Phone */
-            contact_phone?: string | null;
             /** Message */
             message?: string | null;
         };
@@ -4064,8 +4056,6 @@ export interface components {
             contact_email: string;
             /** Contact Name */
             contact_name: string;
-            /** Contact Phone */
-            contact_phone: string | null;
             /**
              * Created At
              * Format: date-time
@@ -4104,8 +4094,6 @@ export interface components {
             contact_email: string;
             /** Contact Name */
             contact_name: string;
-            /** Contact Phone */
-            contact_phone: string | null;
             /**
              * Created At
              * Format: date-time

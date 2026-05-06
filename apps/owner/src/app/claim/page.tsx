@@ -211,16 +211,22 @@ export default function ClaimPage() {
         err instanceof ApiError &&
         err.code === "OWNERSHIP_REQUEST_ALREADY_EXISTS"
       ) {
+        // Per-place duplicate guard now: any pending claim on this
+        // place blocks new submissions, regardless of who filed it.
+        // Point the user at /my-claims so they can confirm whether
+        // it's theirs (most common case) before contacting support.
         setSubmitError(
           <span>
-            You already have a pending claim for this place. Check{" "}
+            An ownership claim is already pending review for this
+            place. Check{" "}
             <Link
               href="/my-claims"
               className="font-medium underline-offset-4 hover:underline"
             >
               your claims
             </Link>{" "}
-            for status.
+            to see if it&apos;s yours; if not, wait for the current
+            claim to be decided or contact support.
           </span>,
         );
         return;

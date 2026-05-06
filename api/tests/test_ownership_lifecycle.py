@@ -42,7 +42,6 @@ def test_anonymous_can_submit_ownership_request(api, factories, db_session):
         json={
             "contact_name": "Anon Claimant",
             "contact_email": "anon@example.com",
-            "contact_phone": "+1-555-0188",
             "message": "I just opened this spot last week",
         },
     )
@@ -88,34 +87,71 @@ def test_authenticated_submit_attaches_requester(api, factories, db_session):
     assert row.requester_user_id == consumer.id
 
 
-def test_duplicate_active_request_for_same_place_and_email_conflicts(
-    api, factories
-):
-    """A second open request from the same email against the same place
-    must 409 — we don't want duplicate queues for the same claimant."""
+def test_duplicate_active_request_blocks_anyone(api, factories):
+    """Per-place duplicate guard: while ANY active claim is pending
+    review on a place, a new claim from anyone (different email,
+    different requester) must 409. Keeps the admin queue free of
+    competing duplicates — staff finishes the open one first."""
     place = factories.place()
 
     first = api.as_anonymous().post(
         f"/places/{place.id}/ownership-requests",
         json={
-            "contact_name": "Dup User",
-            "contact_email": "dup@example.com",
+            "contact_name": "First Claimant",
+            "contact_email": "first@example.com",
             "message": "first submission",
         },
     )
     assert first.status_code == 201, first.text
 
+    # Different email + name — same place. Pre-polish-pass-v4 this
+    # would have been allowed; now it's blocked.
     second = api.as_anonymous().post(
         f"/places/{place.id}/ownership-requests",
         json={
-            "contact_name": "Dup User",
-            "contact_email": "dup@example.com",
-            "message": "second submission",
+            "contact_name": "Second Claimant",
+            "contact_email": "second@example.com",
+            "message": "second submission, different person",
         },
     )
 
     assert second.status_code == 409, second.text
     assert second.json()["error"]["code"] == "OWNERSHIP_REQUEST_ALREADY_EXISTS"
+
+
+def test_admin_create_bypasses_per_place_duplicate_guard(
+    api, factories, db_session
+):
+    """The admin "create on behalf of someone" path skips the
+    per-place duplicate guard so staff can record an inbound
+    phone-in / in-person intake even while another claim is in
+    flight. Audit trail prefers two parallel rows over a
+    phantom one that never got recorded."""
+    admin = factories.admin()
+    place = factories.place()
+
+    first = api.as_anonymous().post(
+        f"/places/{place.id}/ownership-requests",
+        json={
+            "contact_name": "Public Form Claimant",
+            "contact_email": "public@example.com",
+            "message": "submitted via the public form",
+        },
+    )
+    assert first.status_code == 201, first.text
+
+    # Admin records a phone-in intake against the same place — should
+    # succeed, not 409.
+    second = api.as_user(admin).post(
+        "/admin/ownership-requests",
+        json={
+            "place_id": str(place.id),
+            "contact_name": "Phone Intake Claimant",
+            "contact_email": "intake@example.com",
+            "message": "called in to claim, admin recorded",
+        },
+    )
+    assert second.status_code == 201, second.text
 
 
 # ---------------------------------------------------------------------------

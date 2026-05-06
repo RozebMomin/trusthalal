@@ -22,7 +22,6 @@ class OwnershipRequestAdminRead(BaseModel):
 
     contact_name: str
     contact_email: EmailStr
-    contact_phone: str | None
     message: str | None
 
     status: str
@@ -70,7 +69,6 @@ class OwnershipRequestAdminCreate(BaseModel):
 
     contact_name: str = Field(..., min_length=1, max_length=255)
     contact_email: EmailStr = Field(..., max_length=255)
-    contact_phone: str | None = Field(default=None, max_length=50)
     message: str | None = Field(default=None, max_length=2000)
 
 

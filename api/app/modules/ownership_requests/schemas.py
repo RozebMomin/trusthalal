@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 class OwnershipRequestCreate(BaseModel):
     contact_name: str = Field(..., min_length=1, max_length=255)
     contact_email: EmailStr = Field(..., max_length=255)
-    contact_phone: str | None = Field(default=None, max_length=50)
     message: str | None = Field(default=None, max_length=2000)
 
 
@@ -43,7 +42,6 @@ class MyOwnershipRequestCreate(BaseModel):
     place_id: UUID | None = None
     google_place_id: str | None = Field(default=None, min_length=1, max_length=512)
     message: str | None = Field(default=None, max_length=2000)
-    contact_phone: str | None = Field(default=None, max_length=50)
 
     @model_validator(mode="after")
     def _exactly_one_of_place_id_or_google_place_id(self) -> Self:
@@ -154,7 +152,6 @@ class OwnershipRequestRead(BaseModel):
     requester_user_id: UUID | None
     contact_name: str
     contact_email: str
-    contact_phone: str | None
     message: str | None
     status: str
     created_at: datetime
@@ -180,7 +177,6 @@ class OwnershipRequestDetailRead(BaseModel):
 
     contact_name: str
     contact_email: EmailStr
-    contact_phone: str | None
     message: str | None
 
     status: str

@@ -339,7 +339,6 @@ def upsert_ownership_request(
     contact_name: str,
     contact_email: str,
     message: str,
-    contact_phone: str | None = None,
     status: OwnershipRequestStatus = OwnershipRequestStatus.SUBMITTED,
 ) -> PlaceOwnershipRequest:
     norm_email = contact_email.strip().lower()
@@ -359,7 +358,6 @@ def upsert_ownership_request(
         requester_user_id=requester.id if requester else None,
         contact_name=contact_name,
         contact_email=norm_email,
-        contact_phone=contact_phone,
         message=message,
         status=status.value,
     )
@@ -471,7 +469,6 @@ def main(users_only: bool = False) -> None:
             requester=None,  # anonymous submission, exercises the null-requester branch
             contact_name="Hamza Hussain",
             contact_email="hamza.hussain@example.com",
-            contact_phone="+1 718 555 0144",
             message=(
                 "General manager at Shahi Tandoor. Happy to provide our "
                 "certificate from ISNA."
@@ -486,7 +483,6 @@ def main(users_only: bool = False) -> None:
             requester=users["owner@trusthalal.dev"],
             contact_name="Noor Khan",
             contact_email="noor.khan@example.com",
-            contact_phone="+1 347 555 0181",
             message="Owner of Crescent Moon Cafe since 2019.",
             status=OwnershipRequestStatus.UNDER_REVIEW,
         )

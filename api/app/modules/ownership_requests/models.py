@@ -44,7 +44,6 @@ class PlaceOwnershipRequest(Base):
 
     contact_name: Mapped[str] = mapped_column(String(255), nullable=False)
     contact_email: Mapped[str] = mapped_column(String(255), nullable=False)
-    contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
 

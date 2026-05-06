@@ -49,14 +49,17 @@ def admin_create_ownership_request(
         opening new ownership conversations on dead rows).
       * ``requester_user_id``, if supplied, points at a real user.
 
-    Then delegates to the existing public ``create_ownership_request``
-    so duplicate-prevention (active request for the same place+email)
-    and the commit shape stay in one place.
+    Then delegates to ``create_ownership_request`` for the actual
+    insert. The public path's per-place duplicate guard is
+    deliberately bypassed here: admins recording an inbound intake
+    (phone-call, in-person walk-in, forwarded email) need to be
+    able to do it even while another claim sits in the review queue,
+    and the audit trail prefers two parallel rows over a phantom one
+    that never got recorded.
 
     Raises:
         NotFoundError(PLACE_NOT_FOUND)  if the place is unknown/deleted.
         NotFoundError(USER_NOT_FOUND)   if requester_user_id is unknown.
-        ConflictError(OWNERSHIP_REQUEST_ALREADY_EXISTS) on duplicate.
     """
     place = get_place(db, payload.place_id)
     if not place:
@@ -81,8 +84,8 @@ def admin_create_ownership_request(
         requester_user_id=payload.requester_user_id,
         contact_name=payload.contact_name,
         contact_email=str(payload.contact_email),
-        contact_phone=payload.contact_phone,
         message=payload.message,
+        skip_duplicate_check=True,
     )
 
 

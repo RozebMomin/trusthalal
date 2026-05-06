@@ -82,11 +82,6 @@ export function RequestDetailDialog({ request, open, onOpenChange }: Props) {
               {request.contact_email}
             </a>
           </Field>
-          <Field label="Contact phone">
-            {request.contact_phone ?? (
-              <span className="text-muted-foreground">&mdash;</span>
-            )}
-          </Field>
           <Field label="Message">
             {request.message ? (
               <p className="whitespace-pre-wrap">{request.message}</p>

@@ -2807,18 +2807,6 @@
         "additionalProperties": false,
         "description": "POST /me/ownership-requests body.\n\nThe owner-portal-facing variant of OwnershipRequestCreate. Contact\nname + email are pulled from the authenticated user server-side, so\nthe wire shape collapses to \"which org is claiming what, and what\nshould we know?\". Phone is optional.\n\nExactly one of ``place_id`` (an existing Trust Halal place) and\n``google_place_id`` (a Google place we'll ingest first) must be\nprovided.\n\n``organization_id`` is required: every claim is filed by an\nOrganization, not by a bare individual. The server validates the\norg belongs to the caller and is at least UNDER_REVIEW (DRAFT\norgs can't sponsor claims \u2014 the owner needs to commit to having\nsubmitted org evidence first).\n\n``message`` is the catch-all freeform field admin staff sees in the\nreview queue. The owner portal UI gives users a friendlier surface\nover this \u2014 separate fields for \"anything we should know?\" and a\nURL for evidence \u2014 and concatenates them client-side. Server is\nintentionally agnostic.",
         "properties": {
-          "contact_phone": {
-            "anyOf": [
-              {
-                "maxLength": 50,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Phone"
-          },
           "google_place_id": {
             "anyOf": [
               {
@@ -3924,18 +3912,6 @@
             "title": "Contact Name",
             "type": "string"
           },
-          "contact_phone": {
-            "anyOf": [
-              {
-                "maxLength": 50,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Phone"
-          },
           "message": {
             "anyOf": [
               {
@@ -3992,17 +3968,6 @@
           "contact_name": {
             "title": "Contact Name",
             "type": "string"
-          },
-          "contact_phone": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Phone"
           },
           "created_at": {
             "format": "date-time",
@@ -4084,7 +4049,6 @@
           "organization_id",
           "contact_name",
           "contact_email",
-          "contact_phone",
           "message",
           "status",
           "created_at",
@@ -4193,18 +4157,6 @@
             "title": "Contact Name",
             "type": "string"
           },
-          "contact_phone": {
-            "anyOf": [
-              {
-                "maxLength": 50,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Phone"
-          },
           "message": {
             "anyOf": [
               {
@@ -4235,17 +4187,6 @@
           "contact_name": {
             "title": "Contact Name",
             "type": "string"
-          },
-          "contact_phone": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Phone"
           },
           "created_at": {
             "format": "date-time",
@@ -4301,7 +4242,6 @@
           "requester_user_id",
           "contact_name",
           "contact_email",
-          "contact_phone",
           "message",
           "status",
           "created_at",
@@ -4338,17 +4278,6 @@
             "title": "Contact Name",
             "type": "string"
           },
-          "contact_phone": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Phone"
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -4403,7 +4332,6 @@
           "requester_user_id",
           "contact_name",
           "contact_email",
-          "contact_phone",
           "message",
           "status",
           "created_at",
@@ -16361,7 +16289,7 @@
     },
     "/places/{place_id}/ownership-requests": {
       "post": {
-        "description": "Public path used by the consumer site or any 'I own this restaurant, get me on your list' flow. Caller can be unauthenticated \u2014 the contact_name + contact_email + contact_phone come from the request body. Rejects with `PLACE_NOT_FOUND` if the place is missing or hard-deleted. Owners signed into the portal should use `POST /me/ownership-requests` instead \u2014 that path enforces the org-sponsor requirement and ties claims back to their account.",
+        "description": "Public path used by the consumer site or any 'I own this restaurant, get me on your list' flow. Caller can be unauthenticated \u2014 the contact_name + contact_email come from the request body. Rejects with `PLACE_NOT_FOUND` if the place is missing or hard-deleted, or `OWNERSHIP_REQUEST_ALREADY_EXISTS` if any active claim is already pending review for the place. Owners signed into the portal should use `POST /me/ownership-requests` instead \u2014 that path enforces the org-sponsor requirement and ties claims back to their account.",
         "operationId": "submit_ownership_request_places__place_id__ownership_requests_post",
         "parameters": [
           {
