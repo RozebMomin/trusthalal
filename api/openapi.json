@@ -4636,7 +4636,7 @@
         "type": "string"
       },
       "_AdminAttachmentSignedUrl": {
-        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
+        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -4664,8 +4664,8 @@
         "title": "_AdminAttachmentSignedUrl",
         "type": "object"
       },
-      "app__modules__admin__organizations__router___AdminAttachmentSignedUrl": {
-        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
+      "app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl": {
+        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -4696,6 +4696,16 @@
     }
   },
   "info": {
+    "contact": {
+      "email": "support@trusthalal.org",
+      "name": "Trust Halal"
+    },
+    "description": "The backend service for the **Trust Halal** halal-restaurant verification\nplatform.\n\n## Surfaces\n\nThis API serves three frontends from a single origin:\n\n* **Owner portal** (`owner.trusthalal.org`) \u2014 restaurant owners sign\n  up, create an organization, claim places, file halal-trust\n  questionnaires, and upload supporting evidence. Endpoints under\n  `/auth/*`, `/me/*`, and the public `/places/*` read paths.\n* **Admin panel** (`admin.trusthalal.org`) \u2014 Trust Halal staff\n  verify orgs, decide ownership requests, and review halal claims.\n  Endpoints under `/admin/*`.\n* **Consumer site** (planned) \u2014 public directory of verified halal\n  restaurants. Reads `/places/*` plus the embedded halal profile.\n\n## Authentication\n\nSingle-cookie session auth. `POST /auth/login` (or `/auth/signup`)\nsets an HttpOnly `tht_session` cookie scoped to the API origin; every\nsubsequent request carries it via `credentials: \"include\"` from the\nbrowser. There's no public bearer token API today \u2014 every endpoint\nthat requires auth reads the session cookie.\n\n## Error envelope\n\nEvery 4xx / 5xx response uses the same shape:\n\n```json\n{\n  \"error\": {\n    \"code\": \"DOMAIN_CODE\",\n    \"message\": \"Human-readable summary\",\n    \"detail\": <optional structured payload>\n  }\n}\n```\n\n`error.code` is stable and machine-parseable \u2014 frontends branch on\nthat rather than parsing the message text. Generic HTTP errors (401,\n403, 404, etc.) get a synthesized code like `UNAUTHORIZED`,\n`FORBIDDEN`, `NOT_FOUND`. Domain errors carry a SCREAMING_SNAKE_CASE\ncode from the route (e.g. `EMAIL_TAKEN`, `OWNERSHIP_REQUEST_NOT_FOUND`).\n\n## Rate limits\n\nPublic + sensitive endpoints are rate-limited. Limits return 429 with\nthe same envelope and `code: RATE_LIMITED`. See\n`docs/observability-and-rate-limits.md` for the current limits table.\n\n## Request correlation\n\nEvery response includes an `X-Request-ID` header. The same id rides\ninto Sentry as a tag so a single request can be traced across browser\nand server in the issues UI.\n\n## Versioning\n\nThis API doesn't have a versioned URL prefix yet (e.g. `/v1/`).\nBreaking changes are coordinated with the frontends in the same\ndeploy. Watch the version stamp in the OpenAPI metadata for cuts.\n",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "summary": "Backend for the Trust Halal halal-restaurant verification platform.",
     "title": "TrustHalal API",
     "version": "0.1.0"
   },
@@ -4703,6 +4713,7 @@
   "paths": {
     "/": {
       "get": {
+        "description": "Lightweight identity ping. Returns the service name, current env (local / staging / prod), and a static 'running' status. Useful for sanity-checking that DNS and the load balancer are pointing at the right deploy.",
         "operationId": "root__get",
         "responses": {
           "200": {
@@ -4714,12 +4725,15 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Root"
+        "summary": "Service banner",
+        "tags": [
+          "health"
+        ]
       }
     },
     "/admin/halal-claims": {
       "get": {
-        "description": "Halal-claim review queue.\n\nThe default admin view passes ``?status=PENDING_REVIEW`` for the\nwork queue. Status omitted returns every claim (useful for\nauditing rejected/expired/superseded history). place_id and\norganization_id let admin scope the queue when investigating a\nspecific surface.",
+        "description": "Newest-first list of claims with optional `status` / `place_id` / `organization_id` filters. The admin queue page lands here with `status=PENDING_REVIEW`; the place detail page hits it with `place_id={id}` to render the per-place claims summary.",
         "operationId": "list_claims_admin_admin_halal_claims_get",
         "parameters": [
           {
@@ -4854,7 +4868,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Claims Admin",
+        "summary": "Halal-claim review queue",
         "tags": [
           "admin: halal-claims"
         ]
@@ -4862,7 +4876,7 @@
     },
     "/admin/halal-claims/{claim_id}": {
       "get": {
-        "description": "Single-claim detail. 404 on unknown id.",
+        "description": "Admin shape \u2014 includes `submitted_by_user_id`, `decided_by_user_id`, `internal_notes`, and `triggered_by_dispute_id` on top of the owner-side fields.",
         "operationId": "get_claim_admin_admin_halal_claims__claim_id__get",
         "parameters": [
           {
@@ -4930,7 +4944,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Claim Admin",
+        "summary": "Single halal-claim detail (admin view)",
         "tags": [
           "admin: halal-claims"
         ]
@@ -4938,7 +4952,7 @@
     },
     "/admin/halal-claims/{claim_id}/approve": {
       "post": {
-        "description": "Approve a PENDING_REVIEW or NEEDS_MORE_INFO claim.\n\nTriggers the profile-derivation service: creates or updates the\nplace's HalalProfile, marks any prior source_claim as\nSUPERSEDED, writes a CREATED or UPDATED HalalProfileEvent. The\ntransaction is atomic \u2014 all of it lands or none of it.\n\nAdmin assigns ``validation_tier`` here (SELF_ATTESTED /\nCERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional\n``expires_at_override`` overrides the default 12-month TTL.",
+        "description": "Approves a PENDING_REVIEW or NEEDS_MORE_INFO claim. Runs the profile-derivation service in the same transaction: creates or updates the place's `HalalProfile`, marks any prior source claim as SUPERSEDED, and writes `HalalClaimEvent` (APPROVED) + `HalalProfileEvent` (CREATED or UPDATED) audit rows. Admin assigns the `validation_tier` (SELF_ATTESTED / CERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional `expires_at_override` tweaks the default 12-month expiry.",
         "operationId": "approve_claim_admin_admin_halal_claims__claim_id__approve_post",
         "parameters": [
           {
@@ -5016,7 +5030,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Approve Claim Admin",
+        "summary": "Approve a halal claim",
         "tags": [
           "admin: halal-claims"
         ]
@@ -5024,7 +5038,7 @@
     },
     "/admin/halal-claims/{claim_id}/attachments": {
       "get": {
-        "description": "List metadata for the claim's evidence files.",
+        "description": "Bytes are not returned here \u2014 frontends call the signed-URL endpoint per attachment when admin clicks View.",
         "operationId": "list_claim_attachments_admin_admin_halal_claims__claim_id__attachments_get",
         "parameters": [
           {
@@ -5096,7 +5110,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Claim Attachments Admin",
+        "summary": "List evidence-file metadata on a claim",
         "tags": [
           "admin: halal-claims"
         ]
@@ -5104,7 +5118,7 @@
     },
     "/admin/halal-claims/{claim_id}/attachments/{attachment_id}/url": {
       "get": {
-        "description": "Mint a short-lived signed URL for one attachment.\n\nAsserts the attachment belongs to the claim before signing \u2014\nguards against guessed UUIDs surfacing files for an unrelated\nclaim. TTL is 60 seconds, same as the org / ownership-request\nsigned-URL endpoints.",
+        "description": "Asserts the attachment belongs to the claim before signing \u2014 guards against guessed UUIDs leaking unrelated files. TTL is 60 seconds, matching the org and ownership-request signed-URL endpoints.",
         "operationId": "signed_url_for_attachment_admin_admin_halal_claims__claim_id__attachments__attachment_id__url_get",
         "parameters": [
           {
@@ -5182,7 +5196,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Signed Url For Attachment Admin",
+        "summary": "Mint a short-lived signed URL for one attachment",
         "tags": [
           "admin: halal-claims"
         ]
@@ -5190,7 +5204,7 @@
     },
     "/admin/halal-claims/{claim_id}/events": {
       "get": {
-        "description": "Per-claim audit timeline (admin view).\n\nSame shape the owner sees on their portal, with no ownership\ngate \u2014 admin can read any claim's events. Powers the 'Activity'\nsection on the admin claim detail page so reviewers can see the\nfull lifecycle (when the owner drafted, when they submitted,\nevery prior decision, supersession from a newer approval, etc.).",
+        "description": "Same shape the owner sees on their portal, with no ownership gate \u2014 admin can read any claim's events. Captures the full lifecycle: drafts, submits, attachment uploads, every prior decision, and supersession from a newer approval.",
         "operationId": "list_claim_events_admin_admin_halal_claims__claim_id__events_get",
         "parameters": [
           {
@@ -5262,7 +5276,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Claim Events Admin",
+        "summary": "Audit timeline for a claim (admin view)",
         "tags": [
           "admin: halal-claims"
         ]
@@ -5270,7 +5284,7 @@
     },
     "/admin/halal-claims/{claim_id}/reject": {
       "post": {
-        "description": "Reject a PENDING_REVIEW or NEEDS_MORE_INFO claim.\n\ndecision_note is required and surfaces verbatim to the owner.\nDoes NOT touch the place's HalalProfile \u2014 a rejection is the\nabsence of a new profile, not a removal of an existing one.",
+        "description": "Closes a PENDING_REVIEW or NEEDS_MORE_INFO claim with a required `decision_note` (min 3 chars) that the owner sees verbatim. Does NOT touch the place's `HalalProfile` \u2014 rejection is the absence of a new approval, not removal of an existing one. Use `revoke` to pull a live profile.",
         "operationId": "reject_claim_admin_admin_halal_claims__claim_id__reject_post",
         "parameters": [
           {
@@ -5348,7 +5362,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Reject Claim Admin",
+        "summary": "Reject a halal claim",
         "tags": [
           "admin: halal-claims"
         ]
@@ -5356,7 +5370,7 @@
     },
     "/admin/halal-claims/{claim_id}/request-info": {
       "post": {
-        "description": "Move a claim to NEEDS_MORE_INFO with a message to the owner.\n\ndecision_note is shown to the owner verbatim \u2014 admin uses it to\nspecify what additional evidence is needed. Owner can then\nupload more attachments (the /me/halal-claims status guard\npermits uploads in NEEDS_MORE_INFO) and re-submit.",
+        "description": "Moves the claim to NEEDS_MORE_INFO with a required `decision_note` shown verbatim to the owner \u2014 admin uses it to specify what's missing (e.g. 'please upload current IFANCA cert'). Re-opens the owner's attachment-upload + re-submit path. Re-requesting info on a claim already in NEEDS_MORE_INFO is allowed (lets admin update the message).",
         "operationId": "request_info_claim_admin_admin_halal_claims__claim_id__request_info_post",
         "parameters": [
           {
@@ -5434,7 +5448,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Request Info Claim Admin",
+        "summary": "Request more info from the owner",
         "tags": [
           "admin: halal-claims"
         ]
@@ -5442,7 +5456,7 @@
     },
     "/admin/halal-claims/{claim_id}/revoke": {
       "post": {
-        "description": "Pull a previously APPROVED claim.\n\nMarks the linked HalalProfile as revoked_at=now and writes a\nREVOKED HalalProfileEvent. Used for fraud discovery, restaurant\nclosure, or other admin-driven takedowns. Idempotent on already-\nREVOKED claims.",
+        "description": "Pulls a live claim. Marks the linked `HalalProfile` `revoked_at=now` and writes a REVOKED `HalalProfileEvent`. Used for fraud discovery, restaurant closure, or recertification windows that lapsed without renewal. Idempotent on already-REVOKED claims.",
         "operationId": "revoke_claim_admin_admin_halal_claims__claim_id__revoke_post",
         "parameters": [
           {
@@ -5520,7 +5534,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Revoke Claim Admin",
+        "summary": "Revoke a previously-approved halal claim",
         "tags": [
           "admin: halal-claims"
         ]
@@ -5528,7 +5542,7 @@
     },
     "/admin/organizations": {
       "get": {
-        "description": "List orgs, optionally narrowed by status.\n\nPass ``?status=UNDER_REVIEW`` to get the verification queue;\nomit the param for the full catalog. Newest-first either way.",
+        "description": "Pass `?status=UNDER_REVIEW` to get the verification queue; omit for the full catalog. Newest-first.",
         "operationId": "list_orgs_admin_admin_organizations_get",
         "parameters": [
           {
@@ -5646,12 +5660,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Orgs Admin",
+        "summary": "List organizations (filterable by status)",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       },
       "post": {
+        "description": "Admin can mint an org directly without going through the owner self-service draft \u2192 submit flow. Lands in any status the admin specifies (typically VERIFIED for orgs vetted out-of-band).",
         "operationId": "create_org_admin_admin_organizations_post",
         "parameters": [
           {
@@ -5719,9 +5734,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Org Admin",
+        "summary": "Create an organization (admin path)",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       }
     },
@@ -5794,9 +5809,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Org Admin",
+        "summary": "Get an organization with members + attachments",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       },
       "patch": {
@@ -5878,9 +5893,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Patch Org Admin",
+        "summary": "Edit an organization (admin)",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       }
     },
@@ -5958,15 +5973,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Org Attachments Admin",
+        "summary": "List supporting documents on an org (admin view)",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       }
     },
     "/admin/organizations/{org_id}/attachments/{attachment_id}/url": {
       "get": {
-        "description": "Mint a short-lived signed URL for an org attachment.\n\nMirrors the claim-attachment variant: 60s default TTL, asserts\nthe attachment belongs to the requested org so a guessed UUID\ncan't surface files from an unrelated org.",
+        "description": "Returns a Supabase Storage signed URL the admin panel can render in an iframe / image tag for review. Short TTL so a shared screenshot doesn't keep working forever.",
         "operationId": "signed_url_for_org_attachment_admin_admin_organizations__org_id__attachments__attachment_id__url_get",
         "parameters": [
           {
@@ -6027,7 +6042,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__modules__admin__organizations__router___AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -6044,9 +6059,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Signed Url For Org Attachment Admin",
+        "summary": "Mint a short-lived signed URL for an org attachment",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       }
     },
@@ -6129,14 +6144,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Add Member Admin",
+        "summary": "Add a user as a member of an organization",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       }
     },
     "/admin/organizations/{org_id}/members/{user_id}": {
       "delete": {
+        "description": "Soft-removes the membership; the row stays for audit history.",
         "operationId": "deactivate_member_admin_admin_organizations__org_id__members__user_id__delete",
         "parameters": [
           {
@@ -6214,15 +6230,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Deactivate Member Admin",
+        "summary": "Deactivate an organization membership",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       }
     },
     "/admin/organizations/{org_id}/places": {
       "get": {
-        "description": "List places this org owns (live + historical).\n\nCloses the user \u2194 org \u2194 place triangle visually: the org detail\npage can now show \"which places does Acme run?\" without bouncing\nthrough the places admin and filtering by owner.\n\nACTIVE rows come first; REVOKED history rows follow so admins can\nsee what the org USED to own \u2014 useful when triaging \"we never\nworked with Acme, why does our catalog show them?\"\n\nSoft-deleted places are included (the ``place.is_deleted`` flag\nlets the UI fade or badge them).",
+        "description": "ACTIVE first, then REVOKED. Includes soft-deleted places (`place.is_deleted` lets the UI fade them). Powers the org detail page's 'Places owned' section.",
         "operationId": "list_org_places_admin_admin_organizations__org_id__places_get",
         "parameters": [
           {
@@ -6294,15 +6310,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Org Places Admin",
+        "summary": "List places this org owns (live + historical)",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       }
     },
     "/admin/organizations/{org_id}/reject": {
       "post": {
-        "description": "Move an UNDER_REVIEW org \u2192 REJECTED with a required reason.\n\nThe reason is surfaced to the owner on their org detail page so\nthey understand why verification didn't pass. REJECTED orgs are\nread-only artifacts; the owner creates a new org if they want\nto try again.",
+        "description": "The reason is surfaced to the owner so they understand why verification didn't pass. REJECTED orgs are read-only \u2014 the owner creates a fresh org if they want to retry.",
         "operationId": "reject_org_admin_admin_organizations__org_id__reject_post",
         "parameters": [
           {
@@ -6380,15 +6396,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Reject Org Admin",
+        "summary": "Reject an organization (UNDER_REVIEW \u2192 REJECTED, requires reason)",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       }
     },
     "/admin/organizations/{org_id}/verify": {
       "post": {
-        "description": "Move an UNDER_REVIEW org \u2192 VERIFIED.\n\nRecords the deciding admin + timestamp + optional note inline\non the org row. Once verified, the org is eligible to sponsor\nnew claims and admin claim approvals can proceed (slice 5d\nwill gate approval on this status).",
+        "description": "Records the deciding admin, timestamp, and optional note. Once VERIFIED, the org can sponsor claim approvals (slice 5d).",
         "operationId": "verify_org_admin_admin_organizations__org_id__verify_post",
         "parameters": [
           {
@@ -6466,14 +6482,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Verify Org Admin",
+        "summary": "Verify an organization (UNDER_REVIEW \u2192 VERIFIED)",
         "tags": [
-          "admin"
+          "admin: organizations"
         ]
       }
     },
     "/admin/ownership-requests": {
       "get": {
+        "description": "The admin claim-review queue. Pass `?status=SUBMITTED` for new claims awaiting decision.",
         "operationId": "list_ownership_requests_admin_ownership_requests_get",
         "parameters": [
           {
@@ -6575,13 +6592,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Ownership Requests",
+        "summary": "List ownership requests (filterable by status)",
         "tags": [
-          "admin"
+          "admin: ownership-requests"
         ]
       },
       "post": {
-        "description": "Create an ownership request on someone's behalf (admin path).\n\nUse when an admin takes an inbound request by phone, email, or\nin-person and wants to capture it in the system without the\nclaimant going through the public submit flow. ``requester_user_id``\ncan be null for unauthenticated intakes; set it to a real user id\nwhen the claimant has an account and you want them to be able to\nsee the request later via ``GET /ownership-requests/{id}/detail``.",
+        "description": "For when an admin captures an inbound request from phone, email, or in-person without making the claimant go through the public submit flow.",
         "operationId": "create_ownership_request_admin_admin_ownership_requests_post",
         "parameters": [
           {
@@ -6649,14 +6666,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Ownership Request Admin",
+        "summary": "Create an ownership request on someone's behalf (admin intake)",
         "tags": [
-          "admin"
+          "admin: ownership-requests"
         ]
       }
     },
     "/admin/ownership-requests/{request_id}/approve": {
       "post": {
+        "description": "Promotes the claim to APPROVED, ties the place to the sponsoring organization (must be VERIFIED \u2014 see slice 5d), and records the deciding admin + timestamp + optional note.",
         "operationId": "approve_ownership_request_admin_ownership_requests__request_id__approve_post",
         "parameters": [
           {
@@ -6734,9 +6752,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Approve Ownership Request",
+        "summary": "Approve a claim and create the ownership relationship",
         "tags": [
-          "admin"
+          "admin: ownership-requests"
         ]
       }
     },
@@ -6814,15 +6832,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Attachments Admin",
+        "summary": "List evidence files attached to a claim (admin)",
         "tags": [
-          "admin"
+          "admin: ownership-requests"
         ]
       }
     },
     "/admin/ownership-requests/{request_id}/attachments/{attachment_id}/url": {
       "get": {
-        "description": "Mint a short-lived signed URL the admin browser can use to\ndownload or preview an attachment.\n\nThe endpoint takes both ``request_id`` and ``attachment_id`` and\nasserts the attachment belongs to that request. Defends against\na guessed UUID surfacing files for an unrelated claim.",
+        "description": "Asserts the attachment belongs to the claim before signing \u2014 guards against UUID guesses surfacing files for an unrelated claim. TTL is intentionally tight (60s).",
         "operationId": "signed_url_for_attachment_admin_admin_ownership_requests__request_id__attachments__attachment_id__url_get",
         "parameters": [
           {
@@ -6883,7 +6901,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -6900,14 +6918,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Signed Url For Attachment Admin",
+        "summary": "Mint a short-lived signed URL for an attachment (admin review)",
         "tags": [
-          "admin"
+          "admin: ownership-requests"
         ]
       }
     },
     "/admin/ownership-requests/{request_id}/reject": {
       "post": {
+        "description": "REJECTED is terminal \u2014 the owner sees the reason on their claim detail and can submit a fresh claim if appropriate.",
         "operationId": "reject_ownership_request_admin_ownership_requests__request_id__reject_post",
         "parameters": [
           {
@@ -6985,14 +7004,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Reject Ownership Request",
+        "summary": "Reject a claim with a reason",
         "tags": [
-          "admin"
+          "admin: ownership-requests"
         ]
       }
     },
     "/admin/ownership-requests/{request_id}/request-evidence": {
       "post": {
+        "description": "Holds the claim in REVIEW state with an attached note. The owner sees the message on their claim detail page and can upload additional files via `POST /me/ownership-requests/{id}/attachments`.",
         "operationId": "request_more_evidence_admin_ownership_requests__request_id__request_evidence_post",
         "parameters": [
           {
@@ -7070,14 +7090,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Request More Evidence",
+        "summary": "Ask the owner to upload more evidence",
         "tags": [
-          "admin"
+          "admin: ownership-requests"
         ]
       }
     },
     "/admin/places": {
       "get": {
+        "description": "Admin places browse. Supports text search (`q`), country and city filters, soft-delete inclusion, ordering by name / city / country / updated_at, and pagination. Returns the admin shape (includes is_deleted / deleted_at) so the panel can flip Delete/Restore actions per row.",
         "operationId": "list_places_admin_admin_places_get",
         "parameters": [
           {
@@ -7237,9 +7258,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Places Admin",
+        "summary": "List places (admin view) with search + filters",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
@@ -7327,15 +7348,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Place Countries Admin",
+        "summary": "List distinct country codes present in the catalog",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
     "/admin/places/ingest": {
       "post": {
-        "description": "Create-or-find a Place from a Google Place ID.\n\nThe admin UI obtains ``google_place_id`` via the browser-side Places\nAutocomplete widget, then POSTs just that ID here. This endpoint does the\nserver-side Place Details call (keeping the billed API key out of the\nbrowser), extracts canonical fields, and persists the Place + provider\nlink + audit event in a single transaction.\n\nIdempotent on ``(GOOGLE, google_place_id)``: repeated calls for the same\nGoogle Place return the existing Place with ``existed=true``. If that\nexisting Place has been soft-deleted, ``was_deleted=true`` lets the UI\noffer a Restore action instead of silently creating a duplicate.",
+        "description": "Pulls Place Details from Google for the given `google_place_id`, extracts the canonical address fields (city / region / country / postal_code / timezone), and upserts a Place row tied to that Google ID. Idempotent on the Google ID \u2014 re-ingesting refreshes the canonical fields. Used by both the admin 'New place' modal and the owner-portal claim flow's Google fallback (which calls this server-side before creating the claim).",
         "operationId": "ingest_place_admin_admin_places_ingest_post",
         "parameters": [
           {
@@ -7467,15 +7488,15 @@
             "description": "Request body failed Pydantic validation \u2014 missing google_place_id or extra fields. PlaceIngestRequest uses extra='forbid', so unknown keys reject instead of being silently dropped."
           }
         },
-        "summary": "Ingest Place Admin",
+        "summary": "Ingest a place from a Google Place ID (idempotent)",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
     "/admin/places/{place_id}": {
       "delete": {
-        "description": "Soft-delete a place.\n\nAccepts an optional ``reason`` that's logged to the place's event\nhistory alongside the DELETED event. The reason is free text; the\nadmin UI strongly encourages one but nothing enforces it server-side\n(keeps scripts and Bruno collections backward-compatible).\n\nIdempotent: deleting an already-deleted place is a no-op (no new\nevent row, no error).",
+        "description": "Marks the place deleted and records the optional reason on the DELETED audit event. The public `/places/{id}` endpoint will 404 on it; admin views still surface it (with `is_deleted: true`). Use `/admin/places/{id}/restore` to undo.",
         "operationId": "delete_place_admin_places__place_id__delete",
         "parameters": [
           {
@@ -7589,9 +7610,9 @@
             "description": "Reason failed validation (too short or too long)."
           }
         },
-        "summary": "Delete Place",
+        "summary": "Soft-delete a place",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       },
       "get": {
@@ -7662,9 +7683,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Place Admin",
+        "summary": "Get a place (admin view, includes soft-deleted)",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       },
       "patch": {
@@ -7745,14 +7766,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Patch Place",
+        "summary": "Edit a place (canonical fields, admin-only)",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
     "/admin/places/{place_id}/events": {
       "get": {
+        "description": "Includes EDITED, DELETED, RESTORED, LINKED, etc. Newest first.",
         "operationId": "list_place_events_admin_admin_places__place_id__events_get",
         "parameters": [
           {
@@ -7847,9 +7869,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Place Events Admin",
+        "summary": "List the audit-event history for a place",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
@@ -7963,12 +7985,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Place External Ids Admin",
+        "summary": "List provider links (Google, etc.) for a place",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       },
       "post": {
+        "description": "Older path that supports any provider (not just Google). The Google-specific link flow lives at `POST /admin/places/{id}/link-external` and should be preferred when the provider is Google.",
         "operationId": "upsert_place_external_id_admin_places__place_id__external_ids_post",
         "parameters": [
           {
@@ -8056,9 +8079,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Upsert Place External Id",
+        "summary": "Upsert a generic provider external-id on a place (legacy)",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
@@ -8186,15 +8209,15 @@
             "description": "Reason failed validation (too short or too long)."
           }
         },
-        "summary": "Unlink Place External Admin",
+        "summary": "Remove a provider link from a place",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
     "/admin/places/{place_id}/link-external": {
       "post": {
-        "description": "Attach a Google Place ID to an existing Place.\n\nUsed for places that predate the Google ingest flow (or were added by\nother means that didn't create a provider link). The server:\n\n  1. Validates the place exists.\n  2. Rejects if the Google Place is already linked somewhere else, or\n     if this Place already has a different Google link (409s).\n  3. Fetches Google Place Details server-side (same client as /ingest,\n     so the billed API key stays off the browser).\n  4. Writes the ``PlaceExternalId`` row and backfills ONLY the canonical\n     columns that are currently NULL on the Place \u2014 admin edits are\n     preserved.\n  5. Logs an EDITED event noting which columns got populated.\n\nThe response's ``fields_updated`` list lets the UI surface exactly what\nchanged (\"Backfilled: city, country_code\") instead of a vague toast.",
+        "description": "Attach a Google Place ID to a Place that was created without the Google ingest flow. Fetches Place Details server-side and backfills NULL canonical fields (admin edits are preserved). Rejects if either side already has a different link (409).",
         "operationId": "link_place_external_admin_admin_places__place_id__link_external_post",
         "parameters": [
           {
@@ -8324,15 +8347,15 @@
             "description": "Malformed body (missing or unknown fields)."
           }
         },
-        "summary": "Link Place External Admin",
+        "summary": "Link an existing Place to a Google Place ID",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
     "/admin/places/{place_id}/owners": {
       "get": {
-        "description": "List organization ownership links for a place.\n\nReturns every ``place_owners`` row for the given place, joined with\nthe owning organization and the org's active-member count. Sorted\nACTIVE-first so the admin UI shows \"who's running this today\" before\nhistorical or pending links.\n\nEmpty list is a valid response \u2014 the place simply has no owners yet.\nSoft-deleted places still resolve here; the admin needs to see\nownership context when triaging restore decisions.",
+        "description": "Joins the `place_owners` rows with the owning organization and surfaces the active-member count. Sorted ACTIVE-first so current ownership shows above historical / pending links.",
         "operationId": "list_place_owners_admin_admin_places__place_id__owners_get",
         "parameters": [
           {
@@ -8440,15 +8463,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Place Owners Admin",
+        "summary": "List organizations that own a place",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
     "/admin/places/{place_id}/owners/{owner_id}": {
       "delete": {
-        "description": "Revoke a place's ownership relationship.\n\nSoft-unlink: flips the ``PlaceOwner.status`` to ``REVOKED`` rather\nthan deleting the row. The schema's partial unique index on\n``place_id WHERE status IN ('PENDING','ACTIVE','VERIFIED')``\nexcludes REVOKED, so the place becomes eligible for a fresh live\nowner after this action \u2014 and the historical row survives so\n\"Acme Inc used to own this place\" remains answerable from the\nevent history.\n\nOptional ``reason`` body flows to the EDITED PlaceEvent message\nalongside the org name + role + prior status.\n\nIdempotent: revoking an already-REVOKED owner is a 204 no-op (no\nnew event logged).",
+        "description": "Flips the PlaceOwner row to REVOKED rather than deleting it. The place becomes eligible for a fresh live owner; the historical row survives in the audit trail. Optional reason rides into the EDITED PlaceEvent. Idempotent.",
         "operationId": "revoke_place_owner_admin_admin_places__place_id__owners__owner_id__delete",
         "parameters": [
           {
@@ -8572,15 +8595,15 @@
             "description": "Reason failed validation (too short or too long)."
           }
         },
-        "summary": "Revoke Place Owner Admin",
+        "summary": "Revoke a place's organization ownership (soft-unlink)",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
     "/admin/places/{place_id}/restore": {
       "post": {
-        "description": "Restore a soft-deleted place.\n\nAccepts an optional ``reason`` that's logged alongside the RESTORED\nevent. Idempotent: restoring a live place is a no-op (no new event\nrow, no error), regardless of reason.",
+        "description": "Idempotent \u2014 restoring an already-live place is a 204 no-op. Optional reason flows into the RESTORED audit event.",
         "operationId": "restore_place_admin_places__place_id__restore_post",
         "parameters": [
           {
@@ -8694,9 +8717,9 @@
             "description": "Reason failed validation (too short or too long)."
           }
         },
-        "summary": "Restore Place",
+        "summary": "Restore a soft-deleted place",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
@@ -8816,9 +8839,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Resync Place Admin",
+        "summary": "Re-pull canonical fields from the linked Google Place",
         "tags": [
-          "admin"
+          "admin: places"
         ]
       }
     },
@@ -8957,13 +8980,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Users Admin",
+        "summary": "List users with role / active / search filters",
         "tags": [
-          "admin"
+          "admin: users"
         ]
       },
       "post": {
-        "description": "Create a user + mint a single-use invite token.\n\nThe response carries both the canonical user columns and the\none-time invite fields (``invite_token``, ``invite_url``,\n``invite_expires_at``) so the admin panel can show the URL in a\ncopy-to-clipboard pane. The plaintext token is only visible here \u2014\nthere is no endpoint to re-fetch it.\n\n``actor.id`` is threaded through to ``invite_tokens.created_by_user_id``\nso the audit trail carries \"which admin minted this invite.\"",
+        "description": "Used to onboard new staff (ADMIN, VERIFIER) and the rare admin-created OWNER. Returns a one-time invite URL the admin can share with the new user. The plaintext token is visible ONLY in this response \u2014 there's no endpoint to re-fetch it.",
         "operationId": "create_user_admin_admin_users_post",
         "parameters": [
           {
@@ -9031,9 +9054,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create User Admin",
+        "summary": "Create a user and mint a single-use invite token",
         "tags": [
-          "admin"
+          "admin: users"
         ]
       }
     },
@@ -9106,12 +9129,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get User Admin",
+        "summary": "Get a user by id",
         "tags": [
-          "admin"
+          "admin: users"
         ]
       },
       "patch": {
+        "description": "Self-demotion and self-deactivation are blocked at the repo layer \u2014 an ADMIN can't accidentally lock themselves out by editing their own row.",
         "operationId": "patch_user_admin_admin_users__user_id__patch",
         "parameters": [
           {
@@ -9189,15 +9213,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Patch User Admin",
+        "summary": "Edit a user (display_name, role, is_active)",
         "tags": [
-          "admin"
+          "admin: users"
         ]
       }
     },
     "/admin/users/{user_id}/organizations": {
       "get": {
-        "description": "List a user's org memberships + nested org info.\n\nPowers the Organizations section on the admin user detail page.\nIncludes REMOVED memberships \u2014 the UI decides whether to surface\nthem. 404s cleanly if the user id is unknown.",
+        "description": "Includes REMOVED memberships \u2014 the admin UI decides whether to surface them. Used by the admin user-detail page's Organizations section.",
         "operationId": "list_user_organizations_admin_admin_users__user_id__organizations_get",
         "parameters": [
           {
@@ -9269,15 +9293,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List User Organizations Admin",
+        "summary": "List a user's organization memberships",
         "tags": [
-          "admin"
+          "admin: users"
         ]
       }
     },
     "/auth/invite/{token}": {
       "get": {
-        "description": "Prefetch an invite so the set-password page can show context.\n\nReturns the invited user's email + display_name so the UI can\nrender \"Set your password for rozebm@example.com\" before the\nuser submits. Does NOT consume the token \u2014 that happens in\n``POST /auth/set-password``.\n\nFailure modes all land on the same generic 400 to avoid becoming\nan oracle: invalid, expired, and already-consumed tokens are\nindistinguishable from the outside. The client just sees\nINVITE_INVALID and tells the user the link needs replacing.",
+        "description": "Pre-fetched by the admin panel's set-password page so the form can render 'Set your password for foo@example.com' before the user submits. Does NOT consume the token \u2014 that happens in `POST /auth/set-password`. Invalid / expired / already-used tokens all collapse to a single generic `INVITE_INVALID` to avoid token-state oracling.",
         "operationId": "get_invite_info_auth_invite__token__get",
         "parameters": [
           {
@@ -9312,7 +9336,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Invite Info",
+        "summary": "Look up an invite token's target email",
         "tags": [
           "auth"
         ]
@@ -9320,7 +9344,7 @@
     },
     "/auth/login": {
       "post": {
-        "description": "Email + password login. Sets the session cookie on success.\n\nSecurity notes:\n  * Single generic error (\"Invalid email or password\") on any\n    failure path \u2014 no user enumeration. The ``UnauthorizedError``\n    wrapper keeps the error code stable for client-side branching\n    without leaking which of email/password/active/has-password\n    failed.\n  * Password verification runs even when the user isn't found, to\n    keep timing roughly similar. We do this with a dummy hash that\n    matches the cost of a real one.",
+        "description": "Sets the `tht_session` HttpOnly cookie on success. Returns the user id, role, display name, and a `redirect_path` (server-controlled landing page per role). Failures collapse to a single generic `INVALID_CREDENTIALS` 401 to avoid email enumeration. Rate-limited per-IP at 10/min and 100/hour.",
         "operationId": "login_auth_login_post",
         "requestBody": {
           "content": {
@@ -9354,7 +9378,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Login",
+        "summary": "Sign in with email and password",
         "tags": [
           "auth"
         ]
@@ -9362,7 +9386,7 @@
     },
     "/auth/logout": {
       "post": {
-        "description": "Invalidate the current session + clear the cookie.\n\nIdempotent: no cookie / malformed cookie / already-revoked session\nall 204 cleanly. The client is losing the cookie either way, so\nsurfacing errors would only confuse \"sign out\" UX.",
+        "description": "Idempotent \u2014 returns 204 even if the session was already revoked or the cookie is missing. The browser drops the cookie either way, so surfacing failures here would only confuse 'sign out' UX.",
         "operationId": "logout_auth_logout_post",
         "parameters": [
           {
@@ -9397,7 +9421,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Logout",
+        "summary": "Invalidate the current session and clear the cookie",
         "tags": [
           "auth"
         ]
@@ -9405,7 +9429,7 @@
     },
     "/auth/set-password": {
       "post": {
-        "description": "Burn an invite token + set the user's password + sign them in.\n\nSingle transaction:\n  1. Resolve the token (same generic failure surface as\n     ``get_invite_info``).\n  2. Hash the new password with argon2id and set it on the user.\n  3. Mark the token consumed.\n  4. Revoke every other outstanding session for this user (covers\n     the \"re-invite after lost password\" case: any live sessions\n     for the old password are kicked out \u2014 the user only wants\n     the freshly-made one).\n  5. Create a new session + set the cookie.\n\nAnyone who has a valid invite can set the password, by design \u2014\nthat's the whole point. We don't require re-auth with the old\npassword because in the invite flow there may be no old password\nat all.",
+        "description": "Single transaction: resolves the invite token, hashes the new password with argon2id, marks the token consumed, revokes any other outstanding sessions for this user, and mints a fresh session cookie. Used by the admin onboarding flow and as the 'reset password' path (admin re-issues an invite). Rate-limited per-IP.",
         "operationId": "set_password_with_invite_auth_set_password_post",
         "requestBody": {
           "content": {
@@ -9439,7 +9463,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Set Password With Invite",
+        "summary": "Burn an invite token, set the user's password, sign them in",
         "tags": [
           "auth"
         ]
@@ -9447,7 +9471,7 @@
     },
     "/auth/signup": {
       "post": {
-        "description": "Self-service signup for restaurant owners.\n\nTrust Halal staff don't mint OWNER accounts by hand \u2014 owners create\ntheir own login and then submit ownership claims, which staff\nreview. The trust gate is the human-reviewed claim downstream, not\nthe signup itself, so this endpoint is intentionally light:\n\n  * No email verification (deliberate; revisit if abuse warrants it).\n  * Role is hard-coded to OWNER. Promotion to ADMIN/VERIFIER stays\n    an admin-only operation via the user CRUD endpoints.\n  * Email is normalized (trim + lower) before the uniqueness check\n    and persisted in the original casing \u2014 same posture as login,\n    which compares case-insensitively.\n\nOn collision we surface ``EMAIL_TAKEN`` rather than a generic 4xx\nso the client can show a useful \"this email is already registered,\nsign in instead?\" message. That's a small enumeration tradeoff \u2014\nan attacker can probe email addresses \u2014 but the mitigation cost\n(forcing a verify-by-email flow) outweighs the marginal disclosure\nhere. Login itself remains a black box.",
+        "description": "Public path used by the owner portal. Creates a User with role=OWNER and immediately sets the session cookie so the client can land on the post-login home with no second round trip. On a duplicate email returns `EMAIL_TAKEN` so the UI can deep-link to /login. Promotion to ADMIN/VERIFIER stays an admin-only operation. Rate-limited per-IP at 5/min, 20/hour.",
         "operationId": "signup_auth_signup_post",
         "requestBody": {
           "content": {
@@ -9481,7 +9505,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Signup",
+        "summary": "Self-service signup (role hard-coded to OWNER)",
         "tags": [
           "auth"
         ]
@@ -9489,6 +9513,7 @@
     },
     "/health": {
       "get": {
+        "description": "Bare-minimum health check used by Render's deploy gate. Always returns 200 with `{\"status\": \"ok\"}` when the FastAPI worker can serve requests. It deliberately doesn't check the database \u2014 a failed DB connection should not pull the service out of rotation; routes that need the DB will surface their own errors and let Sentry capture them.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -9500,12 +9525,15 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Health"
+        "summary": "Liveness probe",
+        "tags": [
+          "health"
+        ]
       }
     },
     "/me": {
       "get": {
-        "description": "Who the cookie says you are.\n\nReturns id + role + display_name + email so frontends can render\n\"Signed in as <name>\" without a second roundtrip. We pull\ndisplay_name + email from the User row rather than caching them\non ``CurrentUser`` \u2014 keeps the auth context dataclass slim and\nmeans a profile rename takes effect on the next /me call instead\nof after a re-login.\n\nThe session\u2192user resolution already happened in\n``get_current_user``; if the row is gone by the time we look it\nup here (rare, but possible if admin hard-deleted between\nmiddleware and handler), surface a 401 so the client clears the\ncookie and redirects to /login rather than seeing a 500.",
+        "description": "Resolves the session cookie to the user's id, role, display name, and email. Frontends call this on every page load to decide what to render \u2014 it's the source of truth for 'am I signed in?' and 'what role am I?'.",
         "operationId": "get_me_me_get",
         "parameters": [
           {
@@ -9563,7 +9591,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Me",
+        "summary": "Current authenticated user",
         "tags": [
           "auth"
         ]
@@ -9571,7 +9599,7 @@
     },
     "/me/halal-claims": {
       "get": {
-        "description": "List the caller's halal claims (newest first).\n\nPowers the owner portal's 'My halal claims' page. Pagination\ncapped at 200 \u2014 realistic owners won't have anywhere near that\nmany; the bound is cheap insurance against a runaway query.",
+        "description": "Newest-first list of every halal claim the signed-in user has submitted across all the orgs they belong to. Powers the owner portal's Halal claims page.",
         "operationId": "list_my_halal_claims_me_halal_claims_get",
         "parameters": [
           {
@@ -9656,13 +9684,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List My Halal Claims",
+        "summary": "List the caller's halal claims",
         "tags": [
           "halal-claims"
         ]
       },
       "post": {
-        "description": "Create a DRAFT halal claim.\n\nAuthorization gates run in the repo:\n  * Caller must be an ACTIVE member of the sponsoring org.\n  * Org must be UNDER_REVIEW or VERIFIED (DRAFT/REJECTED orgs\n    can't sponsor).\n  * Org must have an ACTIVE PlaceOwner row for the place.\n\nThe questionnaire is optional at create \u2014 owners typically\nsave partial progress across multiple sessions. Validation\nthat all required fields are populated runs at submit time.\n\nRate-limited per session at 10/hour.",
+        "description": "Starts a new claim for one (place, sponsoring org) pair. Authorization gates: caller is an ACTIVE member of the org, the org is UNDER_REVIEW or VERIFIED, and the org has an ACTIVE `PlaceOwner` link for the place. The questionnaire is optional at create \u2014 strict validation runs on submit. Rate-limited at 10/hour per session.",
         "operationId": "create_my_halal_claim_me_halal_claims_post",
         "parameters": [
           {
@@ -9730,7 +9758,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create My Halal Claim",
+        "summary": "Create a DRAFT halal claim",
         "tags": [
           "halal-claims"
         ]
@@ -9738,7 +9766,7 @@
     },
     "/me/halal-claims/batch": {
       "post": {
-        "description": "Create N draft halal claims in one call, sharing one\nquestionnaire payload.\n\nUse case: a chain restaurant whose locations all maintain the\nsame halal standard. The owner picks every applicable place,\nfills out the questionnaire once, and we fan it out as N\nindependent draft claims (each subject to admin review on its\nown merits).\n\nAuthorization gates run for every selection upfront. The whole\ntransaction rolls back on any failure \u2014 no half-created\nbatches.\n\nRouted at the same prefix as the single-create POST; FastAPI\nmatches /batch first because it's a longer literal path.",
+        "description": "Chain-restaurant convenience path: owner picks every applicable place, fills the questionnaire once, and the server fans out N independent draft claims (each later reviewed on its own). Authorization runs upfront for every selection \u2014 any failure rolls the whole batch back.",
         "operationId": "batch_create_my_halal_claims_me_halal_claims_batch_post",
         "parameters": [
           {
@@ -9810,7 +9838,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Batch Create My Halal Claims",
+        "summary": "Create N draft halal claims with one shared questionnaire",
         "tags": [
           "halal-claims"
         ]
@@ -9818,7 +9846,7 @@
     },
     "/me/halal-claims/{claim_id}": {
       "get": {
-        "description": "Single claim detail. 404 on unknown id, 403 on not-yours.",
+        "description": "Returns the full claim with embedded place + org summaries and the attachment metadata list. 404 on unknown id; 403 if the id exists but belongs to another user.",
         "operationId": "get_my_halal_claim_me_halal_claims__claim_id__get",
         "parameters": [
           {
@@ -9886,13 +9914,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get My Halal Claim",
+        "summary": "Get one of the caller's halal claims",
         "tags": [
           "halal-claims"
         ]
       },
       "patch": {
-        "description": "Update a DRAFT claim's questionnaire.\n\nOnly the structured_response can be changed; place_id and\norganization_id are immutable post-create. Owners who picked\nthe wrong values discard the draft and start fresh.\n\n409 ``HALAL_CLAIM_NOT_EDITABLE`` once the claim leaves DRAFT.",
+        "description": "Only the `structured_response` payload can change; `place_id` and `organization_id` are immutable post-create. Owners who picked the wrong values discard and restart. Conflict 409 (`HALAL_CLAIM_NOT_EDITABLE`) once the claim leaves DRAFT.",
         "operationId": "patch_my_halal_claim_me_halal_claims__claim_id__patch",
         "parameters": [
           {
@@ -9970,7 +9998,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Patch My Halal Claim",
+        "summary": "Update a DRAFT claim's questionnaire",
         "tags": [
           "halal-claims"
         ]
@@ -9978,7 +10006,7 @@
     },
     "/me/halal-claims/{claim_id}/attachments": {
       "get": {
-        "description": "List metadata for the claim's evidence files. Bytes are not\nreturned \u2014 frontends fetch via signed URL (Phase 3 admin endpoint;\nowner re-fetches the claim and reads ``attachments`` instead).",
+        "description": "File bytes are not returned \u2014 frontends fetch via the admin signed-URL endpoint when needed. This list covers filename, MIME, size, document_type, and certificate metadata.",
         "operationId": "list_my_halal_claim_attachments_me_halal_claims__claim_id__attachments_get",
         "parameters": [
           {
@@ -10050,13 +10078,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List My Halal Claim Attachments",
+        "summary": "List metadata for the claim's evidence files",
         "tags": [
           "halal-claims"
         ]
       },
       "post": {
-        "description": "Upload an evidence document for a halal claim.\n\nMultipart upload with optional metadata fields:\n\n  * ``document_type`` \u2014 HALAL_CERTIFICATE | SUPPLIER_LETTER |\n    INVOICE | PHOTO | OTHER. Drives admin-side icon + section.\n  * ``issuing_authority`` / ``certificate_number`` /\n    ``valid_until`` \u2014 only meaningful for HALAL_CERTIFICATE,\n    nullable for everything else.\n\nValidation grid mirrors the org + ownership-request endpoints:\nmembership / draft-or-pending status, count cap (8 per claim),\nsize cap (10 MB), MIME allow-list (PDF / JPEG / PNG / HEIC /\nHEIF). Storage key is\n``halal-claims/<claim_id>/<uuid>.<ext>``.\n\nRe-uploading replaces nothing \u2014 each upload creates a new row,\nkeeping the audit trail intact. Owner can delete drafts'\nattachments via DELETE in a later phase if needed; for now\nthe workflow is \"discard draft, start fresh.\"\n\nRate-limited per session at 60/hour.",
+        "description": "Multipart upload with optional metadata (document_type, issuing_authority, certificate_number, valid_until). Allowed only while the claim is DRAFT or NEEDS_MORE_INFO; MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF), 10 MB size cap, 8-files-per-claim count cap. Storage key is `halal-claims/{claim_id}/{uuid}.{ext}`.",
         "operationId": "upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post",
         "parameters": [
           {
@@ -10134,7 +10162,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Upload My Halal Claim Attachment",
+        "summary": "Upload evidence to a halal claim",
         "tags": [
           "halal-claims"
         ]
@@ -10142,7 +10170,7 @@
     },
     "/me/halal-claims/{claim_id}/events": {
       "get": {
-        "description": "Per-claim audit timeline.\n\nPowers the 'Activity' section on the owner-portal claim detail\npage so submitters can see exactly what's happened on their\nclaim \u2014 when they drafted, when they submitted, when admin\ndecided, etc. Same 404/403 split as the rest of the surface.",
+        "description": "Oldest-first list of every transition on this claim (DRAFT_CREATED, SUBMITTED, ATTACHMENT_ADDED, admin decisions, supersession, expiry). Powers the owner portal's per-claim Activity section. Same 404/403 split as the rest of `/me/halal-claims/*`.",
         "operationId": "list_my_halal_claim_events_me_halal_claims__claim_id__events_get",
         "parameters": [
           {
@@ -10214,7 +10242,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List My Halal Claim Events",
+        "summary": "Audit timeline for one of the caller's halal claims",
         "tags": [
           "halal-claims"
         ]
@@ -10222,7 +10250,7 @@
     },
     "/me/halal-claims/{claim_id}/submit": {
       "post": {
-        "description": "Move DRAFT \u2192 PENDING_REVIEW.\n\nRe-validates the stored questionnaire against the strict shape\n(``HalalQuestionnaireResponse``). Any missing required answers\nreturn a 400 with the field-level errors under\n``error.detail`` so the frontend can surface inline validation.\n\nIdempotent on PENDING_REVIEW (no error, no state change).",
+        "description": "Re-validates the stored questionnaire against the strict `HalalQuestionnaireResponse` shape. Missing required fields return 400 with field-level details under `error.detail` so the frontend can surface inline validation. Idempotent on a claim already in PENDING_REVIEW. Rate-limited 20/hour.",
         "operationId": "submit_my_halal_claim_me_halal_claims__claim_id__submit_post",
         "parameters": [
           {
@@ -10290,7 +10318,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Submit My Halal Claim",
+        "summary": "Submit a DRAFT claim for admin review",
         "tags": [
           "halal-claims"
         ]
@@ -10298,7 +10326,7 @@
     },
     "/me/organizations": {
       "get": {
-        "description": "List every org the signed-in user is an active member of.",
+        "description": "Returns every organization the signed-in user is an active member of, in any status (DRAFT / UNDER_REVIEW / VERIFIED / REJECTED). Empty list when the user hasn't created or been added to any org yet.",
         "operationId": "list_my_organizations_me_organizations_get",
         "parameters": [
           {
@@ -10360,13 +10388,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List My Organizations",
+        "summary": "List the current user's organizations",
         "tags": [
           "organizations"
         ]
       },
       "post": {
-        "description": "Create a new DRAFT organization. The caller is auto-joined as\nOWNER_ADMIN. Status is DRAFT; submit for review separately once\nthe user has uploaded supporting documents.",
+        "description": "Creates an organization in DRAFT status, owned by the calling user (auto-joined as OWNER_ADMIN). The org isn't reviewable by Trust Halal staff yet \u2014 the user has to upload supporting documents and call `POST /me/organizations/{id}/submit` to move it to UNDER_REVIEW. Rate-limited per-session.",
         "operationId": "create_my_organization_me_organizations_post",
         "parameters": [
           {
@@ -10434,7 +10462,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create My Organization",
+        "summary": "Create a new draft organization",
         "tags": [
           "organizations"
         ]
@@ -10442,7 +10470,7 @@
     },
     "/me/organizations/{organization_id}": {
       "get": {
-        "description": "Detail view, including attachments. 404/403 per the lookup\nhelper's split.",
+        "description": "Returns full detail including attached supporting documents. Returns 404 if the organization doesn't exist or 403 if the calling user isn't an active member.",
         "operationId": "get_my_organization_me_organizations__organization_id__get",
         "parameters": [
           {
@@ -10510,13 +10538,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get My Organization",
+        "summary": "Get one of the current user's organizations",
         "tags": [
           "organizations"
         ]
       },
       "patch": {
-        "description": "Edit name / contact email. Allowed only while DRAFT or\nUNDER_REVIEW. NO_FIELDS surfaces when nothing meaningfully\nchanged; clients can no-op silently or surface a friendly toast.",
+        "description": "Update name and/or contact email. Allowed while the org is still in DRAFT or UNDER_REVIEW; verified or rejected orgs are immutable from this surface (admin support handles those cases). Returns `NO_FIELDS` when the patch wouldn't change anything \u2014 clients typically no-op silently on that code.",
         "operationId": "patch_my_organization_me_organizations__organization_id__patch",
         "parameters": [
           {
@@ -10594,7 +10622,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Patch My Organization",
+        "summary": "Edit an organization (DRAFT or UNDER_REVIEW only)",
         "tags": [
           "organizations"
         ]
@@ -10602,7 +10630,7 @@
     },
     "/me/organizations/{organization_id}/attachments": {
       "get": {
-        "description": "List the attachments on one of your organizations.",
+        "description": "Returns the supporting-document metadata (filename, mime, size, storage path). Does NOT issue signed URLs \u2014 the owner portal already has the org detail in cache; this endpoint is primarily for admin tooling and tests.",
         "operationId": "list_organization_attachments_me_organizations__organization_id__attachments_get",
         "parameters": [
           {
@@ -10674,13 +10702,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Organization Attachments",
+        "summary": "List attachments on an organization",
         "tags": [
           "organizations"
         ]
       },
       "post": {
-        "description": "Upload a supporting document for an org under review.\n\nSame validation grid as the claim-attachment endpoint:\n  * Caller must be an active member of the org.\n  * Per-org count cap (10).\n  * Per-file size cap (10 MB).\n  * MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF).\n\nFile goes to ``organizations/<organization_id>/<uuid>.<ext>`` in\nthe configured Supabase bucket. Storage failure rolls back\ncleanly: the metadata row only writes after the upload succeeds.\n\nEditing is only allowed while DRAFT or UNDER_REVIEW; once admin\nhas signed off the org becomes audit-immutable and additional\nuploads reject. Verified orgs that genuinely need new docs go\nthrough admin support today.",
+        "description": "Multipart upload. Validates membership, per-org count cap (10 files), per-file size cap (10 MB), and a MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF). The file goes to Supabase Storage at `organizations/<org_id>/<uuid>.<ext>`; the metadata row only writes after the storage upload succeeds. Editing is locked once the org leaves DRAFT/UNDER_REVIEW. Rate-limited per-session at 60/hour.",
         "operationId": "upload_organization_attachment_me_organizations__organization_id__attachments_post",
         "parameters": [
           {
@@ -10758,7 +10786,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Upload Organization Attachment",
+        "summary": "Upload a supporting document for an organization",
         "tags": [
           "organizations"
         ]
@@ -10766,7 +10794,7 @@
     },
     "/me/organizations/{organization_id}/submit": {
       "post": {
-        "description": "Move DRAFT \u2192 UNDER_REVIEW. Idempotent if already\nUNDER_REVIEW. Requires at least one uploaded attachment so admin\nstaff has something to verify against.",
+        "description": "Moves the org from DRAFT to UNDER_REVIEW and queues it for Trust Halal staff. Idempotent if already UNDER_REVIEW. Requires at least one supporting document attached so admin has something to verify against \u2014 fails with `ORGANIZATION_NO_ATTACHMENTS` otherwise. Rate-limited per-session.",
         "operationId": "submit_my_organization_me_organizations__organization_id__submit_post",
         "parameters": [
           {
@@ -10834,7 +10862,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Submit My Organization",
+        "summary": "Submit an organization for admin review (DRAFT \u2192 UNDER_REVIEW)",
         "tags": [
           "organizations"
         ]
@@ -10912,7 +10940,7 @@
     },
     "/me/ownership-requests": {
       "get": {
-        "description": "List the signed-in user's claims, newest first.\n\nThe owner portal's home page calls this to render \"Recent claims\"\nand the /my-claims page to render the full list. Page size caps\nat 200 \u2014 the catalog of claims per individual owner is realistic-\nally tiny, but the bound is cheap insurance against runaway\nqueries from a copy-paste of the admin pagination shape.",
+        "description": "Powers the owner portal's 'My claims' page and the home page's recent-claims preview. Pagination via `limit` (\u2264200, default 50) and `offset`. Scoped automatically to the calling user \u2014 no cross-user leak even if a stale cache or URL guesses another id.",
         "operationId": "list_my_ownership_requests_me_ownership_requests_get",
         "parameters": [
           {
@@ -10997,13 +11025,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List My Ownership Requests",
+        "summary": "List the current user's claims (newest first)",
         "tags": [
           "ownership-requests"
         ]
       },
       "post": {
-        "description": "Create an ownership claim on behalf of the signed-in user.\n\nSame downstream effect as the public path: the row goes into\n``place_ownership_requests`` with status SUBMITTED, the requester\nis linked back to the user, admin staff sees it in the review\nqueue. The duplicate-active-claim guard in the repo (same place +\nsame email + still-active status) prevents an owner from\nre-submitting while their first attempt is in flight.\n\nTwo ways to identify the place being claimed (the schema enforces\nexactly-one-of):\n\n  * ``place_id`` \u2014 a Place already in the Trust Halal catalog.\n    Path the owner takes when text-search returns a match.\n  * ``google_place_id`` \u2014 a place that's only on Google so far.\n    We ingest it server-side first (idempotent on the Google ID),\n    then create the claim against the resulting Place. The claim\n    and ingest don't share a transaction by design \u2014 if the claim\n    fails, we still keep the ingested Place since admin staff (or\n    the same owner on a retry) can use it.\n\nContact name + email are pulled from the user's profile rather\nthan the request body. ``display_name`` is non-null on signup, but\nwe fall back to the email's local-part if it's somehow blank \u2014 we\nnever want admin staff to see a literally empty contact_name.\n\nThe auth context (``CurrentUser``) is intentionally slim \u2014 id +\nrole only \u2014 so we look up the full User row here for the\ndisplay_name + email fields. Cheap (single PK lookup) and keeps\nthe auth context cache-friendly.",
+        "description": "The authenticated owner-portal path. Differences from the public submission:\n\n* `requester_user_id` is set from the session cookie, not the body.\n* `contact_name` + `contact_email` are read from the user's profile.\n* A sponsoring `organization_id` is REQUIRED (must be UNDER_REVIEW or VERIFIED).\n* Two ways to identify the place: `place_id` for an existing Trust Halal place, or `google_place_id` to ingest from Google first, then attach the claim. The schema validates exactly-one-of.\n\nDuplicate-claim guard: rejects with `OWNERSHIP_REQUEST_ALREADY_EXISTS` when the same user already has an active claim against the same place. Rate-limited per-session at 20/hour.",
         "operationId": "submit_my_ownership_request_me_ownership_requests_post",
         "parameters": [
           {
@@ -11071,7 +11099,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Submit My Ownership Request",
+        "summary": "Owner-portal claim submission (auth required, ties to an org)",
         "tags": [
           "ownership-requests"
         ]
@@ -11079,7 +11107,7 @@
     },
     "/me/ownership-requests/{request_id}/attachments": {
       "get": {
-        "description": "List the attachments an owner has uploaded for one of their\nclaims. Same auth gate as the upload endpoint.\n\nMostly used so the owner portal can render the file list on a\nre-open of the /claim page (e.g. coming back via the claims list\nto add another file). The /my-claims list itself already embeds\nattachments via MyOwnershipRequestRead.",
+        "description": "Returns metadata only (filename, mime, size). Used by the owner portal when re-opening a claim's detail page to render previously-uploaded files. Same ownership gate as the upload endpoint.",
         "operationId": "list_my_ownership_request_attachments_me_ownership_requests__request_id__attachments_get",
         "parameters": [
           {
@@ -11151,13 +11179,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List My Ownership Request Attachments",
+        "summary": "List evidence files attached to one of the user's claims",
         "tags": [
           "ownership-requests"
         ]
       },
       "post": {
-        "description": "Upload a file as evidence on an existing ownership claim.\n\nMultipart upload. Validates ownership, file count cap, size cap,\nand MIME allow-list. Streams the bytes to object storage at\n``<bucket>/ownership-requests/<request_id>/<uuid>.<ext>`` and\ninserts the metadata row.\n\nOn any upload failure (storage outage, network error), we surface\na clean 503 \u2014 the file isn't half-recorded; the metadata row\nonly writes after the storage upload succeeds.",
+        "description": "Multipart upload of a single supporting file (business license, lease, sales-tax permit, etc.) \u2014 anything tying the sponsoring organization to this specific restaurant address. Caps: 5 files per claim, 10 MB per file, MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF). The claim must belong to the calling user. Files land in Supabase Storage at `ownership-requests/<request_id>/<uuid>.<ext>`. Rate-limited per-session at 60/hour.",
         "operationId": "upload_my_ownership_request_attachment_me_ownership_requests__request_id__attachments_post",
         "parameters": [
           {
@@ -11235,7 +11263,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Upload My Ownership Request Attachment",
+        "summary": "Attach evidence to an existing claim",
         "tags": [
           "ownership-requests"
         ]
@@ -11243,6 +11271,7 @@
     },
     "/ownership-requests/{request_id}": {
       "get": {
+        "description": "Returns just the status fields \u2014 used by the public 'check the status of my submission' page. The richer detail view (message, attachments) lives at `/ownership-requests/{id}/detail` and is access-gated.",
         "operationId": "get_ownership_request_status_ownership_requests__request_id__get",
         "parameters": [
           {
@@ -11278,7 +11307,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Ownership Request Status",
+        "summary": "Get an ownership request's status (slim, public)",
         "tags": [
           "ownership-requests"
         ]
@@ -11286,6 +11315,7 @@
     },
     "/ownership-requests/{request_id}/detail": {
       "get": {
+        "description": "Returns the message body, attached evidence metadata, and decision context. Visible to ADMIN role or the user who submitted the request. Other authenticated callers get a 403.",
         "operationId": "get_ownership_request_detail_ownership_requests__request_id__detail_get",
         "parameters": [
           {
@@ -11353,7 +11383,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Ownership Request Detail",
+        "summary": "Get an ownership request's full detail (admin or requester only)",
         "tags": [
           "ownership-requests"
         ]
@@ -11361,7 +11391,7 @@
     },
     "/places": {
       "get": {
-        "description": "Browse the public places catalog.\n\nTwo search modes, mutually exclusive \u2014 pick one based on what the\ncaller has on hand:\n\n* **Text** \u2014 pass ``q`` (case-insensitive substring on name +\n  address + city). Used by the owner portal's claim flow when the\n  restaurant owner types the name of their place.\n* **Geo** \u2014 pass ``lat`` + ``lng`` + ``radius`` (meters). Used by\n  the consumer site to render \"halal places near me\".\n\nIf ``q`` is set, geo params are ignored. If neither path is\npopulated, we 400 \u2014 there's no meaningful \"list everything\"\nresponse on a public catalog of this size.\n\nHalal preference filters are optional. When any filter is set\nthe results are restricted to places with a non-revoked\nHalalProfile that matches every populated condition. Places\nwithout a profile, or with a revoked profile, drop out of the\nresult set entirely \u2014 the consumer asked for halal-verified\nplaces and an unverified place isn't an answer to that question.",
+        "description": "Two search modes, mutually exclusive:\n\n* **Text** \u2014 pass `q` (case-insensitive substring on name + address + city). Powers the owner portal's claim flow.\n* **Geo** \u2014 pass `lat` + `lng` + `radius` (meters). Powers the consumer site's 'halal places near me'.\n\nIf `q` is set, geo params are ignored. If neither is populated, returns 400 (`PLACES_SEARCH_PARAMS_REQUIRED`) \u2014 there's no meaningful 'list everything' on a public catalog of this size.",
         "operationId": "search_places_places_get",
         "parameters": [
           {
@@ -11645,12 +11675,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Search Places",
+        "summary": "Search the public places catalog (text or geo)",
         "tags": [
-          "Places"
+          "places"
         ]
       },
       "post": {
+        "description": "Admin-only path that bypasses the Google ingest flow. Most callers should use `POST /admin/places/ingest` instead \u2014 that ingest helper enriches the place with canonical address fields from Google Place Details. Kept for the rare case where an admin wants to seed a place by hand.",
         "operationId": "post_place_places_post",
         "parameters": [
           {
@@ -11718,15 +11749,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Post Place",
+        "summary": "Create a place (legacy)",
         "tags": [
-          "Places"
+          "places"
         ]
       }
     },
     "/places/google/autocomplete": {
       "get": {
-        "description": "Server-side proxy to Google Places Autocomplete.\n\nPowers the owner portal's \"Can't find your restaurant? Search\nGoogle\" fallback in the claim flow. Routing the call through our\nbackend keeps the Google API key off the owner origin (the existing\nbrowser key is restricted to the admin domain, by design) \u2014 the\nserver uses ``GOOGLE_MAPS_API_KEY`` server-side and only ships\npredictions back.\n\nPublic on purpose: anyone considering signing up + claiming should\nbe able to type their restaurant's name and see whether Google\nknows it. We rely on the downstream claim creation step (which\nrequires auth) for the access gate.\n\nEmpty query is handled at the validator layer (min_length=1) so we\nnever burn a billed Google call on a no-op input.\n\nErrors translate to a stable code so the client can render\n\"Search unavailable, try again\" without parsing Google's status\nstrings.",
+        "description": "Server-side proxy to the Google Places Autocomplete endpoint. Powers the owner portal's 'can't find your restaurant?' fallback in the claim flow \u2014 the browser key is restricted to the admin domain by referrer, so the owner origin can't call Google directly. Public on purpose so the user can see matches before they decide to sign up. Rate-limited per-IP (30/min, 300/hour) to keep Google quota in check.",
         "operationId": "google_autocomplete_places_google_autocomplete_get",
         "parameters": [
           {
@@ -11767,14 +11798,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Google Autocomplete",
+        "summary": "Google Places Autocomplete proxy",
         "tags": [
-          "Places"
+          "places"
         ]
       }
     },
     "/places/{place_id}": {
       "get": {
+        "description": "Public read of a single place: name, canonical address fields (city / region / country / postal_code / timezone), lat/lng, soft-delete state, and the list of halal claims attached to it. Returns 404 (`PLACE_NOT_FOUND`) if the place doesn't exist or is hard-deleted. Soft-deleted places are still returned with `is_deleted: true` for context.",
         "operationId": "get_place_by_id_places__place_id__get",
         "parameters": [
           {
@@ -11810,15 +11842,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Place By Id",
+        "summary": "Get a place's full detail with attached claims",
         "tags": [
-          "Places"
+          "places"
         ]
       }
     },
     "/places/{place_id}/halal-profile": {
       "get": {
-        "description": "Public consumer-facing halal profile for a place.\n\nReturns the structured snapshot the consumer site renders as\ntrust labels + expandable details. Visibility rules:\n\n  * Place must exist and not be soft-deleted (404 PLACE_NOT_FOUND\n    otherwise).\n  * A non-revoked HalalProfile must exist (404\n    HALAL_PROFILE_NOT_FOUND otherwise \u2014 used by the consumer\n    UI to decide between \"no halal info\" and \"deleted place\").\n\nExpired profiles (expires_at in the past) are returned, with\nlast_verified_at + expires_at letting the UI render staleness.\nDisputed profiles are returned, with dispute_state =\n'DISPUTED' so the UI can surface a 'conflicting reports'\nbadge.",
+        "description": "Consumer-facing halal-posture snapshot for a single place. Returns the derived `HalalProfile` (validation tier, menu posture, alcohol policy, per-meat slaughter, dispute state) without re-fetching the full place row. Returns 404 if the place doesn't exist or has no halal profile yet.",
         "operationId": "get_place_halal_profile_places__place_id__halal_profile_get",
         "parameters": [
           {
@@ -11854,14 +11886,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Place Halal Profile",
+        "summary": "Public halal profile for a place",
         "tags": [
-          "Places"
+          "places"
         ]
       }
     },
     "/places/{place_id}/ownership-requests": {
       "post": {
+        "description": "Public path used by the consumer site or any 'I own this restaurant, get me on your list' flow. Caller can be unauthenticated \u2014 the contact_name + contact_email + contact_phone come from the request body. Rejects with `PLACE_NOT_FOUND` if the place is missing or hard-deleted. Owners signed into the portal should use `POST /me/ownership-requests` instead \u2014 that path enforces the org-sponsor requirement and ties claims back to their account.",
         "operationId": "submit_ownership_request_places__place_id__ownership_requests_post",
         "parameters": [
           {
@@ -11939,11 +11972,61 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Submit Ownership Request",
+        "summary": "Public ownership claim submission (anonymous OK)",
         "tags": [
           "ownership-requests"
         ]
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "description": "Authentication and session management. Signup, login, logout, invite-token-based set-password, plus the `/me` self-lookup every frontend uses to render 'signed in as ...'. All of these share the same `tht_session` cookie posture.",
+      "name": "auth"
+    },
+    {
+      "description": "Public places catalog. Text search, geo search, individual place detail with embedded halal profile, plus the server-side Google Places autocomplete proxy that powers the owner portal's 'can't find your restaurant?' fallback.",
+      "name": "places"
+    },
+    {
+      "description": "Restaurant ownership claim submissions. The public path (`POST /places/{id}/ownership-requests`) accepts anonymous claims; the authenticated owner-portal path (`/me/ownership-requests`) ties claims to a sponsoring organization, supports evidence-file uploads, and enforces the duplicate-claim guard.",
+      "name": "ownership-requests"
+    },
+    {
+      "description": "Owner-managed organizations \u2014 the legal entity behind a claim. Self-service create, edit, upload formation/renewal documents, and submit for admin review. Admin staff review on the /admin/organizations side.",
+      "name": "organizations"
+    },
+    {
+      "description": "Owner-portal halal-claim workflow. Owners submit a structured questionnaire (menu posture, alcohol policy, per-meat slaughter, certification context) for places they own. Status flow: DRAFT \u2192 PENDING_REVIEW \u2192 APPROVED/REJECTED/NEEDS_MORE_INFO. On approval the claim drives the place's public `HalalProfile`. Admin review lives under `admin: halal-claims`.",
+      "name": "halal-claims"
+    },
+    {
+      "description": "Staff review surface for owner-submitted halal claims. Approve (assigns a validation tier), reject, request more info, or revoke a previously approved claim. Approval runs the profile-derivation service that creates / updates the place's `HalalProfile` in the same transaction.",
+      "name": "admin: halal-claims"
+    },
+    {
+      "description": "Catalog management. Ingest from Google Place ID, manual edits, soft-delete + restore, retroactively link a manual place to Google, and audit-event timeline reads. Admin sees soft-deleted rows that the public catalog hides.",
+      "name": "admin: places"
+    },
+    {
+      "description": "Org review queue. Verify or reject owner-submitted orgs, manage members, and download supporting documents. Halal claims and ownership requests are gated on the org being VERIFIED, so this queue is the unblocker for both.",
+      "name": "admin: organizations"
+    },
+    {
+      "description": "Decision surface for ownership claims (place-of-business verification). Approve grants the org an active `PlaceOwner` link; reject closes the request with a reason; request-evidence asks the requester for more documentation without closing the case.",
+      "name": "admin: ownership-requests"
+    },
+    {
+      "description": "Staff user management. Invite a teammate by email (generates a one-time set-password token), edit role, deactivate. Self-demotion + self-deactivation are blocked server-side.",
+      "name": "admin: users"
+    },
+    {
+      "description": "Liveness + service-identity pings. Render's deploy gate uses `/health`; the unauthenticated `/` is a 'is this the right service?' sanity probe that includes the env name.",
+      "name": "health"
+    },
+    {
+      "description": "Diagnostics behind feature flags. Currently only the Sentry verification endpoints, gated by `SENTRY_DEBUG_ENABLED`. Not part of the contract \u2014 anything tagged `debug` may disappear without notice.",
+      "name": "debug"
+    }
+  ]
 }
