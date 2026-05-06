@@ -21,7 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/claims": {
+    "/admin/halal-claims": {
         parameters: {
             query?: never;
             header?: never;
@@ -30,16 +30,15 @@ export interface paths {
         };
         /**
          * List Claims Admin
-         * @description List claims for the admin/verifier queue.
+         * @description Halal-claim review queue.
          *
-         *     Both ADMIN and VERIFIER can read this. The write paths below
-         *     (verify/reject/expire) stay ADMIN-only — verifiers moderate via
-         *     the public ``POST /claims/{id}/verify`` route, which has its own
-         *     role-gated logic. Loosening the read lets the admin panel's
-         *     /claims page work for verifiers without building a second queue
-         *     surface.
+         *     The default admin view passes ``?status=PENDING_REVIEW`` for the
+         *     work queue. Status omitted returns every claim (useful for
+         *     auditing rejected/expired/superseded history). place_id and
+         *     organization_id let admin scope the queue when investigating a
+         *     specific surface.
          */
-        get: operations["list_claims_admin_admin_claims_get"];
+        get: operations["list_claims_admin_admin_halal_claims_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -48,7 +47,101 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/claims/{claim_id}/events": {
+    "/admin/halal-claims/{claim_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Claim Admin
+         * @description Single-claim detail. 404 on unknown id.
+         */
+        get: operations["get_claim_admin_admin_halal_claims__claim_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/halal-claims/{claim_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Claim Admin
+         * @description Approve a PENDING_REVIEW or NEEDS_MORE_INFO claim.
+         *
+         *     Triggers the profile-derivation service: creates or updates the
+         *     place's HalalProfile, marks any prior source_claim as
+         *     SUPERSEDED, writes a CREATED or UPDATED HalalProfileEvent. The
+         *     transaction is atomic — all of it lands or none of it.
+         *
+         *     Admin assigns ``validation_tier`` here (SELF_ATTESTED /
+         *     CERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional
+         *     ``expires_at_override`` overrides the default 12-month TTL.
+         */
+        post: operations["approve_claim_admin_admin_halal_claims__claim_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/halal-claims/{claim_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Claim Attachments Admin
+         * @description List metadata for the claim's evidence files.
+         */
+        get: operations["list_claim_attachments_admin_admin_halal_claims__claim_id__attachments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/halal-claims/{claim_id}/attachments/{attachment_id}/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Signed Url For Attachment Admin
+         * @description Mint a short-lived signed URL for one attachment.
+         *
+         *     Asserts the attachment belongs to the claim before signing —
+         *     guards against guessed UUIDs surfacing files for an unrelated
+         *     claim. TTL is 60 seconds, same as the org / ownership-request
+         *     signed-URL endpoints.
+         */
+        get: operations["signed_url_for_attachment_admin_admin_halal_claims__claim_id__attachments__attachment_id__url_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/halal-claims/{claim_id}/events": {
         parameters: {
             query?: never;
             header?: never;
@@ -57,15 +150,15 @@ export interface paths {
         };
         /**
          * List Claim Events Admin
-         * @description Event history for a claim.
+         * @description Per-claim audit timeline (admin view).
          *
-         *     Same role posture as the list endpoint: ADMIN and VERIFIER can
-         *     read the audit trail (verifiers need it to understand the
-         *     context when deciding how to moderate). Events carry
-         *     ``actor_email`` / ``actor_display_name`` which is internal-staff
-         *     info — safe to expose to verifiers, who are themselves staff.
+         *     Same shape the owner sees on their portal, with no ownership
+         *     gate — admin can read any claim's events. Powers the 'Activity'
+         *     section on the admin claim detail page so reviewers can see the
+         *     full lifecycle (when the owner drafted, when they submitted,
+         *     every prior decision, supersession from a newer approval, etc.).
          */
-        get: operations["list_claim_events_admin_admin_claims__claim_id__events_get"];
+        get: operations["list_claim_events_admin_admin_halal_claims__claim_id__events_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -74,7 +167,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/claims/{claim_id}/expire": {
+    "/admin/halal-claims/{claim_id}/reject": {
         parameters: {
             query?: never;
             header?: never;
@@ -83,15 +176,22 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Expire Claim Admin */
-        post: operations["expire_claim_admin_admin_claims__claim_id__expire_post"];
+        /**
+         * Reject Claim Admin
+         * @description Reject a PENDING_REVIEW or NEEDS_MORE_INFO claim.
+         *
+         *     decision_note is required and surfaces verbatim to the owner.
+         *     Does NOT touch the place's HalalProfile — a rejection is the
+         *     absence of a new profile, not a removal of an existing one.
+         */
+        post: operations["reject_claim_admin_admin_halal_claims__claim_id__reject_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/admin/claims/{claim_id}/reject": {
+    "/admin/halal-claims/{claim_id}/request-info": {
         parameters: {
             query?: never;
             header?: never;
@@ -100,15 +200,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reject Claim Admin */
-        post: operations["reject_claim_admin_admin_claims__claim_id__reject_post"];
+        /**
+         * Request Info Claim Admin
+         * @description Move a claim to NEEDS_MORE_INFO with a message to the owner.
+         *
+         *     decision_note is shown to the owner verbatim — admin uses it to
+         *     specify what additional evidence is needed. Owner can then
+         *     upload more attachments (the /me/halal-claims status guard
+         *     permits uploads in NEEDS_MORE_INFO) and re-submit.
+         */
+        post: operations["request_info_claim_admin_admin_halal_claims__claim_id__request_info_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/admin/claims/{claim_id}/verify": {
+    "/admin/halal-claims/{claim_id}/revoke": {
         parameters: {
             query?: never;
             header?: never;
@@ -117,8 +225,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Verify Claim Admin */
-        post: operations["verify_claim_admin_admin_claims__claim_id__verify_post"];
+        /**
+         * Revoke Claim Admin
+         * @description Pull a previously APPROVED claim.
+         *
+         *     Marks the linked HalalProfile as revoked_at=now and writes a
+         *     REVOKED HalalProfileEvent. Used for fraud discovery, restaurant
+         *     closure, or other admin-driven takedowns. Idempotent on already-
+         *     REVOKED claims.
+         */
+        post: operations["revoke_claim_admin_admin_halal_claims__claim_id__revoke_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -557,23 +673,6 @@ export interface paths {
         head?: never;
         /** Patch Place */
         patch: operations["patch_place_admin_places__place_id__patch"];
-        trace?: never;
-    };
-    "/admin/places/{place_id}/claims": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Place Claims Admin */
-        get: operations["get_place_claims_admin_admin_places__place_id__claims_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/admin/places/{place_id}/events": {
@@ -1030,108 +1129,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/claims": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Post Claim */
-        post: operations["post_claim_claims_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/claims/{claim_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Claim By Id */
-        get: operations["get_claim_by_id_claims__claim_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/claims/{claim_id}/dispute": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Post Dispute Claim */
-        post: operations["post_dispute_claim_claims__claim_id__dispute_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/claims/{claim_id}/evidence": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Post Claim Evidence */
-        post: operations["post_claim_evidence_claims__claim_id__evidence_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/claims/{claim_id}/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Post Refresh Claim */
-        post: operations["post_refresh_claim_claims__claim_id__refresh_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/claims/{claim_id}/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Post Verify Claim */
-        post: operations["post_verify_claim_claims__claim_id__verify_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/health": {
         parameters: {
             query?: never;
@@ -1176,6 +1173,209 @@ export interface paths {
         get: operations["get_me_me_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/halal-claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Halal Claims
+         * @description List the caller's halal claims (newest first).
+         *
+         *     Powers the owner portal's 'My halal claims' page. Pagination
+         *     capped at 200 — realistic owners won't have anywhere near that
+         *     many; the bound is cheap insurance against a runaway query.
+         */
+        get: operations["list_my_halal_claims_me_halal_claims_get"];
+        put?: never;
+        /**
+         * Create My Halal Claim
+         * @description Create a DRAFT halal claim.
+         *
+         *     Authorization gates run in the repo:
+         *       * Caller must be an ACTIVE member of the sponsoring org.
+         *       * Org must be UNDER_REVIEW or VERIFIED (DRAFT/REJECTED orgs
+         *         can't sponsor).
+         *       * Org must have an ACTIVE PlaceOwner row for the place.
+         *
+         *     The questionnaire is optional at create — owners typically
+         *     save partial progress across multiple sessions. Validation
+         *     that all required fields are populated runs at submit time.
+         *
+         *     Rate-limited per session at 10/hour.
+         */
+        post: operations["create_my_halal_claim_me_halal_claims_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/halal-claims/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Batch Create My Halal Claims
+         * @description Create N draft halal claims in one call, sharing one
+         *     questionnaire payload.
+         *
+         *     Use case: a chain restaurant whose locations all maintain the
+         *     same halal standard. The owner picks every applicable place,
+         *     fills out the questionnaire once, and we fan it out as N
+         *     independent draft claims (each subject to admin review on its
+         *     own merits).
+         *
+         *     Authorization gates run for every selection upfront. The whole
+         *     transaction rolls back on any failure — no half-created
+         *     batches.
+         *
+         *     Routed at the same prefix as the single-create POST; FastAPI
+         *     matches /batch first because it's a longer literal path.
+         */
+        post: operations["batch_create_my_halal_claims_me_halal_claims_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/halal-claims/{claim_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Halal Claim
+         * @description Single claim detail. 404 on unknown id, 403 on not-yours.
+         */
+        get: operations["get_my_halal_claim_me_halal_claims__claim_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch My Halal Claim
+         * @description Update a DRAFT claim's questionnaire.
+         *
+         *     Only the structured_response can be changed; place_id and
+         *     organization_id are immutable post-create. Owners who picked
+         *     the wrong values discard the draft and start fresh.
+         *
+         *     409 ``HALAL_CLAIM_NOT_EDITABLE`` once the claim leaves DRAFT.
+         */
+        patch: operations["patch_my_halal_claim_me_halal_claims__claim_id__patch"];
+        trace?: never;
+    };
+    "/me/halal-claims/{claim_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Halal Claim Attachments
+         * @description List metadata for the claim's evidence files. Bytes are not
+         *     returned — frontends fetch via signed URL (Phase 3 admin endpoint;
+         *     owner re-fetches the claim and reads ``attachments`` instead).
+         */
+        get: operations["list_my_halal_claim_attachments_me_halal_claims__claim_id__attachments_get"];
+        put?: never;
+        /**
+         * Upload My Halal Claim Attachment
+         * @description Upload an evidence document for a halal claim.
+         *
+         *     Multipart upload with optional metadata fields:
+         *
+         *       * ``document_type`` — HALAL_CERTIFICATE | SUPPLIER_LETTER |
+         *         INVOICE | PHOTO | OTHER. Drives admin-side icon + section.
+         *       * ``issuing_authority`` / ``certificate_number`` /
+         *         ``valid_until`` — only meaningful for HALAL_CERTIFICATE,
+         *         nullable for everything else.
+         *
+         *     Validation grid mirrors the org + ownership-request endpoints:
+         *     membership / draft-or-pending status, count cap (8 per claim),
+         *     size cap (10 MB), MIME allow-list (PDF / JPEG / PNG / HEIC /
+         *     HEIF). Storage key is
+         *     ``halal-claims/<claim_id>/<uuid>.<ext>``.
+         *
+         *     Re-uploading replaces nothing — each upload creates a new row,
+         *     keeping the audit trail intact. Owner can delete drafts'
+         *     attachments via DELETE in a later phase if needed; for now
+         *     the workflow is "discard draft, start fresh."
+         *
+         *     Rate-limited per session at 60/hour.
+         */
+        post: operations["upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/halal-claims/{claim_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Halal Claim Events
+         * @description Per-claim audit timeline.
+         *
+         *     Powers the 'Activity' section on the owner-portal claim detail
+         *     page so submitters can see exactly what's happened on their
+         *     claim — when they drafted, when they submitted, when admin
+         *     decided, etc. Same 404/403 split as the rest of the surface.
+         */
+        get: operations["list_my_halal_claim_events_me_halal_claims__claim_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/halal-claims/{claim_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit My Halal Claim
+         * @description Move DRAFT → PENDING_REVIEW.
+         *
+         *     Re-validates the stored questionnaire against the strict shape
+         *     (``HalalQuestionnaireResponse``). Any missing required answers
+         *     return a 400 with the field-level errors under
+         *     ``error.detail`` so the frontend can surface inline validation.
+         *
+         *     Idempotent on PENDING_REVIEW (no error, no state change).
+         */
+        post: operations["submit_my_halal_claim_me_halal_claims__claim_id__submit_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1290,6 +1490,36 @@ export interface paths {
          *     staff has something to verify against.
          */
         post: operations["submit_my_organization_me_organizations__organization_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/owned-places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Owned Places
+         * @description Places this user can submit halal information for.
+         *
+         *     Backed by an active OrganizationMember → Organization →
+         *     PlaceOwner chain. Each (place, owning org) pair is a separate
+         *     row, so a user who runs multiple orgs can see which place is
+         *     owned by which entity. Drives the picker on the owner-portal
+         *     "New halal claim" flow.
+         *
+         *     ``has_halal_profile`` is true when a non-revoked HalalProfile
+         *     exists for the place — lets the picker render different copy
+         *     for first-time vs update flows.
+         */
+        get: operations["list_my_owned_places_me_owned_places_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1451,6 +1681,13 @@ export interface paths {
          *     If ``q`` is set, geo params are ignored. If neither path is
          *     populated, we 400 — there's no meaningful "list everything"
          *     response on a public catalog of this size.
+         *
+         *     Halal preference filters are optional. When any filter is set
+         *     the results are restricted to places with a non-revoked
+         *     HalalProfile that matches every populated condition. Places
+         *     without a profile, or with a revoked profile, drop out of the
+         *     result set entirely — the consumer asked for halal-verified
+         *     places and an unverified place isn't an answer to that question.
          */
         get: operations["search_places_places_get"];
         put?: never;
@@ -1518,15 +1755,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/places/{place_id}/claims": {
+    "/places/{place_id}/halal-profile": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Place Claims */
-        get: operations["get_place_claims_places__place_id__claims_get"];
+        /**
+         * Get Place Halal Profile
+         * @description Public consumer-facing halal profile for a place.
+         *
+         *     Returns the structured snapshot the consumer site renders as
+         *     trust labels + expandable details. Visibility rules:
+         *
+         *       * Place must exist and not be soft-deleted (404 PLACE_NOT_FOUND
+         *         otherwise).
+         *       * A non-revoked HalalProfile must exist (404
+         *         HALAL_PROFILE_NOT_FOUND otherwise — used by the consumer
+         *         UI to decide between "no halal info" and "deleted place").
+         *
+         *     Expired profiles (expires_at in the past) are returned, with
+         *     last_verified_at + expires_at letting the UI render staleness.
+         *     Disputed profiles are returned, with dispute_state =
+         *     'DISPUTED' so the UI can surface a 'conflicting reports'
+         *     badge.
+         */
+        get: operations["get_place_halal_profile_places__place_id__halal_profile_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1556,10 +1811,44 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AdminClaimAction */
-        AdminClaimAction: {
-            /** Reason */
-            reason: string;
+        /**
+         * AdminAttachmentSignedUrl
+         * @description Response shape for the signed-URL endpoint. Same shape as
+         *     the org and ownership-request signed-URL endpoints — short TTL,
+         *     URL + filename + MIME so the client can render the download
+         *     label without a second fetch.
+         */
+        AdminAttachmentSignedUrl: {
+            /** Content Type */
+            content_type: string;
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /** Original Filename */
+            original_filename: string;
+            /** Url */
+            url: string;
+        };
+        /**
+         * AlcoholPolicy
+         * @description Alcohol on premises.
+         * @enum {string}
+         */
+        AlcoholPolicy: "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
+        /** Body_upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post */
+        Body_upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post: {
+            /** Certificate Number */
+            certificate_number?: string | null;
+            /** @default OTHER */
+            document_type: components["schemas"]["HalalClaimAttachmentType"];
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+            /** Issuing Authority */
+            issuing_authority?: string | null;
+            /** Valid Until */
+            valid_until?: string | null;
         };
         /** Body_upload_my_ownership_request_attachment_me_ownership_requests__request_id__attachments_post */
         Body_upload_my_ownership_request_attachment_me_ownership_requests__request_id__attachments_post: {
@@ -1576,175 +1865,6 @@ export interface components {
              * Format: binary
              */
             file: string;
-        };
-        /**
-         * ClaimAdminRead
-         * @description Row shape for the /admin/claims queue.
-         *
-         *     Mirrors ClaimDetailRead minus the nested evidence/events lists.
-         *     evidence_count is a denormalized counter so the queue table can
-         *     surface "already has proof attached" without N+1-ing /claims/{id}.
-         */
-        ClaimAdminRead: {
-            claim_type: components["schemas"]["ClaimType"];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Created By User Id */
-            created_by_user_id: string | null;
-            /** Evidence Count */
-            evidence_count: number;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Place Id
-             * Format: uuid
-             */
-            place_id: string;
-            scope: components["schemas"]["ClaimScope"];
-            status: components["schemas"]["ClaimStatus"];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** ClaimCreate */
-        ClaimCreate: {
-            claim_type: components["schemas"]["ClaimType"];
-            /**
-             * Place Id
-             * Format: uuid
-             */
-            place_id: string;
-            /** @default ALL_MENU */
-            scope: components["schemas"]["ClaimScope"];
-        };
-        /** ClaimDetailRead */
-        ClaimDetailRead: {
-            claim_type: components["schemas"]["ClaimType"];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Created By User Id */
-            created_by_user_id: string | null;
-            /** Events */
-            events: components["schemas"]["ClaimEventRead"][];
-            /** Evidence */
-            evidence: components["schemas"]["EvidenceRead"][];
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Place Id
-             * Format: uuid
-             */
-            place_id: string;
-            scope: components["schemas"]["ClaimScope"];
-            status: components["schemas"]["ClaimStatus"];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** ClaimEventRead */
-        ClaimEventRead: {
-            /** Actor User Id */
-            actor_user_id: string | null;
-            /**
-             * Claim Id
-             * Format: uuid
-             */
-            claim_id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            event_type: components["schemas"]["ClaimEventType"];
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Message */
-            message: string | null;
-        };
-        /**
-         * ClaimEventType
-         * @description Audit event types logged on claim_events.
-         *
-         *     Stored as VARCHAR + CHECK (see models.ClaimEvent.event_type). Adding
-         *     a new value requires extending the CHECK constraint in a migration
-         *     before the app writes it.
-         * @enum {string}
-         */
-        ClaimEventType: "SUBMITTED" | "EVIDENCE_ADDED" | "VERIFIED" | "REFRESH_REQUESTED" | "DISPUTED" | "ADMIN_VERIFIED" | "ADMIN_REJECTED" | "ADMIN_EXPIRED" | "EXPIRED";
-        /** ClaimRead */
-        ClaimRead: {
-            claim_type: components["schemas"]["ClaimType"];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Place Id
-             * Format: uuid
-             */
-            place_id: string;
-            scope: components["schemas"]["ClaimScope"];
-            status: components["schemas"]["ClaimStatus"];
-        };
-        /**
-         * ClaimScope
-         * @enum {string}
-         */
-        ClaimScope: "ALL_MENU" | "SPECIFIC_ITEMS";
-        /**
-         * ClaimStatus
-         * @enum {string}
-         */
-        ClaimStatus: "PENDING" | "VERIFIED" | "REJECTED" | "EXPIRED" | "DISPUTED";
-        /**
-         * ClaimType
-         * @enum {string}
-         */
-        ClaimType: "ZABIHA" | "HALAL_CHICKEN_ONLY" | "PORK_FREE" | "NO_ALCOHOL" | "HALAL_MEAT_AVAILABLE";
-        /** DisputeRequest */
-        DisputeRequest: {
-            /** Reason */
-            reason: string;
         };
         /**
          * ErrorDetail
@@ -1773,41 +1893,6 @@ export interface components {
          */
         ErrorResponse: {
             error: components["schemas"]["ErrorDetail"];
-        };
-        /** EvidenceCreate */
-        EvidenceCreate: {
-            /** Evidence Type */
-            evidence_type: string;
-            /** Notes */
-            notes?: string | null;
-            /** Uri */
-            uri: string;
-        };
-        /** EvidenceRead */
-        EvidenceRead: {
-            /**
-             * Claim Id
-             * Format: uuid
-             */
-            claim_id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Evidence Type */
-            evidence_type: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Notes */
-            notes: string | null;
-            /** Uploaded By User Id */
-            uploaded_by_user_id: string | null;
-            /** Uri */
-            uri: string;
         };
         /**
          * ExternalIdProvider
@@ -1839,6 +1924,439 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HalalClaimAdminRead
+         * @description Admin-side read. Adds internal_notes + decided_by_user_id +
+         *     submitted_by_user_id (the owner-side hides these for tidiness).
+         */
+        HalalClaimAdminRead: {
+            /** Attachments */
+            attachments?: components["schemas"]["HalalClaimAttachmentRead"][];
+            claim_type: components["schemas"]["HalalClaimType"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By User Id */
+            decided_by_user_id?: string | null;
+            /** Decision Note */
+            decision_note: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Internal Notes */
+            internal_notes?: string | null;
+            organization?: components["schemas"]["MyHalalClaimOrgSummary"] | null;
+            /** Organization Id */
+            organization_id: string | null;
+            place?: components["schemas"]["MyHalalClaimPlaceSummary"] | null;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            status: components["schemas"]["HalalClaimStatus"];
+            /** Structured Response */
+            structured_response?: {
+                [key: string]: unknown;
+            } | null;
+            /** Submitted At */
+            submitted_at: string | null;
+            /** Submitted By User Id */
+            submitted_by_user_id?: string | null;
+            /** Triggered By Dispute Id */
+            triggered_by_dispute_id?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * HalalClaimApprove
+         * @description Payload for ``POST /admin/halal-claims/{id}/approve``.
+         *
+         *     ``validation_tier`` is the admin's confidence-level call —
+         *     SELF_ATTESTED (no evidence verified beyond on-file docs),
+         *     CERTIFICATE_ON_FILE (cert verified), or TRUST_HALAL_VERIFIED
+         *     (Trust Halal staff or community verifier site visit confirms).
+         *
+         *     ``expires_at_override`` lets admin pick a non-default expiry
+         *     (defaults to 12 months from approve). Useful for short-lived
+         *     certifications or for placing a verified claim on a tighter
+         *     re-verification cadence.
+         *
+         *     ``certificate_expires_at`` mirrors the cert's own expiry date.
+         *     Optional and metadata-only — drives the consumer-facing
+         *     "Certificate expires Mar 2027" line.
+         */
+        HalalClaimApprove: {
+            /** Certificate Expires At */
+            certificate_expires_at?: string | null;
+            /** Decision Note */
+            decision_note?: string | null;
+            /** Expires At Override */
+            expires_at_override?: string | null;
+            /** Internal Notes */
+            internal_notes?: string | null;
+            validation_tier: components["schemas"]["ValidationTier"];
+        };
+        /**
+         * HalalClaimAttachmentRead
+         * @description Metadata for a claim's attached document. Bytes are at
+         *     ``storage_path`` — frontends fetch via signed URL, not directly.
+         */
+        HalalClaimAttachmentRead: {
+            /** Certificate Number */
+            certificate_number?: string | null;
+            /**
+             * Claim Id
+             * Format: uuid
+             */
+            claim_id: string;
+            /** Content Type */
+            content_type: string;
+            document_type: components["schemas"]["HalalClaimAttachmentType"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Issuing Authority */
+            issuing_authority?: string | null;
+            /** Original Filename */
+            original_filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+            /** Valid Until */
+            valid_until?: string | null;
+        };
+        /**
+         * HalalClaimAttachmentType
+         * @description What the uploaded document is supposed to prove.
+         *
+         *     Free-form text could work, but a small enum makes admin review
+         *     consistent and lets the UI render appropriate icons / sections.
+         * @enum {string}
+         */
+        HalalClaimAttachmentType: "HALAL_CERTIFICATE" | "SUPPLIER_LETTER" | "INVOICE" | "PHOTO" | "OTHER";
+        /**
+         * HalalClaimEventRead
+         * @description One row from the per-claim audit timeline.
+         *
+         *     Mirrors ``HalalClaimEvent`` in the model layer. Used by both the
+         *     owner-portal claim detail (so the submitter can see exactly when
+         *     their claim was reviewed and what was decided) and the admin
+         *     review surface (so staff can audit the full lifecycle).
+         *
+         *     ``description`` carries either the action's natural-language
+         *     summary (DRAFT_CREATED → "Owner started a halal claim") or the
+         *     owner-visible decision_note verbatim (APPROVED / REJECTED /
+         *     INFO_REQUESTED / REVOKED).
+         */
+        HalalClaimEventRead: {
+            /** Actor User Id */
+            actor_user_id?: string | null;
+            /**
+             * Claim Id
+             * Format: uuid
+             */
+            claim_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            event_type: components["schemas"]["HalalClaimEventType"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        };
+        /**
+         * HalalClaimEventType
+         * @description What kind of transition this audit-event row represents.
+         *
+         *     Lock-step with the CHECK constraint in the
+         *     ``h2b3c4d5e6f7_halal_claim_events`` migration. Add a value here
+         *     AND in the migration's ``HALAL_CLAIM_EVENT_TYPE`` tuple — adding
+         *     only one side trips the CHECK at insert time.
+         *
+         *     The set is intentionally narrow:
+         *
+         *     * ``DRAFT_CREATED`` — owner started a new claim. Logged once
+         *       per claim at creation (single + batch paths).
+         *     * ``SUBMITTED`` — owner submitted DRAFT → PENDING_REVIEW. Also
+         *       fires on NEEDS_MORE_INFO → PENDING_REVIEW re-submits, since
+         *       that's another "owner is asking for review."
+         *     * ``ATTACHMENT_ADDED`` — owner uploaded an evidence file.
+         *     * ``APPROVED`` / ``REJECTED`` / ``INFO_REQUESTED`` / ``REVOKED``
+         *       — the four admin decision transitions. ``description`` carries
+         *       the owner-visible decision_note verbatim so a later overwrite
+         *       doesn't lose the history.
+         *     * ``SUPERSEDED`` — system-driven; logged when a fresher approval
+         *       bumps a prior approved claim out of "current" status.
+         *     * ``EXPIRED`` — system-driven; reserved for the renewal cron
+         *       that lands in a later phase.
+         *
+         *     Patches to the questionnaire while in DRAFT are NOT logged —
+         *     iterating on the form is a high-frequency activity and writing
+         *     an event per keystroke (or even per save) would drown the
+         *     timeline. The submit event captures the meaningful "owner has
+         *     decided this draft is ready" signal.
+         * @enum {string}
+         */
+        HalalClaimEventType: "DRAFT_CREATED" | "SUBMITTED" | "ATTACHMENT_ADDED" | "APPROVED" | "REJECTED" | "INFO_REQUESTED" | "REVOKED" | "SUPERSEDED" | "EXPIRED";
+        /**
+         * HalalClaimReject
+         * @description Payload for ``POST /admin/halal-claims/{id}/reject``.
+         *
+         *     Decision note is REQUIRED — the owner sees this on their claim
+         *     detail to understand why their submission didn't pass. A
+         *     rejection without a reason makes for a frustrating UX.
+         */
+        HalalClaimReject: {
+            /** Decision Note */
+            decision_note: string;
+            /** Internal Notes */
+            internal_notes?: string | null;
+        };
+        /**
+         * HalalClaimRequestInfo
+         * @description Payload for ``POST /admin/halal-claims/{id}/request-info``.
+         *
+         *     Moves the claim to NEEDS_MORE_INFO. The decision_note is shown
+         *     to the owner verbatim — admin uses it to specify what additional
+         *     evidence is needed ("Please upload a current cert from IFANCA",
+         *     etc.). Owner can then upload more attachments and re-submit.
+         */
+        HalalClaimRequestInfo: {
+            /** Decision Note */
+            decision_note: string;
+            /** Internal Notes */
+            internal_notes?: string | null;
+        };
+        /**
+         * HalalClaimRevoke
+         * @description Payload for ``POST /admin/halal-claims/{id}/revoke``.
+         *
+         *     Used when admin pulls a previously-APPROVED claim (fraud
+         *     discovered, restaurant closed, recertification window passed
+         *     without renewal, etc.). The associated HalalProfile gets a
+         *     revoked_at marker; the consumer-facing render hides the place
+         *     or surfaces a 'no longer verified' badge depending on UX
+         *     decisions in Phase 9.
+         */
+        HalalClaimRevoke: {
+            /** Decision Note */
+            decision_note: string;
+            /** Internal Notes */
+            internal_notes?: string | null;
+        };
+        /**
+         * HalalClaimStatus
+         * @enum {string}
+         */
+        HalalClaimStatus: "DRAFT" | "PENDING_REVIEW" | "NEEDS_MORE_INFO" | "APPROVED" | "REJECTED" | "EXPIRED" | "REVOKED" | "SUPERSEDED";
+        /**
+         * HalalClaimType
+         * @enum {string}
+         */
+        HalalClaimType: "INITIAL" | "RENEWAL" | "RECONCILIATION";
+        /**
+         * HalalProfileDisputeState
+         * @description Whether a profile is currently under contestation.
+         *
+         *     NONE       — no active disputes; profile is the source of truth.
+         *     DISPUTED   — a confirmed dispute exists. Consumer-facing UI
+         *                  surfaces a "conflicting reports" badge.
+         *     RECONCILING — owner has submitted a RECONCILIATION claim that's
+         *                  in admin review. Profile still serves the old data
+         *                  but the badge shows "review in progress."
+         * @enum {string}
+         */
+        HalalProfileDisputeState: "NONE" | "DISPUTED" | "RECONCILING";
+        /**
+         * HalalProfileEmbed
+         * @description Inline halal-profile shape, kept here (rather than imported
+         *     from app.modules.halal_profiles.schemas) to avoid a Pydantic-
+         *     forward-reference rebuild dance. Field set MUST stay in lock-step
+         *     with ``HalalProfileRead`` over there — when one changes, update
+         *     the other.
+         *
+         *     Why duplicate the shape: importing HalalProfileRead here would
+         *     create an import cycle (halal_profiles → places.schemas references
+         *     halal_profiles → halal_profiles is being imported). Cheaper to
+         *     duplicate the column list than to refactor.
+         */
+        HalalProfileEmbed: {
+            /** Alcohol In Cooking */
+            alcohol_in_cooking: boolean;
+            /** Alcohol Policy */
+            alcohol_policy: string;
+            /** Beef Slaughter */
+            beef_slaughter: string;
+            /** Caveats */
+            caveats: string | null;
+            /** Certificate Expires At */
+            certificate_expires_at: string | null;
+            /** Certifying Body Name */
+            certifying_body_name: string | null;
+            /** Chicken Slaughter */
+            chicken_slaughter: string;
+            /** Dispute State */
+            dispute_state: string;
+            /** Expires At */
+            expires_at: string | null;
+            /** Goat Slaughter */
+            goat_slaughter: string;
+            /** Has Certification */
+            has_certification: boolean;
+            /** Has Pork */
+            has_pork: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lamb Slaughter */
+            lamb_slaughter: string;
+            /**
+             * Last Verified At
+             * Format: date-time
+             */
+            last_verified_at: string;
+            /** Menu Posture */
+            menu_posture: string;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Seafood Only */
+            seafood_only: boolean;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Validation Tier */
+            validation_tier: string;
+        };
+        /**
+         * HalalProfileRead
+         * @description Public read shape — what consumer frontends render.
+         *
+         *     Every field is the current truth. The ``last_verified_at`` and
+         *     ``expires_at`` give the consumer a sense of freshness. The
+         *     ``dispute_state`` lets the UI surface a "conflicting reports"
+         *     badge when relevant.
+         */
+        HalalProfileRead: {
+            /** Alcohol In Cooking */
+            alcohol_in_cooking: boolean;
+            alcohol_policy: components["schemas"]["AlcoholPolicy"];
+            beef_slaughter: components["schemas"]["SlaughterMethod"];
+            /** Caveats */
+            caveats: string | null;
+            /** Certificate Expires At */
+            certificate_expires_at: string | null;
+            /** Certifying Body Name */
+            certifying_body_name: string | null;
+            chicken_slaughter: components["schemas"]["SlaughterMethod"];
+            dispute_state: components["schemas"]["HalalProfileDisputeState"];
+            /** Expires At */
+            expires_at: string | null;
+            goat_slaughter: components["schemas"]["SlaughterMethod"];
+            /** Has Certification */
+            has_certification: boolean;
+            /** Has Pork */
+            has_pork: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            lamb_slaughter: components["schemas"]["SlaughterMethod"];
+            /**
+             * Last Verified At
+             * Format: date-time
+             */
+            last_verified_at: string;
+            menu_posture: components["schemas"]["MenuPosture"];
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Seafood Only */
+            seafood_only: boolean;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            validation_tier: components["schemas"]["ValidationTier"];
+        };
+        /**
+         * HalalQuestionnaireDraft
+         * @description PERMISSIVE shape — every field optional.
+         *
+         *     Used as the ``structured_response`` payload while the claim is in
+         *     DRAFT, so owners can save partial progress across multiple
+         *     sessions without Pydantic rejecting incomplete answers. The
+         *     submit endpoint re-validates the stored dict through the strict
+         *     ``HalalQuestionnaireResponse`` and returns a 422 with field-level
+         *     errors if anything's missing.
+         *
+         *     Field set is identical to ``HalalQuestionnaireResponse`` minus
+         *     the requiredness — keep both shapes in lock-step when adding new
+         *     questions.
+         */
+        HalalQuestionnaireDraft: {
+            /** Alcohol In Cooking */
+            alcohol_in_cooking?: boolean | null;
+            alcohol_policy?: components["schemas"]["AlcoholPolicy"] | null;
+            beef?: components["schemas"]["MeatSourcing"] | null;
+            /** Caveats */
+            caveats?: string | null;
+            /** Certifying Body Name */
+            certifying_body_name?: string | null;
+            chicken?: components["schemas"]["MeatSourcing"] | null;
+            goat?: components["schemas"]["MeatSourcing"] | null;
+            /** Has Certification */
+            has_certification?: boolean | null;
+            /** Has Pork */
+            has_pork?: boolean | null;
+            lamb?: components["schemas"]["MeatSourcing"] | null;
+            menu_posture?: components["schemas"]["MenuPosture"] | null;
+            /**
+             * Questionnaire Version
+             * @default 1
+             */
+            questionnaire_version: number;
+            /** Seafood Only */
+            seafood_only?: boolean | null;
         };
         /**
          * InviteInfoResponse
@@ -1919,6 +2437,30 @@ export interface components {
             id: string;
             role: components["schemas"]["UserRole"];
         };
+        /**
+         * MeatSourcing
+         * @description How a single meat type is sourced.
+         *
+         *     Repeated per meat (chicken / beef / lamb / goat / etc.). Owner
+         *     can declare ``not_served`` to mark "we don't serve this protein"
+         *     without leaving an awkward "n/a" answer. ``supplier_name`` and
+         *     ``supplier_location`` are free-form text — admin uses them to
+         *     sanity-check the certificate authority claims.
+         */
+        MeatSourcing: {
+            /** @description ZABIHAH / MACHINE / NOT_SERVED. NOT_SERVED means the restaurant doesn't serve this protein at all. */
+            slaughter_method: components["schemas"]["SlaughterMethod"];
+            /**
+             * Supplier Location
+             * @description City / state / country of the supplier.
+             */
+            supplier_location?: string | null;
+            /**
+             * Supplier Name
+             * @description Halal supplier name, if applicable.
+             */
+            supplier_name?: string | null;
+        };
         /** MemberAdminCreate */
         MemberAdminCreate: {
             /**
@@ -1931,6 +2473,192 @@ export interface components {
              * Format: uuid
              */
             user_id: string;
+        };
+        /**
+         * MenuPosture
+         * @description The shape of a restaurant's halal offering.
+         *
+         *     Listed roughly in order of strictness for consumer filtering.
+         *     A consumer's "minimum acceptable posture" pref includes everything
+         *     at or above the chosen value.
+         * @enum {string}
+         */
+        MenuPosture: "FULLY_HALAL" | "MIXED_SEPARATE_KITCHENS" | "HALAL_OPTIONS_ADVERTISED" | "HALAL_UPON_REQUEST" | "MIXED_SHARED_KITCHEN";
+        /**
+         * MyHalalClaimBatchCreate
+         * @description Payload for ``POST /me/halal-claims/batch``.
+         *
+         *     Lets an owner create N draft claims in one call, all sharing
+         *     the same questionnaire payload. Use case: a chain restaurant
+         *     where every location maintains the same halal standard — the
+         *     owner fills out the questionnaire once and applies it to each
+         *     place.
+         *
+         *     Limits:
+         *       * 1..20 selections per batch — beyond that, performance and
+         *         UX both degrade. Owners with more locations submit in
+         *         smaller groups.
+         *       * Every selection runs the same authorization gates as the
+         *         single-create path (membership + place ownership). If any
+         *         selection fails, the whole batch rolls back so the owner
+         *         gets a clean retry rather than a partial mess.
+         *
+         *     After creation the claims are independent — each can be edited,
+         *     submitted, and decided on separately. The shared questionnaire
+         *     is just the starting point.
+         */
+        MyHalalClaimBatchCreate: {
+            /** Selections */
+            selections: components["schemas"]["MyHalalClaimBatchSelection"][];
+            structured_response?: components["schemas"]["HalalQuestionnaireDraft"] | null;
+        };
+        /**
+         * MyHalalClaimBatchSelection
+         * @description One (place, sponsoring org) pair inside a batch create.
+         */
+        MyHalalClaimBatchSelection: {
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+        };
+        /**
+         * MyHalalClaimCreate
+         * @description Payload for ``POST /me/halal-claims``. Creates a DRAFT.
+         *
+         *     The owner must already have ownership of the place (via an
+         *     approved ``ownership_request``) and a sponsoring organization
+         *     in UNDER_REVIEW or VERIFIED status.
+         *
+         *     The questionnaire is optional at creation and accepts the
+         *     ``HalalQuestionnaireDraft`` shape — owners save partial progress
+         *     across multiple sessions, then submit. Validation that all
+         *     required fields are populated runs at the submit step.
+         */
+        MyHalalClaimCreate: {
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            structured_response?: components["schemas"]["HalalQuestionnaireDraft"] | null;
+        };
+        /**
+         * MyHalalClaimOrgSummary
+         * @description Embedded org fields on the owner-side claim read shape.
+         */
+        MyHalalClaimOrgSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * MyHalalClaimPatch
+         * @description Payload for ``PATCH /me/halal-claims/{id}``. DRAFT-only.
+         *
+         *     Accepts the permissive draft shape so partial saves don't 422.
+         */
+        MyHalalClaimPatch: {
+            structured_response?: components["schemas"]["HalalQuestionnaireDraft"] | null;
+        };
+        /**
+         * MyHalalClaimPlaceSummary
+         * @description Embedded place fields on the owner-side claim read shape.
+         *
+         *     Surfaces enough context for the list page to render a real
+         *     place name + address line without a second fetch. Stays slim
+         *     so the wire shape doesn't carry geom/timezone/etc the UI
+         *     doesn't need.
+         */
+        MyHalalClaimPlaceSummary: {
+            /** Address */
+            address?: string | null;
+            /** City */
+            city?: string | null;
+            /** Country Code */
+            country_code?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Region */
+            region?: string | null;
+        };
+        /**
+         * MyHalalClaimRead
+         * @description Owner-side read shape. Includes attachments + decision context.
+         *
+         *     ``structured_response`` is returned as a raw dict because the
+         *     stored JSONB may be a draft (partial answers) or a complete
+         *     response — the read shape stays loose to cover both. Frontends
+         *     parse it through ``HalalQuestionnaireDraft`` if they want
+         *     typed access.
+         *
+         *     ``place`` and ``organization`` summaries are embedded so the
+         *     list page renders 'Khan Halal Grill — owned by Khan LLC' without
+         *     a second fetch per row. Both are nullable: a claim's referenced
+         *     org could go away (FK ondelete=SET NULL), and place is
+         *     technically nullable post-cascade for the same reason.
+         */
+        MyHalalClaimRead: {
+            /** Attachments */
+            attachments?: components["schemas"]["HalalClaimAttachmentRead"][];
+            claim_type: components["schemas"]["HalalClaimType"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decision Note */
+            decision_note: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            organization?: components["schemas"]["MyHalalClaimOrgSummary"] | null;
+            /** Organization Id */
+            organization_id: string | null;
+            place?: components["schemas"]["MyHalalClaimPlaceSummary"] | null;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            status: components["schemas"]["HalalClaimStatus"];
+            /** Structured Response */
+            structured_response?: {
+                [key: string]: unknown;
+            } | null;
+            /** Submitted At */
+            submitted_at: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * MyOrganizationCreate
@@ -2402,6 +3130,48 @@ export interface components {
             note?: string | null;
         };
         /**
+         * OwnedPlaceRead
+         * @description A place the calling user can submit halal information for.
+         *
+         *     "Owns" here means: there's an ACTIVE PlaceOwner row for some org
+         *     the user is an ACTIVE OrganizationMember of. This is what backs
+         *     the picker on the owner portal's "New halal claim" flow — the
+         *     owner shouldn't be searching the catalog for a place they
+         *     already run; they should be picking from their own list.
+         *
+         *     A user might own a place via more than one org (rare, but
+         *     possible). Each owning org gets its own row in the response, so
+         *     the picker can show "Khan Halal LLC owns 5 places" alongside
+         *     "Khan Catering Co. owns 2 places" without deduping.
+         */
+        OwnedPlaceRead: {
+            /**
+             * Has Halal Profile
+             * @default false
+             */
+            has_halal_profile: boolean;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Organization Name */
+            organization_name: string;
+            /** Place Address */
+            place_address?: string | null;
+            /** Place City */
+            place_city?: string | null;
+            /** Place Country Code */
+            place_country_code?: string | null;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            /** Place Name */
+            place_name: string;
+        };
+        /**
          * OwnershipRequestAdminCreate
          * @description Admin-supplied body for creating an ownership request on someone's behalf.
          *
@@ -2760,15 +3530,9 @@ export interface components {
             address: string | null;
             /** City */
             city?: string | null;
-            /**
-             * Claims
-             * @default []
-             */
-            claims: {
-                [key: string]: unknown;
-            }[];
             /** Country Code */
             country_code?: string | null;
+            halal_profile?: components["schemas"]["HalalProfileEmbed"] | null;
             /**
              * Id
              * Format: uuid
@@ -3049,11 +3813,6 @@ export interface components {
              */
             reason?: string | null;
         };
-        /** RefreshRequest */
-        RefreshRequest: {
-            /** Reason */
-            reason?: string | null;
-        };
         /**
          * SetPasswordRequest
          * @description POST /auth/set-password body.
@@ -3147,6 +3906,12 @@ export interface components {
              */
             user_id: string;
         };
+        /**
+         * SlaughterMethod
+         * @description Per-meat slaughter classification.
+         * @enum {string}
+         */
+        SlaughterMethod: "ZABIHAH" | "MACHINE" | "NOT_SERVED";
         /** UserAdminCreate */
         UserAdminCreate: {
             /** Display Name */
@@ -3317,6 +4082,17 @@ export interface components {
             type: string;
         };
         /**
+         * ValidationTier
+         * @description How was the claim validated?
+         *
+         *     Ordered from least to most rigorous. The consumer-side preference
+         *     "minimum acceptable tier" filters on this. Admin assigns during
+         *     review, considering the evidence the owner uploaded plus any
+         *     verifier site-visit findings.
+         * @enum {string}
+         */
+        ValidationTier: "SELF_ATTESTED" | "CERTIFICATE_ON_FILE" | "TRUST_HALAL_VERIFIED";
+        /**
          * _AdminAttachmentSignedUrl
          * @description Response shape for the signed-URL endpoint.
          *
@@ -3333,53 +4109,6 @@ export interface components {
             original_filename: string;
             /** Url */
             url: string;
-        };
-        /**
-         * ClaimEventRead
-         * @description Admin-only event row with the actor joined in.
-         *
-         *     We surface ``actor_email`` / ``actor_display_name`` so the admin panel
-         *     can answer "who did this?" without a second round-trip. These
-         *     fields are intentionally nullable:
-         *
-         *       * Batch-job events (``EXPIRED``) and historical rows with a
-         *         SET-NULL'd FK have no actor.
-         *       * The user may have been deleted since; the FK is ON DELETE SET
-         *         NULL so ``actor_user_id`` itself can be null even when a join
-         *         is attempted.
-         *
-         *     This shape is admin-only on purpose. The public ``/claims/{id}``
-         *     endpoint returns the plain ``ClaimEventRead`` from
-         *     ``modules/claims/schemas.py`` which carries only the UUID — we
-         *     don't want to leak admin emails to anonymous callers triaging
-         *     their own claims.
-         */
-        app__modules__admin__claims__schemas__ClaimEventRead: {
-            /** Actor Display Name */
-            actor_display_name: string | null;
-            /** Actor Email */
-            actor_email: string | null;
-            /** Actor User Id */
-            actor_user_id: string | null;
-            /**
-             * Claim Id
-             * Format: uuid
-             */
-            claim_id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Event Type */
-            event_type: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Message */
-            message: string | null;
         };
         /**
          * _AdminAttachmentSignedUrl
@@ -3428,11 +4157,12 @@ export interface operations {
             };
         };
     };
-    list_claims_admin_admin_claims_get: {
+    list_claims_admin_admin_halal_claims_get: {
         parameters: {
             query?: {
                 status?: string | null;
                 place_id?: string | null;
+                organization_id?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -3452,7 +4182,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClaimAdminRead"][];
+                    "application/json": components["schemas"]["HalalClaimAdminRead"][];
                 };
             };
             /** @description Validation Error */
@@ -3466,12 +4196,9 @@ export interface operations {
             };
         };
     };
-    list_claim_events_admin_admin_claims__claim_id__events_get: {
+    get_claim_admin_admin_halal_claims__claim_id__get: {
         parameters: {
-            query?: {
-                limit?: number;
-                offset?: number;
-            };
+            query?: never;
             header?: {
                 "X-User-Id"?: string | null;
             };
@@ -3490,7 +4217,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__modules__admin__claims__schemas__ClaimEventRead"][];
+                    "application/json": components["schemas"]["HalalClaimAdminRead"];
                 };
             };
             /** @description Validation Error */
@@ -3504,7 +4231,7 @@ export interface operations {
             };
         };
     };
-    expire_claim_admin_admin_claims__claim_id__expire_post: {
+    approve_claim_admin_admin_halal_claims__claim_id__approve_post: {
         parameters: {
             query?: never;
             header?: {
@@ -3519,7 +4246,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminClaimAction"];
+                "application/json": components["schemas"]["HalalClaimApprove"];
             };
         };
         responses: {
@@ -3529,7 +4256,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClaimRead"];
+                    "application/json": components["schemas"]["HalalClaimAdminRead"];
                 };
             };
             /** @description Validation Error */
@@ -3543,7 +4270,113 @@ export interface operations {
             };
         };
     };
-    reject_claim_admin_admin_claims__claim_id__reject_post: {
+    list_claim_attachments_admin_admin_halal_claims__claim_id__attachments_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HalalClaimAttachmentRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signed_url_for_attachment_admin_admin_halal_claims__claim_id__attachments__attachment_id__url_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAttachmentSignedUrl"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_claim_events_admin_admin_halal_claims__claim_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HalalClaimEventRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_claim_admin_admin_halal_claims__claim_id__reject_post: {
         parameters: {
             query?: never;
             header?: {
@@ -3558,7 +4391,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminClaimAction"];
+                "application/json": components["schemas"]["HalalClaimReject"];
             };
         };
         responses: {
@@ -3568,7 +4401,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClaimRead"];
+                    "application/json": components["schemas"]["HalalClaimAdminRead"];
                 };
             };
             /** @description Validation Error */
@@ -3582,7 +4415,7 @@ export interface operations {
             };
         };
     };
-    verify_claim_admin_admin_claims__claim_id__verify_post: {
+    request_info_claim_admin_admin_halal_claims__claim_id__request_info_post: {
         parameters: {
             query?: never;
             header?: {
@@ -3597,7 +4430,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminClaimAction"];
+                "application/json": components["schemas"]["HalalClaimRequestInfo"];
             };
         };
         responses: {
@@ -3607,7 +4440,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClaimRead"];
+                    "application/json": components["schemas"]["HalalClaimAdminRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_claim_admin_admin_halal_claims__claim_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HalalClaimRevoke"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HalalClaimAdminRead"];
                 };
             };
             /** @description Validation Error */
@@ -4636,43 +5508,6 @@ export interface operations {
             };
         };
     };
-    get_place_claims_admin_admin_places__place_id__claims_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-User-Id"?: string | null;
-            };
-            path: {
-                place_id: string;
-            };
-            cookie?: {
-                tht_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_place_events_admin_admin_places__place_id__events_get: {
         parameters: {
             query?: {
@@ -5624,226 +6459,6 @@ export interface operations {
             };
         };
     };
-    post_claim_claims_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-User-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                tht_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClaimCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClaimRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_claim_by_id_claims__claim_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                claim_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClaimDetailRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    post_dispute_claim_claims__claim_id__dispute_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-User-Id"?: string | null;
-            };
-            path: {
-                claim_id: string;
-            };
-            cookie?: {
-                tht_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DisputeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClaimRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    post_claim_evidence_claims__claim_id__evidence_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-User-Id"?: string | null;
-            };
-            path: {
-                claim_id: string;
-            };
-            cookie?: {
-                tht_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EvidenceCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EvidenceRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    post_refresh_claim_claims__claim_id__refresh_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-User-Id"?: string | null;
-            };
-            path: {
-                claim_id: string;
-            };
-            cookie?: {
-                tht_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClaimRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    post_verify_claim_claims__claim_id__verify_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-User-Id"?: string | null;
-            };
-            path: {
-                claim_id: string;
-            };
-            cookie?: {
-                tht_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClaimRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     health_health_get: {
         parameters: {
             query?: never;
@@ -5884,6 +6499,334 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_halal_claims_me_halal_claims_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyHalalClaimRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_my_halal_claim_me_halal_claims_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyHalalClaimCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyHalalClaimRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    batch_create_my_halal_claims_me_halal_claims_batch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyHalalClaimBatchCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyHalalClaimRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_halal_claim_me_halal_claims__claim_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyHalalClaimRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_my_halal_claim_me_halal_claims__claim_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyHalalClaimPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyHalalClaimRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_halal_claim_attachments_me_halal_claims__claim_id__attachments_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HalalClaimAttachmentRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HalalClaimAttachmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_halal_claim_events_me_halal_claims__claim_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HalalClaimEventRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_my_halal_claim_me_halal_claims__claim_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyHalalClaimRead"];
                 };
             };
             /** @description Validation Error */
@@ -6150,6 +7093,39 @@ export interface operations {
             };
         };
     };
+    list_my_owned_places_me_owned_places_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnedPlaceRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_my_ownership_requests_me_ownership_requests_get: {
         parameters: {
             query?: {
@@ -6372,6 +7348,17 @@ export interface operations {
                 radius?: number | null;
                 limit?: number;
                 offset?: number;
+                /** @description Minimum acceptable validation tier. Passing CERTIFICATE_ON_FILE includes both CERTIFICATE_ON_FILE and TRUST_HALAL_VERIFIED. */
+                min_validation_tier?: components["schemas"]["ValidationTier"] | null;
+                /** @description Minimum acceptable menu posture, ordered FULLY_HALAL > MIXED_SEPARATE_KITCHENS > HALAL_OPTIONS_ADVERTISED > HALAL_UPON_REQUEST > MIXED_SHARED_KITCHEN. Passing a value includes everything at-or-above. */
+                min_menu_posture?: components["schemas"]["MenuPosture"] | null;
+                chicken_slaughter?: components["schemas"]["SlaughterMethod"][] | null;
+                beef_slaughter?: components["schemas"]["SlaughterMethod"][] | null;
+                lamb_slaughter?: components["schemas"]["SlaughterMethod"][] | null;
+                goat_slaughter?: components["schemas"]["SlaughterMethod"][] | null;
+                has_certification?: boolean | null;
+                no_pork?: boolean | null;
+                no_alcohol_served?: boolean | null;
             };
             header?: never;
             path?: never;
@@ -6498,7 +7485,7 @@ export interface operations {
             };
         };
     };
-    get_place_claims_places__place_id__claims_get: {
+    get_place_halal_profile_places__place_id__halal_profile_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -6515,9 +7502,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["HalalProfileRead"];
                 };
             };
             /** @description Validation Error */

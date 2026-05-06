@@ -3,7 +3,6 @@ from fastapi import APIRouter, Body, Depends, Query, status
 
 from app.core.auth import CurrentUser, require_roles
 from app.core.exception_handlers import ErrorResponse
-from app.core.exceptions import NotFoundError
 from app.db.deps import get_db
 from app.modules.admin.places.repo import (
     admin_get_place_by_id,
@@ -40,7 +39,6 @@ from app.modules.places.ingest import (
     link_google_place_to_existing,
     resync_google_place,
 )
-from app.modules.places.repo import get_place
 from app.modules.users.enums import UserRole
 
 from sqlalchemy.orm import Session
@@ -620,29 +618,6 @@ def get_place_admin(
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> PlaceAdminRead:
     return admin_get_place_by_id(db, place_id=place_id)
-
-
-@router.get("/{place_id}/claims", response_model=list[dict])
-def get_place_claims_admin(
-    place_id: UUID,
-    db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
-) -> list[dict]:
-    """Halal v2 transition stub.
-
-    The legacy ``HalalClaim`` listing endpoint that lived here was
-    dropped alongside the v2 schema migration. The new admin halal-
-    claim queue lives at ``/admin/halal-claims`` (Phase 3 of the
-    halal-trust rebuild). This endpoint stays so existing admin-panel
-    code that calls it doesn't 404 — it now returns an empty list
-    until Phase 3 wires the new shape in. After that, this stub
-    should either redirect to /admin/halal-claims?place_id={id} or
-    be removed entirely.
-    """
-    place = get_place(db, place_id, include_deleted=True)
-    if not place:
-        raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
-    return []
 
 
 @router.post(

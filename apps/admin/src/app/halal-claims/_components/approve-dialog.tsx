@@ -1,25 +1,9 @@
 "use client";
 
 /**
- * Approve a halal claim.
- *
- * The Approve action is the heaviest decision in the queue: admin
- * picks a ``validation_tier`` (the consumer-facing confidence level),
- * optionally tweaks the expiry, optionally records a certificate
- * expiry date, and the server flips the claim to APPROVED + runs the
- * profile-derivation service to update / create the place's
- * HalalProfile.
- *
- * Defaults are tuned for the common case:
- *   * SELF_ATTESTED tier — the conservative pick. Admin upgrades to
- *     CERTIFICATE_ON_FILE only when a cert was uploaded AND admin
- *     verified it; TRUST_HALAL_VERIFIED requires a verifier site
- *     visit which Phase 8 introduces.
- *   * No expiry override — server applies the 12-month default.
- *
- * decision_note is optional here (unlike reject / request-info /
- * revoke). Approving a clean submission with no extra context is a
- * common case and we don't want to force busy-work text.
+ * Approve a halal claim. Admin picks a validation tier + optional
+ * expiry + optional notes; the server flips the claim to APPROVED
+ * and runs profile derivation in the same transaction.
  */
 
 import * as React from "react";
@@ -50,6 +34,10 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
+// Default is SELF_ATTESTED — the conservative pick. Admin upgrades
+// to CERTIFICATE_ON_FILE only after verifying an uploaded cert;
+// TRUST_HALAL_VERIFIED requires the verifier site-visit flow that
+// Phase 8 introduces.
 const TIER_OPTIONS: ReadonlyArray<{
   value: ValidationTier;
   label: string;

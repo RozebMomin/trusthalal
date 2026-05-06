@@ -199,7 +199,6 @@ export const qk = {
     }) => ["places", "list", params] as const,
     detail: (id: string) => ["places", "detail", id] as const,
     events: (id: string) => ["places", "events", id] as const,
-    claims: (id: string) => ["places", "claims", id] as const,
     owners: (id: string) => ["places", "owners", id] as const,
     externalIds: (id: string) => ["places", "external-ids", id] as const,
     countries: () => ["places", "countries"] as const,
@@ -310,22 +309,6 @@ export function useAdminPlaceEvents(id: string | undefined) {
   return useQuery({
     queryKey: qk.places.events(id ?? ""),
     queryFn: () => apiFetch<PlaceEventRead[]>(`/admin/places/${id}/events`),
-    enabled: Boolean(id),
-  });
-}
-
-/**
- * Halal-trust v2 transition stub. The server-side endpoint at
- * ``/admin/places/{id}/claims`` returns an empty list while the v2
- * rebuild is in flight — the legacy halal_claims schema is gone and
- * the new halal-claims surface arrives in Phase 3. This hook stays
- * to keep the place-detail page rendering, just with no claim rows.
- */
-export function useAdminPlaceClaims(id: string | undefined) {
-  return useQuery({
-    queryKey: qk.places.claims(id ?? ""),
-    queryFn: () =>
-      apiFetch<unknown[]>(`/admin/places/${id}/claims`),
     enabled: Boolean(id),
   });
 }
@@ -997,24 +980,13 @@ export type HalalClaimAdminAttachmentSignedUrl = {
 };
 
 /**
- * Statuses where admin can still drive the workflow forward.
- * APPROVED is in the open bucket because admin can revoke it; the
- * other "open" statuses are the ones still awaiting a decision.
- *
- * Mirrors the server-side guards in admin_approve_halal_claim /
- * admin_reject_halal_claim — kept here so the queue-page filter and
- * the per-row action buttons share one source of truth.
+ * Statuses awaiting an admin decision. Mirrors the server-side
+ * ``_DECIDABLE_STATUSES`` tuple — single source of truth for both
+ * the queue's "Open" filter and the detail page's action gating.
  */
 export const HALAL_CLAIM_OPEN_STATUSES: ReadonlyArray<HalalClaimStatus> = [
   "PENDING_REVIEW",
   "NEEDS_MORE_INFO",
-];
-
-export const HALAL_CLAIM_TERMINAL_STATUSES: ReadonlyArray<HalalClaimStatus> = [
-  "REJECTED",
-  "EXPIRED",
-  "SUPERSEDED",
-  "REVOKED",
 ];
 
 // ---- Query keys ----------------------------------------------------------
@@ -1026,8 +998,6 @@ export const halalClaimsQk = {
     organizationId?: string;
   }) => ["halal-claims", "list", params] as const,
   detail: (id: string) => ["halal-claims", "detail", id] as const,
-  attachments: (id: string) =>
-    ["halal-claims", "attachments", id] as const,
   events: (id: string) => ["halal-claims", "events", id] as const,
 };
 
@@ -1072,24 +1042,6 @@ export function useAdminHalalClaim(id: string | null | undefined) {
   return useQuery<HalalClaimAdminRead>({
     queryKey: halalClaimsQk.detail(id ?? "__nil__"),
     queryFn: () => apiFetch<HalalClaimAdminRead>(`/admin/halal-claims/${id}`),
-    enabled: typeof id === "string" && id.length > 0,
-  });
-}
-
-/**
- * GET /admin/halal-claims/{id}/attachments — separate from the detail
- * read because admin sometimes wants a fresh attachment list (after an
- * owner re-uploads in NEEDS_MORE_INFO) without re-fetching the whole
- * claim. The detail read also embeds attachments, so the dialog can
- * decide which one to consume.
- */
-export function useAdminHalalClaimAttachments(id: string | null | undefined) {
-  return useQuery<HalalClaimAttachmentRead[]>({
-    queryKey: halalClaimsQk.attachments(id ?? "__nil__"),
-    queryFn: () =>
-      apiFetch<HalalClaimAttachmentRead[]>(
-        `/admin/halal-claims/${id}/attachments`,
-      ),
     enabled: typeof id === "string" && id.length > 0,
   });
 }
