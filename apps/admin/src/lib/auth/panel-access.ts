@@ -68,6 +68,9 @@ const PATH_ALLOWED_ROLES: ReadonlyArray<{
   // /halal-claims list + detail → ADMIN and VERIFIER. The verifier
   // home points here.
   { pattern: /^\/halal-claims(\/|$)/, roles: ["ADMIN", "VERIFIER"] },
+  // /disputes list + detail → ADMIN and VERIFIER. Disputes are
+  // moderation work, the verifier role's bread and butter.
+  { pattern: /^\/disputes(\/|$)/, roles: ["ADMIN", "VERIFIER"] },
   // /claims is the legacy redirect for old bookmarks → forwards to
   // /halal-claims. Same role gate.
   { pattern: /^\/claims(\/|$)/, roles: ["ADMIN", "VERIFIER"] },

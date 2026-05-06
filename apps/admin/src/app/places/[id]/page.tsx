@@ -10,11 +10,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
+  type ConsumerDisputeAdminRead,
   type HalalClaimAdminRead,
   type PlaceAdminRead,
   type PlaceEventRead,
   type PlaceExternalIdAdminRead,
   type PlaceOwnerAdminRead,
+  useAdminDisputes,
   useAdminHalalClaims,
   useAdminPlaceDetail,
   useAdminPlaceEvents,
@@ -23,6 +25,10 @@ import {
   useResyncPlace,
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
+import {
+  DisputeStatusBadge,
+  disputedAttributeLabel,
+} from "@/components/dispute-status-badge";
 import { HalalClaimStatusBadge } from "@/components/halal-claim-status-badge";
 
 import { CreateRequestDialog } from "../../ownership-requests/_components/create-request-dialog";
@@ -148,6 +154,7 @@ export default function PlaceDetailPage() {
           <ProviderLinksSection place={place} />
           <OwnershipSection place={place} />
           <HalalClaimsSection placeId={place.id} />
+          <DisputesSection placeId={place.id} />
           <EventsSection placeId={place.id} />
         </>
       )}
@@ -277,6 +284,65 @@ function HalalClaimsSection({ placeId }: { placeId: string }) {
                 </p>
               </div>
               <HalalClaimStatusBadge status={claim.status} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Consumer disputes for this place — read-only summary
+// ---------------------------------------------------------------------------
+//
+// Mirrors HalalClaimsSection in shape: hits the canonical admin
+// dispute queue with a `place_id` filter so there's no separate
+// per-place collection to maintain. Rows link through to the
+// per-dispute review page.
+function DisputesSection({ placeId }: { placeId: string }) {
+  const { data, isLoading, error } = useAdminDisputes({ placeId });
+  return (
+    <section className="rounded-md border p-4">
+      <h2 className="mb-2 text-sm font-semibold">Disputes</h2>
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      )}
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          Couldn&apos;t load disputes for this place.
+        </p>
+      )}
+      {!isLoading && !error && data && data.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No disputes filed against this place.
+        </p>
+      )}
+      {!isLoading && !error && data && data.length > 0 && (
+        <ul className="space-y-2">
+          {data.map((dispute: ConsumerDisputeAdminRead) => (
+            <li
+              key={dispute.id}
+              className="flex items-start justify-between gap-3 rounded-md border bg-card px-3 py-2"
+            >
+              <div className="min-w-0">
+                <Link
+                  href={`/disputes/${dispute.id}`}
+                  className="text-sm font-medium hover:underline"
+                >
+                  {disputedAttributeLabel(dispute.disputed_attribute)}
+                </Link>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Filed {formatTimestamp(dispute.submitted_at)}
+                  {dispute.decided_at && (
+                    <>
+                      {" · decided "}
+                      {formatTimestamp(dispute.decided_at)}
+                    </>
+                  )}
+                </p>
+              </div>
+              <DisputeStatusBadge status={dispute.status} />
             </li>
           ))}
         </ul>
