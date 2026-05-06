@@ -228,14 +228,16 @@ def login(
 @auth_router.post(
     "/signup",
     response_model=SignupResponse,
-    summary="Self-service signup (role hard-coded to OWNER)",
+    summary="Self-service signup (OWNER or CONSUMER)",
     description=(
-        "Public path used by the owner portal. Creates a User with "
-        "role=OWNER and immediately sets the session cookie so the "
-        "client can land on the post-login home with no second round "
-        "trip. On a duplicate email returns `EMAIL_TAKEN` so the UI "
-        "can deep-link to /login. Promotion to ADMIN/VERIFIER stays an "
-        "admin-only operation. Rate-limited per-IP at 5/min, 20/hour."
+        "Public path used by the owner portal (role=OWNER, the "
+        "default) and the consumer site (role=CONSUMER, passed "
+        "explicitly). Creates the User and immediately sets the "
+        "session cookie so the client can land on the post-login "
+        "home with no second round trip. On a duplicate email "
+        "returns `EMAIL_TAKEN` so the UI can deep-link to /login. "
+        "Promotion to ADMIN/VERIFIER stays an admin-only operation. "
+        "Rate-limited per-IP at 5/min, 20/hour."
     ),
 )
 @limiter.limit("5/minute", key_func=ip_key)
@@ -246,16 +248,18 @@ def signup(
     response: Response,
     db: Session = Depends(get_db),
 ) -> SignupResponse:
-    """Self-service signup for restaurant owners.
+    """Self-service signup for owners and consumers.
 
-    Trust Halal staff don't mint OWNER accounts by hand — owners create
-    their own login and then submit ownership claims, which staff
-    review. The trust gate is the human-reviewed claim downstream, not
-    the signup itself, so this endpoint is intentionally light:
+    Trust Halal staff don't mint OWNER or CONSUMER accounts by hand —
+    they sign up themselves. For OWNERs the trust gate is the
+    human-reviewed ownership claim downstream; for CONSUMERs there's
+    no trust gate beyond the email being unique. Both paths share
+    this endpoint:
 
       * No email verification (deliberate; revisit if abuse warrants it).
-      * Role is hard-coded to OWNER. Promotion to ADMIN/VERIFIER stays
-        an admin-only operation via the user CRUD endpoints.
+      * ``role`` is restricted to OWNER (default) or CONSUMER at the
+        Pydantic layer — the signup endpoint can't mint ADMIN or
+        VERIFIER. Those stay admin-only via the user CRUD endpoints.
       * Email is normalized (trim + lower) before the uniqueness check
         and persisted in the original casing — same posture as login,
         which compares case-insensitively.
@@ -284,7 +288,7 @@ def signup(
         email=payload.email.strip(),
         display_name=display_name,
         password_hash=hash_password(payload.password),
-        role=UserRole.OWNER.value,
+        role=payload.role.value,
         is_active=True,
     )
     db.add(user)

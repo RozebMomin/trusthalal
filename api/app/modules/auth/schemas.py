@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -102,18 +103,25 @@ class SetPasswordResponse(BaseModel):
 class SignupRequest(BaseModel):
     """POST /auth/signup body.
 
-    Restaurant owners create their own account here — Trust Halal staff
-    no longer mints OWNER invites by hand. The trust gate is the
-    human-reviewed ownership claim later in the flow, not the signup
-    itself.
+    Two public surfaces use this endpoint: the owner portal (role
+    defaults to OWNER) and the consumer site (passes
+    ``role=CONSUMER``). The trust gate is the human-reviewed
+    ownership claim downstream of OWNER signup, not the signup
+    itself, so the endpoint stays light.
+
+    ``role`` is restricted to OWNER and CONSUMER — promotion to
+    ADMIN or VERIFIER stays an admin-only operation via the user
+    CRUD endpoints. The router rejects other values defensively
+    even though Pydantic validates the literal here.
 
     ``display_name`` is required (unlike on the User model) so admin
-    staff reviewing claims see a human-readable name, not just an email.
+    staff reviewing claims, and restaurant owners reviewing
+    disputes, see a human-readable name instead of just an email.
     Length matches the column (120 chars).
 
     ``password`` minimum mirrors the invite ``SetPasswordRequest`` —
-    8 chars, no max-complexity rules. zxcvbn-style scoring can layer on
-    later if abuse warrants it.
+    8 chars, no max-complexity rules. zxcvbn-style scoring can layer
+    on later if abuse warrants it.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -121,6 +129,14 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=256)
     display_name: str = Field(..., min_length=1, max_length=120)
+    role: Literal[UserRole.OWNER, UserRole.CONSUMER] = Field(
+        default=UserRole.OWNER,
+        description=(
+            "Public-signup role. Defaults to OWNER for backward "
+            "compatibility with the owner portal; the consumer site "
+            "passes CONSUMER explicitly."
+        ),
+    )
 
 
 class SignupResponse(BaseModel):

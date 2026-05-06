@@ -195,17 +195,87 @@ def test_signup_invalid_email_is_validation_error(api):
 
 
 def test_signup_extra_fields_rejected(api):
-    """``extra="forbid"`` on SignupRequest means a curious caller can't
-    sneak in role=ADMIN or is_active=False overrides. The endpoint
-    hard-codes role=OWNER server-side regardless."""
+    """``extra="forbid"`` on SignupRequest blocks unknown keys. ``role``
+    is now a real field but restricted to OWNER / CONSUMER via Literal,
+    so passing ADMIN still trips Pydantic validation. The endpoint
+    refuses to mint ADMIN/VERIFIER from a public signup regardless of
+    what the caller asks for."""
     resp = api.post(
         "/auth/signup",
         json={
             "email": "sneaky@example.com",
             "password": "passwordsneaky",
-            "display_name": "Sneaky Owner",
+            "display_name": "Sneaky Admin",
             "role": "ADMIN",
         },
     )
     assert resp.status_code == 422, resp.text
     assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_signup_role_verifier_rejected(api):
+    """VERIFIER is also blocked — the signup endpoint can mint OWNER or
+    CONSUMER, nothing else."""
+    resp = api.post(
+        "/auth/signup",
+        json={
+            "email": "verifier@example.com",
+            "password": "passwordverify",
+            "display_name": "Verifier Wannabe",
+            "role": "VERIFIER",
+        },
+    )
+    assert resp.status_code == 422, resp.text
+
+
+# ---------------------------------------------------------------------------
+# Consumer-role signup (Phase 9)
+# ---------------------------------------------------------------------------
+
+
+def test_signup_with_role_consumer_creates_consumer(api, db_session):
+    """The consumer site passes role=CONSUMER explicitly. Result:
+    a User row with role=CONSUMER, redirect_path "/" (CONSUMER falls
+    through ``_redirect_path_for``'s default), session cookie set."""
+    resp = api.post(
+        "/auth/signup",
+        json={
+            "email": "consumer@example.com",
+            "password": "consumer-pass-1",
+            "display_name": "Consumer One",
+            "role": "CONSUMER",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["email"] == "consumer@example.com"
+    assert body["role"] == "CONSUMER"
+    assert body["redirect_path"] == "/"
+    assert "tht_session" in resp.cookies
+
+    user = db_session.execute(
+        select(User).where(User.email == "consumer@example.com")
+    ).scalar_one()
+    assert user.role == "CONSUMER"
+    assert user.is_active is True
+
+
+def test_signup_role_omitted_defaults_to_owner(api, db_session):
+    """Backward compatibility: existing owner-portal signups POST
+    without a ``role`` field. Default must stay OWNER so those calls
+    don't change behavior when this branch ships."""
+    resp = api.post(
+        "/auth/signup",
+        json={
+            "email": "default-role@example.com",
+            "password": "defaultpassword",
+            "display_name": "Default Role",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["role"] == "OWNER"
+
+    user = db_session.execute(
+        select(User).where(User.email == "default-role@example.com")
+    ).scalar_one()
+    assert user.role == "OWNER"
