@@ -48,6 +48,15 @@ from app.modules.ownership_requests.router import router as ownership_requests_r
 # the profile-derivation service.
 from app.modules.halal_claims.router import router as halal_claims_router  # noqa: E402
 
+# Halal v2 — Phase 7: consumer dispute system. The consumer-facing
+# surface ships two routers (one rooted at /places, one at /me) so
+# the URL shape matches a consumer's mental model in either entry
+# point. Admin review lives on /admin/disputes.
+from app.modules.disputes.router import (  # noqa: E402
+    me_disputes_router,
+    place_disputes_router,
+)
+
 # Admin Routes
 from app.modules.admin.router import router as admin_router  # noqa: E402
 from app.modules.admin.places.router import router as admin_places_router  # noqa: E402
@@ -55,6 +64,7 @@ from app.modules.admin.ownership_requests.router import router as admin_ownershi
 from app.modules.admin.users.router import router as admin_users_router  # noqa: E402
 from app.modules.admin.organizations.router import router as admin_organizations_router  # noqa: E402
 from app.modules.admin.halal_claims.router import router as admin_halal_claims_router  # noqa: E402
+from app.modules.admin.disputes.router import router as admin_disputes_router  # noqa: E402
 
 from fastapi import HTTPException  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
@@ -242,6 +252,29 @@ _OPENAPI_TAGS: list[dict] = [
         ),
     },
     {
+        "name": "disputes",
+        "description": (
+            "Consumer-dispute surface. Signed-in consumers report "
+            "that a place's halal profile is wrong (pork served, "
+            "alcohol present, slaughter method incorrect, cert "
+            "expired, etc.). Filing flips the place's profile into "
+            "DISPUTED so the consumer site renders a "
+            "'conflicting reports' badge until admin resolves. "
+            "Reporters see their own disputes via `/me/disputes/*`; "
+            "admin review lives under `admin: disputes`."
+        ),
+    },
+    {
+        "name": "admin: disputes",
+        "description": (
+            "Staff review surface for consumer disputes. Resolve "
+            "(uphold or dismiss) or park on the owner side awaiting "
+            "a RECONCILIATION halal_claim. Resolving clears the "
+            "place's DISPUTED badge once no other active disputes "
+            "remain on the place."
+        ),
+    },
+    {
         "name": "admin: places",
         "description": (
             "Catalog management. Ingest from Google Place ID, manual "
@@ -354,6 +387,8 @@ app.include_router(auth_router)
 app.include_router(organizations_router)
 app.include_router(ownership_requests_router)
 app.include_router(halal_claims_router)
+app.include_router(place_disputes_router)
+app.include_router(me_disputes_router)
 
 app.include_router(admin_router)
 app.include_router(admin_places_router)
@@ -361,6 +396,7 @@ app.include_router(admin_ownership_requests_router)
 app.include_router(admin_users_router)
 app.include_router(admin_organizations_router)
 app.include_router(admin_halal_claims_router)
+app.include_router(admin_disputes_router)
 
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
