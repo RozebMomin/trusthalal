@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import { useLogin } from "@/lib/api/hooks";
+import { syncLocalToServerOnLogin } from "@/lib/api/preferences";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,6 +39,11 @@ export default function LoginPage() {
 
     try {
       await login.mutateAsync({ email, password });
+      // Best-effort: push any locally-saved preferences to the
+      // server so the user's defaults follow them across devices.
+      // Server failures here don't block the redirect — the local
+      // copy stays so they can retry from /preferences.
+      await syncLocalToServerOnLogin();
       router.push("/");
     } catch (err) {
       const { description } = friendlyApiError(err, {

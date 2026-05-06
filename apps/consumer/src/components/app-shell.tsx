@@ -111,7 +111,11 @@ function PortalHeader({
           </span>
         </Link>
 
-        <div className="flex items-center gap-3">
+        {/* Right-side header: split into "nav" and "auth" groups
+            with a thin divider between them so the user can tell
+            which buttons take them somewhere on the site (nav) and
+            which ones change their session state (auth). */}
+        <div className="flex items-center gap-4">
           {wrongAudience && me && <WrongAudienceCallout role={me.role} />}
 
           {pending && (
@@ -120,23 +124,55 @@ function PortalHeader({
 
           {!pending && me === null && (
             <>
-              <Link href="/login" className="text-sm hover:underline">
-                Sign in
-              </Link>
-              <Link href="/signup">
-                <Button size="sm">Sign up</Button>
-              </Link>
+              <nav className="flex items-center gap-4">
+                {/* Anonymous visitors get the prefs link too — local
+                    storage backs the page, and they'll learn the
+                    feature exists. */}
+                <Link
+                  href="/preferences"
+                  className="hidden text-sm hover:underline sm:inline"
+                >
+                  Preferences
+                </Link>
+              </nav>
+              <HeaderDivider className="hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="text-sm hover:underline"
+                >
+                  Sign in
+                </Link>
+                <Link href="/signup">
+                  <Button size="sm">Sign up</Button>
+                </Link>
+              </div>
             </>
           )}
 
           {!pending && me !== null && (
             <>
-              <span
-                className="hidden text-sm text-muted-foreground md:inline"
-                title={me.email ?? undefined}
-              >
-                {me.display_name || me.email || "Signed in"}
-              </span>
+              <nav className="flex items-center gap-4">
+                <span
+                  className="hidden text-sm text-muted-foreground md:inline"
+                  title={me.email ?? undefined}
+                >
+                  {me.display_name || me.email || "Signed in"}
+                </span>
+                {/* Preferences link only shown to consumers — owner /
+                    admin / verifier roles don't have a consumer-search
+                    surface, so saved-search defaults are meaningless
+                    to them. */}
+                {me.role === "CONSUMER" && (
+                  <Link
+                    href="/preferences"
+                    className="text-sm hover:underline"
+                  >
+                    Preferences
+                  </Link>
+                )}
+              </nav>
+              <HeaderDivider />
               <Button
                 size="sm"
                 variant="outline"
@@ -152,6 +188,20 @@ function PortalHeader({
         </div>
       </div>
     </header>
+  );
+}
+
+/**
+ * Hairline vertical divider used between the nav and auth groups in
+ * the header. Border instead of a real element so it can hide on
+ * mobile without breaking the flex row.
+ */
+function HeaderDivider({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`h-6 w-px bg-border ${className}`}
+    />
   );
 }
 

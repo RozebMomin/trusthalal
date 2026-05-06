@@ -32,6 +32,9 @@ from app.modules.disputes.models import (  # noqa: F401
     ConsumerDispute,
     ConsumerDisputeAttachment,
 )
+from app.modules.consumer_preferences.models import (  # noqa: F401
+    ConsumerPreferences,
+)
 from app.modules.verifiers.models import (  # noqa: F401
     VerificationVisit,
     VerificationVisitAttachment,

@@ -27,6 +27,7 @@ import * as React from "react";
 
 import { HalalProfileDetail } from "@/components/halal-profile-detail";
 import { FileDisputeDialog } from "@/components/file-dispute-dialog";
+import { PreferenceMatchBanner } from "@/components/preference-match-banner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
@@ -38,6 +39,8 @@ import {
   useMyDisputes,
   usePlaceDetail,
 } from "@/lib/api/hooks";
+import { useMyPreferences } from "@/lib/api/preferences";
+import { matchProfileToPreferences } from "@/lib/preferences/match";
 
 const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
   OPEN: "Open — awaiting review",
@@ -73,11 +76,32 @@ export default function PlaceDetailPage() {
 
   const place = usePlaceDetail(placeId);
   const { data: me } = useCurrentUser();
+  const isAuthenticated = Boolean(me);
 
   // Only fetch /me/disputes when the caller is signed in. The hook
   // would 401 otherwise and we don't want to rate-limit anonymous
   // page loads.
-  const myDisputes = useMyDisputes({ enabled: Boolean(me) });
+  const myDisputes = useMyDisputes({ enabled: isAuthenticated });
+
+  // Saved preferences (server-of-record for signed-in consumers,
+  // localStorage for anonymous). Drives the "matches your preferences"
+  // banner when at least one filter is set.
+  const prefsQuery = useMyPreferences({ isAuthenticated });
+  const matchResult = React.useMemo(
+    () =>
+      matchProfileToPreferences(
+        place.data?.halal_profile ?? null,
+        prefsQuery.data ?? {
+          min_validation_tier: null,
+          min_menu_posture: null,
+          no_pork: null,
+          no_alcohol_served: null,
+          has_certification: null,
+          updated_at: null,
+        },
+      ),
+    [place.data?.halal_profile, prefsQuery.data],
+  );
 
   const [disputeDialogOpen, setDisputeDialogOpen] = React.useState(false);
 
@@ -107,6 +131,8 @@ export default function PlaceDetailPage() {
       {place.data && (
         <>
           <PlaceHeader place={place.data} />
+
+          <PreferenceMatchBanner result={matchResult} />
 
           {place.data.halal_profile ? (
             <HalalProfileDetail profile={place.data.halal_profile} />

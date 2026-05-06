@@ -18,6 +18,7 @@
  * codes.
  */
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
@@ -30,14 +31,23 @@ import {
   type MenuPosture,
   type SearchPlacesParams,
   type ValidationTier,
+  useCurrentUser,
   useSearchPlaces,
 } from "@/lib/api/hooks";
+import { useMyPreferences } from "@/lib/api/preferences";
 
 const DEBOUNCE_MS = 250;
 
 export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: me } = useCurrentUser();
+  const isAuthenticated = Boolean(me);
+
+  // Saved preferences — server-of-record for signed-in consumers,
+  // localStorage for anonymous. The hook resolves to a defined object
+  // on success regardless.
+  const prefsQuery = useMyPreferences({ isAuthenticated });
 
   // Build the current SearchPlacesParams from the URL — the URL is
   // the source of truth so a deep-link / refresh restores the same
@@ -46,6 +56,51 @@ export default function HomePage() {
     () => parseSearchParams(searchParams),
     [searchParams],
   );
+
+  // The actual filters used to query the server: URL takes precedence,
+  // saved preferences fill in any field the URL didn't set. This lets
+  // a shareable link override defaults ("show me everything in NYC,
+  // ignore my usual filters") while a fresh visit auto-applies the
+  // user's saved posture.
+  const effectiveFilters = React.useMemo<SearchPlacesParams>(() => {
+    const prefs = prefsQuery.data;
+    return {
+      ...filtersFromUrl,
+      min_validation_tier:
+        filtersFromUrl.min_validation_tier ??
+        prefs?.min_validation_tier ??
+        undefined,
+      min_menu_posture:
+        filtersFromUrl.min_menu_posture ??
+        prefs?.min_menu_posture ??
+        undefined,
+      no_pork:
+        filtersFromUrl.no_pork ??
+        (prefs?.no_pork === true ? true : undefined),
+      no_alcohol_served:
+        filtersFromUrl.no_alcohol_served ??
+        (prefs?.no_alcohol_served === true ? true : undefined),
+      has_certification:
+        filtersFromUrl.has_certification ??
+        (prefs?.has_certification === true ? true : undefined),
+    };
+  }, [filtersFromUrl, prefsQuery.data]);
+
+  const isUsingSavedPrefs = React.useMemo(() => {
+    const prefs = prefsQuery.data;
+    if (!prefs) return false;
+    return (
+      (filtersFromUrl.min_validation_tier === undefined &&
+        prefs.min_validation_tier !== null) ||
+      (filtersFromUrl.min_menu_posture === undefined &&
+        prefs.min_menu_posture !== null) ||
+      (filtersFromUrl.no_pork === undefined && prefs.no_pork === true) ||
+      (filtersFromUrl.no_alcohol_served === undefined &&
+        prefs.no_alcohol_served === true) ||
+      (filtersFromUrl.has_certification === undefined &&
+        prefs.has_certification === true)
+    );
+  }, [filtersFromUrl, prefsQuery.data]);
 
   // Local state for the text input drives a debounced URL update,
   // so typing doesn't slam the API on every keystroke. Other
@@ -75,7 +130,10 @@ export default function HomePage() {
     router.replace(`/?${stringifySearchParams(next)}`, { scroll: false });
   }
 
-  const search = useSearchPlaces(filtersFromUrl);
+  // Search uses the merged ``effectiveFilters`` — URL plus prefs —
+  // so saved defaults narrow results without the user re-typing
+  // them every visit.
+  const search = useSearchPlaces(effectiveFilters);
 
   const hasQuery = Boolean(filtersFromUrl.q && filtersFromUrl.q.length > 0);
 
@@ -101,9 +159,21 @@ export default function HomePage() {
           aria-label="Search restaurants"
         />
         <SearchFilters
-          filters={filtersFromUrl}
+          filters={effectiveFilters}
           onChange={setFilters}
         />
+        {isUsingSavedPrefs && (
+          <p className="text-xs text-muted-foreground">
+            Applying your saved{" "}
+            <Link
+              href="/preferences"
+              className="underline hover:no-underline"
+            >
+              search preferences
+            </Link>
+            . Tweak any filter above to override for this search.
+          </p>
+        )}
       </div>
 
       {!hasQuery && <PromptState />}

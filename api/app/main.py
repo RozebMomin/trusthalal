@@ -57,6 +57,14 @@ from app.modules.disputes.router import (  # noqa: E402
     place_disputes_router,
 )
 
+# Halal v2 — Phase 9d: signed-in consumers save default search
+# filter preferences. Read by the consumer site to auto-apply
+# filters and to surface "doesn't match your preferences" badges
+# on the place detail page.
+from app.modules.consumer_preferences.router import (  # noqa: E402
+    router as consumer_preferences_router,
+)
+
 # Admin Routes
 from app.modules.admin.router import router as admin_router  # noqa: E402
 from app.modules.admin.places.router import router as admin_places_router  # noqa: E402
@@ -391,6 +399,7 @@ app.include_router(ownership_requests_router)
 app.include_router(halal_claims_router)
 app.include_router(place_disputes_router)
 app.include_router(me_disputes_router)
+app.include_router(consumer_preferences_router)
 
 app.include_router(admin_router)
 app.include_router(admin_places_router)
