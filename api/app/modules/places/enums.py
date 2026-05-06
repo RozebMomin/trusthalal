@@ -41,3 +41,12 @@ class PlaceEventType(StrEnum):
     # "consumer disputed → admin resolved" alongside everything else.
     DISPUTE_OPENED = "DISPUTE_OPENED"
     DISPUTE_RESOLVED = "DISPUTE_RESOLVED"
+
+    # Verifier-visit cross-writes (Phase 8b). Surfaces a verifier's
+    # site-visit lifecycle on the place's timeline. Submitted +
+    # accepted + rejected all flow here; admin review state changes
+    # (UNDER_REVIEW) intentionally don't, same as the halal-claim
+    # transitions — it'd be noise without the place benefit.
+    VERIFIER_VISIT_SUBMITTED = "VERIFIER_VISIT_SUBMITTED"
+    VERIFIER_VISIT_ACCEPTED = "VERIFIER_VISIT_ACCEPTED"
+    VERIFIER_VISIT_REJECTED = "VERIFIER_VISIT_REJECTED"

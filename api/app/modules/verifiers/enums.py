@@ -78,3 +78,9 @@ class VerificationVisitStatus(StrEnum):
     REJECTED = "REJECTED"
     """Admin rejected the visit (e.g. insufficient evidence,
     conflict of interest disclosed too late)."""
+
+    WITHDRAWN = "WITHDRAWN"
+    """Verifier pulled the visit before admin acted. Lets verifiers
+    retract a misfired submission without leaving SUBMITTED rows in
+    the queue. The column uses ``sa.Enum(native_enum=False)`` so
+    adding values is a code-only change — no DB migration needed."""

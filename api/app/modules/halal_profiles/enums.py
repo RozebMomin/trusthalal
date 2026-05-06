@@ -143,3 +143,10 @@ class HalalProfileEventType(StrEnum):
 
     RESTORED = "RESTORED"
     """Admin un-revoked a profile."""
+
+    VERIFIER_VISIT_ACCEPTED = "VERIFIER_VISIT_ACCEPTED"
+    """A verifier visit was accepted by admin. Effects: validation
+    tier promoted to TRUST_HALAL_VERIFIED if it wasn't already, and
+    last_verified_at refreshed to the visit's visited_at. The
+    related visit id is stashed in the event description (we don't
+    have a dedicated FK column for verification_visit refs)."""
