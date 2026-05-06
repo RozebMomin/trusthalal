@@ -60,3 +60,46 @@ class HalalClaimAttachmentType(StrEnum):
     INVOICE = "INVOICE"
     PHOTO = "PHOTO"
     OTHER = "OTHER"
+
+
+class HalalClaimEventType(StrEnum):
+    """What kind of transition this audit-event row represents.
+
+    Lock-step with the CHECK constraint in the
+    ``h2b3c4d5e6f7_halal_claim_events`` migration. Add a value here
+    AND in the migration's ``HALAL_CLAIM_EVENT_TYPE`` tuple — adding
+    only one side trips the CHECK at insert time.
+
+    The set is intentionally narrow:
+
+    * ``DRAFT_CREATED`` — owner started a new claim. Logged once
+      per claim at creation (single + batch paths).
+    * ``SUBMITTED`` — owner submitted DRAFT → PENDING_REVIEW. Also
+      fires on NEEDS_MORE_INFO → PENDING_REVIEW re-submits, since
+      that's another "owner is asking for review."
+    * ``ATTACHMENT_ADDED`` — owner uploaded an evidence file.
+    * ``APPROVED`` / ``REJECTED`` / ``INFO_REQUESTED`` / ``REVOKED``
+      — the four admin decision transitions. ``description`` carries
+      the owner-visible decision_note verbatim so a later overwrite
+      doesn't lose the history.
+    * ``SUPERSEDED`` — system-driven; logged when a fresher approval
+      bumps a prior approved claim out of "current" status.
+    * ``EXPIRED`` — system-driven; reserved for the renewal cron
+      that lands in a later phase.
+
+    Patches to the questionnaire while in DRAFT are NOT logged —
+    iterating on the form is a high-frequency activity and writing
+    an event per keystroke (or even per save) would drown the
+    timeline. The submit event captures the meaningful "owner has
+    decided this draft is ready" signal.
+    """
+
+    DRAFT_CREATED = "DRAFT_CREATED"
+    SUBMITTED = "SUBMITTED"
+    ATTACHMENT_ADDED = "ATTACHMENT_ADDED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    INFO_REQUESTED = "INFO_REQUESTED"
+    REVOKED = "REVOKED"
+    SUPERSEDED = "SUPERSEDED"
+    EXPIRED = "EXPIRED"

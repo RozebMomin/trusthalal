@@ -133,20 +133,25 @@ function PortalHeader() {
         {/* Nav: only render once we know the user is signed in. The
             shell already gates so we'd never render this header for an
             anonymous session, but keying off ``me`` keeps the links
-            from flickering during the brief loading state. */}
+            from flickering during the brief loading state.
+
+            Three top-level nav items, ordered for the typical owner
+            mental model: pick what to verify (Halal claims) → who
+            owns it (Places) → which company (Organizations). The
+            "Claim a place" action lives on the Places page itself
+            (header CTA + empty-state CTA) — claiming is a once-or-
+            twice-per-month action and a top-level link for it
+            crowds the nav on a portal users visit weekly. */}
         {me && (
           <nav className="hidden items-center gap-1 md:flex">
-            <NavLink href="/claim" active={pathname.startsWith("/claim")}>
-              Claim a place
-            </NavLink>
-            <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
-              My claims
-            </NavLink>
             <NavLink
               href="/my-halal-claims"
               active={pathname.startsWith("/my-halal-claims")}
             >
               Halal claims
+            </NavLink>
+            <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
+              Places
             </NavLink>
             <NavLink
               href="/my-organizations"
@@ -191,20 +196,18 @@ function PortalHeader() {
       </div>
 
       {/* Mobile-only secondary row: nav links wrap below the brand
-          when there's no horizontal room. */}
+          when there's no horizontal room. Same three-item set as
+          desktop, abbreviated to fit narrow screens. */}
       {me && (
         <nav className="mx-auto mt-2 flex max-w-5xl items-center gap-1 md:hidden">
-          <NavLink href="/claim" active={pathname.startsWith("/claim")}>
-            Claim
-          </NavLink>
-          <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
-            My claims
-          </NavLink>
           <NavLink
             href="/my-halal-claims"
             active={pathname.startsWith("/my-halal-claims")}
           >
             Halal
+          </NavLink>
+          <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
+            Places
           </NavLink>
           <NavLink
             href="/my-organizations"

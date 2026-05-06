@@ -16,12 +16,7 @@ type NavItem = { href: string; label: string };
 const items: NavItem[] = [
   { href: "/", label: "Dashboard" },
   { href: "/places", label: "Places" },
-  // Claims is hidden during the halal-trust v2 rebuild. Phase 3 of
-  // the rebuild reintroduces it as the new "Halal claims" queue
-  // pointing at /admin/halal-claims. Keeping the route present (with
-  // a placeholder page) so existing bookmarks don't 404, but
-  // de-listing it from the nav so admins don't try to use it.
-  // { href: "/claims", label: "Claims" },
+  { href: "/halal-claims", label: "Halal claims" },
   { href: "/ownership-requests", label: "Ownership requests" },
   { href: "/users", label: "Users" },
   { href: "/organizations", label: "Organizations" },

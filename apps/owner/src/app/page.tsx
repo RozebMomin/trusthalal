@@ -11,10 +11,10 @@
  *   2. A "Claim a place" CTA card. This is the primary action for
  *      brand-new accounts who have nothing in their queue yet — the
  *      whole point of signing up.
- *   3. A "Recent claims" preview of up to 3 most-recent submissions,
- *      with a link to /my-claims for the full list. Skipped entirely
- *      when the user has no claims yet so the page doesn't show an
- *      empty section under the CTA.
+ *   3. A "Recent places" preview of up to 3 most-recent submissions,
+ *      with a link to /my-claims (the Places page) for the full list.
+ *      Skipped entirely when the user has no claims yet so the page
+ *      doesn't show an empty section under the CTA.
  */
 
 import Link from "next/link";
@@ -78,7 +78,7 @@ export default function HomePage() {
       {recent.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-end justify-between">
-            <h2 className="text-lg font-semibold">Recent claims</h2>
+            <h2 className="text-lg font-semibold">Recent places</h2>
             {hasMore && (
               <Link
                 href="/my-claims"
@@ -112,7 +112,7 @@ export default function HomePage() {
                 href="/my-claims"
                 className="underline-offset-4 hover:underline"
               >
-                See all claims
+                See all places
               </Link>
             </p>
           )}

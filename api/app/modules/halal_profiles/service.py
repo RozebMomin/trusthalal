@@ -31,9 +31,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BadRequestError
-from app.modules.halal_claims.enums import HalalClaimStatus
+from app.modules.halal_claims.enums import HalalClaimEventType, HalalClaimStatus
 from app.modules.halal_claims.models import HalalClaim
+from app.modules.halal_claims.repo import log_halal_claim_event
 from app.modules.halal_claims.schemas import HalalQuestionnaireResponse
+from app.modules.places.enums import PlaceEventType
+from app.modules.places.repo import log_place_event
 from app.modules.halal_profiles.enums import (
     AlcoholPolicy,
     HalalProfileDisputeState,
@@ -197,6 +200,32 @@ def derive_profile_from_approved_claim(
         if prior_claim is not None and prior_claim.status == HalalClaimStatus.APPROVED.value:
             prior_claim.status = HalalClaimStatus.SUPERSEDED.value
             db.add(prior_claim)
+            # Audit the supersession on the prior claim's timeline
+            # so the owner can see "this got superseded by claim X
+            # on date Y" without cross-referencing the new claim.
+            log_halal_claim_event(
+                db,
+                claim_id=prior_claim.id,
+                event_type=HalalClaimEventType.SUPERSEDED,
+                actor_user_id=actor_user_id,
+                description=(
+                    f"Superseded by a newer approved claim ({claim.id})."
+                ),
+            )
+            # Cross-write to the place's audit trail so the place
+            # detail page reflects the lineage too. Same place as
+            # the new claim — supersession is by definition same-
+            # place, so we use ``claim.place_id``.
+            log_place_event(
+                db,
+                place_id=claim.place_id,
+                event_type=PlaceEventType.HALAL_CLAIM_SUPERSEDED,
+                actor_user_id=actor_user_id,
+                message=(
+                    f"Halal claim {prior_claim.id} superseded by claim "
+                    f"{claim.id}."
+                ),
+            )
 
     new_fields = _profile_fields_from_questionnaire(
         questionnaire,

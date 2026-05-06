@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.halal_claims.enums import (
     HalalClaimAttachmentType,
+    HalalClaimEventType,
     HalalClaimStatus,
     HalalClaimType,
 )
@@ -188,6 +189,30 @@ class HalalQuestionnaireDraft(BaseModel):
 # ---------------------------------------------------------------------------
 # HalalClaim — read/create/patch shapes
 # ---------------------------------------------------------------------------
+
+
+class HalalClaimEventRead(BaseModel):
+    """One row from the per-claim audit timeline.
+
+    Mirrors ``HalalClaimEvent`` in the model layer. Used by both the
+    owner-portal claim detail (so the submitter can see exactly when
+    their claim was reviewed and what was decided) and the admin
+    review surface (so staff can audit the full lifecycle).
+
+    ``description`` carries either the action's natural-language
+    summary (DRAFT_CREATED → "Owner started a halal claim") or the
+    owner-visible decision_note verbatim (APPROVED / REJECTED /
+    INFO_REQUESTED / REVOKED).
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    id: UUID
+    claim_id: UUID
+    event_type: HalalClaimEventType
+    actor_user_id: Optional[UUID] = None
+    description: Optional[str] = None
+    created_at: datetime
 
 
 class HalalClaimAttachmentRead(BaseModel):

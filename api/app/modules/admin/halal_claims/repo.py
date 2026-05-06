@@ -38,13 +38,19 @@ from app.modules.admin.halal_claims.schemas import (
     HalalClaimRequestInfo,
     HalalClaimRevoke,
 )
-from app.modules.halal_claims.enums import HalalClaimStatus
-from app.modules.halal_claims.models import HalalClaim
+from app.modules.halal_claims.enums import (
+    HalalClaimEventType,
+    HalalClaimStatus,
+)
+from app.modules.halal_claims.models import HalalClaim, HalalClaimEvent
+from app.modules.halal_claims.repo import log_halal_claim_event
 from app.modules.halal_profiles.models import HalalProfile
 from app.modules.halal_profiles.service import (
     derive_profile_from_approved_claim,
     revoke_profile,
 )
+from app.modules.places.enums import PlaceEventType
+from app.modules.places.repo import log_place_event
 
 
 # Statuses an admin can act on for the standard decision endpoints
@@ -69,6 +75,29 @@ def admin_get_halal_claim(db: Session, claim_id: UUID) -> HalalClaim:
             "HALAL_CLAIM_NOT_FOUND", "Halal claim not found."
         )
     return claim
+
+
+def admin_list_halal_claim_events(
+    db: Session,
+    *,
+    claim_id: UUID,
+) -> Sequence[HalalClaimEvent]:
+    """Audit timeline for a claim. Admin sees the full series
+    including system-driven events. Returns oldest first.
+
+    No ownership gate — admin can read any claim's timeline. 404 if
+    the claim itself doesn't exist (raised by ``admin_get_halal_claim``).
+    """
+    admin_get_halal_claim(db, claim_id)
+    return (
+        db.execute(
+            select(HalalClaimEvent)
+            .where(HalalClaimEvent.claim_id == claim_id)
+            .order_by(HalalClaimEvent.created_at)
+        )
+        .scalars()
+        .all()
+    )
 
 
 def admin_list_halal_claims(
@@ -101,6 +130,30 @@ def admin_list_halal_claims(
 # ---------------------------------------------------------------------------
 # Decision transitions
 # ---------------------------------------------------------------------------
+
+
+def _decision_description(
+    headline: str,
+    *,
+    tier: Optional[str] = None,
+    note: Optional[str] = None,
+) -> str:
+    """Build a description string for an admin-decision audit row.
+
+    Composes ``headline`` (e.g. "Claim approved", "Claim rejected")
+    with the optional validation tier (approve only) and the
+    decision_note. The note is captured verbatim so the timeline
+    keeps the owner-visible context even after a later transition
+    overwrites the claim's ``decision_note`` column.
+    """
+    parts = [headline]
+    if tier is not None:
+        parts.append(f"at validation_tier={tier}")
+    base = " ".join(parts) + "."
+    note_clean = (note or "").strip()
+    if note_clean:
+        return f"{base} {note_clean}"
+    return base
 
 
 def _stamp_decision(
@@ -172,6 +225,32 @@ def admin_approve_halal_claim(
     db.add(claim)
     db.flush()  # stamp the decision before derivation reads claim.
 
+    log_halal_claim_event(
+        db,
+        claim_id=claim.id,
+        event_type=HalalClaimEventType.APPROVED,
+        actor_user_id=actor_user_id,
+        description=_decision_description(
+            "Claim approved",
+            tier=payload.validation_tier.value,
+            note=payload.decision_note,
+        ),
+    )
+    # Cross-write to the place's own audit trail. The place detail
+    # page reads place_events; without this the claim approval is
+    # invisible there.
+    log_place_event(
+        db,
+        place_id=claim.place_id,
+        event_type=PlaceEventType.HALAL_CLAIM_APPROVED,
+        actor_user_id=actor_user_id,
+        message=_decision_description(
+            f"Halal claim {claim.id} approved",
+            tier=payload.validation_tier.value,
+            note=payload.decision_note,
+        ),
+    )
+
     profile, event_type = derive_profile_from_approved_claim(
         db,
         claim=claim,
@@ -220,6 +299,24 @@ def admin_reject_halal_claim(
         internal_notes=payload.internal_notes,
     )
     db.add(claim)
+    log_halal_claim_event(
+        db,
+        claim_id=claim.id,
+        event_type=HalalClaimEventType.REJECTED,
+        actor_user_id=actor_user_id,
+        description=_decision_description(
+            "Claim rejected", note=payload.decision_note
+        ),
+    )
+    log_place_event(
+        db,
+        place_id=claim.place_id,
+        event_type=PlaceEventType.HALAL_CLAIM_REJECTED,
+        actor_user_id=actor_user_id,
+        message=_decision_description(
+            f"Halal claim {claim.id} rejected", note=payload.decision_note
+        ),
+    )
     db.commit()
     db.refresh(claim)
     return claim
@@ -260,6 +357,25 @@ def admin_request_info_halal_claim(
         internal_notes=payload.internal_notes,
     )
     db.add(claim)
+    log_halal_claim_event(
+        db,
+        claim_id=claim.id,
+        event_type=HalalClaimEventType.INFO_REQUESTED,
+        actor_user_id=actor_user_id,
+        description=_decision_description(
+            "Admin asked for more info", note=payload.decision_note
+        ),
+    )
+    log_place_event(
+        db,
+        place_id=claim.place_id,
+        event_type=PlaceEventType.HALAL_CLAIM_NEEDS_INFO,
+        actor_user_id=actor_user_id,
+        message=_decision_description(
+            f"Halal claim {claim.id} — more info requested",
+            note=payload.decision_note,
+        ),
+    )
     db.commit()
     db.refresh(claim)
     return claim
@@ -296,6 +412,24 @@ def admin_revoke_halal_claim(
         actor_user_id=actor_user_id,
         decision_note=payload.decision_note,
         internal_notes=payload.internal_notes,
+    )
+    log_halal_claim_event(
+        db,
+        claim_id=claim.id,
+        event_type=HalalClaimEventType.REVOKED,
+        actor_user_id=actor_user_id,
+        description=_decision_description(
+            "Claim revoked", note=payload.decision_note
+        ),
+    )
+    log_place_event(
+        db,
+        place_id=claim.place_id,
+        event_type=PlaceEventType.HALAL_CLAIM_REVOKED,
+        actor_user_id=actor_user_id,
+        message=_decision_description(
+            f"Halal claim {claim.id} revoked", note=payload.decision_note
+        ),
     )
 
     profile = db.execute(

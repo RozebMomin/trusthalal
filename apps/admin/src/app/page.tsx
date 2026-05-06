@@ -2,14 +2,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 const surfaces = [
   {
+    title: "Halal claims",
+    description:
+      "Review owner-submitted halal-posture verifications. Approve to update a place's consumer-facing halal profile.",
+    href: "/halal-claims",
+  },
+  {
     title: "Ownership requests",
     description:
       "Review merchant-submitted claim-this-place requests, approve with an existing or new organization, or reject.",
     href: "/ownership-requests",
   },
-  // The Claims tile is hidden during the halal-trust v2 rebuild
-  // (Phase 1+ in flight). Phase 3 reintroduces it pointing at the
-  // new /admin/halal-claims surface.
   {
     title: "Places",
     description:

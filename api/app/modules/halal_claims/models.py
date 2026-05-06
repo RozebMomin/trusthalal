@@ -40,6 +40,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.modules.halal_claims.enums import (
     HalalClaimAttachmentType,
+    HalalClaimEventType,
     HalalClaimStatus,
     HalalClaimType,
 )
@@ -178,6 +179,17 @@ class HalalClaim(Base):
         order_by="HalalClaimAttachment.uploaded_at",
     )
 
+    # Audit timeline. Loaded only when explicitly requested (default
+    # ``select`` lazy strategy) — list-page reads of MyHalalClaimRead
+    # don't carry events; the per-claim detail surface fetches them
+    # via a dedicated /events endpoint instead.
+    events: Mapped[list["HalalClaimEvent"]] = relationship(
+        back_populates="claim",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="HalalClaimEvent.created_at",
+    )
+
     # Read-side relationships for embedding place + org summaries in
     # the response shape. ``lazy="joined"`` means the LEFT JOIN runs
     # alongside the claim fetch — one query per list view rather than
@@ -256,3 +268,60 @@ class HalalClaimAttachment(Base):
     )
 
     claim: Mapped["HalalClaim"] = relationship(back_populates="attachments")
+
+
+class HalalClaimEvent(Base):
+    """One row per meaningful state transition on a halal claim.
+
+    The audit pattern lives across the codebase (place_events,
+    halal_profile_events, etc.) — same shape: claim FK, event-type
+    enum mirrored as a CHECK in the migration, nullable
+    actor_user_id (system events have no actor), free-text
+    description for the human-readable bit.
+
+    For decision events (approve / reject / request-info / revoke),
+    the description carries the owner-visible decision_note verbatim
+    so the timeline stays meaningful even after a later transition
+    overwrites the claim's ``decision_note`` column.
+    """
+
+    __tablename__ = "halal_claim_events"
+    __table_args__ = {"schema": "app"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+
+    claim_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.halal_claims.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    event_type: Mapped[str] = mapped_column(
+        sa.Enum(
+            HalalClaimEventType,
+            name="halal_claim_event_type",
+            native_enum=False,
+            length=50,
+        ),
+        nullable=False,
+    )
+
+    actor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    claim: Mapped["HalalClaim"] = relationship(back_populates="events")

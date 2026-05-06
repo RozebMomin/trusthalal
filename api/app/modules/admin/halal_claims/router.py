@@ -37,6 +37,7 @@ from app.db.deps import get_db
 from app.modules.admin.halal_claims.repo import (
     admin_approve_halal_claim,
     admin_get_halal_claim,
+    admin_list_halal_claim_events,
     admin_list_halal_claims,
     admin_reject_halal_claim,
     admin_request_info_halal_claim,
@@ -53,6 +54,7 @@ from app.modules.halal_claims.models import HalalClaimAttachment
 from app.modules.halal_claims.schemas import (
     HalalClaimAdminRead,
     HalalClaimAttachmentRead,
+    HalalClaimEventRead,
 )
 from app.modules.users.enums import UserRole
 
@@ -214,6 +216,32 @@ def revoke_claim_admin(
         payload=payload,
     )
     return HalalClaimAdminRead.model_validate(claim)
+
+
+# ---------------------------------------------------------------------------
+# Audit timeline
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{claim_id}/events",
+    response_model=list[HalalClaimEventRead],
+)
+def list_claim_events_admin(
+    claim_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> list[HalalClaimEventRead]:
+    """Per-claim audit timeline (admin view).
+
+    Same shape the owner sees on their portal, with no ownership
+    gate — admin can read any claim's events. Powers the 'Activity'
+    section on the admin claim detail page so reviewers can see the
+    full lifecycle (when the owner drafted, when they submitted,
+    every prior decision, supersession from a newer approval, etc.).
+    """
+    rows = admin_list_halal_claim_events(db, claim_id=claim_id)
+    return [HalalClaimEventRead.model_validate(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------

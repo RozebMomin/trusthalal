@@ -13,11 +13,14 @@
  * Policy today
  * ------------
  *   * ADMIN    — full panel (every non-public path).
- *   * VERIFIER — /claims queue + detail. Nothing else; the moderation
- *     surface is the claims tool, the rest of the panel is staff
- *     operations they don't participate in.
- *   * OWNER    — no panel access yet. When the owner dashboard ships,
- *     flip their home to a /owner tree and add those paths here.
+ *   * VERIFIER — /halal-claims queue + detail (their moderation
+ *     surface) and /ownership-requests for cross-referencing the
+ *     underlying ownership claim while reviewing a halal claim.
+ *     Everything else is staff operations they don't participate
+ *     in.
+ *   * OWNER    — no panel access. The owner portal is its own app
+ *     (apps/owner) — owners file claims and manage their orgs there,
+ *     not in the admin panel.
  *   * CONSUMER — no panel access. Consumers browse the public catalog
  *     (separate product), not the internal tool.
  *
@@ -36,16 +39,16 @@ import type { UserRole } from "@/lib/api/hooks";
  * shell will render the NoAccessPane instead of routing them somewhere.
  * Keep the string values in lock-step with the server's
  * ``_redirect_path_for`` so a login that returns ``redirect_path:
- * /claims`` ends up at the same place the guard would pick.
+ * /halal-claims`` ends up at the same place the guard would pick.
  */
 export const PANEL_HOME_FOR_ROLE: Record<UserRole, string | null> = {
   ADMIN: "/places",
-  // VERIFIER points at /claims again once Phase 3 reintroduces the
-  // halal-claims queue. During the v2 rebuild they land on the
-  // ownership-requests queue (also in the verifier-readable path
-  // list below) so the "you're signed in but the page is gone"
-  // problem doesn't materialize.
-  VERIFIER: "/ownership-requests",
+  // VERIFIER lands on the halal-claim queue — the moderation surface
+  // they exist to drive. The ownership-requests queue is also
+  // reachable via the path list below for verifiers who need to
+  // cross-reference an underlying ownership claim while reviewing
+  // a halal claim, but the home tab is the halal queue itself.
+  VERIFIER: "/halal-claims",
   OWNER: null,
   CONSUMER: null,
 };
@@ -62,13 +65,15 @@ const PATH_ALLOWED_ROLES: ReadonlyArray<{
   pattern: RegExp;
   roles: ReadonlyArray<UserRole>;
 }> = [
-  // /claims list + detail → ADMIN and VERIFIER. The page itself is
-  // a v2-transition placeholder until Phase 3 lands the new queue,
-  // but we keep the access rule here so the placeholder is reachable
-  // by both roles (and stale bookmarks don't 403).
+  // /halal-claims list + detail → ADMIN and VERIFIER. The verifier
+  // home points here.
+  { pattern: /^\/halal-claims(\/|$)/, roles: ["ADMIN", "VERIFIER"] },
+  // /claims is the legacy redirect for old bookmarks → forwards to
+  // /halal-claims. Same role gate.
   { pattern: /^\/claims(\/|$)/, roles: ["ADMIN", "VERIFIER"] },
-  // Ownership-requests is the VERIFIER home during the halal-trust
-  // v2 rebuild — they need a working queue to land on.
+  // Ownership-requests cross-references halal-claim review (an admin
+  // sometimes needs to confirm the claimant actually owns the place
+  // they're filing for), so verifiers have read access here too.
   { pattern: /^\/ownership-requests(\/|$)/, roles: ["ADMIN", "VERIFIER"] },
 ];
 

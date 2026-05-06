@@ -30,7 +30,7 @@ export default function MyOrganizationsPage() {
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            My organizations
+            Organizations
           </h1>
           <p className="mt-2 text-muted-foreground">
             The business entities you operate. Trust Halal verifies
