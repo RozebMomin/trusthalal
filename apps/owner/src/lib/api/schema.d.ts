@@ -24,6 +24,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consumer-dispute review queue
+         * @description Newest-first list of disputes with optional `status`, `place_id`, and `reporter_user_id` filters. The admin queue page lands here with `status=OPEN`; the place detail surface filters by `place_id`.
+         */
+        get: operations["list_disputes_admin_admin_disputes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/disputes/{dispute_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Single dispute detail (admin view)
+         * @description Full admin shape — includes `reporter_user_id` and the `contested_profile_id` snapshot so admin can pattern-match repeat reporters or repeat targets.
+         */
+        get: operations["get_dispute_admin_admin_disputes__dispute_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/disputes/{dispute_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List evidence-file metadata on a dispute */
+        get: operations["list_dispute_attachments_admin_admin_disputes__dispute_id__attachments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/disputes/{dispute_id}/attachments/{attachment_id}/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mint a short-lived signed URL for one attachment
+         * @description Asserts the attachment belongs to the dispute before signing. TTL is 60 seconds, matching the other admin signed-URL endpoints.
+         */
+        get: operations["signed_url_for_dispute_attachment_admin_admin_disputes__dispute_id__attachments__attachment_id__url_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/disputes/{dispute_id}/request-owner-reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move a dispute to OWNER_RECONCILING
+         * @description Parks the dispute on the owner side, signaling they should file a RECONCILIATION halal_claim. Idempotent on a dispute already in OWNER_RECONCILING. Notification of the owner is a TODO — for now this just changes status; the admin can follow up via existing channels.
+         */
+        post: operations["request_owner_reconciliation_admin_admin_disputes__dispute_id__request_owner_reconciliation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/disputes/{dispute_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve a dispute as upheld or dismissed
+         * @description Closes the dispute. UPHELD = consumer was right (data correction happens via a separate owner-driven RECONCILIATION halal_claim); DISMISSED = profile stays as-is. Either way the place's DISPUTED badge clears once no other active disputes remain.
+         */
+        post: operations["resolve_dispute_admin_admin_disputes__dispute_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/halal-claims": {
         parameters: {
             query?: never;
@@ -938,8 +1055,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Self-service signup (role hard-coded to OWNER)
-         * @description Public path used by the owner portal. Creates a User with role=OWNER and immediately sets the session cookie so the client can land on the post-login home with no second round trip. On a duplicate email returns `EMAIL_TAKEN` so the UI can deep-link to /login. Promotion to ADMIN/VERIFIER stays an admin-only operation. Rate-limited per-IP at 5/min, 20/hour.
+         * Self-service signup (OWNER or CONSUMER)
+         * @description Public path used by the owner portal (role=OWNER, the default) and the consumer site (role=CONSUMER, passed explicitly). Creates the User and immediately sets the session cookie so the client can land on the post-login home with no second round trip. On a duplicate email returns `EMAIL_TAKEN` so the UI can deep-link to /login. Promotion to ADMIN/VERIFIER stays an admin-only operation. Rate-limited per-IP at 5/min, 20/hour.
          */
         post: operations["signup_auth_signup_post"];
         delete?: never;
@@ -982,6 +1099,86 @@ export interface paths {
         get: operations["get_me_me_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the reporter's own disputes
+         * @description Newest-first list of disputes filed by the signed-in user. Pagination capped at 200 — realistic reporters will have single-digit dispute counts; the bound is cheap insurance against runaway queries.
+         */
+        get: operations["list_my_disputes_me_disputes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/disputes/{dispute_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one of the reporter's disputes
+         * @description Reporter-self view with attachments. 404 on unknown id; 403 if the id exists but belongs to another user.
+         */
+        get: operations["get_my_dispute_me_disputes__dispute_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/disputes/{dispute_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload evidence to a dispute
+         * @description Multipart upload. Allowed only while the dispute is OPEN — once admin starts reviewing, the evidence set is frozen. MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF), 10 MB per file, 5 files per dispute. Storage key is `disputes/{dispute_id}/{uuid}.{ext}`.
+         */
+        post: operations["upload_my_dispute_attachment_me_disputes__dispute_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/disputes/{dispute_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw an OPEN dispute
+         * @description Reporter pulls back a dispute they've filed. Only OPEN disputes can be withdrawn — once admin or owner has engaged with it, the dispute is locked from the consumer side. Withdraws clear the place's DISPUTED badge if no other active disputes remain.
+         */
+        post: operations["withdraw_my_dispute_me_disputes__dispute_id__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1406,6 +1603,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/places/{place_id}/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * File a dispute on a place
+         * @description Signed-in consumers report that a place's halal profile is wrong (pork served, alcohol present, slaughter method incorrect, etc.). Filing flips the place's halal profile into a DISPUTED state, visible to consumers as a 'conflicting reports' badge until admin resolves. Rate-limited at 10/hour per user.
+         */
+        post: operations["file_place_dispute_places__place_id__disputes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/places/{place_id}/halal-profile": {
         parameters: {
             query?: never;
@@ -1468,11 +1685,34 @@ export interface components {
             url: string;
         };
         /**
+         * AdminDisputeAttachmentSignedUrl
+         * @description Signed-URL response. Same TTL as the org / ownership-request
+         *     / halal-claim signed URLs (60 seconds).
+         */
+        AdminDisputeAttachmentSignedUrl: {
+            /** Content Type */
+            content_type: string;
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /** Original Filename */
+            original_filename: string;
+            /** Url */
+            url: string;
+        };
+        /**
          * AlcoholPolicy
          * @description Alcohol on premises.
          * @enum {string}
          */
         AlcoholPolicy: "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
+        /** Body_upload_my_dispute_attachment_me_disputes__dispute_id__attachments_post */
+        Body_upload_my_dispute_attachment_me_disputes__dispute_id__attachments_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+        };
         /** Body_upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post */
         Body_upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post: {
             /** Certificate Number */
@@ -1505,6 +1745,173 @@ export interface components {
              */
             file: string;
         };
+        /**
+         * ConsumerDisputeAdminRead
+         * @description Full admin view — sees everything.
+         *
+         *     Reporter identity is here for pattern detection (repeat
+         *     offenders / repeat targets). Admin UI surfaces it; admin staff
+         *     is responsible for not leaking it sideways.
+         */
+        ConsumerDisputeAdminRead: {
+            /** Admin Decision Note */
+            admin_decision_note: string | null;
+            /** Attachments */
+            attachments?: components["schemas"]["ConsumerDisputeAttachmentRead"][];
+            /** Contested Profile Id */
+            contested_profile_id: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By User Id */
+            decided_by_user_id: string | null;
+            /** Description */
+            description: string;
+            disputed_attribute: components["schemas"]["DisputedAttribute"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            /** Reporter User Id */
+            reporter_user_id: string | null;
+            status: components["schemas"]["DisputeStatus"];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ConsumerDisputeAttachmentRead
+         * @description Attachment metadata. Bytes via signed URL.
+         */
+        ConsumerDisputeAttachmentRead: {
+            /** Content Type */
+            content_type: string;
+            /**
+             * Dispute Id
+             * Format: uuid
+             */
+            dispute_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Original Filename */
+            original_filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+        };
+        /**
+         * ConsumerDisputeCreate
+         * @description Payload for ``POST /places/{place_id}/disputes``.
+         *
+         *     Reporter must be authenticated; the user_id comes from the
+         *     session, not the body. The ``contested_profile_id`` is set
+         *     server-side from the place's current profile at submission time.
+         */
+        ConsumerDisputeCreate: {
+            /** Description */
+            description: string;
+            disputed_attribute: components["schemas"]["DisputedAttribute"];
+        };
+        /**
+         * ConsumerDisputeReporterRead
+         * @description Consumer-self view (their own disputes via /me/disputes).
+         *
+         *     The reporter sees their own description + decision context. They
+         *     don't see admin internal notes, only the resolution outcome.
+         */
+        ConsumerDisputeReporterRead: {
+            /** Admin Decision Note */
+            admin_decision_note: string | null;
+            /** Attachments */
+            attachments?: components["schemas"]["ConsumerDisputeAttachmentRead"][];
+            /** Decided At */
+            decided_at: string | null;
+            /** Description */
+            description: string;
+            disputed_attribute: components["schemas"]["DisputedAttribute"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Place Id
+             * Format: uuid
+             */
+            place_id: string;
+            status: components["schemas"]["DisputeStatus"];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+        };
+        /**
+         * DisputeRequestReconciliation
+         * @description Payload for ``POST /admin/disputes/{id}/request-owner-reconciliation``.
+         *
+         *     Used when a dispute is plausible enough to ask the owner to
+         *     file a RECONCILIATION halal_claim instead of admin resolving
+         *     directly. ``admin_decision_note`` is staff-only context.
+         */
+        DisputeRequestReconciliation: {
+            /** Admin Decision Note */
+            admin_decision_note?: string | null;
+        };
+        /**
+         * DisputeResolve
+         * @description Payload for ``POST /admin/disputes/{id}/resolve``.
+         *
+         *     Decision must be one of the two terminal states. The
+         *     ``admin_decision_note`` is required on DISMISSED so the
+         *     consumer understands the outcome; UPHELD makes it optional
+         *     because "we agreed, the place needs a reconciliation claim"
+         *     speaks for itself.
+         */
+        DisputeResolve: {
+            /**
+             * Admin Decision Note
+             * @description Required when DISMISSED so the consumer understands the outcome; optional when UPHELD.
+             */
+            admin_decision_note?: string | null;
+            /** @description Must be `RESOLVED_UPHELD` or `RESOLVED_DISMISSED`. The repo layer also rejects other values defensively. */
+            decision: components["schemas"]["DisputeStatus"];
+        };
+        /**
+         * DisputeStatus
+         * @enum {string}
+         */
+        DisputeStatus: "OPEN" | "OWNER_RECONCILING" | "ADMIN_REVIEWING" | "RESOLVED_UPHELD" | "RESOLVED_DISMISSED" | "WITHDRAWN";
+        /**
+         * DisputedAttribute
+         * @description Which aspect of the profile the consumer is disputing.
+         *
+         *     Free text in ``description`` complements this — the enum is for
+         *     routing and pattern detection (admins want to know "are we seeing
+         *     a lot of ALCOHOL_PRESENT disputes lately?"), the description is
+         *     for human context.
+         * @enum {string}
+         */
+        DisputedAttribute: "PORK_SERVED" | "ALCOHOL_PRESENT" | "MENU_POSTURE_INCORRECT" | "SLAUGHTER_METHOD_INCORRECT" | "CERTIFICATION_INVALID" | "PLACE_CLOSED" | "OTHER";
         /**
          * ErrorDetail
          * @description The inner object of an error response.
@@ -3496,18 +3903,25 @@ export interface components {
          * SignupRequest
          * @description POST /auth/signup body.
          *
-         *     Restaurant owners create their own account here — Trust Halal staff
-         *     no longer mints OWNER invites by hand. The trust gate is the
-         *     human-reviewed ownership claim later in the flow, not the signup
-         *     itself.
+         *     Two public surfaces use this endpoint: the owner portal (role
+         *     defaults to OWNER) and the consumer site (passes
+         *     ``role=CONSUMER``). The trust gate is the human-reviewed
+         *     ownership claim downstream of OWNER signup, not the signup
+         *     itself, so the endpoint stays light.
+         *
+         *     ``role`` is restricted to OWNER and CONSUMER — promotion to
+         *     ADMIN or VERIFIER stays an admin-only operation via the user
+         *     CRUD endpoints. The router rejects other values defensively
+         *     even though Pydantic validates the literal here.
          *
          *     ``display_name`` is required (unlike on the User model) so admin
-         *     staff reviewing claims see a human-readable name, not just an email.
+         *     staff reviewing claims, and restaurant owners reviewing
+         *     disputes, see a human-readable name instead of just an email.
          *     Length matches the column (120 chars).
          *
          *     ``password`` minimum mirrors the invite ``SetPasswordRequest`` —
-         *     8 chars, no max-complexity rules. zxcvbn-style scoring can layer on
-         *     later if abuse warrants it.
+         *     8 chars, no max-complexity rules. zxcvbn-style scoring can layer
+         *     on later if abuse warrants it.
          */
         SignupRequest: {
             /** Display Name */
@@ -3519,6 +3933,13 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+            /**
+             * Role
+             * @description Public-signup role. Defaults to OWNER for backward compatibility with the owner portal; the consumer site passes CONSUMER explicitly.
+             * @default OWNER
+             * @enum {string}
+             */
+            role: "OWNER" | "CONSUMER";
         };
         /**
          * SignupResponse
@@ -3733,11 +4154,11 @@ export interface components {
         ValidationTier: "SELF_ATTESTED" | "CERTIFICATE_ON_FILE" | "TRUST_HALAL_VERIFIED";
         /**
          * _AdminAttachmentSignedUrl
-         * @description Response shape for the org-attachment signed-URL endpoint.
+         * @description Response shape for the signed-URL endpoint.
          *
-         *     Same shape as the claim-attachment variant: URL + filename +
-         *     MIME so the client can label the download or render an inline
-         *     preview without a second fetch.
+         *     Plain object instead of returning a redirect so the client can
+         *     decide whether to open the URL in a new tab, download with a
+         *     given filename, render an inline preview, etc.
          */
         _AdminAttachmentSignedUrl: {
             /** Content Type */
@@ -3751,13 +4172,13 @@ export interface components {
         };
         /**
          * _AdminAttachmentSignedUrl
-         * @description Response shape for the signed-URL endpoint.
+         * @description Response shape for the org-attachment signed-URL endpoint.
          *
-         *     Plain object instead of returning a redirect so the client can
-         *     decide whether to open the URL in a new tab, download with a
-         *     given filename, render an inline preview, etc.
+         *     Same shape as the claim-attachment variant: URL + filename +
+         *     MIME so the client can label the download or render an inline
+         *     preview without a second fetch.
          */
-        app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl: {
+        app__modules__admin__organizations__router___AdminAttachmentSignedUrl: {
             /** Content Type */
             content_type: string;
             /** Expires In Seconds */
@@ -3792,6 +4213,229 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    list_disputes_admin_admin_disputes_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                place_id?: string | null;
+                reporter_user_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeAdminRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dispute_admin_admin_disputes__dispute_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                dispute_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeAdminRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_dispute_attachments_admin_admin_disputes__dispute_id__attachments_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                dispute_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeAttachmentRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signed_url_for_dispute_attachment_admin_admin_disputes__dispute_id__attachments__attachment_id__url_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                dispute_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeAttachmentSignedUrl"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_owner_reconciliation_admin_admin_disputes__dispute_id__request_owner_reconciliation_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                dispute_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisputeRequestReconciliation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeAdminRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_dispute_admin_admin_disputes__dispute_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                dispute_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisputeResolve"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeAdminRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4338,7 +4982,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["_AdminAttachmentSignedUrl"];
+                    "application/json": components["schemas"]["app__modules__admin__organizations__router___AdminAttachmentSignedUrl"];
                 };
             };
             /** @description Validation Error */
@@ -4710,7 +5354,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"];
+                    "application/json": components["schemas"]["_AdminAttachmentSignedUrl"];
                 };
             };
             /** @description Validation Error */
@@ -6151,6 +6795,151 @@ export interface operations {
             };
         };
     };
+    list_my_disputes_me_disputes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeReporterRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_dispute_me_disputes__dispute_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                dispute_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeReporterRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_my_dispute_attachment_me_disputes__dispute_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                dispute_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_my_dispute_attachment_me_disputes__dispute_id__attachments_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeAttachmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_my_dispute_me_disputes__dispute_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                dispute_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeReporterRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_my_halal_claims_me_halal_claims_get: {
         parameters: {
             query?: {
@@ -7111,6 +7900,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlaceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    file_place_dispute_places__place_id__disputes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User-Id"?: string | null;
+            };
+            path: {
+                place_id: string;
+            };
+            cookie?: {
+                tht_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsumerDisputeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerDisputeReporterRead"];
                 };
             };
             /** @description Validation Error */

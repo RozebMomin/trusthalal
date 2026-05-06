@@ -31,6 +31,36 @@
         "title": "AdminAttachmentSignedUrl",
         "type": "object"
       },
+      "AdminDisputeAttachmentSignedUrl": {
+        "additionalProperties": false,
+        "description": "Signed-URL response. Same TTL as the org / ownership-request\n/ halal-claim signed URLs (60 seconds).",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expires_in_seconds",
+          "original_filename",
+          "content_type"
+        ],
+        "title": "AdminDisputeAttachmentSignedUrl",
+        "type": "object"
+      },
       "AlcoholPolicy": {
         "description": "Alcohol on premises.",
         "enum": [
@@ -40,6 +70,20 @@
         ],
         "title": "AlcoholPolicy",
         "type": "string"
+      },
+      "Body_upload_my_dispute_attachment_me_disputes__dispute_id__attachments_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_my_dispute_attachment_me_disputes__dispute_id__attachments_post",
+        "type": "object"
       },
       "Body_upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post": {
         "properties": {
@@ -120,6 +164,335 @@
         ],
         "title": "Body_upload_organization_attachment_me_organizations__organization_id__attachments_post",
         "type": "object"
+      },
+      "ConsumerDisputeAdminRead": {
+        "additionalProperties": false,
+        "description": "Full admin view \u2014 sees everything.\n\nReporter identity is here for pattern detection (repeat\noffenders / repeat targets). Admin UI surfaces it; admin staff\nis responsible for not leaking it sideways.",
+        "properties": {
+          "admin_decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin Decision Note"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/ConsumerDisputeAttachmentRead"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "contested_profile_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contested Profile Id"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By User Id"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "disputed_attribute": {
+            "$ref": "#/components/schemas/DisputedAttribute"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "place_id": {
+            "format": "uuid",
+            "title": "Place Id",
+            "type": "string"
+          },
+          "reporter_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reporter User Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DisputeStatus"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "place_id",
+          "reporter_user_id",
+          "status",
+          "disputed_attribute",
+          "description",
+          "contested_profile_id",
+          "submitted_at",
+          "decided_at",
+          "decided_by_user_id",
+          "admin_decision_note",
+          "updated_at"
+        ],
+        "title": "ConsumerDisputeAdminRead",
+        "type": "object"
+      },
+      "ConsumerDisputeAttachmentRead": {
+        "additionalProperties": false,
+        "description": "Attachment metadata. Bytes via signed URL.",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "dispute_id": {
+            "format": "uuid",
+            "title": "Dispute Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "uploaded_at": {
+            "format": "date-time",
+            "title": "Uploaded At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dispute_id",
+          "original_filename",
+          "content_type",
+          "size_bytes",
+          "uploaded_at"
+        ],
+        "title": "ConsumerDisputeAttachmentRead",
+        "type": "object"
+      },
+      "ConsumerDisputeCreate": {
+        "additionalProperties": false,
+        "description": "Payload for ``POST /places/{place_id}/disputes``.\n\nReporter must be authenticated; the user_id comes from the\nsession, not the body. The ``contested_profile_id`` is set\nserver-side from the place's current profile at submission time.",
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Description",
+            "type": "string"
+          },
+          "disputed_attribute": {
+            "$ref": "#/components/schemas/DisputedAttribute"
+          }
+        },
+        "required": [
+          "disputed_attribute",
+          "description"
+        ],
+        "title": "ConsumerDisputeCreate",
+        "type": "object"
+      },
+      "ConsumerDisputeReporterRead": {
+        "additionalProperties": false,
+        "description": "Consumer-self view (their own disputes via /me/disputes).\n\nThe reporter sees their own description + decision context. They\ndon't see admin internal notes, only the resolution outcome.",
+        "properties": {
+          "admin_decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin Decision Note"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/ConsumerDisputeAttachmentRead"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "disputed_attribute": {
+            "$ref": "#/components/schemas/DisputedAttribute"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "place_id": {
+            "format": "uuid",
+            "title": "Place Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DisputeStatus"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "place_id",
+          "status",
+          "disputed_attribute",
+          "description",
+          "submitted_at",
+          "decided_at",
+          "admin_decision_note"
+        ],
+        "title": "ConsumerDisputeReporterRead",
+        "type": "object"
+      },
+      "DisputeRequestReconciliation": {
+        "additionalProperties": false,
+        "description": "Payload for ``POST /admin/disputes/{id}/request-owner-reconciliation``.\n\nUsed when a dispute is plausible enough to ask the owner to\nfile a RECONCILIATION halal_claim instead of admin resolving\ndirectly. ``admin_decision_note`` is staff-only context.",
+        "properties": {
+          "admin_decision_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin Decision Note"
+          }
+        },
+        "title": "DisputeRequestReconciliation",
+        "type": "object"
+      },
+      "DisputeResolve": {
+        "additionalProperties": false,
+        "description": "Payload for ``POST /admin/disputes/{id}/resolve``.\n\nDecision must be one of the two terminal states. The\n``admin_decision_note`` is required on DISMISSED so the\nconsumer understands the outcome; UPHELD makes it optional\nbecause \"we agreed, the place needs a reconciliation claim\"\nspeaks for itself.",
+        "properties": {
+          "admin_decision_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required when DISMISSED so the consumer understands the outcome; optional when UPHELD.",
+            "title": "Admin Decision Note"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/DisputeStatus",
+            "description": "Must be `RESOLVED_UPHELD` or `RESOLVED_DISMISSED`. The repo layer also rejects other values defensively."
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "DisputeResolve",
+        "type": "object"
+      },
+      "DisputeStatus": {
+        "enum": [
+          "OPEN",
+          "OWNER_RECONCILING",
+          "ADMIN_REVIEWING",
+          "RESOLVED_UPHELD",
+          "RESOLVED_DISMISSED",
+          "WITHDRAWN"
+        ],
+        "title": "DisputeStatus",
+        "type": "string"
+      },
+      "DisputedAttribute": {
+        "description": "Which aspect of the profile the consumer is disputing.\n\nFree text in ``description`` complements this \u2014 the enum is for\nrouting and pattern detection (admins want to know \"are we seeing\na lot of ALCOHOL_PRESENT disputes lately?\"), the description is\nfor human context.",
+        "enum": [
+          "PORK_SERVED",
+          "ALCOHOL_PRESENT",
+          "MENU_POSTURE_INCORRECT",
+          "SLAUGHTER_METHOD_INCORRECT",
+          "CERTIFICATION_INVALID",
+          "PLACE_CLOSED",
+          "OTHER"
+        ],
+        "title": "DisputedAttribute",
+        "type": "string"
       },
       "ErrorDetail": {
         "additionalProperties": false,
@@ -4239,7 +4612,7 @@
       },
       "SignupRequest": {
         "additionalProperties": false,
-        "description": "POST /auth/signup body.\n\nRestaurant owners create their own account here \u2014 Trust Halal staff\nno longer mints OWNER invites by hand. The trust gate is the\nhuman-reviewed ownership claim later in the flow, not the signup\nitself.\n\n``display_name`` is required (unlike on the User model) so admin\nstaff reviewing claims see a human-readable name, not just an email.\nLength matches the column (120 chars).\n\n``password`` minimum mirrors the invite ``SetPasswordRequest`` \u2014\n8 chars, no max-complexity rules. zxcvbn-style scoring can layer on\nlater if abuse warrants it.",
+        "description": "POST /auth/signup body.\n\nTwo public surfaces use this endpoint: the owner portal (role\ndefaults to OWNER) and the consumer site (passes\n``role=CONSUMER``). The trust gate is the human-reviewed\nownership claim downstream of OWNER signup, not the signup\nitself, so the endpoint stays light.\n\n``role`` is restricted to OWNER and CONSUMER \u2014 promotion to\nADMIN or VERIFIER stays an admin-only operation via the user\nCRUD endpoints. The router rejects other values defensively\neven though Pydantic validates the literal here.\n\n``display_name`` is required (unlike on the User model) so admin\nstaff reviewing claims, and restaurant owners reviewing\ndisputes, see a human-readable name instead of just an email.\nLength matches the column (120 chars).\n\n``password`` minimum mirrors the invite ``SetPasswordRequest`` \u2014\n8 chars, no max-complexity rules. zxcvbn-style scoring can layer\non later if abuse warrants it.",
         "properties": {
           "display_name": {
             "maxLength": 120,
@@ -4256,6 +4629,16 @@
             "maxLength": 256,
             "minLength": 8,
             "title": "Password",
+            "type": "string"
+          },
+          "role": {
+            "default": "OWNER",
+            "description": "Public-signup role. Defaults to OWNER for backward compatibility with the owner portal; the consumer site passes CONSUMER explicitly.",
+            "enum": [
+              "OWNER",
+              "CONSUMER"
+            ],
+            "title": "Role",
             "type": "string"
           }
         },
@@ -4636,7 +5019,7 @@
         "type": "string"
       },
       "_AdminAttachmentSignedUrl": {
-        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
+        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -4664,8 +5047,8 @@
         "title": "_AdminAttachmentSignedUrl",
         "type": "object"
       },
-      "app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl": {
-        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
+      "app__modules__admin__organizations__router___AdminAttachmentSignedUrl": {
+        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -4728,6 +5111,562 @@
         "summary": "Service banner",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/admin/disputes": {
+      "get": {
+        "description": "Newest-first list of disputes with optional `status`, `place_id`, and `reporter_user_id` filters. The admin queue page lands here with `status=OPEN`; the place detail surface filters by `place_id`.",
+        "operationId": "list_disputes_admin_admin_disputes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "place_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Place Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reporter_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reporter User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConsumerDisputeAdminRead"
+                  },
+                  "title": "Response List Disputes Admin Admin Disputes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consumer-dispute review queue",
+        "tags": [
+          "admin: disputes"
+        ]
+      }
+    },
+    "/admin/disputes/{dispute_id}": {
+      "get": {
+        "description": "Full admin shape \u2014 includes `reporter_user_id` and the `contested_profile_id` snapshot so admin can pattern-match repeat reporters or repeat targets.",
+        "operationId": "get_dispute_admin_admin_disputes__dispute_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dispute_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dispute Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerDisputeAdminRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Single dispute detail (admin view)",
+        "tags": [
+          "admin: disputes"
+        ]
+      }
+    },
+    "/admin/disputes/{dispute_id}/attachments": {
+      "get": {
+        "operationId": "list_dispute_attachments_admin_admin_disputes__dispute_id__attachments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dispute_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dispute Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConsumerDisputeAttachmentRead"
+                  },
+                  "title": "Response List Dispute Attachments Admin Admin Disputes  Dispute Id  Attachments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List evidence-file metadata on a dispute",
+        "tags": [
+          "admin: disputes"
+        ]
+      }
+    },
+    "/admin/disputes/{dispute_id}/attachments/{attachment_id}/url": {
+      "get": {
+        "description": "Asserts the attachment belongs to the dispute before signing. TTL is 60 seconds, matching the other admin signed-URL endpoints.",
+        "operationId": "signed_url_for_dispute_attachment_admin_admin_disputes__dispute_id__attachments__attachment_id__url_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dispute_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dispute Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDisputeAttachmentSignedUrl"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mint a short-lived signed URL for one attachment",
+        "tags": [
+          "admin: disputes"
+        ]
+      }
+    },
+    "/admin/disputes/{dispute_id}/request-owner-reconciliation": {
+      "post": {
+        "description": "Parks the dispute on the owner side, signaling they should file a RECONCILIATION halal_claim. Idempotent on a dispute already in OWNER_RECONCILING. Notification of the owner is a TODO \u2014 for now this just changes status; the admin can follow up via existing channels.",
+        "operationId": "request_owner_reconciliation_admin_admin_disputes__dispute_id__request_owner_reconciliation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dispute_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dispute Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisputeRequestReconciliation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerDisputeAdminRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Move a dispute to OWNER_RECONCILING",
+        "tags": [
+          "admin: disputes"
+        ]
+      }
+    },
+    "/admin/disputes/{dispute_id}/resolve": {
+      "post": {
+        "description": "Closes the dispute. UPHELD = consumer was right (data correction happens via a separate owner-driven RECONCILIATION halal_claim); DISMISSED = profile stays as-is. Either way the place's DISPUTED badge clears once no other active disputes remain.",
+        "operationId": "resolve_dispute_admin_admin_disputes__dispute_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dispute_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dispute Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisputeResolve"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerDisputeAdminRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve a dispute as upheld or dismissed",
+        "tags": [
+          "admin: disputes"
         ]
       }
     },
@@ -6042,7 +6981,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/app__modules__admin__organizations__router___AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -6901,7 +7840,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -9471,7 +10410,7 @@
     },
     "/auth/signup": {
       "post": {
-        "description": "Public path used by the owner portal. Creates a User with role=OWNER and immediately sets the session cookie so the client can land on the post-login home with no second round trip. On a duplicate email returns `EMAIL_TAKEN` so the UI can deep-link to /login. Promotion to ADMIN/VERIFIER stays an admin-only operation. Rate-limited per-IP at 5/min, 20/hour.",
+        "description": "Public path used by the owner portal (role=OWNER, the default) and the consumer site (role=CONSUMER, passed explicitly). Creates the User and immediately sets the session cookie so the client can land on the post-login home with no second round trip. On a duplicate email returns `EMAIL_TAKEN` so the UI can deep-link to /login. Promotion to ADMIN/VERIFIER stays an admin-only operation. Rate-limited per-IP at 5/min, 20/hour.",
         "operationId": "signup_auth_signup_post",
         "requestBody": {
           "content": {
@@ -9505,7 +10444,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Self-service signup (role hard-coded to OWNER)",
+        "summary": "Self-service signup (OWNER or CONSUMER)",
         "tags": [
           "auth"
         ]
@@ -9594,6 +10533,337 @@
         "summary": "Current authenticated user",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/me/disputes": {
+      "get": {
+        "description": "Newest-first list of disputes filed by the signed-in user. Pagination capped at 200 \u2014 realistic reporters will have single-digit dispute counts; the bound is cheap insurance against runaway queries.",
+        "operationId": "list_my_disputes_me_disputes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConsumerDisputeReporterRead"
+                  },
+                  "title": "Response List My Disputes Me Disputes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List the reporter's own disputes",
+        "tags": [
+          "disputes"
+        ]
+      }
+    },
+    "/me/disputes/{dispute_id}": {
+      "get": {
+        "description": "Reporter-self view with attachments. 404 on unknown id; 403 if the id exists but belongs to another user.",
+        "operationId": "get_my_dispute_me_disputes__dispute_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dispute_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dispute Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerDisputeReporterRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get one of the reporter's disputes",
+        "tags": [
+          "disputes"
+        ]
+      }
+    },
+    "/me/disputes/{dispute_id}/attachments": {
+      "post": {
+        "description": "Multipart upload. Allowed only while the dispute is OPEN \u2014 once admin starts reviewing, the evidence set is frozen. MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF), 10 MB per file, 5 files per dispute. Storage key is `disputes/{dispute_id}/{uuid}.{ext}`.",
+        "operationId": "upload_my_dispute_attachment_me_disputes__dispute_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dispute_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dispute Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_my_dispute_attachment_me_disputes__dispute_id__attachments_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerDisputeAttachmentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload evidence to a dispute",
+        "tags": [
+          "disputes"
+        ]
+      }
+    },
+    "/me/disputes/{dispute_id}/withdraw": {
+      "post": {
+        "description": "Reporter pulls back a dispute they've filed. Only OPEN disputes can be withdrawn \u2014 once admin or owner has engaged with it, the dispute is locked from the consumer side. Withdraws clear the place's DISPUTED badge if no other active disputes remain.",
+        "operationId": "withdraw_my_dispute_me_disputes__dispute_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dispute_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dispute Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerDisputeReporterRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw an OPEN dispute",
+        "tags": [
+          "disputes"
         ]
       }
     },
@@ -11848,6 +13118,92 @@
         ]
       }
     },
+    "/places/{place_id}/disputes": {
+      "post": {
+        "description": "Signed-in consumers report that a place's halal profile is wrong (pork served, alcohol present, slaughter method incorrect, etc.). Filing flips the place's halal profile into a DISPUTED state, visible to consumers as a 'conflicting reports' badge until admin resolves. Rate-limited at 10/hour per user.",
+        "operationId": "file_place_dispute_places__place_id__disputes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsumerDisputeCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerDisputeReporterRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "File a dispute on a place",
+        "tags": [
+          "disputes"
+        ]
+      }
+    },
     "/places/{place_id}/halal-profile": {
       "get": {
         "description": "Consumer-facing halal-posture snapshot for a single place. Returns the derived `HalalProfile` (validation tier, menu posture, alcohol policy, per-meat slaughter, dispute state) without re-fetching the full place row. Returns 404 if the place doesn't exist or has no halal profile yet.",
@@ -12003,6 +13359,14 @@
     {
       "description": "Staff review surface for owner-submitted halal claims. Approve (assigns a validation tier), reject, request more info, or revoke a previously approved claim. Approval runs the profile-derivation service that creates / updates the place's `HalalProfile` in the same transaction.",
       "name": "admin: halal-claims"
+    },
+    {
+      "description": "Consumer-dispute surface. Signed-in consumers report that a place's halal profile is wrong (pork served, alcohol present, slaughter method incorrect, cert expired, etc.). Filing flips the place's profile into DISPUTED so the consumer site renders a 'conflicting reports' badge until admin resolves. Reporters see their own disputes via `/me/disputes/*`; admin review lives under `admin: disputes`.",
+      "name": "disputes"
+    },
+    {
+      "description": "Staff review surface for consumer disputes. Resolve (uphold or dismiss) or park on the owner side awaiting a RECONCILIATION halal_claim. Resolving clears the place's DISPUTED badge once no other active disputes remain on the place.",
+      "name": "admin: disputes"
     },
     {
       "description": "Catalog management. Ingest from Google Place ID, manual edits, soft-delete + restore, retroactively link a manual place to Google, and audit-event timeline reads. Admin sees soft-deleted rows that the public catalog hides.",
