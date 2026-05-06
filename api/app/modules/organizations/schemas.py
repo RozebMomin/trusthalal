@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.modules.organizations.enums import OrganizationStatus
 
@@ -36,13 +36,16 @@ class OrganizationAttachmentRead(BaseModel):
 class MyOrganizationCreate(BaseModel):
     """POST /me/organizations body.
 
-    Solo operators are welcome — the bar is "you exist as some kind
-    of business entity," not "you have an LLC." Owner can create with
-    just a name and add documentation later.
+    Address is now REQUIRED on create — admin staff need it to
+    disambiguate same-name LLCs across states, and a fresh org with
+    no address is too easy a path to "we'll fix it later" that
+    never gets fixed. Existing rows in the DB with NULL address
+    fields are unaffected (the column is still nullable in the
+    schema); this validator runs only on the create payload.
 
-    Address fields are all optional. We collect them so admin staff
-    can disambiguate same-name LLCs operating in different states;
-    legacy rows + owners who skip the section still work.
+    ``country_code`` defaults server-side to "US" when omitted
+    rather than failing validation, since the platform is US-only
+    for v1. The owner UI doesn't surface a country picker yet.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -50,16 +53,45 @@ class MyOrganizationCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     contact_email: EmailStr | None = None
 
-    address: str | None = Field(default=None, max_length=500)
-    city: str | None = Field(default=None, max_length=120)
-    region: str | None = Field(default=None, max_length=120)
-    country_code: str | None = Field(
-        default=None,
+    # All four explicitly required. ``min_length=1`` rejects empty
+    # strings; the repo additionally trims so a whitespace-only
+    # input doesn't sneak through.
+    address: str = Field(..., min_length=1, max_length=500)
+    city: str = Field(..., min_length=1, max_length=120)
+    region: str = Field(
+        ...,
+        min_length=1,
+        max_length=120,
+        description=(
+            "State / region. For US the UI ships a 50-state + DC + "
+            "territories dropdown; the server stores the chosen "
+            "value verbatim so future jurisdictions don't need a "
+            "schema migration."
+        ),
+    )
+    country_code: str = Field(
+        default="US",
         min_length=2,
         max_length=2,
-        description="ISO-3166-1 alpha-2 country code (e.g. 'US').",
+        description=(
+            "ISO-3166-1 alpha-2 country code. Defaults to 'US' since "
+            "the platform is US-only for v1; widen the UI before "
+            "loosening the default."
+        ),
     )
-    postal_code: str | None = Field(default=None, max_length=20)
+    postal_code: str = Field(..., min_length=1, max_length=20)
+
+    # ``min_length=1`` rejects the literal empty string, but a payload
+    # with whitespace-only values (e.g. "   ") would slip past it and
+    # then collapse to NULL inside the repo's _clean_str. Strip first
+    # and re-check to keep "required" actually required.
+    @field_validator("address", "city", "region", "postal_code", mode="after")
+    @classmethod
+    def _no_blank_required_field(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("must not be blank")
+        return cleaned
 
 
 class MyOrganizationPatch(BaseModel):

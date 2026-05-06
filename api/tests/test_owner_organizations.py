@@ -21,6 +21,20 @@ from app.modules.organizations.models import (
 )
 
 
+# Required-address fields default — every test that POSTs to
+# /me/organizations needs to include these now that the schema
+# enforces them. Spread with ``**VALID_ADDRESS`` to keep test
+# bodies focused on the behavior under test rather than re-typing
+# five fields.
+VALID_ADDRESS = {
+    "address": "123 Test St",
+    "city": "Detroit",
+    "region": "MI",
+    "country_code": "US",
+    "postal_code": "48201",
+}
+
+
 # ---------------------------------------------------------------------------
 # Storage fake (same pattern used in test_owner_attachments.py)
 # ---------------------------------------------------------------------------
@@ -70,7 +84,11 @@ def test_create_my_organization_starts_at_draft_and_joins_creator(
 
     resp = api.as_user(owner).post(
         "/me/organizations",
-        json={"name": "Khan Halal LLC", "contact_email": "khan@example.com"},
+        json={
+            "name": "Khan Halal LLC",
+            "contact_email": "khan@example.com",
+            **VALID_ADDRESS,
+        },
     )
     assert resp.status_code == 201, resp.text
     body = resp.json()
@@ -105,10 +123,10 @@ def test_list_my_organizations_scoped_to_caller(api, factories, db_session):
     db_session.commit()
 
     api.as_user(me).post(
-        "/me/organizations", json={"name": "Mine LLC"}
+        "/me/organizations", json={"name": "Mine LLC", **VALID_ADDRESS}
     )
     api.as_user(other).post(
-        "/me/organizations", json={"name": "Theirs LLC"}
+        "/me/organizations", json={"name": "Theirs LLC", **VALID_ADDRESS}
     )
 
     resp = api.as_user(me).get("/me/organizations")
@@ -126,7 +144,8 @@ def test_list_my_organizations_excludes_removed_memberships(
     db_session.commit()
 
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Removed Membership Co"}
+        "/me/organizations",
+        json={"name": "Removed Membership Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -147,7 +166,12 @@ def test_list_my_organizations_excludes_removed_memberships(
 
 
 def test_create_my_organization_requires_authentication(api):
-    resp = api.post("/me/organizations", json={"name": "Anonymous"})
+    # Send a complete (validation-passing) payload so the failure
+    # is unambiguously the auth gate, not a missing address field.
+    resp = api.post(
+        "/me/organizations",
+        json={"name": "Anonymous", **VALID_ADDRESS},
+    )
     assert resp.status_code == 401, resp.text
 
 
@@ -170,7 +194,8 @@ def test_get_my_organization_403_when_not_a_member(api, factories, db_session):
     db_session.commit()
 
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Members Only LLC"}
+        "/me/organizations",
+        json={"name": "Members Only LLC", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -188,7 +213,8 @@ def test_patch_my_organization_updates_name_and_email(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Original Co"}
+        "/me/organizations",
+        json={"name": "Original Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -210,7 +236,8 @@ def test_patch_my_organization_no_fields_returns_409(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Same Name Co"}
+        "/me/organizations",
+        json={"name": "Same Name Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -230,7 +257,8 @@ def test_patch_my_organization_locked_after_verified(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Verified Co"}
+        "/me/organizations",
+        json={"name": "Verified Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -258,7 +286,8 @@ def test_submit_organization_requires_attachment(api, factories, db_session):
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Empty Draft Co"}
+        "/me/organizations",
+        json={"name": "Empty Draft Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -277,7 +306,8 @@ def test_submit_organization_with_attachment_moves_to_under_review(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Submit OK Co"}
+        "/me/organizations",
+        json={"name": "Submit OK Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -310,7 +340,8 @@ def test_submit_organization_idempotent_when_already_under_review(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Idempotent Co"}
+        "/me/organizations",
+        json={"name": "Idempotent Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -334,7 +365,8 @@ def test_submit_organization_blocked_after_verified(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Locked Co"}
+        "/me/organizations",
+        json={"name": "Locked Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -359,7 +391,8 @@ def test_upload_attachment_writes_storage_and_persists_metadata(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Files Co"}
+        "/me/organizations",
+        json={"name": "Files Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -395,7 +428,8 @@ def test_upload_attachment_blocks_non_member(
     other = factories.user(role="OWNER", email="other@example.com")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Closed Co"}
+        "/me/organizations",
+        json={"name": "Closed Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -413,7 +447,8 @@ def test_upload_attachment_rejects_disallowed_mime(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "MIME Gate Co"}
+        "/me/organizations",
+        json={"name": "MIME Gate Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -441,7 +476,8 @@ def test_upload_attachment_blocked_after_verified(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Frozen Co"}
+        "/me/organizations",
+        json={"name": "Frozen Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -468,7 +504,8 @@ def test_my_organization_detail_embeds_attachments(
     owner = factories.user(role="OWNER")
     db_session.commit()
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": "Detail Embed Co"}
+        "/me/organizations",
+        json={"name": "Detail Embed Co", **VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -485,3 +522,131 @@ def test_my_organization_detail_embeds_attachments(
     assert detail.status_code == 200, detail.text
     names = {a["original_filename"] for a in detail.json()["attachments"]}
     assert names == {"a.pdf", "b.pdf"}
+
+
+# ---------------------------------------------------------------------------
+# Owner-self attachment signed URL — companion to the admin variant.
+# After a REJECTED decision the owner needs to re-open what they sent
+# before deciding how to revise. Same 60s TTL + ownership posture as
+# the admin path; ownership check is membership-based rather than role.
+# ---------------------------------------------------------------------------
+def test_my_org_attachment_signed_url_returns_storage_url(
+    api, factories, db_session, fake_storage,
+):
+    owner = factories.user(role="OWNER")
+    db_session.commit()
+    create = api.as_user(owner).post(
+        "/me/organizations",
+        json={"name": "Signed URL Co", **VALID_ADDRESS},
+    )
+    org_id = create.json()["id"]
+
+    upload = api.as_user(owner).post(
+        f"/me/organizations/{org_id}/attachments",
+        files={
+            "file": (
+                "filing.pdf",
+                BytesIO(b"%PDF-1.4 articles"),
+                "application/pdf",
+            ),
+        },
+    )
+    attachment_id = upload.json()["id"]
+
+    resp = api.as_user(owner).get(
+        f"/me/organizations/{org_id}/attachments/{attachment_id}/url"
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["expires_in_seconds"] == 60
+    assert body["url"].startswith("https://fake-storage.local/")
+    assert body["original_filename"] == "filing.pdf"
+    assert body["content_type"] == "application/pdf"
+
+    # Storage was asked exactly once with the org-scoped path.
+    assert len(fake_storage.signed_urls) == 1
+    path, ttl = fake_storage.signed_urls[0]
+    assert path.startswith(f"organizations/{org_id}/")
+    assert ttl == 60
+
+
+def test_my_org_attachment_signed_url_403_when_not_a_member(
+    api, factories, db_session, fake_storage,
+):
+    """A different owner can't mint a signed URL for someone else's
+    org attachment — same membership gate as every other /me/org
+    route, so 403 OWNER_ORGANIZATION_FORBIDDEN."""
+    owner = factories.user(role="OWNER", email="own@example.com")
+    other = factories.user(role="OWNER", email="other@example.com")
+    db_session.commit()
+    create = api.as_user(owner).post(
+        "/me/organizations",
+        json={"name": "Private Co", **VALID_ADDRESS},
+    )
+    org_id = create.json()["id"]
+
+    upload = api.as_user(owner).post(
+        f"/me/organizations/{org_id}/attachments",
+        files={"file": ("x.pdf", BytesIO(b"%PDF-1.4 x"), "application/pdf")},
+    )
+    attachment_id = upload.json()["id"]
+
+    resp = api.as_user(other).get(
+        f"/me/organizations/{org_id}/attachments/{attachment_id}/url"
+    )
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["error"]["code"] == "OWNER_ORGANIZATION_FORBIDDEN"
+
+
+def test_my_org_attachment_signed_url_404_on_mismatched_org(
+    api, factories, db_session, fake_storage,
+):
+    """Real attachment id but the URL targets a different org the
+    caller also owns — 404 so a guessed UUID can't surface another
+    org's files even within the caller's own portfolio."""
+    owner = factories.user(role="OWNER")
+    db_session.commit()
+    create_a = api.as_user(owner).post(
+        "/me/organizations",
+        json={"name": "Org A", **VALID_ADDRESS},
+    )
+    org_a_id = create_a.json()["id"]
+    create_b = api.as_user(owner).post(
+        "/me/organizations",
+        json={"name": "Org B", **VALID_ADDRESS},
+    )
+    org_b_id = create_b.json()["id"]
+
+    upload = api.as_user(owner).post(
+        f"/me/organizations/{org_a_id}/attachments",
+        files={"file": ("a.pdf", BytesIO(b"%PDF-1.4 a"), "application/pdf")},
+    )
+    attachment_id = upload.json()["id"]
+
+    # Path-org is B but the attachment lives on A.
+    resp = api.as_user(owner).get(
+        f"/me/organizations/{org_b_id}/attachments/{attachment_id}/url"
+    )
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["error"]["code"] == "OWNER_ORG_ATTACHMENT_NOT_FOUND"
+
+
+def test_my_org_attachment_signed_url_404_on_unknown_attachment_id(
+    api, factories, db_session, fake_storage,
+):
+    """Bogus attachment id under a real org → same 404. Owner has
+    a clean error rather than a 500 from the storage call."""
+    owner = factories.user(role="OWNER")
+    db_session.commit()
+    create = api.as_user(owner).post(
+        "/me/organizations",
+        json={"name": "404 Co", **VALID_ADDRESS},
+    )
+    org_id = create.json()["id"]
+
+    bogus = "00000000-0000-0000-0000-000000000000"
+    resp = api.as_user(owner).get(
+        f"/me/organizations/{org_id}/attachments/{bogus}/url"
+    )
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["error"]["code"] == "OWNER_ORG_ATTACHMENT_NOT_FOUND"

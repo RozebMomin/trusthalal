@@ -22,12 +22,14 @@ from __future__ import annotations
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Request, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.exceptions import (
     BadRequestError,
     ConflictError,
+    NotFoundError,
 )
 from app.core.rate_limit import limiter, user_or_ip_key
 from app.core.storage import StorageClient, StorageError, get_storage_client
@@ -343,3 +345,87 @@ def list_organization_attachments(
         OrganizationAttachmentRead.model_validate(a)
         for a in org.attachments
     ]
+
+
+# ---------------------------------------------------------------------------
+# Owner-self attachment view
+# ---------------------------------------------------------------------------
+# Same shape as the admin-side org-attachment signed-URL endpoint —
+# we mint a short-lived signed URL on demand so the owner can click
+# through to the file they uploaded. Keeps storage objects private
+# while letting the owner verify what got attached.
+#
+# Critical UX moment: when admin REJECTS the org, the owner needs to
+# see what they sent before deciding how to revise. Without this
+# they're stuck staring at filenames + can't recall the contents.
+
+_SIGNED_URL_TTL_SECONDS = 60
+
+
+class _MyOrgAttachmentSignedUrl(BaseModel):
+    """Response shape — URL + expiry + filename + MIME so the
+    client can label the open + render hints inline. Same fields
+    as the admin variant for symmetry; different prefix lets a
+    future change diverge cleanly."""
+
+    url: str
+    expires_in_seconds: int
+    original_filename: str
+    content_type: str
+
+
+@router.get(
+    "/{organization_id}/attachments/{attachment_id}/url",
+    response_model=_MyOrgAttachmentSignedUrl,
+    summary="Mint a short-lived signed URL for one of your org's attachments",
+    description=(
+        "Owner-self download path. 60-second TTL — the client opens "
+        "the URL in a new tab, the URL expires before it could be "
+        "shared meaningfully. Asserts the attachment belongs to one "
+        "of the caller's orgs before signing; otherwise 404 (same "
+        "posture as the admin variant)."
+    ),
+)
+def signed_url_for_my_org_attachment(
+    organization_id: UUID,
+    attachment_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+    storage: StorageClient = Depends(get_storage_client),
+) -> "_MyOrgAttachmentSignedUrl":
+    # Ownership check via the same membership lookup as every other
+    # /me/organizations endpoint — 404 if the org doesn't exist or
+    # the user isn't a member.
+    org = get_organization_for_user(
+        db, organization_id=organization_id, user_id=user.id
+    )
+
+    # Find the attachment and confirm it belongs to THIS org. The
+    # `attachment.organization_id == org.id` check is critical —
+    # without it, a member of one org could mint a URL for another
+    # org's attachment by guessing its uuid.
+    matching = [a for a in org.attachments if a.id == attachment_id]
+    if not matching:
+        raise NotFoundError(
+            "OWNER_ORG_ATTACHMENT_NOT_FOUND",
+            "Attachment not found on this organization.",
+        )
+    attachment = matching[0]
+
+    try:
+        url = storage.signed_url(
+            attachment.storage_path,
+            expires_in_seconds=_SIGNED_URL_TTL_SECONDS,
+        )
+    except StorageError as exc:
+        raise BadRequestError(
+            "OWNER_ORG_ATTACHMENT_SIGNED_URL_FAILED",
+            f"Couldn't generate a download link: {exc}",
+        )
+
+    return _MyOrgAttachmentSignedUrl(
+        url=url,
+        expires_in_seconds=_SIGNED_URL_TTL_SECONDS,
+        original_filename=attachment.original_filename,
+        content_type=attachment.content_type,
+    )

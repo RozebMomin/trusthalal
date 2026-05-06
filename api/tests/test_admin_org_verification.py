@@ -78,7 +78,18 @@ def _under_review_org(
     db_session.commit()
 
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": name}
+        "/me/organizations",
+        json={
+            "name": name,
+            # Address is now required on create — admin-side
+            # verification tests still drive the org through the
+            # public owner API, so they need a valid address too.
+            "address": "123 Main St",
+            "city": "Detroit",
+            "region": "MI",
+            "country_code": "US",
+            "postal_code": "48201",
+        },
     )
     assert create.status_code == 201, create.text
     org_id = create.json()["id"]

@@ -34,7 +34,7 @@ import {
   OrgStatusBadge,
   orgStatusDescription,
 } from "@/components/org-status-badge";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, apiFetch } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type MyOrganizationRead,
@@ -44,6 +44,22 @@ import {
   useSubmitMyOrganization,
   useUploadMyOrganizationAttachment,
 } from "@/lib/api/hooks";
+import { US_STATES } from "@/lib/us-states";
+
+// Country is locked to US for v1; same constant the new-org page
+// uses so the two stay in sync.
+const DEFAULT_COUNTRY_CODE = "US";
+
+// Wire shape of the owner-self attachment signed-URL endpoint —
+// /me/organizations/{id}/attachments/{aid}/url. Hand-typed pending
+// the next codegen pass; mirrors ``_MyOrgAttachmentSignedUrl`` on
+// the API.
+type OwnerOrgAttachmentSignedUrl = {
+  url: string;
+  expires_in_seconds: number;
+  original_filename: string;
+  content_type: string;
+};
 
 // Mirror of the server's allow-list. Server validates independently.
 const ALLOWED_MIME_TYPES = new Set([
@@ -236,9 +252,6 @@ function DetailsSection({
   const [address, setAddress] = React.useState(org.address ?? "");
   const [city, setCity] = React.useState(org.city ?? "");
   const [region, setRegion] = React.useState(org.region ?? "");
-  const [countryCode, setCountryCode] = React.useState(
-    org.country_code ?? "",
-  );
   const [postalCode, setPostalCode] = React.useState(
     org.postal_code ?? "",
   );
@@ -251,7 +264,6 @@ function DetailsSection({
     setAddress(org.address ?? "");
     setCity(org.city ?? "");
     setRegion(org.region ?? "");
-    setCountryCode(org.country_code ?? "");
     setPostalCode(org.postal_code ?? "");
   }, [
     org.id,
@@ -260,7 +272,6 @@ function DetailsSection({
     org.address,
     org.city,
     org.region,
-    org.country_code,
     org.postal_code,
   ]);
 
@@ -270,20 +281,12 @@ function DetailsSection({
     address.trim() !== (org.address ?? "").trim() ||
     city.trim() !== (org.city ?? "").trim() ||
     region.trim() !== (org.region ?? "").trim() ||
-    countryCode.trim().toUpperCase() !==
-      (org.country_code ?? "").trim().toUpperCase() ||
     postalCode.trim() !== (org.postal_code ?? "").trim();
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
     if (!editable || !dirty || patch.isPending) return;
     setErrorMsg(null);
-
-    const trimmedCountry = countryCode.trim().toUpperCase();
-    if (trimmedCountry && trimmedCountry.length !== 2) {
-      setErrorMsg("Country code must be exactly 2 letters (e.g. US).");
-      return;
-    }
 
     try {
       await patch.mutateAsync({
@@ -294,7 +297,10 @@ function DetailsSection({
           address: address.trim() || null,
           city: city.trim() || null,
           region: region.trim() || null,
-          country_code: trimmedCountry || null,
+          // Country stays locked to US — explicit on every save so
+          // even an admin-created row with a different value gets
+          // normalized once the owner edits.
+          country_code: DEFAULT_COUNTRY_CODE,
           postal_code: postalCode.trim() || null,
         },
       });
@@ -380,16 +386,24 @@ function DetailsSection({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="org-detail-region">State / region</Label>
-              <Input
+              <Label htmlFor="org-detail-region">State</Label>
+              {/* Same 50-state dropdown the new-org page uses, so a
+                  state set on create round-trips intact when editing
+                  later. Native <select> for a11y + mobile UX. */}
+              <select
                 id="org-detail-region"
-                type="text"
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 disabled={!editable || patch.isPending}
-                maxLength={120}
-                placeholder="MI"
-              />
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Select a state…</option>
+                {US_STATES.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.name} ({s.code})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -406,19 +420,17 @@ function DetailsSection({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="org-detail-country">
-                Country (2-letter code)
-              </Label>
+              <Label htmlFor="org-detail-country">Country</Label>
+              {/* Locked to United States for v1. The owner can't
+                  change the value; we still display the field so
+                  it's clear what address jurisdiction the row is
+                  filed under. */}
               <Input
                 id="org-detail-country"
                 type="text"
-                value={countryCode}
-                onChange={(e) =>
-                  setCountryCode(e.target.value.toUpperCase())
-                }
-                disabled={!editable || patch.isPending}
-                maxLength={2}
-                placeholder="US"
+                value="United States"
+                disabled
+                aria-readonly
               />
             </div>
           </div>
@@ -616,7 +628,11 @@ function AttachmentsSection({
           </p>
           <ul className="space-y-1.5">
             {org.attachments.map((a) => (
-              <AttachmentRow key={a.id} attachment={a} />
+              <AttachmentRow
+                key={a.id}
+                organizationId={org.id}
+                attachment={a}
+              />
             ))}
           </ul>
         </div>
@@ -669,18 +685,66 @@ function AttachmentsSection({
 }
 
 function AttachmentRow({
+  organizationId,
   attachment,
 }: {
+  organizationId: string;
   attachment: OrganizationAttachmentRead;
 }) {
+  // Per-row pending + error state — each click mints a fresh signed
+  // URL; an error on one row shouldn't bleed into the others. Same
+  // pattern as the admin-side dispute / claim attachment viewers.
+  const [pending, setPending] = React.useState(false);
+  const [errMsg, setErrMsg] = React.useState<string | null>(null);
+
+  async function onView() {
+    setPending(true);
+    setErrMsg(null);
+    try {
+      const resp = await apiFetch<OwnerOrgAttachmentSignedUrl>(
+        `/me/organizations/${organizationId}/attachments/${attachment.id}/url`,
+      );
+      // 60s TTL — opening in a new tab so a stale tab can't replay
+      // later. Each click mints a fresh URL.
+      window.open(resp.url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      const { description } = friendlyApiError(err, {
+        defaultTitle: "Couldn't open the file",
+      });
+      setErrMsg(
+        err instanceof ApiError && err.status >= 500
+          ? "Storage is temporarily unavailable. Try again in a moment."
+          : description,
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
-    <li className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm">
+    <li className="flex items-start justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm">
       <div className="min-w-0">
         <p className="truncate font-medium">{attachment.original_filename}</p>
         <p className="text-xs text-muted-foreground">
           {attachment.content_type} · {formatBytes(attachment.size_bytes)}
         </p>
+        {errMsg && (
+          <p
+            role="alert"
+            className="mt-1 text-xs text-destructive"
+          >
+            {errMsg}
+          </p>
+        )}
       </div>
+      <button
+        type="button"
+        onClick={() => void onView()}
+        disabled={pending}
+        className="shrink-0 rounded-md border px-3 py-1 text-xs font-medium transition hover:bg-accent disabled:opacity-50"
+      >
+        {pending ? "Opening…" : "View"}
+      </button>
     </li>
   );
 }

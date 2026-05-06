@@ -10,6 +10,18 @@ from sqlalchemy import select
 
 from app.modules.organizations.models import Organization
 
+# Address fields are required on POST /me/organizations now (the
+# polish-pass-v2 made them mandatory so admin staff can disambiguate
+# same-name LLCs across states). Tests that don't care about the
+# address still need to send a valid one — spread this constant.
+_VALID_ADDRESS = {
+    "address": "123 Main St",
+    "city": "Detroit",
+    "region": "MI",
+    "country_code": "US",
+    "postal_code": "48201",
+}
+
 
 # ---------------------------------------------------------------------------
 # Address fields
@@ -58,17 +70,14 @@ def test_owner_patch_org_clears_address_with_explicit_null(
 
     create = api.as_user(owner).post(
         "/me/organizations",
-        json={
-            "name": "Khan Halal LLC",
-            "address": "123 Main St",
-            "city": "Detroit",
-            "country_code": "US",
-        },
+        json={"name": "Khan Halal LLC", **_VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
     # null clears, omission leaves alone — same contract as
-    # contact_email.
+    # contact_email. PATCH stays permissive even though POST is
+    # strict, so an owner can still wipe a field after creation
+    # while staff are reviewing.
     resp = api.as_user(owner).patch(
         f"/me/organizations/{org_id}",
         json={"address": None},
@@ -81,11 +90,28 @@ def test_owner_patch_org_clears_address_with_explicit_null(
     assert body["country_code"] == "US"
 
 
-def test_owner_create_org_collapses_empty_strings_to_null(
+def test_owner_create_org_rejects_missing_address(
     api, factories, db_session
 ):
-    """Empty strings (e.g. unfilled inputs sent verbatim) collapse
-    to NULL so the column doesn't end up holding a blank value."""
+    """Address is required now — a payload with just a name should
+    fail validation rather than silently land an org with NULL
+    address fields."""
+    owner = factories.owner()
+    db_session.commit()
+
+    resp = api.as_user(owner).post(
+        "/me/organizations",
+        json={"name": "Khan Halal LLC"},
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_owner_create_org_rejects_blank_address(
+    api, factories, db_session
+):
+    """Whitespace-only address (e.g. an unfilled but space-pressed
+    input) collapses to nothing once trimmed, so the schema rejects
+    it with the same 422 as a literal empty string."""
     owner = factories.owner()
     db_session.commit()
 
@@ -93,14 +119,27 @@ def test_owner_create_org_collapses_empty_strings_to_null(
         "/me/organizations",
         json={
             "name": "Khan Halal LLC",
+            **_VALID_ADDRESS,
             "address": "   ",  # whitespace only
-            "city": "",
         },
     )
-    assert resp.status_code == 201
-    body = resp.json()
-    assert body["address"] is None
-    assert body["city"] is None
+    assert resp.status_code == 422, resp.text
+
+
+def test_owner_create_org_defaults_country_code_to_us(
+    api, factories, db_session
+):
+    """Country code is optional client-side now (the UI locks it to
+    'US') — server fills in the default when the field's omitted."""
+    owner = factories.owner()
+    db_session.commit()
+
+    payload = {"name": "Khan Halal LLC", **_VALID_ADDRESS}
+    payload.pop("country_code")
+
+    resp = api.as_user(owner).post("/me/organizations", json=payload)
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["country_code"] == "US"
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +156,7 @@ def test_owner_sees_decision_note_after_admin_reject(
 
     create = api.as_user(owner).post(
         "/me/organizations",
-        json={"name": "Test Halal LLC"},
+        json={"name": "Test Halal LLC", **_VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
@@ -161,7 +200,7 @@ def test_admin_org_detail_embeds_member_user_fields(
 
     create = api.as_user(owner).post(
         "/me/organizations",
-        json={"name": "Karimi Halal Co."},
+        json={"name": "Karimi Halal Co.", **_VALID_ADDRESS},
     )
     org_id = create.json()["id"]
 
