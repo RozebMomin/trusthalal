@@ -377,16 +377,15 @@ def search_places(
     )
 
     if has_text:
-        return search_by_text(
+        rows = search_by_text(
             db,
             q=q.strip(),
             limit=limit,
             offset=offset,
             halal_filters=halal_filters,
         )
-
-    if has_geo:
-        return search_nearby(
+    elif has_geo:
+        rows = search_nearby(
             db,
             lat=lat,
             lng=lng,
@@ -395,8 +394,34 @@ def search_places(
             offset=offset,
             halal_filters=halal_filters,
         )
+    else:
+        raise BadRequestError(
+            "PLACES_SEARCH_PARAMS_REQUIRED",
+            "Provide either 'q' for text search or 'lat'+'lng'+'radius' for geo search.",
+        )
 
-    raise BadRequestError(
-        "PLACES_SEARCH_PARAMS_REQUIRED",
-        "Provide either 'q' for text search or 'lat'+'lng'+'radius' for geo search.",
-    )
+    # Map (place, profile) tuples → PlaceSearchResult with the
+    # embedded profile. Done by hand rather than relying on FastAPI's
+    # response_model coercion because the repo returns tuples and
+    # PlaceSearchResult has from_attributes=True (which doesn't know
+    # how to read a tuple).
+    return [
+        PlaceSearchResult.model_validate(
+            {
+                "id": place.id,
+                "name": place.name,
+                "address": place.address,
+                "lat": place.lat,
+                "lng": place.lng,
+                "city": place.city,
+                "region": place.region,
+                "country_code": place.country_code,
+                "halal_profile": (
+                    HalalProfileEmbed.model_validate(profile)
+                    if profile is not None
+                    else None
+                ),
+            }
+        )
+        for place, profile in rows
+    ]

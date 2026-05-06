@@ -46,6 +46,14 @@ class PlaceSearchResult(BaseModel):
     region: str | None = None
     country_code: str | None = None
 
+    # Embedded halal profile so consumer-site search results can render
+    # validation tier + menu posture badges without an N+1 fetch per
+    # row. Null when the place has no approved halal claim, or when its
+    # most recent profile was revoked. Same shape as the embed on
+    # ``PlaceDetail`` — kept inline (not imported) for the same
+    # forward-reference reason explained below.
+    halal_profile: "HalalProfileEmbed | None" = None
+
 
 class GoogleAutocompletePrediction(BaseModel):
     """Slim shape returned by the owner-portal Google Autocomplete proxy.
@@ -135,6 +143,7 @@ class HalalProfileEmbed(BaseModel):
 
 # Resolve the forward reference to HalalProfileEmbed declared above.
 PlaceDetail.model_rebuild()
+PlaceSearchResult.model_rebuild()
 
 
 class OwnedPlaceRead(BaseModel):
