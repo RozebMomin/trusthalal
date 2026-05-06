@@ -147,6 +147,66 @@ def test_place_detail_embeds_halal_profile(api, factories, db_session):
     assert body["halal_profile"]["menu_posture"] == "FULLY_HALAL"
 
 
+# ---------------------------------------------------------------------------
+# Search results embed the profile (Phase 9b)
+# ---------------------------------------------------------------------------
+# Consumer-site search renders halal badges per result without an N+1
+# fetch, so PlaceSearchResult carries the embedded HalalProfile too.
+# These tests pin: profile present when approved, null when absent,
+# null when revoked.
+
+
+def test_search_result_embeds_halal_profile(api, factories, db_session):
+    place, _, _, _ = _seed_approved_place(api, factories, db_session)
+
+    resp = api.get("/places", params={"q": place.name})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body) >= 1
+    match = next((row for row in body if row["id"] == str(place.id)), None)
+    assert match is not None
+    assert match["halal_profile"] is not None
+    assert match["halal_profile"]["validation_tier"] == "CERTIFICATE_ON_FILE"
+    assert match["halal_profile"]["menu_posture"] == "FULLY_HALAL"
+
+
+def test_search_result_halal_profile_null_for_unprofiled_place(
+    api, factories, db_session
+):
+    """Unfiltered search includes places without a halal profile —
+    they show up with halal_profile=null. Filtered search still
+    excludes them (covered by test_search_excludes_unprofiled_when_filtering)."""
+    place = factories.place(name="QQQ Plain Diner")
+    db_session.commit()
+
+    resp = api.get("/places", params={"q": "QQQ"})
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    match = next((row for row in rows if row["id"] == str(place.id)), None)
+    assert match is not None
+    assert match["halal_profile"] is None
+
+
+def test_search_result_halal_profile_null_when_revoked(
+    api, factories, db_session
+):
+    """Revoked profiles look the same as no-profile from the search
+    surface — they don't show up in the search result's embedded
+    field. Mirrors the behavior of the place detail endpoint."""
+    place, _, claim_id, admin = _seed_approved_place(api, factories, db_session)
+    api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/revoke",
+        json={"decision_note": "Revoked for the search test."},
+    )
+
+    resp = api.get("/places", params={"q": place.name})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    match = next((row for row in body if row["id"] == str(place.id)), None)
+    assert match is not None
+    assert match["halal_profile"] is None
+
+
 def test_place_detail_halal_profile_null_when_absent(
     api, factories, db_session
 ):

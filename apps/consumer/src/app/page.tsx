@@ -1,81 +1,236 @@
 "use client";
 
 /**
- * Consumer site home — Phase 9a stub.
+ * Consumer site home — the search surface.
  *
- * Phase 9b replaces this with the search surface (text search + halal
- * filters + results). Today it's a friendly landing page that
- * explains what Trust Halal is, points signed-in consumers toward
- * the (yet-to-ship) search and preferences surfaces, and gives
- * anonymous visitors a Sign in / Sign up CTA.
+ * Phase 9b ships text search + halal preference filters over the
+ * public ``GET /places`` endpoint. Geo search ("near me") lands in
+ * a follow-up; the API supports it already.
+ *
+ * URL state: every input writes its value into the query string so
+ * a search result is shareable and the back button restores the
+ * previous query without a re-type. The router's ``replace`` (not
+ * ``push``) keeps history short — typing into the search box
+ * shouldn't fill the back stack with intermediate keystrokes.
+ *
+ * Empty / loading / error / "no results" all render distinct
+ * states so a user knows what's going on without reading status
+ * codes.
  */
 
-import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import * as React from "react";
 
-import { Button } from "@/components/ui/button";
-import { useCurrentUser } from "@/lib/api/hooks";
+import { PlaceResultCard } from "@/components/place-result-card";
+import { SearchFilters } from "@/components/search-filters";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ApiError } from "@/lib/api/client";
+import {
+  type MenuPosture,
+  type SearchPlacesParams,
+  type ValidationTier,
+  useSearchPlaces,
+} from "@/lib/api/hooks";
+
+const DEBOUNCE_MS = 250;
 
 export default function HomePage() {
-  const { data: me } = useCurrentUser();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Build the current SearchPlacesParams from the URL — the URL is
+  // the source of truth so a deep-link / refresh restores the same
+  // search.
+  const filtersFromUrl = React.useMemo(
+    () => parseSearchParams(searchParams),
+    [searchParams],
+  );
+
+  // Local state for the text input drives a debounced URL update,
+  // so typing doesn't slam the API on every keystroke. Other
+  // filters update the URL immediately (radios + chips don't fire
+  // as rapidly).
+  const [rawQuery, setRawQuery] = React.useState(filtersFromUrl.q ?? "");
+  const debouncedQuery = useDebounced(rawQuery.trim(), DEBOUNCE_MS);
+
+  // When the URL's q changes from outside (e.g. browser back), keep
+  // the input in sync.
+  React.useEffect(() => {
+    setRawQuery(filtersFromUrl.q ?? "");
+  }, [filtersFromUrl.q]);
+
+  // Push debounced text changes into the URL.
+  React.useEffect(() => {
+    if ((filtersFromUrl.q ?? "") === debouncedQuery) return;
+    const next: SearchPlacesParams = { ...filtersFromUrl, q: debouncedQuery };
+    router.replace(`/?${stringifySearchParams(next)}`, { scroll: false });
+    // We intentionally don't depend on `router` — Next's router
+    // identity is stable enough that the lint rule is overly strict
+    // here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, filtersFromUrl.q]);
+
+  function setFilters(next: SearchPlacesParams) {
+    router.replace(`/?${stringifySearchParams(next)}`, { scroll: false });
+  }
+
+  const search = useSearchPlaces(filtersFromUrl);
+
+  const hasQuery = Boolean(filtersFromUrl.q && filtersFromUrl.q.length > 0);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10">
-      <header className="space-y-3 pt-6">
-        <h1 className="text-4xl font-bold tracking-tight">
+    <div className="mx-auto max-w-3xl space-y-6">
+      <header className="space-y-2 pt-2">
+        <h1 className="text-3xl font-bold tracking-tight">
           Find verified halal restaurants
         </h1>
-        <p className="text-lg text-muted-foreground">
-          See validation tier, menu posture, slaughter method, alcohol
-          policy, and consumer dispute history before you eat.
+        <p className="text-muted-foreground">
+          Search by name, neighborhood, or city. Filter by trust
+          tier, menu posture, and dietary preferences.
         </p>
       </header>
 
-      <section className="rounded-md border bg-card p-6">
-        <h2 className="text-lg font-semibold">Search the directory</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The search surface ships in Phase 9b — coming next. Until
-          then this page is a friendly landing.
-        </p>
-        <div className="mt-4">
-          <Button disabled>Search restaurants</Button>
-        </div>
-      </section>
+      <div className="space-y-3">
+        <Input
+          type="search"
+          autoFocus
+          placeholder="e.g. Khan Halal Grill"
+          value={rawQuery}
+          onChange={(e) => setRawQuery(e.target.value)}
+          aria-label="Search restaurants"
+        />
+        <SearchFilters
+          filters={filtersFromUrl}
+          onChange={setFilters}
+        />
+      </div>
 
-      {!me && (
-        <section className="space-y-3 rounded-md border bg-card p-6">
-          <h2 className="text-lg font-semibold">
-            Get the most out of Trust Halal
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            A free account lets you save preferences (minimum
-            validation tier, slaughter method, alcohol policy) and
-            file disputes when a restaurant&apos;s halal posture
-            doesn&apos;t match what you saw.
-          </p>
-          <div className="flex gap-2">
-            <Link href="/signup">
-              <Button>Sign up</Button>
-            </Link>
-            <Link href="/login">
-              <Button variant="outline">Sign in</Button>
-            </Link>
-          </div>
-        </section>
-      )}
+      {!hasQuery && <PromptState />}
 
-      {me && (
-        <section className="rounded-md border bg-card p-6">
-          <h2 className="text-lg font-semibold">
-            Welcome back{me.display_name ? `, ${me.display_name}` : ""}.
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Phase 9 is in flight — search, place detail, and
-            preferences ship in 9b/9c/9d. Disputes work end-to-end on
-            the backend; the consumer-side filing UI ships with the
-            place detail page.
-          </p>
-        </section>
-      )}
+      {hasQuery && search.isLoading && <LoadingState />}
+
+      {hasQuery && search.error && <ErrorState error={search.error as Error} />}
+
+      {hasQuery &&
+        !search.isLoading &&
+        !search.error &&
+        search.data &&
+        search.data.length === 0 && <NoResultsState />}
+
+      {hasQuery &&
+        !search.isLoading &&
+        !search.error &&
+        search.data &&
+        search.data.length > 0 && (
+          <ul className="space-y-3">
+            {search.data.map((place) => (
+              <PlaceResultCard key={place.id} place={place} />
+            ))}
+          </ul>
+        )}
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// State components
+// ---------------------------------------------------------------------------
+
+function PromptState() {
+  return (
+    <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+      Type a name or neighborhood to start searching.
+    </p>
+  );
+}
+
+function LoadingState() {
+  return (
+    <ul className="space-y-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <li key={i}>
+          <Skeleton className="h-24 w-full" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function NoResultsState() {
+  return (
+    <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+      No restaurants matched your search. Try loosening filters or a
+      different name.
+    </div>
+  );
+}
+
+function ErrorState({ error }: { error: Error }) {
+  const isApi = error instanceof ApiError;
+  const friendly =
+    error.message === "Failed to fetch"
+      ? "Couldn't reach the Trust Halal API. Check your connection and try again."
+      : isApi && error.status === 429
+        ? "Too many searches in a short window. Wait a moment and try again."
+        : isApi
+          ? error.message
+          : "Search failed. Please try again in a moment.";
+
+  return (
+    <div
+      role="alert"
+      className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
+    >
+      <p className="font-medium">Search failed</p>
+      <p className="mt-1">{friendly}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// URL <-> SearchPlacesParams round-trip
+// ---------------------------------------------------------------------------
+
+function parseSearchParams(p: URLSearchParams | null): SearchPlacesParams {
+  if (!p) return {};
+  const out: SearchPlacesParams = {};
+  const q = p.get("q");
+  if (q) out.q = q;
+  const tier = p.get("min_validation_tier") as ValidationTier | null;
+  if (tier) out.min_validation_tier = tier;
+  const posture = p.get("min_menu_posture") as MenuPosture | null;
+  if (posture) out.min_menu_posture = posture;
+  if (p.get("no_pork") === "true") out.no_pork = true;
+  if (p.get("no_alcohol_served") === "true") out.no_alcohol_served = true;
+  if (p.get("has_certification") === "true") out.has_certification = true;
+  return out;
+}
+
+function stringifySearchParams(params: SearchPlacesParams): string {
+  const u = new URLSearchParams();
+  if (params.q) u.set("q", params.q);
+  if (params.min_validation_tier)
+    u.set("min_validation_tier", params.min_validation_tier);
+  if (params.min_menu_posture)
+    u.set("min_menu_posture", params.min_menu_posture);
+  if (params.no_pork === true) u.set("no_pork", "true");
+  if (params.no_alcohol_served === true)
+    u.set("no_alcohol_served", "true");
+  if (params.has_certification === true)
+    u.set("has_certification", "true");
+  return u.toString();
+}
+
+// ---------------------------------------------------------------------------
+// useDebounced — copy of the helper used in the admin places page
+// ---------------------------------------------------------------------------
+
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = React.useState(value);
+  React.useEffect(() => {
+    const t = window.setTimeout(() => setDebounced(value), ms);
+    return () => window.clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
 }

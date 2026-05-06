@@ -228,17 +228,25 @@ def search_by_text(
     limit: int,
     offset: int,
     halal_filters: HalalSearchFilters | None = None,
-) -> list[Place]:
+) -> list[tuple[Place, HalalProfile | None]]:
     """ILIKE substring search on name + address + city for the public
     catalog.
 
     Used by the owner portal's claim flow ("type the name of your
-    restaurant"). Excludes deleted places — they shouldn't show up
-    when an owner is trying to find their own listing.
+    restaurant") and by the consumer site's search surface. Excludes
+    deleted places — they shouldn't show up when an owner is trying
+    to find their own listing or when a consumer is browsing.
 
     When ``halal_filters`` is populated, results are restricted to
     places with a non-revoked HalalProfile that matches every
-    populated filter. Empty filters (or None) skip the join.
+    populated filter (INNER JOIN on halal_profiles). Empty filters
+    use a LEFT OUTER JOIN so places without a profile still appear
+    in results, just without an embedded profile.
+
+    Returns ``(Place, HalalProfile | None)`` tuples so the router can
+    embed the profile on each ``PlaceSearchResult`` row without an
+    N+1 lookup. The ``HalalProfile`` is None when the place has no
+    approved claim or the most recent profile was revoked.
 
     Sort: name ASC. Predictable order beats relevance scoring at this
     scale (low thousands of rows). If/when the catalog grows past
@@ -250,7 +258,7 @@ def search_by_text(
         return []
 
     stmt = (
-        select(Place)
+        select(Place, HalalProfile)
         .where(Place.is_deleted.is_(False))
         .where(
             or_(
@@ -261,9 +269,19 @@ def search_by_text(
         )
     )
     if halal_filters is not None and not halal_filters.is_empty():
+        # Filtered → INNER JOIN inside _apply_halal_filters; places
+        # without a matching profile drop out entirely.
         stmt = _apply_halal_filters(stmt, halal_filters)
+    else:
+        # Unfiltered → LEFT OUTER JOIN so places without a profile
+        # still appear (with halal_profile=None on the response).
+        stmt = stmt.outerjoin(
+            HalalProfile,
+            (HalalProfile.place_id == Place.id)
+            & (HalalProfile.revoked_at.is_(None)),
+        )
     stmt = stmt.order_by(Place.name.asc()).limit(limit).offset(offset)
-    return list(db.execute(stmt).scalars().all())
+    return [(p, hp) for p, hp in db.execute(stmt).all()]
 
 
 def list_owned_places_for_user(
@@ -325,12 +343,16 @@ def search_nearby(
     limit: int,
     offset: int,
     halal_filters: HalalSearchFilters | None = None,
-) -> list[Place]:
+) -> list[tuple[Place, HalalProfile | None]]:
     """Geo-radius search via PostGIS ST_DWithin, with optional halal
     filters layered on the same INNER JOIN pattern as text search.
+
+    Returns ``(Place, HalalProfile | None)`` tuples — same shape as
+    ``search_by_text`` so the router maps both into the embedded
+    ``PlaceSearchResult.halal_profile`` field.
     """
     stmt = (
-        select(Place)
+        select(Place, HalalProfile)
         .where(Place.is_deleted.is_(False))
         .where(
             text(
@@ -345,5 +367,11 @@ def search_nearby(
     )
     if halal_filters is not None and not halal_filters.is_empty():
         stmt = _apply_halal_filters(stmt, halal_filters)
+    else:
+        stmt = stmt.outerjoin(
+            HalalProfile,
+            (HalalProfile.place_id == Place.id)
+            & (HalalProfile.revoked_at.is_(None)),
+        )
     stmt = stmt.limit(limit).offset(offset)
-    return list(db.execute(stmt).scalars().all())
+    return [(p, hp) for p, hp in db.execute(stmt).all()]

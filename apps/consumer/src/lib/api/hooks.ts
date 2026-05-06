@@ -81,11 +81,107 @@ export type SignupResponse = {
 };
 
 // ---------------------------------------------------------------------------
+// Halal-profile + place-search shapes
+// ---------------------------------------------------------------------------
+// Hand-typed mirrors of the server-side Pydantic models in
+// ``app/modules/places/schemas.py`` and
+// ``app/modules/halal_profiles/enums.py``. Replace with
+// ``components["schemas"][...]`` after running
+// ``make export-openapi && npm run codegen`` so contract drift is a
+// tsc error rather than a runtime surprise.
+
+export type ValidationTier =
+  | "SELF_ATTESTED"
+  | "CERTIFICATE_ON_FILE"
+  | "TRUST_HALAL_VERIFIED";
+
+export type MenuPosture =
+  | "FULLY_HALAL"
+  | "MIXED_SEPARATE_KITCHENS"
+  | "HALAL_OPTIONS_ADVERTISED"
+  | "HALAL_UPON_REQUEST"
+  | "MIXED_SHARED_KITCHEN";
+
+export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
+
+export type SlaughterMethod = "ZABIHAH" | "MACHINE" | "NOT_SERVED";
+
+export type DisputeState = "NONE" | "DISPUTED" | "RECONCILING";
+
+/**
+ * Embedded halal profile as it lands inside a search result or place
+ * detail. Mirrors ``HalalProfileEmbed`` server-side. Null when the
+ * place has no approved claim or the profile was revoked.
+ */
+export type HalalProfileEmbed = {
+  id: string;
+  place_id: string;
+  validation_tier: ValidationTier;
+  menu_posture: MenuPosture;
+  has_pork: boolean;
+  alcohol_policy: AlcoholPolicy;
+  alcohol_in_cooking: boolean;
+  chicken_slaughter: SlaughterMethod;
+  beef_slaughter: SlaughterMethod;
+  lamb_slaughter: SlaughterMethod;
+  goat_slaughter: SlaughterMethod;
+  seafood_only: boolean;
+  has_certification: boolean;
+  certifying_body_name: string | null;
+  certificate_expires_at: string | null;
+  caveats: string | null;
+  dispute_state: DisputeState;
+  last_verified_at: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  updated_at: string;
+};
+
+export type PlaceSearchResult = {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+  /** Embedded halal profile — null when the place has no approved
+   * claim or the profile was revoked. The search result row renders
+   * a "no halal profile yet" affordance in that case. */
+  halal_profile: HalalProfileEmbed | null;
+};
+
+/**
+ * Inputs to the public ``GET /places`` search endpoint. Mirrors the
+ * Query() params on ``api/app/modules/places/router.py``. Either a
+ * non-empty ``q`` or the geo trio (lat + lng + radius) must be
+ * present; the server returns ``PLACES_SEARCH_PARAMS_REQUIRED``
+ * otherwise.
+ */
+export type SearchPlacesParams = {
+  q?: string;
+  lat?: number;
+  lng?: number;
+  radius?: number;
+  limit?: number;
+  offset?: number;
+  // Halal preference filters — all optional, all narrow the result.
+  min_validation_tier?: ValidationTier;
+  min_menu_posture?: MenuPosture;
+  has_certification?: boolean;
+  no_pork?: boolean;
+  no_alcohol_served?: boolean;
+};
+
+// ---------------------------------------------------------------------------
 // Query keys
 // ---------------------------------------------------------------------------
 
 export const qk = {
   me: () => ["me"] as const,
+  placesSearch: (params: SearchPlacesParams) =>
+    ["places", "search", params] as const,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -177,5 +273,57 @@ export function useLogout() {
     onSuccess: () => {
       qc.clear();
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /places — public catalog search.
+ *
+ * Stays disabled until the caller passes a non-empty ``q`` (Phase 9b
+ * focuses on the text-search path; geo-search lands when we add a
+ * "near me" surface). The page tracks ``params`` in the URL query
+ * string, so a search result is shareable.
+ *
+ * Halal-preference filters are passed through verbatim to the
+ * server. Each filter narrows results — places without a matching
+ * profile drop out entirely (the server does an INNER JOIN on
+ * ``halal_profiles`` when any filter is set; otherwise a LEFT
+ * OUTER JOIN so unprofiled places still appear with
+ * ``halal_profile=null``).
+ */
+export function useSearchPlaces(params: SearchPlacesParams) {
+  const enabled = Boolean(
+    (params.q && params.q.trim().length > 0) ||
+      (params.lat !== undefined &&
+        params.lng !== undefined &&
+        params.radius !== undefined),
+  );
+  return useQuery<PlaceSearchResult[]>({
+    queryKey: qk.placesSearch(params),
+    queryFn: () =>
+      apiFetch<PlaceSearchResult[]>("/places", {
+        searchParams: {
+          q: params.q,
+          lat: params.lat,
+          lng: params.lng,
+          radius: params.radius,
+          limit: params.limit,
+          offset: params.offset,
+          min_validation_tier: params.min_validation_tier,
+          min_menu_posture: params.min_menu_posture,
+          has_certification: params.has_certification,
+          no_pork: params.no_pork,
+          no_alcohol_served: params.no_alcohol_served,
+        },
+      }),
+    enabled,
+    // Search results live a little longer than the 30s default — the
+    // public catalog doesn't churn quickly, and a refresh-on-back
+    // navigation flicker is worse than a slightly stale list.
+    staleTime: 60_000,
   });
 }
