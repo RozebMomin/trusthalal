@@ -3,13 +3,14 @@
 /**
  * Owner portal — list of the user's halal claims.
  *
- * The companion of /my-claims (ownership claims). Each row links
- * into the per-claim detail page where the questionnaire form +
- * attachment uploads + submit-for-review live.
+ * Companion of the Places page (rooted at ``/my-claims``, which
+ * tracks ownership). Each row here links into the per-claim detail
+ * page where the questionnaire form + attachment uploads +
+ * submit-for-review live.
  *
- * Empty state: prompts the user to start a new claim and explains
- * the prerequisite (you have to own a place first via the existing
- * ownership-request flow).
+ * Empty state: prompts the user to start a new halal claim and
+ * explains the prerequisite (you have to own a place first via the
+ * existing claim-a-place flow on the Places page).
  */
 
 import Link from "next/link";
@@ -28,21 +29,24 @@ export default function MyHalalClaimsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            My halal claims
+            Halal claims
           </h1>
           <p className="mt-2 text-muted-foreground">
             Submit and track halal-posture verifications for places
             your organization owns.
           </p>
         </div>
-        {ownedPlaces && ownedPlaces.length > 0 && (
-          <Link href="/my-halal-claims/new" className="shrink-0">
-            <Button>New halal claim</Button>
-          </Link>
-        )}
+        {/* Always render the CTA — matches the Places + Organizations
+            header pattern. The /my-halal-claims/new page already
+            handles the "no owned places yet" empty state cleanly, so
+            gating the button here would just create an inconsistent
+            three-page layout for no real protection. */}
+        <Link href="/my-halal-claims/new">
+          <Button>New halal claim</Button>
+        </Link>
       </header>
 
       {isLoading && (

@@ -806,13 +806,367 @@ export function useRequestEvidenceOwnershipRequest() {
 }
 
 // ---------------------------------------------------------------------------
-// Claims (admin) — DEFERRED to halal-trust v2 Phase 3
+// Halal claims (admin) — Phase 6 of the halal-trust v2 rebuild
 // ---------------------------------------------------------------------------
-// The legacy claim hooks (useAdminClaims, useClaimDetail,
-// useAdminClaimEvents, useVerifyClaim, useRejectClaim, useExpireClaim)
-// were removed alongside the schema migration. Phase 3 introduces
-// new hooks under the v2 ``/admin/halal-claims`` path with the
-// validation_tier + structured_response shape from the questionnaire.
+// Hand-typed shapes mirror the server-side Pydantic models in
+// ``app/modules/halal_claims/schemas.py`` (read shape) and
+// ``app/modules/admin/halal_claims/schemas.py`` (write shapes).
+// Replace these with ``components["schemas"][...]`` after running
+// ``make export-openapi && npm run codegen`` against the v2 surface.
+
+export type HalalClaimStatus =
+  | "DRAFT"
+  | "PENDING_REVIEW"
+  | "NEEDS_MORE_INFO"
+  | "APPROVED"
+  | "REJECTED"
+  | "EXPIRED"
+  | "REVOKED"
+  | "SUPERSEDED";
+
+export type HalalClaimType = "INITIAL" | "RENEWAL" | "RECONCILIATION";
+
+export type HalalClaimAttachmentType =
+  | "HALAL_CERTIFICATE"
+  | "SUPPLIER_LETTER"
+  | "INVOICE"
+  | "PHOTO"
+  | "OTHER";
+
+/** Mirrors ``HalalClaimEventType`` in the API enum module. */
+export type HalalClaimEventType =
+  | "DRAFT_CREATED"
+  | "SUBMITTED"
+  | "ATTACHMENT_ADDED"
+  | "APPROVED"
+  | "REJECTED"
+  | "INFO_REQUESTED"
+  | "REVOKED"
+  | "SUPERSEDED"
+  | "EXPIRED";
+
+/** One row from the per-claim audit timeline. */
+export type HalalClaimEventRead = {
+  id: string;
+  claim_id: string;
+  event_type: HalalClaimEventType;
+  actor_user_id: string | null;
+  description: string | null;
+  created_at: string;
+};
+
+export type ValidationTier =
+  | "SELF_ATTESTED"
+  | "CERTIFICATE_ON_FILE"
+  | "TRUST_HALAL_VERIFIED";
+
+export type MenuPosture =
+  | "FULLY_HALAL"
+  | "MIXED_SEPARATE_KITCHENS"
+  | "HALAL_OPTIONS_ADVERTISED"
+  | "HALAL_UPON_REQUEST"
+  | "MIXED_SHARED_KITCHEN";
+
+export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
+
+export type SlaughterMethod = "ZABIHAH" | "MACHINE" | "NOT_SERVED";
+
+/** Per-meat sourcing — repeated across chicken/beef/lamb/goat. */
+export type MeatSourcing = {
+  slaughter_method: SlaughterMethod;
+  supplier_name?: string | null;
+  supplier_location?: string | null;
+};
+
+/**
+ * The structured questionnaire shape — server stores as JSONB.
+ * The DRAFT shape (every field optional) covers both saved drafts
+ * AND complete responses, so admin review can render whichever the
+ * owner submitted without a separate ``HalalQuestionnaireResponse``
+ * type on the client side.
+ */
+export type HalalQuestionnaireDraft = {
+  questionnaire_version?: number;
+  menu_posture?: MenuPosture | null;
+  has_pork?: boolean | null;
+  alcohol_policy?: AlcoholPolicy | null;
+  alcohol_in_cooking?: boolean | null;
+  chicken?: MeatSourcing | null;
+  beef?: MeatSourcing | null;
+  lamb?: MeatSourcing | null;
+  goat?: MeatSourcing | null;
+  seafood_only?: boolean | null;
+  has_certification?: boolean | null;
+  certifying_body_name?: string | null;
+  caveats?: string | null;
+};
+
+export type HalalClaimAttachmentRead = {
+  id: string;
+  claim_id: string;
+  document_type: HalalClaimAttachmentType;
+  issuing_authority: string | null;
+  certificate_number: string | null;
+  valid_until: string | null;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+};
+
+/** Place fields embedded inside the claim read shape. Slim by design. */
+export type HalalClaimPlaceSummary = {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+};
+
+/** Org fields embedded inside the claim read shape. */
+export type HalalClaimOrgSummary = {
+  id: string;
+  name: string;
+};
+
+/**
+ * Admin read shape. Extends the owner-side shape with the
+ * staff-only fields (submitted_by_user_id, decided_by_user_id,
+ * triggered_by_dispute_id, internal_notes).
+ */
+export type HalalClaimAdminRead = {
+  id: string;
+  place_id: string;
+  organization_id: string | null;
+  place: HalalClaimPlaceSummary | null;
+  organization: HalalClaimOrgSummary | null;
+  claim_type: HalalClaimType;
+  status: HalalClaimStatus;
+  structured_response: HalalQuestionnaireDraft | null;
+  attachments: HalalClaimAttachmentRead[];
+  submitted_at: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Admin-only fields (the owner-side hides these for tidiness).
+  submitted_by_user_id: string | null;
+  decided_by_user_id: string | null;
+  triggered_by_dispute_id: string | null;
+  internal_notes: string | null;
+};
+
+/** POST /admin/halal-claims/{id}/approve. */
+export type HalalClaimApprove = {
+  validation_tier: ValidationTier;
+  decision_note?: string | null;
+  internal_notes?: string | null;
+  /** ISO-8601. Override the default 12-month expiry if needed. */
+  expires_at_override?: string | null;
+  /** ISO-8601. Mirrors the cert's own expiry; metadata-only. */
+  certificate_expires_at?: string | null;
+};
+
+/** POST /admin/halal-claims/{id}/reject. */
+export type HalalClaimReject = {
+  decision_note: string;
+  internal_notes?: string | null;
+};
+
+/** POST /admin/halal-claims/{id}/request-info. */
+export type HalalClaimRequestInfo = {
+  decision_note: string;
+  internal_notes?: string | null;
+};
+
+/** POST /admin/halal-claims/{id}/revoke. */
+export type HalalClaimRevoke = {
+  decision_note: string;
+  internal_notes?: string | null;
+};
+
+/** Response shape for the signed-URL endpoint. Same TTL as org +
+ * ownership-request signed-URL endpoints (60s). */
+export type HalalClaimAdminAttachmentSignedUrl = {
+  url: string;
+  expires_in_seconds: number;
+  original_filename: string;
+  content_type: string;
+};
+
+/**
+ * Statuses where admin can still drive the workflow forward.
+ * APPROVED is in the open bucket because admin can revoke it; the
+ * other "open" statuses are the ones still awaiting a decision.
+ *
+ * Mirrors the server-side guards in admin_approve_halal_claim /
+ * admin_reject_halal_claim — kept here so the queue-page filter and
+ * the per-row action buttons share one source of truth.
+ */
+export const HALAL_CLAIM_OPEN_STATUSES: ReadonlyArray<HalalClaimStatus> = [
+  "PENDING_REVIEW",
+  "NEEDS_MORE_INFO",
+];
+
+export const HALAL_CLAIM_TERMINAL_STATUSES: ReadonlyArray<HalalClaimStatus> = [
+  "REJECTED",
+  "EXPIRED",
+  "SUPERSEDED",
+  "REVOKED",
+];
+
+// ---- Query keys ----------------------------------------------------------
+
+export const halalClaimsQk = {
+  list: (params: {
+    status?: string;
+    placeId?: string;
+    organizationId?: string;
+  }) => ["halal-claims", "list", params] as const,
+  detail: (id: string) => ["halal-claims", "detail", id] as const,
+  attachments: (id: string) =>
+    ["halal-claims", "attachments", id] as const,
+  events: (id: string) => ["halal-claims", "events", id] as const,
+};
+
+function invalidateHalalClaims(qc: ReturnType<typeof useQueryClient>) {
+  return qc.invalidateQueries({ queryKey: ["halal-claims"] });
+}
+
+// ---- Read hooks ----------------------------------------------------------
+
+/**
+ * Halal-claim review queue. ``status`` defaults to PENDING_REVIEW on
+ * the page-level filter (so admin lands on "things waiting for me"),
+ * but the hook itself stays generic so callers can ask for the full
+ * history when auditing a place.
+ */
+export function useAdminHalalClaims(
+  params: {
+    status?: HalalClaimStatus | string;
+    placeId?: string;
+    organizationId?: string;
+  } = {},
+) {
+  return useQuery<HalalClaimAdminRead[]>({
+    queryKey: halalClaimsQk.list({
+      status: params.status,
+      placeId: params.placeId,
+      organizationId: params.organizationId,
+    }),
+    queryFn: () =>
+      apiFetch<HalalClaimAdminRead[]>("/admin/halal-claims", {
+        searchParams: {
+          status: params.status,
+          place_id: params.placeId,
+          organization_id: params.organizationId,
+          limit: 200,
+        },
+      }),
+  });
+}
+
+export function useAdminHalalClaim(id: string | null | undefined) {
+  return useQuery<HalalClaimAdminRead>({
+    queryKey: halalClaimsQk.detail(id ?? "__nil__"),
+    queryFn: () => apiFetch<HalalClaimAdminRead>(`/admin/halal-claims/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+/**
+ * GET /admin/halal-claims/{id}/attachments — separate from the detail
+ * read because admin sometimes wants a fresh attachment list (after an
+ * owner re-uploads in NEEDS_MORE_INFO) without re-fetching the whole
+ * claim. The detail read also embeds attachments, so the dialog can
+ * decide which one to consume.
+ */
+export function useAdminHalalClaimAttachments(id: string | null | undefined) {
+  return useQuery<HalalClaimAttachmentRead[]>({
+    queryKey: halalClaimsQk.attachments(id ?? "__nil__"),
+    queryFn: () =>
+      apiFetch<HalalClaimAttachmentRead[]>(
+        `/admin/halal-claims/${id}/attachments`,
+      ),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+/**
+ * GET /admin/halal-claims/{id}/events — per-claim audit timeline.
+ * Admin sees the full series including system-driven events
+ * (SUPERSEDED, EXPIRED). Same shape the owner sees on their portal.
+ */
+export function useAdminHalalClaimEvents(id: string | null | undefined) {
+  return useQuery<HalalClaimEventRead[]>({
+    queryKey: halalClaimsQk.events(id ?? "__nil__"),
+    queryFn: () =>
+      apiFetch<HalalClaimEventRead[]>(
+        `/admin/halal-claims/${id}/events`,
+      ),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+// ---- Mutations -----------------------------------------------------------
+
+export function useApproveHalalClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: HalalClaimApprove }) =>
+      apiFetch<HalalClaimAdminRead>(
+        `/admin/halal-claims/${args.id}/approve`,
+        { method: "POST", json: args.payload },
+      ),
+    onSuccess: () => {
+      void invalidateHalalClaims(qc);
+    },
+  });
+}
+
+export function useRejectHalalClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: HalalClaimReject }) =>
+      apiFetch<HalalClaimAdminRead>(
+        `/admin/halal-claims/${args.id}/reject`,
+        { method: "POST", json: args.payload },
+      ),
+    onSuccess: () => {
+      void invalidateHalalClaims(qc);
+    },
+  });
+}
+
+export function useRequestInfoHalalClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: HalalClaimRequestInfo }) =>
+      apiFetch<HalalClaimAdminRead>(
+        `/admin/halal-claims/${args.id}/request-info`,
+        { method: "POST", json: args.payload },
+      ),
+    onSuccess: () => {
+      void invalidateHalalClaims(qc);
+    },
+  });
+}
+
+export function useRevokeHalalClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: HalalClaimRevoke }) =>
+      apiFetch<HalalClaimAdminRead>(
+        `/admin/halal-claims/${args.id}/revoke`,
+        { method: "POST", json: args.payload },
+      ),
+    onSuccess: () => {
+      void invalidateHalalClaims(qc);
+    },
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Users (admin)

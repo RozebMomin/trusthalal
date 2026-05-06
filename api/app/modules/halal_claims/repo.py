@@ -42,8 +42,12 @@ from app.core.exceptions import (
     ForbiddenError,
     NotFoundError,
 )
-from app.modules.halal_claims.enums import HalalClaimStatus, HalalClaimType
-from app.modules.halal_claims.models import HalalClaim
+from app.modules.halal_claims.enums import (
+    HalalClaimEventType,
+    HalalClaimStatus,
+    HalalClaimType,
+)
+from app.modules.halal_claims.models import HalalClaim, HalalClaimEvent
 from app.modules.halal_claims.schemas import (
     HalalQuestionnaireDraft,
     HalalQuestionnaireResponse,
@@ -57,7 +61,39 @@ from app.modules.organizations.models import (
     OrganizationMember,
     PlaceOwner,
 )
+from app.modules.places.enums import PlaceEventType
 from app.modules.places.models import Place
+from app.modules.places.repo import log_place_event
+
+
+# ---------------------------------------------------------------------------
+# Audit-trail helper
+# ---------------------------------------------------------------------------
+
+
+def log_halal_claim_event(
+    db: Session,
+    *,
+    claim_id: UUID,
+    event_type: HalalClaimEventType,
+    actor_user_id: Optional[UUID] = None,
+    description: Optional[str] = None,
+) -> None:
+    """Append a HalalClaimEvent row. Caller controls the transaction.
+
+    Mirrors ``log_place_event`` in shape: stash the ORM row on the
+    session and let the surrounding business operation commit. Single
+    place to evolve if we ever add structured payloads beyond the
+    ``description`` text column.
+    """
+    db.add(
+        HalalClaimEvent(
+            claim_id=claim_id,
+            event_type=event_type.value,
+            actor_user_id=actor_user_id,
+            description=description,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +237,30 @@ def get_halal_claim_for_user(
     return claim
 
 
+def list_halal_claim_events_for_user(
+    db: Session,
+    *,
+    claim_id: UUID,
+    user_id: UUID,
+) -> Sequence[HalalClaimEvent]:
+    """Audit timeline for a claim, oldest first.
+
+    Reuses ``get_halal_claim_for_user`` so the same 404/403 split
+    applies — an unauthenticated peek at someone else's timeline
+    can't slip through here.
+    """
+    get_halal_claim_for_user(db, claim_id=claim_id, user_id=user_id)
+    return (
+        db.execute(
+            select(HalalClaimEvent)
+            .where(HalalClaimEvent.claim_id == claim_id)
+            .order_by(HalalClaimEvent.created_at)
+        )
+        .scalars()
+        .all()
+    )
+
+
 def list_halal_claims_for_user(
     db: Session,
     *,
@@ -267,6 +327,17 @@ def create_halal_claim_for_user(
         structured_response=structured_dict,
     )
     db.add(claim)
+    # Flush before logging so the event row has the claim's UUID for
+    # its FK; commit happens once at the end so claim + event land
+    # together (or both roll back).
+    db.flush()
+    log_halal_claim_event(
+        db,
+        claim_id=claim.id,
+        event_type=HalalClaimEventType.DRAFT_CREATED,
+        actor_user_id=user_id,
+        description="Owner started a halal claim.",
+    )
     db.commit()
     db.refresh(claim)
     return claim
@@ -333,6 +404,20 @@ def batch_create_halal_claims_for_user(
         )
         db.add(claim)
         created.append(claim)
+
+    # Flush so each claim picks up its UUID, then write one
+    # DRAFT_CREATED event per claim. Same single-transaction posture
+    # as the rest of the batch — if anything in the loop fails,
+    # everything rolls back.
+    db.flush()
+    for claim in created:
+        log_halal_claim_event(
+            db,
+            claim_id=claim.id,
+            event_type=HalalClaimEventType.DRAFT_CREATED,
+            actor_user_id=user_id,
+            description="Owner started a halal claim (batch).",
+        )
 
     db.commit()
     for claim in created:
@@ -446,9 +531,40 @@ def submit_halal_claim_for_user(
             extra=exc.errors(),
         )
 
+    prior_status = claim.status
     claim.status = HalalClaimStatus.PENDING_REVIEW.value
     claim.submitted_at = datetime.now(timezone.utc)
     db.add(claim)
+
+    # Per-claim audit row (used by the claim detail's Activity
+    # timeline). Description differentiates first-time submit from a
+    # re-submit out of NEEDS_MORE_INFO.
+    is_first_submit = prior_status == HalalClaimStatus.DRAFT.value
+    log_halal_claim_event(
+        db,
+        claim_id=claim.id,
+        event_type=HalalClaimEventType.SUBMITTED,
+        actor_user_id=user_id,
+        description=(
+            "Owner submitted the claim for review."
+            if is_first_submit
+            else "Owner re-submitted after providing more info."
+        ),
+    )
+
+    # Cross-write to the place's own audit trail so the place detail
+    # page picks up "halal claim submitted" alongside ownership +
+    # edit events. Only on first submit — re-submits out of
+    # NEEDS_MORE_INFO would just spam the place timeline.
+    if is_first_submit:
+        log_place_event(
+            db,
+            place_id=claim.place_id,
+            event_type=PlaceEventType.HALAL_CLAIM_SUBMITTED,
+            actor_user_id=user_id,
+            message=f"Halal claim {claim.id} submitted for review.",
+        )
+
     db.commit()
     db.refresh(claim)
     return claim

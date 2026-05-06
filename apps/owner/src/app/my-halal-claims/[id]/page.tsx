@@ -47,10 +47,12 @@ import {
   type SlaughterMethod,
   HALAL_CLAIM_EDITABLE_STATUSES,
   useMyHalalClaim,
+  useMyHalalClaimEvents,
   usePatchMyHalalClaim,
   useSubmitMyHalalClaim,
   useUploadMyHalalClaimAttachment,
 } from "@/lib/api/hooks";
+import { HalalClaimTimeline } from "@/components/halal-claim-timeline";
 
 const ALLOWED_MIME = new Set([
   "application/pdf",
@@ -231,7 +233,31 @@ function ClaimDetailBody({ claim }: { claim: MyHalalClaimRead }) {
       <QuestionnaireSection claim={claim} editable={isEditable} />
       <AttachmentsSection claim={claim} editable={isEditable} />
       {isEditable && <SubmitSection claim={claim} />}
+      <ActivitySection claimId={claim.id} />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Activity timeline — the audit trail for this claim
+// ---------------------------------------------------------------------------
+function ActivitySection({ claimId }: { claimId: string }) {
+  const { data, isLoading, error } = useMyHalalClaimEvents(claimId);
+  return (
+    <section className="space-y-4 rounded-md border bg-card p-5">
+      <div>
+        <h2 className="text-lg font-semibold">Activity</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Every step of this claim, oldest first. Trust Halal staff
+          see the same timeline when reviewing.
+        </p>
+      </div>
+      <HalalClaimTimeline
+        events={data}
+        isLoading={isLoading}
+        error={error as Error | null}
+      />
+    </section>
   );
 }
 

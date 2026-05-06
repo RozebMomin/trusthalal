@@ -202,6 +202,8 @@ const qk = {
   myOwnedPlaces: () => ["me", "owned-places"] as const,
   myHalalClaims: () => ["me", "halal-claims"] as const,
   myHalalClaim: (id: string) => ["me", "halal-claims", id] as const,
+  myHalalClaimEvents: (id: string) =>
+    ["me", "halal-claims", id, "events"] as const,
   placesSearch: (q: string) => ["places", "search", q] as const,
   placesGoogleAutocomplete: (q: string) =>
     ["places", "google", "autocomplete", q] as const,
@@ -568,6 +570,28 @@ export type HalalClaimAttachmentType =
   | "PHOTO"
   | "OTHER";
 
+/** Mirrors ``HalalClaimEventType`` in the API enum module. */
+export type HalalClaimEventType =
+  | "DRAFT_CREATED"
+  | "SUBMITTED"
+  | "ATTACHMENT_ADDED"
+  | "APPROVED"
+  | "REJECTED"
+  | "INFO_REQUESTED"
+  | "REVOKED"
+  | "SUPERSEDED"
+  | "EXPIRED";
+
+/** One row from the per-claim audit timeline. */
+export type HalalClaimEventRead = {
+  id: string;
+  claim_id: string;
+  event_type: HalalClaimEventType;
+  actor_user_id: string | null;
+  description: string | null;
+  created_at: string;
+};
+
 export type MenuPosture =
   | "FULLY_HALAL"
   | "MIXED_SEPARATE_KITCHENS"
@@ -721,6 +745,26 @@ export function useMyHalalClaim(id: string | null | undefined) {
   return useQuery<MyHalalClaimRead>({
     queryKey: qk.myHalalClaim(id ?? "__nil__"),
     queryFn: () => apiFetch<MyHalalClaimRead>(`/me/halal-claims/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+    staleTime: 15 * 1000,
+  });
+}
+
+/**
+ * Audit timeline for a single claim. Powers the 'Activity' section
+ * on the claim detail page so the owner can see every transition
+ * (when they drafted, submitted, uploaded files, plus admin
+ * decisions).
+ *
+ * Same staleTime as the claim itself — when a mutation invalidates
+ * the claim cache, the events list invalidates with it via the
+ * shared ``["me", "halal-claims", id]`` prefix.
+ */
+export function useMyHalalClaimEvents(id: string | null | undefined) {
+  return useQuery<HalalClaimEventRead[]>({
+    queryKey: qk.myHalalClaimEvents(id ?? "__nil__"),
+    queryFn: () =>
+      apiFetch<HalalClaimEventRead[]>(`/me/halal-claims/${id}/events`),
     enabled: typeof id === "string" && id.length > 0,
     staleTime: 15 * 1000,
   });

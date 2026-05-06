@@ -60,9 +60,11 @@ def _redirect_path_for(role: UserRole) -> str:
     if role == UserRole.ADMIN:
         return "/places"
     if role == UserRole.VERIFIER:
-        # Verifiers spend most of their time in /claims. Change when
-        # they get their own dashboard.
-        return "/claims"
+        # Verifiers spend most of their time on the halal-claim
+        # review queue (/halal-claims). The admin panel
+        # ``PANEL_HOME_FOR_ROLE`` agrees, so a verifier login lands
+        # them on the same page either way.
+        return "/halal-claims"
     if role == UserRole.OWNER:
         # The owner portal lives at its own origin (owner.trusthalal.org)
         # and treats "/" as the home — same routing whether the user

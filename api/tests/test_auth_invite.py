@@ -178,8 +178,8 @@ def test_set_password_consumes_token_and_logs_user_in(
     assert body["user_id"] == user_id
     assert body["email"] == "happy@example.com"
     assert body["role"] == "VERIFIER"
-    # VERIFIER lands on /claims per _redirect_path_for.
-    assert body["redirect_path"] == "/claims"
+    # VERIFIER lands on /halal-claims per _redirect_path_for.
+    assert body["redirect_path"] == "/halal-claims"
 
     # Session cookie set so the browser is already logged in.
     assert "tht_session" in resp.cookies

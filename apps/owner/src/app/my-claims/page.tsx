@@ -1,19 +1,25 @@
 "use client";
 
 /**
- * Owner portal — my claims.
+ * Owner portal — Places.
  *
- * Renders every ownership-request the signed-in user has submitted,
- * newest first. Each row shows the place, the status badge, the
- * status's human-readable description, and (when present) the
- * freeform message the owner attached at submission.
+ * The page is rooted at the URL ``/my-claims`` for backward
+ * compatibility with bookmarks and the post-submit redirect from
+ * ``/claim``, but the user-facing label is "Places" — in an owner
+ * portal the "my" is implied and "claim" is jargon. The list itself
+ * is unchanged: every ownership request the signed-in user has
+ * submitted, newest first, with its review status.
  *
  * Lands here from:
- *   * The home page's "Recent claims" preview ("View all" link)
- *   * The header's "My claims" nav link
+ *   * The home page's "Recent places" preview ("View all" link)
+ *   * The header's "Places" nav link
  *   * Post-submit redirect from /claim?submitted=1 — we show a small
  *     success banner the first render so the owner knows their claim
  *     went through.
+ *
+ * "Claim a place" CTA in the header doubles as the entry point
+ * back into ``/claim`` — pulling that action out of the global nav
+ * means this page header is the canonical place to start one.
  */
 
 import Link from "next/link";
@@ -43,10 +49,10 @@ export default function MyClaimsPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My claims</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Places</h1>
           <p className="mt-2 text-muted-foreground">
-            Every ownership request you&apos;ve submitted, with its current
-            review status.
+            Restaurants you&apos;ve claimed, plus any claims still under
+            Trust Halal review.
           </p>
         </div>
         <Link href="/claim">

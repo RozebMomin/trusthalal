@@ -37,6 +37,7 @@ from app.core.storage import StorageClient, StorageError, get_storage_client
 from app.db.deps import get_db
 from app.modules.halal_claims.enums import (
     HalalClaimAttachmentType,
+    HalalClaimEventType,
     HalalClaimStatus,
 )
 from app.modules.halal_claims.models import HalalClaimAttachment
@@ -44,12 +45,15 @@ from app.modules.halal_claims.repo import (
     batch_create_halal_claims_for_user,
     create_halal_claim_for_user,
     get_halal_claim_for_user,
+    list_halal_claim_events_for_user,
     list_halal_claims_for_user,
+    log_halal_claim_event,
     patch_halal_claim_for_user,
     submit_halal_claim_for_user,
 )
 from app.modules.halal_claims.schemas import (
     HalalClaimAttachmentRead,
+    HalalClaimEventRead,
     MyHalalClaimBatchCreate,
     MyHalalClaimCreate,
     MyHalalClaimPatch,
@@ -365,9 +369,43 @@ def upload_my_halal_claim_attachment(
         size_bytes=size_bytes,
     )
     db.add(attachment)
+    # Audit-trail row alongside the attachment. Description carries
+    # the document type + filename so the timeline reads naturally
+    # without needing the attachment's UUID resolved.
+    log_halal_claim_event(
+        db,
+        claim_id=claim.id,
+        event_type=HalalClaimEventType.ATTACHMENT_ADDED,
+        actor_user_id=user.id,
+        description=(
+            f"Owner uploaded {document_type.value}: {original_filename}"
+        ),
+    )
     db.commit()
     db.refresh(attachment)
     return HalalClaimAttachmentRead.model_validate(attachment)
+
+
+@router.get(
+    "/{claim_id}/events",
+    response_model=list[HalalClaimEventRead],
+)
+def list_my_halal_claim_events(
+    claim_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> list[HalalClaimEventRead]:
+    """Per-claim audit timeline.
+
+    Powers the 'Activity' section on the owner-portal claim detail
+    page so submitters can see exactly what's happened on their
+    claim — when they drafted, when they submitted, when admin
+    decided, etc. Same 404/403 split as the rest of the surface.
+    """
+    rows = list_halal_claim_events_for_user(
+        db, claim_id=claim_id, user_id=user.id
+    )
+    return [HalalClaimEventRead.model_validate(r) for r in rows]
 
 
 @router.get(
