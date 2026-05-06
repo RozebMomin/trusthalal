@@ -94,10 +94,12 @@ export default function MyClaimsPage() {
   // render. (TanStack Query gives us a stable ``data`` reference.)
   const allClaims = React.useMemo(() => data ?? [], [data]);
 
-  // Default to "In progress" so verified places fall behind the
-  // dropdown — keeps the daily view free of clutter.
+  // Default to "Approved" — the working set most owners visit
+  // /my-claims to look at: the verified places they actually
+  // operate. In-progress and rejected claims fall behind the
+  // dropdown but stay one click away.
   const [statusFilter, setStatusFilter] =
-    React.useState<StatusFilter>("in_progress");
+    React.useState<StatusFilter>("approved");
   const activeFilter =
     STATUS_FILTERS.find((f) => f.value === statusFilter) ?? STATUS_FILTERS[0];
   const claims = allClaims.filter((c) =>
