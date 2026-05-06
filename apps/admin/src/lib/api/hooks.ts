@@ -1247,3 +1247,176 @@ export function usePatchUser() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Consumer disputes (admin) — Phase 7 of the halal-trust v2 rebuild
+// ---------------------------------------------------------------------------
+// Hand-typed shapes mirror the server-side Pydantic models in
+// ``app/modules/disputes/schemas.py`` (read shape) and
+// ``app/modules/admin/disputes/schemas.py`` (write shapes). Replace
+// these with ``components["schemas"][...]`` after running
+// ``make export-openapi && npm run codegen`` against the v2 surface.
+
+export type DisputeStatus =
+  | "OPEN"
+  | "OWNER_RECONCILING"
+  | "ADMIN_REVIEWING"
+  | "RESOLVED_UPHELD"
+  | "RESOLVED_DISMISSED"
+  | "WITHDRAWN";
+
+export type DisputedAttribute =
+  | "PORK_SERVED"
+  | "ALCOHOL_PRESENT"
+  | "MENU_POSTURE_INCORRECT"
+  | "SLAUGHTER_METHOD_INCORRECT"
+  | "CERTIFICATION_INVALID"
+  | "PLACE_CLOSED"
+  | "OTHER";
+
+export type ConsumerDisputeAttachmentRead = {
+  id: string;
+  dispute_id: string;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+};
+
+/** Admin shape — full visibility including reporter identity. */
+export type ConsumerDisputeAdminRead = {
+  id: string;
+  place_id: string;
+  reporter_user_id: string | null;
+  status: DisputeStatus;
+  disputed_attribute: DisputedAttribute;
+  description: string;
+  contested_profile_id: string | null;
+  attachments: ConsumerDisputeAttachmentRead[];
+  submitted_at: string;
+  decided_at: string | null;
+  decided_by_user_id: string | null;
+  admin_decision_note: string | null;
+  updated_at: string;
+};
+
+/** POST /admin/disputes/{id}/resolve. */
+export type DisputeResolve = {
+  decision: "RESOLVED_UPHELD" | "RESOLVED_DISMISSED";
+  admin_decision_note?: string | null;
+};
+
+/** POST /admin/disputes/{id}/request-owner-reconciliation. */
+export type DisputeRequestReconciliation = {
+  admin_decision_note?: string | null;
+};
+
+/** Response shape for the signed-URL endpoint. 60-second TTL,
+ * matching the other admin attachment surfaces. */
+export type AdminDisputeAttachmentSignedUrl = {
+  url: string;
+  expires_in_seconds: number;
+  original_filename: string;
+  content_type: string;
+};
+
+/**
+ * Statuses where admin can still drive the workflow forward.
+ * Mirrors the server-side ``_ADMIN_RESOLVABLE_STATUSES`` tuple — the
+ * detail page hides resolve/reconciliation buttons on terminal
+ * (RESOLVED_*, WITHDRAWN) disputes.
+ */
+export const DISPUTE_OPEN_STATUSES: ReadonlyArray<DisputeStatus> = [
+  "OPEN",
+  "OWNER_RECONCILING",
+  "ADMIN_REVIEWING",
+];
+
+// ---- Query keys ----------------------------------------------------------
+
+export const disputesQk = {
+  list: (params: {
+    status?: string;
+    placeId?: string;
+    reporterUserId?: string;
+  }) => ["disputes", "list", params] as const,
+  detail: (id: string) => ["disputes", "detail", id] as const,
+};
+
+function invalidateDisputes(qc: ReturnType<typeof useQueryClient>) {
+  return qc.invalidateQueries({ queryKey: ["disputes"] });
+}
+
+// ---- Read hooks ----------------------------------------------------------
+
+/**
+ * Admin dispute review queue. ``status`` defaults to OPEN on the
+ * page-level filter (the work queue), but the hook stays generic so
+ * the place detail surface can pass ``placeId`` to scope per-place.
+ */
+export function useAdminDisputes(
+  params: {
+    status?: DisputeStatus | string;
+    placeId?: string;
+    reporterUserId?: string;
+  } = {},
+) {
+  return useQuery<ConsumerDisputeAdminRead[]>({
+    queryKey: disputesQk.list({
+      status: params.status,
+      placeId: params.placeId,
+      reporterUserId: params.reporterUserId,
+    }),
+    queryFn: () =>
+      apiFetch<ConsumerDisputeAdminRead[]>("/admin/disputes", {
+        searchParams: {
+          status: params.status,
+          place_id: params.placeId,
+          reporter_user_id: params.reporterUserId,
+          limit: 200,
+        },
+      }),
+  });
+}
+
+export function useAdminDispute(id: string | null | undefined) {
+  return useQuery<ConsumerDisputeAdminRead>({
+    queryKey: disputesQk.detail(id ?? "__nil__"),
+    queryFn: () =>
+      apiFetch<ConsumerDisputeAdminRead>(`/admin/disputes/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+// ---- Mutations -----------------------------------------------------------
+
+export function useResolveDispute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: DisputeResolve }) =>
+      apiFetch<ConsumerDisputeAdminRead>(
+        `/admin/disputes/${args.id}/resolve`,
+        { method: "POST", json: args.payload },
+      ),
+    onSuccess: () => {
+      void invalidateDisputes(qc);
+    },
+  });
+}
+
+export function useRequestOwnerReconciliation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      id: string;
+      payload: DisputeRequestReconciliation;
+    }) =>
+      apiFetch<ConsumerDisputeAdminRead>(
+        `/admin/disputes/${args.id}/request-owner-reconciliation`,
+        { method: "POST", json: args.payload },
+      ),
+    onSuccess: () => {
+      void invalidateDisputes(qc);
+    },
+  });
+}

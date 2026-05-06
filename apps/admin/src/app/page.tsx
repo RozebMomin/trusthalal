@@ -8,6 +8,12 @@ const surfaces = [
     href: "/halal-claims",
   },
   {
+    title: "Disputes",
+    description:
+      "Review consumer reports that a place's halal profile is wrong. Resolve uphold or dismiss to clear the DISPUTED badge.",
+    href: "/disputes",
+  },
+  {
     title: "Ownership requests",
     description:
       "Review merchant-submitted claim-this-place requests, approve with an existing or new organization, or reject.",

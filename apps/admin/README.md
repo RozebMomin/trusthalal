@@ -96,6 +96,7 @@ src/
     set-password/          Public token-gated set-password landing
     places/                ADMIN only
     halal-claims/          ADMIN + VERIFIER
+    disputes/              ADMIN + VERIFIER
     claims/                Legacy redirect → /halal-claims
     users/                 ADMIN only
     organizations/         ADMIN only
