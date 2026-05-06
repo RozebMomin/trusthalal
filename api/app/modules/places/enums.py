@@ -34,3 +34,10 @@ class PlaceEventType(StrEnum):
     HALAL_CLAIM_NEEDS_INFO = "HALAL_CLAIM_NEEDS_INFO"
     HALAL_CLAIM_REVOKED = "HALAL_CLAIM_REVOKED"
     HALAL_CLAIM_SUPERSEDED = "HALAL_CLAIM_SUPERSEDED"
+
+    # Consumer-dispute cross-writes (Phase 7). Same rationale as the
+    # halal-claim cross-writes: the per-dispute timeline lives on
+    # consumer_disputes, but the place's audit trail wants to see
+    # "consumer disputed → admin resolved" alongside everything else.
+    DISPUTE_OPENED = "DISPUTE_OPENED"
+    DISPUTE_RESOLVED = "DISPUTE_RESOLVED"
