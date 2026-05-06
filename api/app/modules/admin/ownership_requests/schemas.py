@@ -23,6 +23,10 @@ class OwnershipRequestAdminRead(BaseModel):
     contact_name: str
     contact_email: EmailStr
     message: str | None
+    # Admin's most recent guidance note (set by request-evidence).
+    # Surfaces on both admin + owner detail views so both sides
+    # see the same instruction.
+    decision_note: str | None = None
 
     status: str
     created_at: datetime

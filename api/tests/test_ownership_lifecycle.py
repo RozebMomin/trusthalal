@@ -453,6 +453,122 @@ def test_admin_request_evidence_rejects_short_note(api, factories):
     assert resp.status_code == 422, resp.text
 
 
+def test_admin_request_evidence_writes_decision_note(
+    api, factories, db_session
+):
+    """The note lands on the row's decision_note column so the
+    owner portal can render it. A second call overwrites with the
+    latest instruction (the per-event audit trail keeps the prior
+    on place_events)."""
+    admin = factories.admin()
+    place = factories.place()
+    req = factories.ownership_request(place=place)
+
+    api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/request-evidence",
+        json={"note": "Please upload a business license."},
+    )
+    db_session.refresh(req)
+    assert req.decision_note == "Please upload a business license."
+
+    # Second call updates the note + keeps status idempotent.
+    api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/request-evidence",
+        json={"note": "Actually, a utility bill works too."},
+    )
+    db_session.refresh(req)
+    assert req.decision_note == "Actually, a utility bill works too."
+    assert req.status == OwnershipRequestStatus.NEEDS_EVIDENCE.value
+
+
+# ---------------------------------------------------------------------------
+# Owner resubmit (NEEDS_EVIDENCE → UNDER_REVIEW)
+# ---------------------------------------------------------------------------
+def test_owner_resubmit_flips_needs_evidence_to_under_review(
+    api, factories, db_session
+):
+    """Owner finishes uploading the requested docs and clicks
+    Resubmit → status flips back to UNDER_REVIEW so admin queue
+    picks it up again. A PlaceEvent records the transition."""
+    admin = factories.admin()
+    consumer = factories.consumer()
+    place = factories.place()
+    req = factories.ownership_request(
+        place=place,
+        requester=consumer,
+        status=OwnershipRequestStatus.NEEDS_EVIDENCE,
+    )
+    db_session.commit()
+
+    resp = api.as_user(consumer).post(
+        f"/me/ownership-requests/{req.id}/resubmit"
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == OwnershipRequestStatus.UNDER_REVIEW.value
+
+    db_session.refresh(req)
+    assert req.status == OwnershipRequestStatus.UNDER_REVIEW.value
+
+    events = db_session.execute(
+        select(PlaceEvent).where(
+            PlaceEvent.place_id == place.id,
+            PlaceEvent.event_type
+            == PlaceEventType.OWNERSHIP_REQUEST_RESUBMITTED.value,
+        )
+    ).scalars().all()
+    assert len(events) == 1
+    # Resubmit should NOT also write to admin's request-evidence
+    # event slot.
+    _ = admin  # silence unused fixture if linter complains
+
+
+def test_owner_resubmit_rejected_when_not_needs_evidence(
+    api, factories, db_session
+):
+    """Resubmitting a claim that's still SUBMITTED (or any non-
+    NEEDS_EVIDENCE status) returns 409 — there's nothing to
+    resubmit."""
+    consumer = factories.consumer()
+    place = factories.place()
+    req = factories.ownership_request(
+        place=place,
+        requester=consumer,
+        status=OwnershipRequestStatus.SUBMITTED,
+    )
+    db_session.commit()
+
+    resp = api.as_user(consumer).post(
+        f"/me/ownership-requests/{req.id}/resubmit"
+    )
+    assert resp.status_code == 409, resp.text
+    assert (
+        resp.json()["error"]["code"]
+        == "OWNERSHIP_REQUEST_NOT_RESUBMITTABLE"
+    )
+
+
+def test_owner_cannot_resubmit_someone_elses_claim(
+    api, factories, db_session
+):
+    """Ownership gate: another user's claim returns 403, even if
+    it's in NEEDS_EVIDENCE."""
+    owner = factories.consumer(email="owner@example.com")
+    other = factories.consumer(email="other@example.com")
+    place = factories.place()
+    req = factories.ownership_request(
+        place=place,
+        requester=owner,
+        status=OwnershipRequestStatus.NEEDS_EVIDENCE,
+    )
+    db_session.commit()
+
+    resp = api.as_user(other).post(
+        f"/me/ownership-requests/{req.id}/resubmit"
+    )
+    assert resp.status_code == 403, resp.text
+
+
 # ---------------------------------------------------------------------------
 # Terminal-status lock
 # ---------------------------------------------------------------------------

@@ -2058,6 +2058,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/ownership-requests/{request_id}/resubmit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resubmit a NEEDS_EVIDENCE claim for review
+         * @description Owner-driven flow for the bounce-back loop: admin moves a claim to NEEDS_EVIDENCE with a guidance note, owner uploads additional attachments via `POST /me/ownership-requests/{id}/attachments`, then calls this endpoint to flip the status back to UNDER_REVIEW so the admin queue picks it up again. Returns 409 `OWNERSHIP_REQUEST_NOT_RESUBMITTABLE` if the claim isn't in NEEDS_EVIDENCE.
+         */
+        post: operations["resubmit_my_ownership_request_me_ownership_requests__request_id__resubmit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3530,6 +3550,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Decision Note
+             * @default null
+             */
+            decision_note: string | null;
         };
         /** OrganizationAdminCreate */
         OrganizationAdminCreate: {
@@ -3969,6 +3994,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Decision Note
+             * @default null
+             */
+            decision_note: string | null;
         };
         /**
          * OwnershipRequestApprove
@@ -4082,6 +4112,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Decision Note
+             * @default null
+             */
+            decision_note: string | null;
         };
         /**
          * OwnershipRequestEvidence
@@ -4125,6 +4160,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Decision Note
+             * @default null
+             */
+            decision_note: string | null;
         };
         /** OwnershipRequestReject */
         OwnershipRequestReject: {
@@ -9685,6 +9725,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VerifierApplicationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resubmit_my_ownership_request_me_ownership_requests__request_id__resubmit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyOwnershipRequestRead"];
                 };
             };
             /** @description Validation Error */

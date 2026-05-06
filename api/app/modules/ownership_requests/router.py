@@ -19,6 +19,7 @@ from app.modules.ownership_requests.repo import (
     create_ownership_request,
     get_ownership_request,
     list_ownership_requests_for_user,
+    resubmit_ownership_request_for_review,
 )
 from app.modules.ownership_requests.schemas import (
     MyOwnershipRequestCreate,
@@ -323,6 +324,31 @@ def list_my_ownership_requests(
         db, user_id=user.id, limit=limit, offset=offset
     )
     return [MyOwnershipRequestRead.model_validate(r) for r in rows]
+
+
+@router.post(
+    "/me/ownership-requests/{request_id}/resubmit",
+    response_model=MyOwnershipRequestRead,
+    summary="Resubmit a NEEDS_EVIDENCE claim for review",
+    description=(
+        "Owner-driven flow for the bounce-back loop: admin moves a "
+        "claim to NEEDS_EVIDENCE with a guidance note, owner uploads "
+        "additional attachments via "
+        "`POST /me/ownership-requests/{id}/attachments`, then calls "
+        "this endpoint to flip the status back to UNDER_REVIEW so "
+        "the admin queue picks it up again. Returns 409 "
+        "`OWNERSHIP_REQUEST_NOT_RESUBMITTABLE` if the claim isn't in "
+        "NEEDS_EVIDENCE."
+    ),
+)
+def resubmit_my_ownership_request(
+    request_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> MyOwnershipRequestRead:
+    req = _load_owned_request(db, request_id=request_id, user_id=user.id)
+    updated = resubmit_ownership_request_for_review(db, req=req)
+    return MyOwnershipRequestRead.model_validate(updated)
 
 
 # ---------------------------------------------------------------------------

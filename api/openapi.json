@@ -2998,6 +2998,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decision Note"
           }
         },
         "required": [
@@ -4040,6 +4052,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decision Note"
           }
         },
         "required": [
@@ -4234,6 +4258,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decision Note"
           }
         },
         "required": [
@@ -4322,6 +4358,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decision Note"
           }
         },
         "required": [
@@ -16445,6 +16493,50 @@
         "tags": [
           "verifier-applications"
         ]
+      }
+    },
+    "/me/ownership-requests/{request_id}/resubmit": {
+      "post": {
+        "tags": [
+          "ownership-requests"
+        ],
+        "summary": "Resubmit a NEEDS_EVIDENCE claim for review",
+        "description": "Owner-driven flow for the bounce-back loop: admin moves a claim to NEEDS_EVIDENCE with a guidance note, owner uploads additional attachments via `POST /me/ownership-requests/{id}/attachments`, then calls this endpoint to flip the status back to UNDER_REVIEW so the admin queue picks it up again. Returns 409 `OWNERSHIP_REQUEST_NOT_RESUBMITTABLE` if the claim isn't in NEEDS_EVIDENCE.",
+        "operationId": "resubmit_my_ownership_request_me_ownership_requests__request_id__resubmit_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyOwnershipRequestRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },

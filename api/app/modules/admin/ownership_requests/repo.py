@@ -294,8 +294,19 @@ def admin_request_more_evidence(
     req = _get_request_or_404(db, request_id)
     _assert_not_terminal(req)
 
+    # Always overwrite decision_note with the latest instruction —
+    # the owner needs the most recent guidance, not the first one.
+    # Per-event history still lives on place_events for forensics.
+    req.decision_note = payload.note
+
     if req.status == OwnershipRequestStatus.NEEDS_EVIDENCE.value:
-        return req  # idempotent
+        # Idempotent on status: no fresh event row, but the
+        # decision_note refresh above already happened so a second
+        # call still updates the owner-visible instruction.
+        db.add(req)
+        db.commit()
+        db.refresh(req)
+        return req
 
     req.status = OwnershipRequestStatus.NEEDS_EVIDENCE.value
     db.add(req)
@@ -305,7 +316,7 @@ def admin_request_more_evidence(
             place_id=req.place_id,
             event_type=PlaceEventType.OWNERSHIP_REQUEST_NEEDS_EVIDENCE.value,
             actor_user_id=actor_user_id,
-            message=payload.note or "Admin requested more evidence",
+            message=payload.note,
         )
     )
 

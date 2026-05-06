@@ -155,6 +155,14 @@ export type MyOwnershipRequestRead = {
   organization: MyOwnershipRequestOrgSummary | null;
   status: OwnershipRequestStatus;
   message: string | null;
+  /**
+   * Latest admin instruction on this claim. Populated when the
+   * claim is in NEEDS_EVIDENCE — staff explains exactly what the
+   * owner needs to upload next. Stays populated through resubmit
+   * so the owner can re-read the original instruction even after
+   * they've moved the claim back to UNDER_REVIEW.
+   */
+  decision_note: string | null;
   created_at: string;
   updated_at: string;
   attachments: OwnershipRequestAttachmentRead[];
@@ -417,6 +425,28 @@ export function useUploadOwnershipRequestAttachment() {
         { method: "POST", formData: fd },
       );
     },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.myOwnershipRequests() });
+    },
+  });
+}
+
+/**
+ * POST /me/ownership-requests/{id}/resubmit — flip a NEEDS_EVIDENCE
+ * claim back to UNDER_REVIEW after the owner has uploaded the
+ * additional documents staff requested. Server returns 409
+ * OWNERSHIP_REQUEST_NOT_RESUBMITTABLE if the claim isn't in
+ * NEEDS_EVIDENCE; the UI hides the button outside that state so
+ * this is mostly a defensive guard.
+ */
+export function useResubmitOwnershipRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (requestId: string) =>
+      apiFetch<MyOwnershipRequestRead>(
+        `/me/ownership-requests/${requestId}/resubmit`,
+        { method: "POST" },
+      ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: qk.myOwnershipRequests() });
     },

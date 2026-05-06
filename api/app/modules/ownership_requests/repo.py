@@ -106,3 +106,49 @@ def list_ownership_requests_for_user(
         .offset(offset)
     )
     return list(db.execute(stmt).scalars().all())
+
+
+def resubmit_ownership_request_for_review(
+    db: Session,
+    *,
+    req: PlaceOwnershipRequest,
+) -> PlaceOwnershipRequest:
+    """Owner-driven resubmission of a claim that was bounced back to
+    NEEDS_EVIDENCE. Flips status to UNDER_REVIEW so the admin queue
+    picks it up again.
+
+    Allowed only from NEEDS_EVIDENCE — any other status is a 409
+    with ``OWNERSHIP_REQUEST_NOT_RESUBMITTABLE``. Caller is
+    responsible for the ownership check (the /me/ handler does that
+    via _load_owned_request before invoking this).
+
+    Doesn't clear ``decision_note``: keeps the most recent admin
+    instruction visible until admin acts again, which makes the
+    audit trail clearer ("admin asked for X; owner uploaded files
+    + resubmitted; admin then…").
+    """
+    from app.modules.places.enums import PlaceEventType
+    from app.modules.places.models import PlaceEvent
+
+    if req.status != OwnershipRequestStatus.NEEDS_EVIDENCE.value:
+        raise ConflictError(
+            "OWNERSHIP_REQUEST_NOT_RESUBMITTABLE",
+            "Only claims in NEEDS_EVIDENCE can be resubmitted. "
+            f"This claim is currently {req.status}.",
+        )
+
+    req.status = OwnershipRequestStatus.UNDER_REVIEW.value
+    db.add(req)
+
+    db.add(
+        PlaceEvent(
+            place_id=req.place_id,
+            event_type=PlaceEventType.OWNERSHIP_REQUEST_RESUBMITTED.value,
+            actor_user_id=req.requester_user_id,
+            message="Owner resubmitted the claim for review",
+        )
+    )
+
+    db.commit()
+    db.refresh(req)
+    return req

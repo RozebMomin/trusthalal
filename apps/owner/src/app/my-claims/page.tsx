@@ -28,7 +28,14 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { ClaimStatusBadge, claimStatusDescription } from "@/components/claim-status-badge";
-import { type MyOwnershipRequestRead, useMyOwnershipRequests } from "@/lib/api/hooks";
+import { ApiError } from "@/lib/api/client";
+import { friendlyApiError } from "@/lib/api/friendly-errors";
+import {
+  type MyOwnershipRequestRead,
+  useMyOwnershipRequests,
+  useResubmitOwnershipRequest,
+  useUploadOwnershipRequestAttachment,
+} from "@/lib/api/hooks";
 
 export default function MyClaimsPage() {
   const params = useSearchParams();
@@ -127,6 +134,8 @@ function ClaimRow({ claim }: { claim: MyOwnershipRequestRead }) {
     day: "numeric",
   });
 
+  const isNeedsEvidence = claim.status === "NEEDS_EVIDENCE";
+
   return (
     <li className="rounded-md border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
@@ -149,6 +158,11 @@ function ClaimRow({ claim }: { claim: MyOwnershipRequestRead }) {
       <p className="mt-3 text-sm text-muted-foreground">
         {claimStatusDescription(claim.status)}
       </p>
+
+      {/* NEEDS_EVIDENCE callout: pulls the admin's instruction +
+          upload + resubmit affordances into one block so the owner
+          doesn't have to leave the page to act on it. */}
+      {isNeedsEvidence && <NeedsEvidenceSection claim={claim} />}
 
       {claim.message && (
         <details className="mt-3 text-xs text-muted-foreground">
@@ -178,6 +192,143 @@ function ClaimRow({ claim }: { claim: MyOwnershipRequestRead }) {
         Submitted {submittedAt}
       </p>
     </li>
+  );
+}
+
+/**
+ * NEEDS_EVIDENCE state UI block. Shows the admin's instruction
+ * note, a file picker for adding more evidence, and a "Resubmit"
+ * button that flips the claim back to UNDER_REVIEW once the owner
+ * is ready for staff to take another look.
+ *
+ * Inline rather than on a separate page on purpose: this is the
+ * only state with non-trivial owner action, and the rest of the
+ * card already shows everything the user needs to make decisions
+ * (place, status badge, original message, files attached). A
+ * dedicated detail page would mostly duplicate the card.
+ */
+function NeedsEvidenceSection({ claim }: { claim: MyOwnershipRequestRead }) {
+  const upload = useUploadOwnershipRequestAttachment();
+  const resubmit = useResubmitOwnershipRequest();
+
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+  const [resubmitError, setResubmitError] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Cap of 5 files per claim is enforced server-side; surface it in
+  // the UI so the owner doesn't waste effort picking a sixth.
+  const FILE_CAP = 5;
+  const remaining = Math.max(0, FILE_CAP - claim.attachments.length);
+  const canUpload = remaining > 0 && !upload.isPending;
+
+  async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Reset the input so the same file can be selected again later
+    // (browsers swallow the change event on identical re-selection).
+    e.target.value = "";
+    if (!file) return;
+
+    setUploadError(null);
+    try {
+      await upload.mutateAsync({ requestId: claim.id, file });
+    } catch (err) {
+      const { description } = friendlyApiError(err, {
+        defaultTitle: "Couldn't upload that file",
+      });
+      setUploadError(
+        err instanceof ApiError && err.status >= 500
+          ? "Something went wrong on our end. Please try again in a moment."
+          : description,
+      );
+    }
+  }
+
+  async function onResubmit() {
+    setResubmitError(null);
+    try {
+      await resubmit.mutateAsync(claim.id);
+    } catch (err) {
+      const { description } = friendlyApiError(err, {
+        defaultTitle: "Couldn't resubmit your claim",
+      });
+      setResubmitError(description);
+    }
+  }
+
+  return (
+    <div className="mt-3 space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950">
+      <div>
+        <p className="font-medium text-amber-950 dark:text-amber-100">
+          Trust Halal staff need more from you
+        </p>
+        {claim.decision_note ? (
+          <p className="mt-1 whitespace-pre-wrap text-amber-900 dark:text-amber-100">
+            {claim.decision_note}
+          </p>
+        ) : (
+          <p className="mt-1 text-amber-900 dark:text-amber-100">
+            Staff requested more evidence but didn&apos;t leave a
+            specific note. Reach out to{" "}
+            <a
+              href="mailto:support@trusthalal.org"
+              className="underline-offset-4 hover:underline"
+            >
+              support@trusthalal.org
+            </a>{" "}
+            for guidance.
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 border-t border-amber-300/60 pt-3 dark:border-amber-800/60">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/heic,image/heif"
+          className="hidden"
+          onChange={onFilePicked}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={!canUpload}
+        >
+          {upload.isPending ? "Uploading…" : "Upload another file"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={onResubmit}
+          disabled={resubmit.isPending}
+        >
+          {resubmit.isPending ? "Resubmitting…" : "Resubmit for review"}
+        </Button>
+        <p className="text-xs text-amber-900/80 dark:text-amber-100/80">
+          {remaining > 0
+            ? `Up to ${remaining} more file${remaining === 1 ? "" : "s"}. PDF / JPEG / PNG / HEIC, 10 MB each.`
+            : "Maximum 5 files per claim. Resubmit when ready."}
+        </p>
+      </div>
+
+      {uploadError && (
+        <p
+          role="alert"
+          className="text-xs text-destructive"
+        >
+          {uploadError}
+        </p>
+      )}
+      {resubmitError && (
+        <p
+          role="alert"
+          className="text-xs text-destructive"
+        >
+          {resubmitError}
+        </p>
+      )}
+    </div>
   );
 }
 

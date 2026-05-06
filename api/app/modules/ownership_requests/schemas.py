@@ -139,6 +139,12 @@ class MyOwnershipRequestRead(BaseModel):
     organization: MyOwnershipRequestOrgSummary | None = None
     status: str
     message: str | None
+    # Latest admin instruction on this claim — populated when status
+    # is NEEDS_EVIDENCE so the owner can read "upload a business
+    # license, not a utility bill" right next to the upload button.
+    # Nullable because most claims (SUBMITTED / UNDER_REVIEW /
+    # APPROVED) never accumulate a note.
+    decision_note: str | None = None
     created_at: datetime
     updated_at: datetime
     attachments: list[OwnershipRequestAttachmentRead] = []
@@ -153,6 +159,7 @@ class OwnershipRequestRead(BaseModel):
     contact_name: str
     contact_email: str
     message: str | None
+    decision_note: str | None = None
     status: str
     created_at: datetime
     updated_at: datetime
@@ -178,6 +185,7 @@ class OwnershipRequestDetailRead(BaseModel):
     contact_name: str
     contact_email: EmailStr
     message: str | None
+    decision_note: str | None = None
 
     status: str
     created_at: datetime
