@@ -43,6 +43,17 @@ router = APIRouter(tags=["ownership-requests"])
     "/places/{place_id}/ownership-requests",
     response_model=OwnershipRequestRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Public ownership claim submission (anonymous OK)",
+    description=(
+        "Public path used by the consumer site or any 'I own this "
+        "restaurant, get me on your list' flow. Caller can be "
+        "unauthenticated — the contact_name + contact_email + "
+        "contact_phone come from the request body. Rejects with "
+        "`PLACE_NOT_FOUND` if the place is missing or hard-deleted. "
+        "Owners signed into the portal should use `POST /me/ownership-"
+        "requests` instead — that path enforces the org-sponsor "
+        "requirement and ties claims back to their account."
+    ),
 )
 def submit_ownership_request(
     place_id: UUID,
@@ -67,7 +78,17 @@ def submit_ownership_request(
     return req
 
 
-@router.get("/ownership-requests/{request_id}", response_model=OwnershipRequestStatusRead)
+@router.get(
+    "/ownership-requests/{request_id}",
+    response_model=OwnershipRequestStatusRead,
+    summary="Get an ownership request's status (slim, public)",
+    description=(
+        "Returns just the status fields — used by the public 'check "
+        "the status of my submission' page. The richer detail view "
+        "(message, attachments) lives at "
+        "`/ownership-requests/{id}/detail` and is access-gated."
+    ),
+)
 def get_ownership_request_status(
     request_id: UUID,
     db: Session = Depends(get_db),
@@ -81,6 +102,12 @@ def get_ownership_request_status(
 @router.get(
     "/ownership-requests/{request_id}/detail",
     response_model=OwnershipRequestDetailRead,
+    summary="Get an ownership request's full detail (admin or requester only)",
+    description=(
+        "Returns the message body, attached evidence metadata, and "
+        "decision context. Visible to ADMIN role or the user who "
+        "submitted the request. Other authenticated callers get a 403."
+    ),
 )
 def get_ownership_request_detail(
     request_id: UUID,
@@ -134,6 +161,25 @@ def get_ownership_request_detail(
     "/me/ownership-requests",
     response_model=MyOwnershipRequestRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Owner-portal claim submission (auth required, ties to an org)",
+    description=(
+        "The authenticated owner-portal path. Differences from the "
+        "public submission:\n\n"
+        "* `requester_user_id` is set from the session cookie, not the "
+        "body.\n"
+        "* `contact_name` + `contact_email` are read from the user's "
+        "profile.\n"
+        "* A sponsoring `organization_id` is REQUIRED (must be "
+        "UNDER_REVIEW or VERIFIED).\n"
+        "* Two ways to identify the place: `place_id` for an existing "
+        "Trust Halal place, or `google_place_id` to ingest from "
+        "Google first, then attach the claim. The schema validates "
+        "exactly-one-of.\n\n"
+        "Duplicate-claim guard: rejects with "
+        "`OWNERSHIP_REQUEST_ALREADY_EXISTS` when the same user already "
+        "has an active claim against the same place. Rate-limited per-"
+        "session at 20/hour."
+    ),
 )
 @limiter.limit("20/hour", key_func=user_or_ip_key)
 def submit_my_ownership_request(
@@ -251,6 +297,14 @@ def submit_my_ownership_request(
 @router.get(
     "/me/ownership-requests",
     response_model=list[MyOwnershipRequestRead],
+    summary="List the current user's claims (newest first)",
+    description=(
+        "Powers the owner portal's 'My claims' page and the home "
+        "page's recent-claims preview. Pagination via `limit` (≤200, "
+        "default 50) and `offset`. Scoped automatically to the "
+        "calling user — no cross-user leak even if a stale cache or "
+        "URL guesses another id."
+    ),
 )
 def list_my_ownership_requests(
     limit: int = Query(default=50, gt=0, le=200),
@@ -342,6 +396,17 @@ def _load_owned_request(
     "/me/ownership-requests/{request_id}/attachments",
     response_model=OwnershipRequestAttachmentRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Attach evidence to an existing claim",
+    description=(
+        "Multipart upload of a single supporting file (business "
+        "license, lease, sales-tax permit, etc.) — anything tying the "
+        "sponsoring organization to this specific restaurant address. "
+        "Caps: 5 files per claim, 10 MB per file, MIME allow-list "
+        "(PDF / JPEG / PNG / HEIC / HEIF). The claim must belong to "
+        "the calling user. Files land in Supabase Storage at "
+        "`ownership-requests/<request_id>/<uuid>.<ext>`. Rate-limited "
+        "per-session at 60/hour."
+    ),
 )
 @limiter.limit("60/hour", key_func=user_or_ip_key)
 def upload_my_ownership_request_attachment(
@@ -445,6 +510,13 @@ def upload_my_ownership_request_attachment(
 @router.get(
     "/me/ownership-requests/{request_id}/attachments",
     response_model=list[OwnershipRequestAttachmentRead],
+    summary="List evidence files attached to one of the user's claims",
+    description=(
+        "Returns metadata only (filename, mime, size). Used by the "
+        "owner portal when re-opening a claim's detail page to render "
+        "previously-uploaded files. Same ownership gate as the upload "
+        "endpoint."
+    ),
 )
 def list_my_ownership_request_attachments(
     request_id: UUID,

@@ -71,7 +71,18 @@ router = APIRouter(
 _SIGNED_URL_TTL_SECONDS = 60
 
 
-@router.get("", response_model=list[HalalClaimAdminRead])
+@router.get(
+    "",
+    response_model=list[HalalClaimAdminRead],
+    summary="Halal-claim review queue",
+    description=(
+        "Newest-first list of claims with optional `status` / "
+        "`place_id` / `organization_id` filters. The admin queue "
+        "page lands here with `status=PENDING_REVIEW`; the place "
+        "detail page hits it with `place_id={id}` to render the "
+        "per-place claims summary."
+    ),
+)
 def list_claims_admin(
     status_filter: str | None = Query(default=None, alias="status"),
     place_id: UUID | None = Query(default=None),
@@ -100,7 +111,16 @@ def list_claims_admin(
     return [HalalClaimAdminRead.model_validate(r) for r in rows]
 
 
-@router.get("/{claim_id}", response_model=HalalClaimAdminRead)
+@router.get(
+    "/{claim_id}",
+    response_model=HalalClaimAdminRead,
+    summary="Single halal-claim detail (admin view)",
+    description=(
+        "Admin shape — includes `submitted_by_user_id`, "
+        "`decided_by_user_id`, `internal_notes`, and "
+        "`triggered_by_dispute_id` on top of the owner-side fields."
+    ),
+)
 def get_claim_admin(
     claim_id: UUID,
     db: Session = Depends(get_db),
@@ -114,6 +134,18 @@ def get_claim_admin(
 @router.post(
     "/{claim_id}/approve",
     response_model=HalalClaimAdminRead,
+    summary="Approve a halal claim",
+    description=(
+        "Approves a PENDING_REVIEW or NEEDS_MORE_INFO claim. Runs "
+        "the profile-derivation service in the same transaction: "
+        "creates or updates the place's `HalalProfile`, marks any "
+        "prior source claim as SUPERSEDED, and writes "
+        "`HalalClaimEvent` (APPROVED) + `HalalProfileEvent` "
+        "(CREATED or UPDATED) audit rows. Admin assigns the "
+        "`validation_tier` (SELF_ATTESTED / CERTIFICATE_ON_FILE / "
+        "TRUST_HALAL_VERIFIED). Optional `expires_at_override` "
+        "tweaks the default 12-month expiry."
+    ),
 )
 def approve_claim_admin(
     claim_id: UUID,
@@ -144,6 +176,14 @@ def approve_claim_admin(
 @router.post(
     "/{claim_id}/reject",
     response_model=HalalClaimAdminRead,
+    summary="Reject a halal claim",
+    description=(
+        "Closes a PENDING_REVIEW or NEEDS_MORE_INFO claim with a "
+        "required `decision_note` (min 3 chars) that the owner sees "
+        "verbatim. Does NOT touch the place's `HalalProfile` — "
+        "rejection is the absence of a new approval, not removal of "
+        "an existing one. Use `revoke` to pull a live profile."
+    ),
 )
 def reject_claim_admin(
     claim_id: UUID,
@@ -169,6 +209,15 @@ def reject_claim_admin(
 @router.post(
     "/{claim_id}/request-info",
     response_model=HalalClaimAdminRead,
+    summary="Request more info from the owner",
+    description=(
+        "Moves the claim to NEEDS_MORE_INFO with a required "
+        "`decision_note` shown verbatim to the owner — admin uses it "
+        "to specify what's missing (e.g. 'please upload current "
+        "IFANCA cert'). Re-opens the owner's attachment-upload + "
+        "re-submit path. Re-requesting info on a claim already in "
+        "NEEDS_MORE_INFO is allowed (lets admin update the message)."
+    ),
 )
 def request_info_claim_admin(
     claim_id: UUID,
@@ -195,6 +244,14 @@ def request_info_claim_admin(
 @router.post(
     "/{claim_id}/revoke",
     response_model=HalalClaimAdminRead,
+    summary="Revoke a previously-approved halal claim",
+    description=(
+        "Pulls a live claim. Marks the linked `HalalProfile` "
+        "`revoked_at=now` and writes a REVOKED `HalalProfileEvent`. "
+        "Used for fraud discovery, restaurant closure, or "
+        "recertification windows that lapsed without renewal. "
+        "Idempotent on already-REVOKED claims."
+    ),
 )
 def revoke_claim_admin(
     claim_id: UUID,
@@ -226,6 +283,14 @@ def revoke_claim_admin(
 @router.get(
     "/{claim_id}/events",
     response_model=list[HalalClaimEventRead],
+    summary="Audit timeline for a claim (admin view)",
+    description=(
+        "Same shape the owner sees on their portal, with no "
+        "ownership gate — admin can read any claim's events. "
+        "Captures the full lifecycle: drafts, submits, attachment "
+        "uploads, every prior decision, and supersession from a "
+        "newer approval."
+    ),
 )
 def list_claim_events_admin(
     claim_id: UUID,
@@ -252,6 +317,11 @@ def list_claim_events_admin(
 @router.get(
     "/{claim_id}/attachments",
     response_model=list[HalalClaimAttachmentRead],
+    summary="List evidence-file metadata on a claim",
+    description=(
+        "Bytes are not returned here — frontends call the "
+        "signed-URL endpoint per attachment when admin clicks View."
+    ),
 )
 def list_claim_attachments_admin(
     claim_id: UUID,
@@ -268,6 +338,13 @@ def list_claim_attachments_admin(
 @router.get(
     "/{claim_id}/attachments/{attachment_id}/url",
     response_model=AdminAttachmentSignedUrl,
+    summary="Mint a short-lived signed URL for one attachment",
+    description=(
+        "Asserts the attachment belongs to the claim before signing "
+        "— guards against guessed UUIDs leaking unrelated files. "
+        "TTL is 60 seconds, matching the org and "
+        "ownership-request signed-URL endpoints."
+    ),
 )
 def signed_url_for_attachment_admin(
     claim_id: UUID,

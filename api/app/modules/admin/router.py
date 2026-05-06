@@ -10,12 +10,19 @@ from app.modules.admin.deps import require_admin, admin_db
 from app.modules.places.models import Place, PlaceExternalId  # adjust if split
 from app.core.auth import CurrentUser
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin: places"])
 
 
 @router.post(
     "/places/{place_id}/external-ids",
     response_model=PlaceExternalIdRead,
+    summary="Upsert a generic provider external-id on a place (legacy)",
+    description=(
+        "Older path that supports any provider (not just Google). The "
+        "Google-specific link flow lives at "
+        "`POST /admin/places/{id}/link-external` and should be "
+        "preferred when the provider is Google."
+    ),
 )
 def upsert_place_external_id(
     place_id: uuid.UUID,

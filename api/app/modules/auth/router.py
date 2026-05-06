@@ -106,7 +106,17 @@ def _clear_session_cookie(response: Response) -> None:
 me_router = APIRouter(prefix="/me", tags=["auth"])
 
 
-@me_router.get("", response_model=MeResponse)
+@me_router.get(
+    "",
+    response_model=MeResponse,
+    summary="Current authenticated user",
+    description=(
+        "Resolves the session cookie to the user's id, role, display "
+        "name, and email. Frontends call this on every page load to "
+        "decide what to render — it's the source of truth for 'am I "
+        "signed in?' and 'what role am I?'."
+    ),
+)
 def get_me(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -143,7 +153,18 @@ def get_me(
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@auth_router.post("/login", response_model=LoginResponse)
+@auth_router.post(
+    "/login",
+    response_model=LoginResponse,
+    summary="Sign in with email and password",
+    description=(
+        "Sets the `tht_session` HttpOnly cookie on success. Returns the "
+        "user id, role, display name, and a `redirect_path` (server-"
+        "controlled landing page per role). Failures collapse to a "
+        "single generic `INVALID_CREDENTIALS` 401 to avoid email "
+        "enumeration. Rate-limited per-IP at 10/min and 100/hour."
+    ),
+)
 @limiter.limit("10/minute", key_func=ip_key)
 @limiter.limit("100/hour", key_func=ip_key)
 def login(
@@ -204,7 +225,19 @@ def login(
     )
 
 
-@auth_router.post("/signup", response_model=SignupResponse)
+@auth_router.post(
+    "/signup",
+    response_model=SignupResponse,
+    summary="Self-service signup (role hard-coded to OWNER)",
+    description=(
+        "Public path used by the owner portal. Creates a User with "
+        "role=OWNER and immediately sets the session cookie so the "
+        "client can land on the post-login home with no second round "
+        "trip. On a duplicate email returns `EMAIL_TAKEN` so the UI "
+        "can deep-link to /login. Promotion to ADMIN/VERIFIER stays an "
+        "admin-only operation. Rate-limited per-IP at 5/min, 20/hour."
+    ),
+)
 @limiter.limit("5/minute", key_func=ip_key)
 @limiter.limit("20/hour", key_func=ip_key)
 def signup(
@@ -273,7 +306,17 @@ def signup(
     )
 
 
-@auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@auth_router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Invalidate the current session and clear the cookie",
+    description=(
+        "Idempotent — returns 204 even if the session was already "
+        "revoked or the cookie is missing. The browser drops the "
+        "cookie either way, so surfacing failures here would only "
+        "confuse 'sign out' UX."
+    ),
+)
 @limiter.limit("30/minute", key_func=ip_key)
 def logout(
     request: Request,
@@ -303,6 +346,15 @@ def logout(
 @auth_router.get(
     "/invite/{token}",
     response_model=InviteInfoResponse,
+    summary="Look up an invite token's target email",
+    description=(
+        "Pre-fetched by the admin panel's set-password page so the "
+        "form can render 'Set your password for foo@example.com' "
+        "before the user submits. Does NOT consume the token — that "
+        "happens in `POST /auth/set-password`. Invalid / expired / "
+        "already-used tokens all collapse to a single generic "
+        "`INVITE_INVALID` to avoid token-state oracling."
+    ),
 )
 @limiter.limit("30/minute", key_func=ip_key)
 def get_invite_info(
@@ -353,6 +405,15 @@ def get_invite_info(
 @auth_router.post(
     "/set-password",
     response_model=SetPasswordResponse,
+    summary="Burn an invite token, set the user's password, sign them in",
+    description=(
+        "Single transaction: resolves the invite token, hashes the new "
+        "password with argon2id, marks the token consumed, revokes any "
+        "other outstanding sessions for this user, and mints a fresh "
+        "session cookie. Used by the admin onboarding flow and as the "
+        "'reset password' path (admin re-issues an invite). Rate-"
+        "limited per-IP."
+    ),
 )
 @limiter.limit("10/minute", key_func=ip_key)
 @limiter.limit("50/hour", key_func=ip_key)

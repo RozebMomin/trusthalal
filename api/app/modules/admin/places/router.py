@@ -44,7 +44,7 @@ from app.modules.users.enums import UserRole
 from sqlalchemy.orm import Session
 
 
-router = APIRouter(prefix="/admin/places", tags=["admin"])
+router = APIRouter(prefix="/admin/places", tags=["admin: places"])
 
 # NOTE: Admin places endpoints return `PlaceAdminRead` (not the public
 # `PlaceRead`) because admin UIs need `is_deleted` / `deleted_at` to flip
@@ -56,6 +56,16 @@ router = APIRouter(prefix="/admin/places", tags=["admin"])
     "/ingest",
     response_model=PlaceIngestResponse,
     status_code=status.HTTP_200_OK,
+    summary="Ingest a place from a Google Place ID (idempotent)",
+    description=(
+        "Pulls Place Details from Google for the given `google_place_id`, "
+        "extracts the canonical address fields (city / region / country / "
+        "postal_code / timezone), and upserts a Place row tied to that "
+        "Google ID. Idempotent on the Google ID — re-ingesting refreshes "
+        "the canonical fields. Used by both the admin 'New place' modal "
+        "and the owner-portal claim flow's Google fallback (which calls "
+        "this server-side before creating the claim)."
+    ),
     # Document every error shape the admin panel needs to branch on. Each
     # entry points at the shared ``ErrorResponse`` envelope and carries a
     # concrete example so Swagger UI + the admin repo's codegen both see
@@ -170,6 +180,13 @@ def ingest_place_admin(
     "/{place_id}/link-external",
     response_model=PlaceLinkExternalResponse,
     status_code=status.HTTP_200_OK,
+    summary="Link an existing Place to a Google Place ID",
+    description=(
+        "Attach a Google Place ID to a Place that was created without "
+        "the Google ingest flow. Fetches Place Details server-side and "
+        "backfills NULL canonical fields (admin edits are preserved). "
+        "Rejects if either side already has a different link (409)."
+    ),
     responses={
         401: {
             "model": ErrorResponse,
@@ -271,6 +288,7 @@ def link_place_external_admin(
 @router.get(
     "/{place_id}/external-ids",
     response_model=list[PlaceExternalIdAdminRead],
+    summary="List provider links (Google, etc.) for a place",
     responses={
         401: {"model": ErrorResponse, "description": "Missing/invalid X-User-Id."},
         403: {"model": ErrorResponse, "description": "Not an admin."},
@@ -311,6 +329,7 @@ def list_place_external_ids_admin(
 @router.delete(
     "/{place_id}/external-ids/{provider}",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a provider link from a place",
     responses={
         401: {"model": ErrorResponse, "description": "Missing/invalid X-User-Id."},
         403: {"model": ErrorResponse, "description": "Not an admin."},
@@ -371,6 +390,7 @@ def unlink_place_external_admin(
     "/{place_id}/resync",
     response_model=PlaceResyncResponse,
     status_code=status.HTTP_200_OK,
+    summary="Re-pull canonical fields from the linked Google Place",
     responses={
         401: {"model": ErrorResponse, "description": "Missing/invalid X-User-Id."},
         403: {"model": ErrorResponse, "description": "Not an admin."},
@@ -424,7 +444,18 @@ def resync_place_admin(
     )
 
 
-@router.get("", response_model=list[PlaceAdminRead])
+@router.get(
+    "",
+    response_model=list[PlaceAdminRead],
+    summary="List places (admin view) with search + filters",
+    description=(
+        "Admin places browse. Supports text search (`q`), country and "
+        "city filters, soft-delete inclusion, ordering by name / city / "
+        "country / updated_at, and pagination. Returns the admin shape "
+        "(includes is_deleted / deleted_at) so the panel can flip "
+        "Delete/Restore actions per row."
+    ),
+)
 def list_places_admin(
     # "include deleted?" flag. Defaults to false so an unqualified browse
     # returns only active places.
@@ -468,6 +499,7 @@ def list_places_admin(
 @router.get(
     "/countries",
     response_model=list[str],
+    summary="List distinct country codes present in the catalog",
     responses={
         401: {"model": ErrorResponse, "description": "Missing/invalid X-User-Id."},
         403: {"model": ErrorResponse, "description": "Not an admin."},
@@ -486,7 +518,12 @@ def list_place_countries_admin(
     return admin_list_place_countries(db)
 
 
-@router.get("/{place_id}/events", response_model=list[PlaceEventRead])
+@router.get(
+    "/{place_id}/events",
+    response_model=list[PlaceEventRead],
+    summary="List the audit-event history for a place",
+    description="Includes EDITED, DELETED, RESTORED, LINKED, etc. Newest first.",
+)
 def list_place_events_admin(
     place_id: UUID,
     limit: int = Query(50, gt=0, le=200),
@@ -500,6 +537,12 @@ def list_place_events_admin(
 @router.get(
     "/{place_id}/owners",
     response_model=list[PlaceOwnerAdminRead],
+    summary="List organizations that own a place",
+    description=(
+        "Joins the `place_owners` rows with the owning organization "
+        "and surfaces the active-member count. Sorted ACTIVE-first so "
+        "current ownership shows above historical / pending links."
+    ),
     responses={
         401: {
             "model": ErrorResponse,
@@ -547,6 +590,13 @@ def list_place_owners_admin(
 @router.delete(
     "/{place_id}/owners/{owner_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revoke a place's organization ownership (soft-unlink)",
+    description=(
+        "Flips the PlaceOwner row to REVOKED rather than deleting it. "
+        "The place becomes eligible for a fresh live owner; the "
+        "historical row survives in the audit trail. Optional reason "
+        "rides into the EDITED PlaceEvent. Idempotent."
+    ),
     responses={
         401: {"model": ErrorResponse, "description": "Missing/invalid X-User-Id."},
         403: {"model": ErrorResponse, "description": "Not an admin."},
@@ -611,7 +661,11 @@ def revoke_place_owner_admin(
     return None
 
 
-@router.get("/{place_id}", response_model=PlaceAdminRead)
+@router.get(
+    "/{place_id}",
+    response_model=PlaceAdminRead,
+    summary="Get a place (admin view, includes soft-deleted)",
+)
 def get_place_admin(
     place_id: UUID,
     db: Session = Depends(get_db),
@@ -623,6 +677,11 @@ def get_place_admin(
 @router.post(
     "/{place_id}/restore",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="Restore a soft-deleted place",
+    description=(
+        "Idempotent — restoring an already-live place is a 204 no-op. "
+        "Optional reason flows into the RESTORED audit event."
+    ),
     responses={
         401: {
             "model": ErrorResponse,
@@ -675,7 +734,11 @@ def restore_place(
     return None
 
 
-@router.patch("/{place_id}", response_model=PlaceAdminRead)
+@router.patch(
+    "/{place_id}",
+    response_model=PlaceAdminRead,
+    summary="Edit a place (canonical fields, admin-only)",
+)
 def patch_place(
     place_id: UUID,
     payload: PlaceAdminPatch,
@@ -688,6 +751,13 @@ def patch_place(
 @router.delete(
     "/{place_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="Soft-delete a place",
+    description=(
+        "Marks the place deleted and records the optional reason on the "
+        "DELETED audit event. The public `/places/{id}` endpoint will "
+        "404 on it; admin views still surface it (with `is_deleted: "
+        "true`). Use `/admin/places/{id}/restore` to undo."
+    ),
     responses={
         401: {
             "model": ErrorResponse,

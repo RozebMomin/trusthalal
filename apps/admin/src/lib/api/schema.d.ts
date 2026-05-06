@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Root */
+        /**
+         * Service banner
+         * @description Lightweight identity ping. Returns the service name, current env (local / staging / prod), and a static 'running' status. Useful for sanity-checking that DNS and the load balancer are pointing at the right deploy.
+         */
         get: operations["root__get"];
         put?: never;
         post?: never;
@@ -29,14 +32,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Claims Admin
-         * @description Halal-claim review queue.
-         *
-         *     The default admin view passes ``?status=PENDING_REVIEW`` for the
-         *     work queue. Status omitted returns every claim (useful for
-         *     auditing rejected/expired/superseded history). place_id and
-         *     organization_id let admin scope the queue when investigating a
-         *     specific surface.
+         * Halal-claim review queue
+         * @description Newest-first list of claims with optional `status` / `place_id` / `organization_id` filters. The admin queue page lands here with `status=PENDING_REVIEW`; the place detail page hits it with `place_id={id}` to render the per-place claims summary.
          */
         get: operations["list_claims_admin_admin_halal_claims_get"];
         put?: never;
@@ -55,8 +52,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Claim Admin
-         * @description Single-claim detail. 404 on unknown id.
+         * Single halal-claim detail (admin view)
+         * @description Admin shape — includes `submitted_by_user_id`, `decided_by_user_id`, `internal_notes`, and `triggered_by_dispute_id` on top of the owner-side fields.
          */
         get: operations["get_claim_admin_admin_halal_claims__claim_id__get"];
         put?: never;
@@ -77,17 +74,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Approve Claim Admin
-         * @description Approve a PENDING_REVIEW or NEEDS_MORE_INFO claim.
-         *
-         *     Triggers the profile-derivation service: creates or updates the
-         *     place's HalalProfile, marks any prior source_claim as
-         *     SUPERSEDED, writes a CREATED or UPDATED HalalProfileEvent. The
-         *     transaction is atomic — all of it lands or none of it.
-         *
-         *     Admin assigns ``validation_tier`` here (SELF_ATTESTED /
-         *     CERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional
-         *     ``expires_at_override`` overrides the default 12-month TTL.
+         * Approve a halal claim
+         * @description Approves a PENDING_REVIEW or NEEDS_MORE_INFO claim. Runs the profile-derivation service in the same transaction: creates or updates the place's `HalalProfile`, marks any prior source claim as SUPERSEDED, and writes `HalalClaimEvent` (APPROVED) + `HalalProfileEvent` (CREATED or UPDATED) audit rows. Admin assigns the `validation_tier` (SELF_ATTESTED / CERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional `expires_at_override` tweaks the default 12-month expiry.
          */
         post: operations["approve_claim_admin_admin_halal_claims__claim_id__approve_post"];
         delete?: never;
@@ -104,8 +92,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Claim Attachments Admin
-         * @description List metadata for the claim's evidence files.
+         * List evidence-file metadata on a claim
+         * @description Bytes are not returned here — frontends call the signed-URL endpoint per attachment when admin clicks View.
          */
         get: operations["list_claim_attachments_admin_admin_halal_claims__claim_id__attachments_get"];
         put?: never;
@@ -124,13 +112,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Signed Url For Attachment Admin
-         * @description Mint a short-lived signed URL for one attachment.
-         *
-         *     Asserts the attachment belongs to the claim before signing —
-         *     guards against guessed UUIDs surfacing files for an unrelated
-         *     claim. TTL is 60 seconds, same as the org / ownership-request
-         *     signed-URL endpoints.
+         * Mint a short-lived signed URL for one attachment
+         * @description Asserts the attachment belongs to the claim before signing — guards against guessed UUIDs leaking unrelated files. TTL is 60 seconds, matching the org and ownership-request signed-URL endpoints.
          */
         get: operations["signed_url_for_attachment_admin_admin_halal_claims__claim_id__attachments__attachment_id__url_get"];
         put?: never;
@@ -149,14 +132,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Claim Events Admin
-         * @description Per-claim audit timeline (admin view).
-         *
-         *     Same shape the owner sees on their portal, with no ownership
-         *     gate — admin can read any claim's events. Powers the 'Activity'
-         *     section on the admin claim detail page so reviewers can see the
-         *     full lifecycle (when the owner drafted, when they submitted,
-         *     every prior decision, supersession from a newer approval, etc.).
+         * Audit timeline for a claim (admin view)
+         * @description Same shape the owner sees on their portal, with no ownership gate — admin can read any claim's events. Captures the full lifecycle: drafts, submits, attachment uploads, every prior decision, and supersession from a newer approval.
          */
         get: operations["list_claim_events_admin_admin_halal_claims__claim_id__events_get"];
         put?: never;
@@ -177,12 +154,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Reject Claim Admin
-         * @description Reject a PENDING_REVIEW or NEEDS_MORE_INFO claim.
-         *
-         *     decision_note is required and surfaces verbatim to the owner.
-         *     Does NOT touch the place's HalalProfile — a rejection is the
-         *     absence of a new profile, not a removal of an existing one.
+         * Reject a halal claim
+         * @description Closes a PENDING_REVIEW or NEEDS_MORE_INFO claim with a required `decision_note` (min 3 chars) that the owner sees verbatim. Does NOT touch the place's `HalalProfile` — rejection is the absence of a new approval, not removal of an existing one. Use `revoke` to pull a live profile.
          */
         post: operations["reject_claim_admin_admin_halal_claims__claim_id__reject_post"];
         delete?: never;
@@ -201,13 +174,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Request Info Claim Admin
-         * @description Move a claim to NEEDS_MORE_INFO with a message to the owner.
-         *
-         *     decision_note is shown to the owner verbatim — admin uses it to
-         *     specify what additional evidence is needed. Owner can then
-         *     upload more attachments (the /me/halal-claims status guard
-         *     permits uploads in NEEDS_MORE_INFO) and re-submit.
+         * Request more info from the owner
+         * @description Moves the claim to NEEDS_MORE_INFO with a required `decision_note` shown verbatim to the owner — admin uses it to specify what's missing (e.g. 'please upload current IFANCA cert'). Re-opens the owner's attachment-upload + re-submit path. Re-requesting info on a claim already in NEEDS_MORE_INFO is allowed (lets admin update the message).
          */
         post: operations["request_info_claim_admin_admin_halal_claims__claim_id__request_info_post"];
         delete?: never;
@@ -226,13 +194,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Revoke Claim Admin
-         * @description Pull a previously APPROVED claim.
-         *
-         *     Marks the linked HalalProfile as revoked_at=now and writes a
-         *     REVOKED HalalProfileEvent. Used for fraud discovery, restaurant
-         *     closure, or other admin-driven takedowns. Idempotent on already-
-         *     REVOKED claims.
+         * Revoke a previously-approved halal claim
+         * @description Pulls a live claim. Marks the linked `HalalProfile` `revoked_at=now` and writes a REVOKED `HalalProfileEvent`. Used for fraud discovery, restaurant closure, or recertification windows that lapsed without renewal. Idempotent on already-REVOKED claims.
          */
         post: operations["revoke_claim_admin_admin_halal_claims__claim_id__revoke_post"];
         delete?: never;
@@ -249,15 +212,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Orgs Admin
-         * @description List orgs, optionally narrowed by status.
-         *
-         *     Pass ``?status=UNDER_REVIEW`` to get the verification queue;
-         *     omit the param for the full catalog. Newest-first either way.
+         * List organizations (filterable by status)
+         * @description Pass `?status=UNDER_REVIEW` to get the verification queue; omit for the full catalog. Newest-first.
          */
         get: operations["list_orgs_admin_admin_organizations_get"];
         put?: never;
-        /** Create Org Admin */
+        /**
+         * Create an organization (admin path)
+         * @description Admin can mint an org directly without going through the owner self-service draft → submit flow. Lands in any status the admin specifies (typically VERIFIED for orgs vetted out-of-band).
+         */
         post: operations["create_org_admin_admin_organizations_post"];
         delete?: never;
         options?: never;
@@ -272,7 +235,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Org Admin */
+        /** Get an organization with members + attachments */
         get: operations["get_org_admin_admin_organizations__org_id__get"];
         put?: never;
         post?: never;
@@ -280,7 +243,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Patch Org Admin
+         * Edit an organization (admin)
          * @description Partial update for an organization.
          *
          *     Omitted fields are left alone. Sending ``contact_email: null``
@@ -297,7 +260,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Org Attachments Admin
+         * List supporting documents on an org (admin view)
          * @description List supporting documents on an org. Same metadata shape the
          *     owner sees, scoped to admin role.
          */
@@ -318,12 +281,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Signed Url For Org Attachment Admin
-         * @description Mint a short-lived signed URL for an org attachment.
-         *
-         *     Mirrors the claim-attachment variant: 60s default TTL, asserts
-         *     the attachment belongs to the requested org so a guessed UUID
-         *     can't surface files from an unrelated org.
+         * Mint a short-lived signed URL for an org attachment
+         * @description Returns a Supabase Storage signed URL the admin panel can render in an iframe / image tag for review. Short TTL so a shared screenshot doesn't keep working forever.
          */
         get: operations["signed_url_for_org_attachment_admin_admin_organizations__org_id__attachments__attachment_id__url_get"];
         put?: never;
@@ -343,7 +302,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add Member Admin */
+        /** Add a user as a member of an organization */
         post: operations["add_member_admin_admin_organizations__org_id__members_post"];
         delete?: never;
         options?: never;
@@ -361,7 +320,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Deactivate Member Admin */
+        /**
+         * Deactivate an organization membership
+         * @description Soft-removes the membership; the row stays for audit history.
+         */
         delete: operations["deactivate_member_admin_admin_organizations__org_id__members__user_id__delete"];
         options?: never;
         head?: never;
@@ -376,19 +338,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Org Places Admin
-         * @description List places this org owns (live + historical).
-         *
-         *     Closes the user ↔ org ↔ place triangle visually: the org detail
-         *     page can now show "which places does Acme run?" without bouncing
-         *     through the places admin and filtering by owner.
-         *
-         *     ACTIVE rows come first; REVOKED history rows follow so admins can
-         *     see what the org USED to own — useful when triaging "we never
-         *     worked with Acme, why does our catalog show them?"
-         *
-         *     Soft-deleted places are included (the ``place.is_deleted`` flag
-         *     lets the UI fade or badge them).
+         * List places this org owns (live + historical)
+         * @description ACTIVE first, then REVOKED. Includes soft-deleted places (`place.is_deleted` lets the UI fade them). Powers the org detail page's 'Places owned' section.
          */
         get: operations["list_org_places_admin_admin_organizations__org_id__places_get"];
         put?: never;
@@ -409,13 +360,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Reject Org Admin
-         * @description Move an UNDER_REVIEW org → REJECTED with a required reason.
-         *
-         *     The reason is surfaced to the owner on their org detail page so
-         *     they understand why verification didn't pass. REJECTED orgs are
-         *     read-only artifacts; the owner creates a new org if they want
-         *     to try again.
+         * Reject an organization (UNDER_REVIEW → REJECTED, requires reason)
+         * @description The reason is surfaced to the owner so they understand why verification didn't pass. REJECTED orgs are read-only — the owner creates a fresh org if they want to retry.
          */
         post: operations["reject_org_admin_admin_organizations__org_id__reject_post"];
         delete?: never;
@@ -434,13 +380,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Verify Org Admin
-         * @description Move an UNDER_REVIEW org → VERIFIED.
-         *
-         *     Records the deciding admin + timestamp + optional note inline
-         *     on the org row. Once verified, the org is eligible to sponsor
-         *     new claims and admin claim approvals can proceed (slice 5d
-         *     will gate approval on this status).
+         * Verify an organization (UNDER_REVIEW → VERIFIED)
+         * @description Records the deciding admin, timestamp, and optional note. Once VERIFIED, the org can sponsor claim approvals (slice 5d).
          */
         post: operations["verify_org_admin_admin_organizations__org_id__verify_post"];
         delete?: never;
@@ -456,19 +397,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Ownership Requests */
+        /**
+         * List ownership requests (filterable by status)
+         * @description The admin claim-review queue. Pass `?status=SUBMITTED` for new claims awaiting decision.
+         */
         get: operations["list_ownership_requests_admin_ownership_requests_get"];
         put?: never;
         /**
-         * Create Ownership Request Admin
-         * @description Create an ownership request on someone's behalf (admin path).
-         *
-         *     Use when an admin takes an inbound request by phone, email, or
-         *     in-person and wants to capture it in the system without the
-         *     claimant going through the public submit flow. ``requester_user_id``
-         *     can be null for unauthenticated intakes; set it to a real user id
-         *     when the claimant has an account and you want them to be able to
-         *     see the request later via ``GET /ownership-requests/{id}/detail``.
+         * Create an ownership request on someone's behalf (admin intake)
+         * @description For when an admin captures an inbound request from phone, email, or in-person without making the claimant go through the public submit flow.
          */
         post: operations["create_ownership_request_admin_admin_ownership_requests_post"];
         delete?: never;
@@ -486,7 +423,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve Ownership Request */
+        /**
+         * Approve a claim and create the ownership relationship
+         * @description Promotes the claim to APPROVED, ties the place to the sponsoring organization (must be VERIFIED — see slice 5d), and records the deciding admin + timestamp + optional note.
+         */
         post: operations["approve_ownership_request_admin_ownership_requests__request_id__approve_post"];
         delete?: never;
         options?: never;
@@ -502,7 +442,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Attachments Admin
+         * List evidence files attached to a claim (admin)
          * @description List every file attached to a claim under admin review.
          */
         get: operations["list_attachments_admin_admin_ownership_requests__request_id__attachments_get"];
@@ -522,13 +462,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Signed Url For Attachment Admin
-         * @description Mint a short-lived signed URL the admin browser can use to
-         *     download or preview an attachment.
-         *
-         *     The endpoint takes both ``request_id`` and ``attachment_id`` and
-         *     asserts the attachment belongs to that request. Defends against
-         *     a guessed UUID surfacing files for an unrelated claim.
+         * Mint a short-lived signed URL for an attachment (admin review)
+         * @description Asserts the attachment belongs to the claim before signing — guards against UUID guesses surfacing files for an unrelated claim. TTL is intentionally tight (60s).
          */
         get: operations["signed_url_for_attachment_admin_admin_ownership_requests__request_id__attachments__attachment_id__url_get"];
         put?: never;
@@ -548,7 +483,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reject Ownership Request */
+        /**
+         * Reject a claim with a reason
+         * @description REJECTED is terminal — the owner sees the reason on their claim detail and can submit a fresh claim if appropriate.
+         */
         post: operations["reject_ownership_request_admin_ownership_requests__request_id__reject_post"];
         delete?: never;
         options?: never;
@@ -565,7 +503,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request More Evidence */
+        /**
+         * Ask the owner to upload more evidence
+         * @description Holds the claim in REVIEW state with an attached note. The owner sees the message on their claim detail page and can upload additional files via `POST /me/ownership-requests/{id}/attachments`.
+         */
         post: operations["request_more_evidence_admin_ownership_requests__request_id__request_evidence_post"];
         delete?: never;
         options?: never;
@@ -580,7 +521,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Places Admin */
+        /**
+         * List places (admin view) with search + filters
+         * @description Admin places browse. Supports text search (`q`), country and city filters, soft-delete inclusion, ordering by name / city / country / updated_at, and pagination. Returns the admin shape (includes is_deleted / deleted_at) so the panel can flip Delete/Restore actions per row.
+         */
         get: operations["list_places_admin_admin_places_get"];
         put?: never;
         post?: never;
@@ -598,7 +542,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Place Countries Admin
+         * List distinct country codes present in the catalog
          * @description Distinct ISO-2 country codes present in the catalog.
          *
          *     Feeds the admin filter dropdown so the options reflect actual data
@@ -624,19 +568,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Ingest Place Admin
-         * @description Create-or-find a Place from a Google Place ID.
-         *
-         *     The admin UI obtains ``google_place_id`` via the browser-side Places
-         *     Autocomplete widget, then POSTs just that ID here. This endpoint does the
-         *     server-side Place Details call (keeping the billed API key out of the
-         *     browser), extracts canonical fields, and persists the Place + provider
-         *     link + audit event in a single transaction.
-         *
-         *     Idempotent on ``(GOOGLE, google_place_id)``: repeated calls for the same
-         *     Google Place return the existing Place with ``existed=true``. If that
-         *     existing Place has been soft-deleted, ``was_deleted=true`` lets the UI
-         *     offer a Restore action instead of silently creating a duplicate.
+         * Ingest a place from a Google Place ID (idempotent)
+         * @description Pulls Place Details from Google for the given `google_place_id`, extracts the canonical address fields (city / region / country / postal_code / timezone), and upserts a Place row tied to that Google ID. Idempotent on the Google ID — re-ingesting refreshes the canonical fields. Used by both the admin 'New place' modal and the owner-portal claim flow's Google fallback (which calls this server-side before creating the claim).
          */
         post: operations["ingest_place_admin_admin_places_ingest_post"];
         delete?: never;
@@ -652,26 +585,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Place Admin */
+        /** Get a place (admin view, includes soft-deleted) */
         get: operations["get_place_admin_admin_places__place_id__get"];
         put?: never;
         post?: never;
         /**
-         * Delete Place
-         * @description Soft-delete a place.
-         *
-         *     Accepts an optional ``reason`` that's logged to the place's event
-         *     history alongside the DELETED event. The reason is free text; the
-         *     admin UI strongly encourages one but nothing enforces it server-side
-         *     (keeps scripts and Bruno collections backward-compatible).
-         *
-         *     Idempotent: deleting an already-deleted place is a no-op (no new
-         *     event row, no error).
+         * Soft-delete a place
+         * @description Marks the place deleted and records the optional reason on the DELETED audit event. The public `/places/{id}` endpoint will 404 on it; admin views still surface it (with `is_deleted: true`). Use `/admin/places/{id}/restore` to undo.
          */
         delete: operations["delete_place_admin_places__place_id__delete"];
         options?: never;
         head?: never;
-        /** Patch Place */
+        /** Edit a place (canonical fields, admin-only) */
         patch: operations["patch_place_admin_places__place_id__patch"];
         trace?: never;
     };
@@ -682,7 +607,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Place Events Admin */
+        /**
+         * List the audit-event history for a place
+         * @description Includes EDITED, DELETED, RESTORED, LINKED, etc. Newest first.
+         */
         get: operations["list_place_events_admin_admin_places__place_id__events_get"];
         put?: never;
         post?: never;
@@ -700,7 +628,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Place External Ids Admin
+         * List provider links (Google, etc.) for a place
          * @description List the external-provider links attached to a place.
          *
          *     Admin UI renders one row per link (Google today; others later) with
@@ -712,7 +640,10 @@ export interface paths {
          */
         get: operations["list_place_external_ids_admin_admin_places__place_id__external_ids_get"];
         put?: never;
-        /** Upsert Place External Id */
+        /**
+         * Upsert a generic provider external-id on a place (legacy)
+         * @description Older path that supports any provider (not just Google). The Google-specific link flow lives at `POST /admin/places/{id}/link-external` and should be preferred when the provider is Google.
+         */
         post: operations["upsert_place_external_id_admin_places__place_id__external_ids_post"];
         delete?: never;
         options?: never;
@@ -731,7 +662,7 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Unlink Place External Admin
+         * Remove a provider link from a place
          * @description Remove a provider link from a place.
          *
          *     Logs an EDITED audit event with an optional reason. Clears
@@ -760,24 +691,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Link Place External Admin
-         * @description Attach a Google Place ID to an existing Place.
-         *
-         *     Used for places that predate the Google ingest flow (or were added by
-         *     other means that didn't create a provider link). The server:
-         *
-         *       1. Validates the place exists.
-         *       2. Rejects if the Google Place is already linked somewhere else, or
-         *          if this Place already has a different Google link (409s).
-         *       3. Fetches Google Place Details server-side (same client as /ingest,
-         *          so the billed API key stays off the browser).
-         *       4. Writes the ``PlaceExternalId`` row and backfills ONLY the canonical
-         *          columns that are currently NULL on the Place — admin edits are
-         *          preserved.
-         *       5. Logs an EDITED event noting which columns got populated.
-         *
-         *     The response's ``fields_updated`` list lets the UI surface exactly what
-         *     changed ("Backfilled: city, country_code") instead of a vague toast.
+         * Link an existing Place to a Google Place ID
+         * @description Attach a Google Place ID to a Place that was created without the Google ingest flow. Fetches Place Details server-side and backfills NULL canonical fields (admin edits are preserved). Rejects if either side already has a different link (409).
          */
         post: operations["link_place_external_admin_admin_places__place_id__link_external_post"];
         delete?: never;
@@ -794,17 +709,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Place Owners Admin
-         * @description List organization ownership links for a place.
-         *
-         *     Returns every ``place_owners`` row for the given place, joined with
-         *     the owning organization and the org's active-member count. Sorted
-         *     ACTIVE-first so the admin UI shows "who's running this today" before
-         *     historical or pending links.
-         *
-         *     Empty list is a valid response — the place simply has no owners yet.
-         *     Soft-deleted places still resolve here; the admin needs to see
-         *     ownership context when triaging restore decisions.
+         * List organizations that own a place
+         * @description Joins the `place_owners` rows with the owning organization and surfaces the active-member count. Sorted ACTIVE-first so current ownership shows above historical / pending links.
          */
         get: operations["list_place_owners_admin_admin_places__place_id__owners_get"];
         put?: never;
@@ -826,22 +732,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Revoke Place Owner Admin
-         * @description Revoke a place's ownership relationship.
-         *
-         *     Soft-unlink: flips the ``PlaceOwner.status`` to ``REVOKED`` rather
-         *     than deleting the row. The schema's partial unique index on
-         *     ``place_id WHERE status IN ('PENDING','ACTIVE','VERIFIED')``
-         *     excludes REVOKED, so the place becomes eligible for a fresh live
-         *     owner after this action — and the historical row survives so
-         *     "Acme Inc used to own this place" remains answerable from the
-         *     event history.
-         *
-         *     Optional ``reason`` body flows to the EDITED PlaceEvent message
-         *     alongside the org name + role + prior status.
-         *
-         *     Idempotent: revoking an already-REVOKED owner is a 204 no-op (no
-         *     new event logged).
+         * Revoke a place's organization ownership (soft-unlink)
+         * @description Flips the PlaceOwner row to REVOKED rather than deleting it. The place becomes eligible for a fresh live owner; the historical row survives in the audit trail. Optional reason rides into the EDITED PlaceEvent. Idempotent.
          */
         delete: operations["revoke_place_owner_admin_admin_places__place_id__owners__owner_id__delete"];
         options?: never;
@@ -859,12 +751,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Restore Place
-         * @description Restore a soft-deleted place.
-         *
-         *     Accepts an optional ``reason`` that's logged alongside the RESTORED
-         *     event. Idempotent: restoring a live place is a no-op (no new event
-         *     row, no error), regardless of reason.
+         * Restore a soft-deleted place
+         * @description Idempotent — restoring an already-live place is a 204 no-op. Optional reason flows into the RESTORED audit event.
          */
         post: operations["restore_place_admin_places__place_id__restore_post"];
         delete?: never;
@@ -883,7 +771,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resync Place Admin
+         * Re-pull canonical fields from the linked Google Place
          * @description Refresh the Google snapshot for a linked place.
          *
          *     Updates the cached ``raw_data`` + ``last_synced_at`` on the existing
@@ -905,21 +793,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Users Admin */
+        /** List users with role / active / search filters */
         get: operations["list_users_admin_admin_users_get"];
         put?: never;
         /**
-         * Create User Admin
-         * @description Create a user + mint a single-use invite token.
-         *
-         *     The response carries both the canonical user columns and the
-         *     one-time invite fields (``invite_token``, ``invite_url``,
-         *     ``invite_expires_at``) so the admin panel can show the URL in a
-         *     copy-to-clipboard pane. The plaintext token is only visible here —
-         *     there is no endpoint to re-fetch it.
-         *
-         *     ``actor.id`` is threaded through to ``invite_tokens.created_by_user_id``
-         *     so the audit trail carries "which admin minted this invite."
+         * Create a user and mint a single-use invite token
+         * @description Used to onboard new staff (ADMIN, VERIFIER) and the rare admin-created OWNER. Returns a one-time invite URL the admin can share with the new user. The plaintext token is visible ONLY in this response — there's no endpoint to re-fetch it.
          */
         post: operations["create_user_admin_admin_users_post"];
         delete?: never;
@@ -935,14 +814,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get User Admin */
+        /** Get a user by id */
         get: operations["get_user_admin_admin_users__user_id__get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Patch User Admin */
+        /**
+         * Edit a user (display_name, role, is_active)
+         * @description Self-demotion and self-deactivation are blocked at the repo layer — an ADMIN can't accidentally lock themselves out by editing their own row.
+         */
         patch: operations["patch_user_admin_admin_users__user_id__patch"];
         trace?: never;
     };
@@ -954,12 +836,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List User Organizations Admin
-         * @description List a user's org memberships + nested org info.
-         *
-         *     Powers the Organizations section on the admin user detail page.
-         *     Includes REMOVED memberships — the UI decides whether to surface
-         *     them. 404s cleanly if the user id is unknown.
+         * List a user's organization memberships
+         * @description Includes REMOVED memberships — the admin UI decides whether to surface them. Used by the admin user-detail page's Organizations section.
          */
         get: operations["list_user_organizations_admin_admin_users__user_id__organizations_get"];
         put?: never;
@@ -978,18 +856,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Invite Info
-         * @description Prefetch an invite so the set-password page can show context.
-         *
-         *     Returns the invited user's email + display_name so the UI can
-         *     render "Set your password for rozebm@example.com" before the
-         *     user submits. Does NOT consume the token — that happens in
-         *     ``POST /auth/set-password``.
-         *
-         *     Failure modes all land on the same generic 400 to avoid becoming
-         *     an oracle: invalid, expired, and already-consumed tokens are
-         *     indistinguishable from the outside. The client just sees
-         *     INVITE_INVALID and tells the user the link needs replacing.
+         * Look up an invite token's target email
+         * @description Pre-fetched by the admin panel's set-password page so the form can render 'Set your password for foo@example.com' before the user submits. Does NOT consume the token — that happens in `POST /auth/set-password`. Invalid / expired / already-used tokens all collapse to a single generic `INVITE_INVALID` to avoid token-state oracling.
          */
         get: operations["get_invite_info_auth_invite__token__get"];
         put?: never;
@@ -1010,18 +878,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Login
-         * @description Email + password login. Sets the session cookie on success.
-         *
-         *     Security notes:
-         *       * Single generic error ("Invalid email or password") on any
-         *         failure path — no user enumeration. The ``UnauthorizedError``
-         *         wrapper keeps the error code stable for client-side branching
-         *         without leaking which of email/password/active/has-password
-         *         failed.
-         *       * Password verification runs even when the user isn't found, to
-         *         keep timing roughly similar. We do this with a dummy hash that
-         *         matches the cost of a real one.
+         * Sign in with email and password
+         * @description Sets the `tht_session` HttpOnly cookie on success. Returns the user id, role, display name, and a `redirect_path` (server-controlled landing page per role). Failures collapse to a single generic `INVALID_CREDENTIALS` 401 to avoid email enumeration. Rate-limited per-IP at 10/min and 100/hour.
          */
         post: operations["login_auth_login_post"];
         delete?: never;
@@ -1040,12 +898,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Logout
-         * @description Invalidate the current session + clear the cookie.
-         *
-         *     Idempotent: no cookie / malformed cookie / already-revoked session
-         *     all 204 cleanly. The client is losing the cookie either way, so
-         *     surfacing errors would only confuse "sign out" UX.
+         * Invalidate the current session and clear the cookie
+         * @description Idempotent — returns 204 even if the session was already revoked or the cookie is missing. The browser drops the cookie either way, so surfacing failures here would only confuse 'sign out' UX.
          */
         post: operations["logout_auth_logout_post"];
         delete?: never;
@@ -1064,24 +918,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Set Password With Invite
-         * @description Burn an invite token + set the user's password + sign them in.
-         *
-         *     Single transaction:
-         *       1. Resolve the token (same generic failure surface as
-         *          ``get_invite_info``).
-         *       2. Hash the new password with argon2id and set it on the user.
-         *       3. Mark the token consumed.
-         *       4. Revoke every other outstanding session for this user (covers
-         *          the "re-invite after lost password" case: any live sessions
-         *          for the old password are kicked out — the user only wants
-         *          the freshly-made one).
-         *       5. Create a new session + set the cookie.
-         *
-         *     Anyone who has a valid invite can set the password, by design —
-         *     that's the whole point. We don't require re-auth with the old
-         *     password because in the invite flow there may be no old password
-         *     at all.
+         * Burn an invite token, set the user's password, sign them in
+         * @description Single transaction: resolves the invite token, hashes the new password with argon2id, marks the token consumed, revokes any other outstanding sessions for this user, and mints a fresh session cookie. Used by the admin onboarding flow and as the 'reset password' path (admin re-issues an invite). Rate-limited per-IP.
          */
         post: operations["set_password_with_invite_auth_set_password_post"];
         delete?: never;
@@ -1100,27 +938,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Signup
-         * @description Self-service signup for restaurant owners.
-         *
-         *     Trust Halal staff don't mint OWNER accounts by hand — owners create
-         *     their own login and then submit ownership claims, which staff
-         *     review. The trust gate is the human-reviewed claim downstream, not
-         *     the signup itself, so this endpoint is intentionally light:
-         *
-         *       * No email verification (deliberate; revisit if abuse warrants it).
-         *       * Role is hard-coded to OWNER. Promotion to ADMIN/VERIFIER stays
-         *         an admin-only operation via the user CRUD endpoints.
-         *       * Email is normalized (trim + lower) before the uniqueness check
-         *         and persisted in the original casing — same posture as login,
-         *         which compares case-insensitively.
-         *
-         *     On collision we surface ``EMAIL_TAKEN`` rather than a generic 4xx
-         *     so the client can show a useful "this email is already registered,
-         *     sign in instead?" message. That's a small enumeration tradeoff —
-         *     an attacker can probe email addresses — but the mitigation cost
-         *     (forcing a verify-by-email flow) outweighs the marginal disclosure
-         *     here. Login itself remains a black box.
+         * Self-service signup (role hard-coded to OWNER)
+         * @description Public path used by the owner portal. Creates a User with role=OWNER and immediately sets the session cookie so the client can land on the post-login home with no second round trip. On a duplicate email returns `EMAIL_TAKEN` so the UI can deep-link to /login. Promotion to ADMIN/VERIFIER stays an admin-only operation. Rate-limited per-IP at 5/min, 20/hour.
          */
         post: operations["signup_auth_signup_post"];
         delete?: never;
@@ -1136,7 +955,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
+        /**
+         * Liveness probe
+         * @description Bare-minimum health check used by Render's deploy gate. Always returns 200 with `{"status": "ok"}` when the FastAPI worker can serve requests. It deliberately doesn't check the database — a failed DB connection should not pull the service out of rotation; routes that need the DB will surface their own errors and let Sentry capture them.
+         */
         get: operations["health_health_get"];
         put?: never;
         post?: never;
@@ -1154,21 +976,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Me
-         * @description Who the cookie says you are.
-         *
-         *     Returns id + role + display_name + email so frontends can render
-         *     "Signed in as <name>" without a second roundtrip. We pull
-         *     display_name + email from the User row rather than caching them
-         *     on ``CurrentUser`` — keeps the auth context dataclass slim and
-         *     means a profile rename takes effect on the next /me call instead
-         *     of after a re-login.
-         *
-         *     The session→user resolution already happened in
-         *     ``get_current_user``; if the row is gone by the time we look it
-         *     up here (rare, but possible if admin hard-deleted between
-         *     middleware and handler), surface a 401 so the client clears the
-         *     cookie and redirects to /login rather than seeing a 500.
+         * Current authenticated user
+         * @description Resolves the session cookie to the user's id, role, display name, and email. Frontends call this on every page load to decide what to render — it's the source of truth for 'am I signed in?' and 'what role am I?'.
          */
         get: operations["get_me_me_get"];
         put?: never;
@@ -1187,30 +996,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List My Halal Claims
-         * @description List the caller's halal claims (newest first).
-         *
-         *     Powers the owner portal's 'My halal claims' page. Pagination
-         *     capped at 200 — realistic owners won't have anywhere near that
-         *     many; the bound is cheap insurance against a runaway query.
+         * List the caller's halal claims
+         * @description Newest-first list of every halal claim the signed-in user has submitted across all the orgs they belong to. Powers the owner portal's Halal claims page.
          */
         get: operations["list_my_halal_claims_me_halal_claims_get"];
         put?: never;
         /**
-         * Create My Halal Claim
-         * @description Create a DRAFT halal claim.
-         *
-         *     Authorization gates run in the repo:
-         *       * Caller must be an ACTIVE member of the sponsoring org.
-         *       * Org must be UNDER_REVIEW or VERIFIED (DRAFT/REJECTED orgs
-         *         can't sponsor).
-         *       * Org must have an ACTIVE PlaceOwner row for the place.
-         *
-         *     The questionnaire is optional at create — owners typically
-         *     save partial progress across multiple sessions. Validation
-         *     that all required fields are populated runs at submit time.
-         *
-         *     Rate-limited per session at 10/hour.
+         * Create a DRAFT halal claim
+         * @description Starts a new claim for one (place, sponsoring org) pair. Authorization gates: caller is an ACTIVE member of the org, the org is UNDER_REVIEW or VERIFIED, and the org has an ACTIVE `PlaceOwner` link for the place. The questionnaire is optional at create — strict validation runs on submit. Rate-limited at 10/hour per session.
          */
         post: operations["create_my_halal_claim_me_halal_claims_post"];
         delete?: never;
@@ -1229,22 +1022,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Batch Create My Halal Claims
-         * @description Create N draft halal claims in one call, sharing one
-         *     questionnaire payload.
-         *
-         *     Use case: a chain restaurant whose locations all maintain the
-         *     same halal standard. The owner picks every applicable place,
-         *     fills out the questionnaire once, and we fan it out as N
-         *     independent draft claims (each subject to admin review on its
-         *     own merits).
-         *
-         *     Authorization gates run for every selection upfront. The whole
-         *     transaction rolls back on any failure — no half-created
-         *     batches.
-         *
-         *     Routed at the same prefix as the single-create POST; FastAPI
-         *     matches /batch first because it's a longer literal path.
+         * Create N draft halal claims with one shared questionnaire
+         * @description Chain-restaurant convenience path: owner picks every applicable place, fills the questionnaire once, and the server fans out N independent draft claims (each later reviewed on its own). Authorization runs upfront for every selection — any failure rolls the whole batch back.
          */
         post: operations["batch_create_my_halal_claims_me_halal_claims_batch_post"];
         delete?: never;
@@ -1261,8 +1040,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get My Halal Claim
-         * @description Single claim detail. 404 on unknown id, 403 on not-yours.
+         * Get one of the caller's halal claims
+         * @description Returns the full claim with embedded place + org summaries and the attachment metadata list. 404 on unknown id; 403 if the id exists but belongs to another user.
          */
         get: operations["get_my_halal_claim_me_halal_claims__claim_id__get"];
         put?: never;
@@ -1271,14 +1050,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Patch My Halal Claim
-         * @description Update a DRAFT claim's questionnaire.
-         *
-         *     Only the structured_response can be changed; place_id and
-         *     organization_id are immutable post-create. Owners who picked
-         *     the wrong values discard the draft and start fresh.
-         *
-         *     409 ``HALAL_CLAIM_NOT_EDITABLE`` once the claim leaves DRAFT.
+         * Update a DRAFT claim's questionnaire
+         * @description Only the `structured_response` payload can change; `place_id` and `organization_id` are immutable post-create. Owners who picked the wrong values discard and restart. Conflict 409 (`HALAL_CLAIM_NOT_EDITABLE`) once the claim leaves DRAFT.
          */
         patch: operations["patch_my_halal_claim_me_halal_claims__claim_id__patch"];
         trace?: never;
@@ -1291,37 +1064,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List My Halal Claim Attachments
-         * @description List metadata for the claim's evidence files. Bytes are not
-         *     returned — frontends fetch via signed URL (Phase 3 admin endpoint;
-         *     owner re-fetches the claim and reads ``attachments`` instead).
+         * List metadata for the claim's evidence files
+         * @description File bytes are not returned — frontends fetch via the admin signed-URL endpoint when needed. This list covers filename, MIME, size, document_type, and certificate metadata.
          */
         get: operations["list_my_halal_claim_attachments_me_halal_claims__claim_id__attachments_get"];
         put?: never;
         /**
-         * Upload My Halal Claim Attachment
-         * @description Upload an evidence document for a halal claim.
-         *
-         *     Multipart upload with optional metadata fields:
-         *
-         *       * ``document_type`` — HALAL_CERTIFICATE | SUPPLIER_LETTER |
-         *         INVOICE | PHOTO | OTHER. Drives admin-side icon + section.
-         *       * ``issuing_authority`` / ``certificate_number`` /
-         *         ``valid_until`` — only meaningful for HALAL_CERTIFICATE,
-         *         nullable for everything else.
-         *
-         *     Validation grid mirrors the org + ownership-request endpoints:
-         *     membership / draft-or-pending status, count cap (8 per claim),
-         *     size cap (10 MB), MIME allow-list (PDF / JPEG / PNG / HEIC /
-         *     HEIF). Storage key is
-         *     ``halal-claims/<claim_id>/<uuid>.<ext>``.
-         *
-         *     Re-uploading replaces nothing — each upload creates a new row,
-         *     keeping the audit trail intact. Owner can delete drafts'
-         *     attachments via DELETE in a later phase if needed; for now
-         *     the workflow is "discard draft, start fresh."
-         *
-         *     Rate-limited per session at 60/hour.
+         * Upload evidence to a halal claim
+         * @description Multipart upload with optional metadata (document_type, issuing_authority, certificate_number, valid_until). Allowed only while the claim is DRAFT or NEEDS_MORE_INFO; MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF), 10 MB size cap, 8-files-per-claim count cap. Storage key is `halal-claims/{claim_id}/{uuid}.{ext}`.
          */
         post: operations["upload_my_halal_claim_attachment_me_halal_claims__claim_id__attachments_post"];
         delete?: never;
@@ -1338,13 +1088,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List My Halal Claim Events
-         * @description Per-claim audit timeline.
-         *
-         *     Powers the 'Activity' section on the owner-portal claim detail
-         *     page so submitters can see exactly what's happened on their
-         *     claim — when they drafted, when they submitted, when admin
-         *     decided, etc. Same 404/403 split as the rest of the surface.
+         * Audit timeline for one of the caller's halal claims
+         * @description Oldest-first list of every transition on this claim (DRAFT_CREATED, SUBMITTED, ATTACHMENT_ADDED, admin decisions, supersession, expiry). Powers the owner portal's per-claim Activity section. Same 404/403 split as the rest of `/me/halal-claims/*`.
          */
         get: operations["list_my_halal_claim_events_me_halal_claims__claim_id__events_get"];
         put?: never;
@@ -1365,15 +1110,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Submit My Halal Claim
-         * @description Move DRAFT → PENDING_REVIEW.
-         *
-         *     Re-validates the stored questionnaire against the strict shape
-         *     (``HalalQuestionnaireResponse``). Any missing required answers
-         *     return a 400 with the field-level errors under
-         *     ``error.detail`` so the frontend can surface inline validation.
-         *
-         *     Idempotent on PENDING_REVIEW (no error, no state change).
+         * Submit a DRAFT claim for admin review
+         * @description Re-validates the stored questionnaire against the strict `HalalQuestionnaireResponse` shape. Missing required fields return 400 with field-level details under `error.detail` so the frontend can surface inline validation. Idempotent on a claim already in PENDING_REVIEW. Rate-limited 20/hour.
          */
         post: operations["submit_my_halal_claim_me_halal_claims__claim_id__submit_post"];
         delete?: never;
@@ -1390,16 +1128,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List My Organizations
-         * @description List every org the signed-in user is an active member of.
+         * List the current user's organizations
+         * @description Returns every organization the signed-in user is an active member of, in any status (DRAFT / UNDER_REVIEW / VERIFIED / REJECTED). Empty list when the user hasn't created or been added to any org yet.
          */
         get: operations["list_my_organizations_me_organizations_get"];
         put?: never;
         /**
-         * Create My Organization
-         * @description Create a new DRAFT organization. The caller is auto-joined as
-         *     OWNER_ADMIN. Status is DRAFT; submit for review separately once
-         *     the user has uploaded supporting documents.
+         * Create a new draft organization
+         * @description Creates an organization in DRAFT status, owned by the calling user (auto-joined as OWNER_ADMIN). The org isn't reviewable by Trust Halal staff yet — the user has to upload supporting documents and call `POST /me/organizations/{id}/submit` to move it to UNDER_REVIEW. Rate-limited per-session.
          */
         post: operations["create_my_organization_me_organizations_post"];
         delete?: never;
@@ -1416,9 +1152,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get My Organization
-         * @description Detail view, including attachments. 404/403 per the lookup
-         *     helper's split.
+         * Get one of the current user's organizations
+         * @description Returns full detail including attached supporting documents. Returns 404 if the organization doesn't exist or 403 if the calling user isn't an active member.
          */
         get: operations["get_my_organization_me_organizations__organization_id__get"];
         put?: never;
@@ -1427,10 +1162,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Patch My Organization
-         * @description Edit name / contact email. Allowed only while DRAFT or
-         *     UNDER_REVIEW. NO_FIELDS surfaces when nothing meaningfully
-         *     changed; clients can no-op silently or surface a friendly toast.
+         * Edit an organization (DRAFT or UNDER_REVIEW only)
+         * @description Update name and/or contact email. Allowed while the org is still in DRAFT or UNDER_REVIEW; verified or rejected orgs are immutable from this surface (admin support handles those cases). Returns `NO_FIELDS` when the patch wouldn't change anything — clients typically no-op silently on that code.
          */
         patch: operations["patch_my_organization_me_organizations__organization_id__patch"];
         trace?: never;
@@ -1443,29 +1176,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Organization Attachments
-         * @description List the attachments on one of your organizations.
+         * List attachments on an organization
+         * @description Returns the supporting-document metadata (filename, mime, size, storage path). Does NOT issue signed URLs — the owner portal already has the org detail in cache; this endpoint is primarily for admin tooling and tests.
          */
         get: operations["list_organization_attachments_me_organizations__organization_id__attachments_get"];
         put?: never;
         /**
-         * Upload Organization Attachment
-         * @description Upload a supporting document for an org under review.
-         *
-         *     Same validation grid as the claim-attachment endpoint:
-         *       * Caller must be an active member of the org.
-         *       * Per-org count cap (10).
-         *       * Per-file size cap (10 MB).
-         *       * MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF).
-         *
-         *     File goes to ``organizations/<organization_id>/<uuid>.<ext>`` in
-         *     the configured Supabase bucket. Storage failure rolls back
-         *     cleanly: the metadata row only writes after the upload succeeds.
-         *
-         *     Editing is only allowed while DRAFT or UNDER_REVIEW; once admin
-         *     has signed off the org becomes audit-immutable and additional
-         *     uploads reject. Verified orgs that genuinely need new docs go
-         *     through admin support today.
+         * Upload a supporting document for an organization
+         * @description Multipart upload. Validates membership, per-org count cap (10 files), per-file size cap (10 MB), and a MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF). The file goes to Supabase Storage at `organizations/<org_id>/<uuid>.<ext>`; the metadata row only writes after the storage upload succeeds. Editing is locked once the org leaves DRAFT/UNDER_REVIEW. Rate-limited per-session at 60/hour.
          */
         post: operations["upload_organization_attachment_me_organizations__organization_id__attachments_post"];
         delete?: never;
@@ -1484,10 +1202,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Submit My Organization
-         * @description Move DRAFT → UNDER_REVIEW. Idempotent if already
-         *     UNDER_REVIEW. Requires at least one uploaded attachment so admin
-         *     staff has something to verify against.
+         * Submit an organization for admin review (DRAFT → UNDER_REVIEW)
+         * @description Moves the org from DRAFT to UNDER_REVIEW and queues it for Trust Halal staff. Idempotent if already UNDER_REVIEW. Requires at least one supporting document attached so admin has something to verify against — fails with `ORGANIZATION_NO_ATTACHMENTS` otherwise. Rate-limited per-session.
          */
         post: operations["submit_my_organization_me_organizations__organization_id__submit_post"];
         delete?: never;
@@ -1534,49 +1250,21 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List My Ownership Requests
-         * @description List the signed-in user's claims, newest first.
-         *
-         *     The owner portal's home page calls this to render "Recent claims"
-         *     and the /my-claims page to render the full list. Page size caps
-         *     at 200 — the catalog of claims per individual owner is realistic-
-         *     ally tiny, but the bound is cheap insurance against runaway
-         *     queries from a copy-paste of the admin pagination shape.
+         * List the current user's claims (newest first)
+         * @description Powers the owner portal's 'My claims' page and the home page's recent-claims preview. Pagination via `limit` (≤200, default 50) and `offset`. Scoped automatically to the calling user — no cross-user leak even if a stale cache or URL guesses another id.
          */
         get: operations["list_my_ownership_requests_me_ownership_requests_get"];
         put?: never;
         /**
-         * Submit My Ownership Request
-         * @description Create an ownership claim on behalf of the signed-in user.
+         * Owner-portal claim submission (auth required, ties to an org)
+         * @description The authenticated owner-portal path. Differences from the public submission:
          *
-         *     Same downstream effect as the public path: the row goes into
-         *     ``place_ownership_requests`` with status SUBMITTED, the requester
-         *     is linked back to the user, admin staff sees it in the review
-         *     queue. The duplicate-active-claim guard in the repo (same place +
-         *     same email + still-active status) prevents an owner from
-         *     re-submitting while their first attempt is in flight.
+         *     * `requester_user_id` is set from the session cookie, not the body.
+         *     * `contact_name` + `contact_email` are read from the user's profile.
+         *     * A sponsoring `organization_id` is REQUIRED (must be UNDER_REVIEW or VERIFIED).
+         *     * Two ways to identify the place: `place_id` for an existing Trust Halal place, or `google_place_id` to ingest from Google first, then attach the claim. The schema validates exactly-one-of.
          *
-         *     Two ways to identify the place being claimed (the schema enforces
-         *     exactly-one-of):
-         *
-         *       * ``place_id`` — a Place already in the Trust Halal catalog.
-         *         Path the owner takes when text-search returns a match.
-         *       * ``google_place_id`` — a place that's only on Google so far.
-         *         We ingest it server-side first (idempotent on the Google ID),
-         *         then create the claim against the resulting Place. The claim
-         *         and ingest don't share a transaction by design — if the claim
-         *         fails, we still keep the ingested Place since admin staff (or
-         *         the same owner on a retry) can use it.
-         *
-         *     Contact name + email are pulled from the user's profile rather
-         *     than the request body. ``display_name`` is non-null on signup, but
-         *     we fall back to the email's local-part if it's somehow blank — we
-         *     never want admin staff to see a literally empty contact_name.
-         *
-         *     The auth context (``CurrentUser``) is intentionally slim — id +
-         *     role only — so we look up the full User row here for the
-         *     display_name + email fields. Cheap (single PK lookup) and keeps
-         *     the auth context cache-friendly.
+         *     Duplicate-claim guard: rejects with `OWNERSHIP_REQUEST_ALREADY_EXISTS` when the same user already has an active claim against the same place. Rate-limited per-session at 20/hour.
          */
         post: operations["submit_my_ownership_request_me_ownership_requests_post"];
         delete?: never;
@@ -1593,29 +1281,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List My Ownership Request Attachments
-         * @description List the attachments an owner has uploaded for one of their
-         *     claims. Same auth gate as the upload endpoint.
-         *
-         *     Mostly used so the owner portal can render the file list on a
-         *     re-open of the /claim page (e.g. coming back via the claims list
-         *     to add another file). The /my-claims list itself already embeds
-         *     attachments via MyOwnershipRequestRead.
+         * List evidence files attached to one of the user's claims
+         * @description Returns metadata only (filename, mime, size). Used by the owner portal when re-opening a claim's detail page to render previously-uploaded files. Same ownership gate as the upload endpoint.
          */
         get: operations["list_my_ownership_request_attachments_me_ownership_requests__request_id__attachments_get"];
         put?: never;
         /**
-         * Upload My Ownership Request Attachment
-         * @description Upload a file as evidence on an existing ownership claim.
-         *
-         *     Multipart upload. Validates ownership, file count cap, size cap,
-         *     and MIME allow-list. Streams the bytes to object storage at
-         *     ``<bucket>/ownership-requests/<request_id>/<uuid>.<ext>`` and
-         *     inserts the metadata row.
-         *
-         *     On any upload failure (storage outage, network error), we surface
-         *     a clean 503 — the file isn't half-recorded; the metadata row
-         *     only writes after the storage upload succeeds.
+         * Attach evidence to an existing claim
+         * @description Multipart upload of a single supporting file (business license, lease, sales-tax permit, etc.) — anything tying the sponsoring organization to this specific restaurant address. Caps: 5 files per claim, 10 MB per file, MIME allow-list (PDF / JPEG / PNG / HEIC / HEIF). The claim must belong to the calling user. Files land in Supabase Storage at `ownership-requests/<request_id>/<uuid>.<ext>`. Rate-limited per-session at 60/hour.
          */
         post: operations["upload_my_ownership_request_attachment_me_ownership_requests__request_id__attachments_post"];
         delete?: never;
@@ -1631,7 +1304,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Ownership Request Status */
+        /**
+         * Get an ownership request's status (slim, public)
+         * @description Returns just the status fields — used by the public 'check the status of my submission' page. The richer detail view (message, attachments) lives at `/ownership-requests/{id}/detail` and is access-gated.
+         */
         get: operations["get_ownership_request_status_ownership_requests__request_id__get"];
         put?: never;
         post?: never;
@@ -1648,7 +1324,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Ownership Request Detail */
+        /**
+         * Get an ownership request's full detail (admin or requester only)
+         * @description Returns the message body, attached evidence metadata, and decision context. Visible to ADMIN role or the user who submitted the request. Other authenticated callers get a 403.
+         */
         get: operations["get_ownership_request_detail_ownership_requests__request_id__detail_get"];
         put?: never;
         post?: never;
@@ -1666,32 +1345,20 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Search Places
-         * @description Browse the public places catalog.
+         * Search the public places catalog (text or geo)
+         * @description Two search modes, mutually exclusive:
          *
-         *     Two search modes, mutually exclusive — pick one based on what the
-         *     caller has on hand:
+         *     * **Text** — pass `q` (case-insensitive substring on name + address + city). Powers the owner portal's claim flow.
+         *     * **Geo** — pass `lat` + `lng` + `radius` (meters). Powers the consumer site's 'halal places near me'.
          *
-         *     * **Text** — pass ``q`` (case-insensitive substring on name +
-         *       address + city). Used by the owner portal's claim flow when the
-         *       restaurant owner types the name of their place.
-         *     * **Geo** — pass ``lat`` + ``lng`` + ``radius`` (meters). Used by
-         *       the consumer site to render "halal places near me".
-         *
-         *     If ``q`` is set, geo params are ignored. If neither path is
-         *     populated, we 400 — there's no meaningful "list everything"
-         *     response on a public catalog of this size.
-         *
-         *     Halal preference filters are optional. When any filter is set
-         *     the results are restricted to places with a non-revoked
-         *     HalalProfile that matches every populated condition. Places
-         *     without a profile, or with a revoked profile, drop out of the
-         *     result set entirely — the consumer asked for halal-verified
-         *     places and an unverified place isn't an answer to that question.
+         *     If `q` is set, geo params are ignored. If neither is populated, returns 400 (`PLACES_SEARCH_PARAMS_REQUIRED`) — there's no meaningful 'list everything' on a public catalog of this size.
          */
         get: operations["search_places_places_get"];
         put?: never;
-        /** Post Place */
+        /**
+         * Create a place (legacy)
+         * @description Admin-only path that bypasses the Google ingest flow. Most callers should use `POST /admin/places/ingest` instead — that ingest helper enriches the place with canonical address fields from Google Place Details. Kept for the rare case where an admin wants to seed a place by hand.
+         */
         post: operations["post_place_places_post"];
         delete?: never;
         options?: never;
@@ -1707,27 +1374,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Google Autocomplete
-         * @description Server-side proxy to Google Places Autocomplete.
-         *
-         *     Powers the owner portal's "Can't find your restaurant? Search
-         *     Google" fallback in the claim flow. Routing the call through our
-         *     backend keeps the Google API key off the owner origin (the existing
-         *     browser key is restricted to the admin domain, by design) — the
-         *     server uses ``GOOGLE_MAPS_API_KEY`` server-side and only ships
-         *     predictions back.
-         *
-         *     Public on purpose: anyone considering signing up + claiming should
-         *     be able to type their restaurant's name and see whether Google
-         *     knows it. We rely on the downstream claim creation step (which
-         *     requires auth) for the access gate.
-         *
-         *     Empty query is handled at the validator layer (min_length=1) so we
-         *     never burn a billed Google call on a no-op input.
-         *
-         *     Errors translate to a stable code so the client can render
-         *     "Search unavailable, try again" without parsing Google's status
-         *     strings.
+         * Google Places Autocomplete proxy
+         * @description Server-side proxy to the Google Places Autocomplete endpoint. Powers the owner portal's 'can't find your restaurant?' fallback in the claim flow — the browser key is restricted to the admin domain by referrer, so the owner origin can't call Google directly. Public on purpose so the user can see matches before they decide to sign up. Rate-limited per-IP (30/min, 300/hour) to keep Google quota in check.
          */
         get: operations["google_autocomplete_places_google_autocomplete_get"];
         put?: never;
@@ -1745,7 +1393,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Place By Id */
+        /**
+         * Get a place's full detail with attached claims
+         * @description Public read of a single place: name, canonical address fields (city / region / country / postal_code / timezone), lat/lng, soft-delete state, and the list of halal claims attached to it. Returns 404 (`PLACE_NOT_FOUND`) if the place doesn't exist or is hard-deleted. Soft-deleted places are still returned with `is_deleted: true` for context.
+         */
         get: operations["get_place_by_id_places__place_id__get"];
         put?: never;
         post?: never;
@@ -1763,23 +1414,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Place Halal Profile
-         * @description Public consumer-facing halal profile for a place.
-         *
-         *     Returns the structured snapshot the consumer site renders as
-         *     trust labels + expandable details. Visibility rules:
-         *
-         *       * Place must exist and not be soft-deleted (404 PLACE_NOT_FOUND
-         *         otherwise).
-         *       * A non-revoked HalalProfile must exist (404
-         *         HALAL_PROFILE_NOT_FOUND otherwise — used by the consumer
-         *         UI to decide between "no halal info" and "deleted place").
-         *
-         *     Expired profiles (expires_at in the past) are returned, with
-         *     last_verified_at + expires_at letting the UI render staleness.
-         *     Disputed profiles are returned, with dispute_state =
-         *     'DISPUTED' so the UI can surface a 'conflicting reports'
-         *     badge.
+         * Public halal profile for a place
+         * @description Consumer-facing halal-posture snapshot for a single place. Returns the derived `HalalProfile` (validation tier, menu posture, alcohol policy, per-meat slaughter, dispute state) without re-fetching the full place row. Returns 404 if the place doesn't exist or has no halal profile yet.
          */
         get: operations["get_place_halal_profile_places__place_id__halal_profile_get"];
         put?: never;
@@ -1799,7 +1435,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit Ownership Request */
+        /**
+         * Public ownership claim submission (anonymous OK)
+         * @description Public path used by the consumer site or any 'I own this restaurant, get me on your list' flow. Caller can be unauthenticated — the contact_name + contact_email + contact_phone come from the request body. Rejects with `PLACE_NOT_FOUND` if the place is missing or hard-deleted. Owners signed into the portal should use `POST /me/ownership-requests` instead — that path enforces the org-sponsor requirement and ties claims back to their account.
+         */
         post: operations["submit_ownership_request_places__place_id__ownership_requests_post"];
         delete?: never;
         options?: never;
@@ -4094,11 +3733,11 @@ export interface components {
         ValidationTier: "SELF_ATTESTED" | "CERTIFICATE_ON_FILE" | "TRUST_HALAL_VERIFIED";
         /**
          * _AdminAttachmentSignedUrl
-         * @description Response shape for the signed-URL endpoint.
+         * @description Response shape for the org-attachment signed-URL endpoint.
          *
-         *     Plain object instead of returning a redirect so the client can
-         *     decide whether to open the URL in a new tab, download with a
-         *     given filename, render an inline preview, etc.
+         *     Same shape as the claim-attachment variant: URL + filename +
+         *     MIME so the client can label the download or render an inline
+         *     preview without a second fetch.
          */
         _AdminAttachmentSignedUrl: {
             /** Content Type */
@@ -4112,13 +3751,13 @@ export interface components {
         };
         /**
          * _AdminAttachmentSignedUrl
-         * @description Response shape for the org-attachment signed-URL endpoint.
+         * @description Response shape for the signed-URL endpoint.
          *
-         *     Same shape as the claim-attachment variant: URL + filename +
-         *     MIME so the client can label the download or render an inline
-         *     preview without a second fetch.
+         *     Plain object instead of returning a redirect so the client can
+         *     decide whether to open the URL in a new tab, download with a
+         *     given filename, render an inline preview, etc.
          */
-        app__modules__admin__organizations__router___AdminAttachmentSignedUrl: {
+        app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl: {
             /** Content Type */
             content_type: string;
             /** Expires In Seconds */
@@ -4699,7 +4338,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__modules__admin__organizations__router___AdminAttachmentSignedUrl"];
+                    "application/json": components["schemas"]["_AdminAttachmentSignedUrl"];
                 };
             };
             /** @description Validation Error */
@@ -5071,7 +4710,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["_AdminAttachmentSignedUrl"];
+                    "application/json": components["schemas"]["app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"];
                 };
             };
             /** @description Validation Error */

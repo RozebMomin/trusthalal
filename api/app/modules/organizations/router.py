@@ -73,7 +73,17 @@ _MAX_FILES_PER_ORG = 10  # higher than per-claim — orgs may need
 # ---------------------------------------------------------------------------
 # Org CRUD
 # ---------------------------------------------------------------------------
-@router.get("", response_model=list[MyOrganizationRead])
+@router.get(
+    "",
+    response_model=list[MyOrganizationRead],
+    summary="List the current user's organizations",
+    description=(
+        "Returns every organization the signed-in user is an active "
+        "member of, in any status (DRAFT / UNDER_REVIEW / VERIFIED / "
+        "REJECTED). Empty list when the user hasn't created or been "
+        "added to any org yet."
+    ),
+)
 def list_my_organizations(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -87,6 +97,14 @@ def list_my_organizations(
     "",
     response_model=MyOrganizationRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Create a new draft organization",
+    description=(
+        "Creates an organization in DRAFT status, owned by the calling "
+        "user (auto-joined as OWNER_ADMIN). The org isn't reviewable "
+        "by Trust Halal staff yet — the user has to upload supporting "
+        "documents and call `POST /me/organizations/{id}/submit` to "
+        "move it to UNDER_REVIEW. Rate-limited per-session."
+    ),
 )
 @limiter.limit("10/hour", key_func=user_or_ip_key)
 def create_my_organization(
@@ -102,7 +120,16 @@ def create_my_organization(
     return MyOrganizationRead.model_validate(org)
 
 
-@router.get("/{organization_id}", response_model=MyOrganizationRead)
+@router.get(
+    "/{organization_id}",
+    response_model=MyOrganizationRead,
+    summary="Get one of the current user's organizations",
+    description=(
+        "Returns full detail including attached supporting documents. "
+        "Returns 404 if the organization doesn't exist or 403 if the "
+        "calling user isn't an active member."
+    ),
+)
 def get_my_organization(
     organization_id: UUID,
     db: Session = Depends(get_db),
@@ -116,7 +143,18 @@ def get_my_organization(
     return MyOrganizationRead.model_validate(org)
 
 
-@router.patch("/{organization_id}", response_model=MyOrganizationRead)
+@router.patch(
+    "/{organization_id}",
+    response_model=MyOrganizationRead,
+    summary="Edit an organization (DRAFT or UNDER_REVIEW only)",
+    description=(
+        "Update name and/or contact email. Allowed while the org is "
+        "still in DRAFT or UNDER_REVIEW; verified or rejected orgs are "
+        "immutable from this surface (admin support handles those "
+        "cases). Returns `NO_FIELDS` when the patch wouldn't change "
+        "anything — clients typically no-op silently on that code."
+    ),
+)
 def patch_my_organization(
     organization_id: UUID,
     patch: MyOrganizationPatch,
@@ -138,6 +176,15 @@ def patch_my_organization(
 @router.post(
     "/{organization_id}/submit",
     response_model=MyOrganizationRead,
+    summary="Submit an organization for admin review (DRAFT → UNDER_REVIEW)",
+    description=(
+        "Moves the org from DRAFT to UNDER_REVIEW and queues it for "
+        "Trust Halal staff. Idempotent if already UNDER_REVIEW. "
+        "Requires at least one supporting document attached so admin "
+        "has something to verify against — fails with "
+        "`ORGANIZATION_NO_ATTACHMENTS` otherwise. Rate-limited per-"
+        "session."
+    ),
 )
 @limiter.limit("10/hour", key_func=user_or_ip_key)
 def submit_my_organization(
@@ -162,6 +209,16 @@ def submit_my_organization(
     "/{organization_id}/attachments",
     response_model=OrganizationAttachmentRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Upload a supporting document for an organization",
+    description=(
+        "Multipart upload. Validates membership, per-org count cap "
+        "(10 files), per-file size cap (10 MB), and a MIME allow-list "
+        "(PDF / JPEG / PNG / HEIC / HEIF). The file goes to Supabase "
+        "Storage at `organizations/<org_id>/<uuid>.<ext>`; the metadata "
+        "row only writes after the storage upload succeeds. Editing is "
+        "locked once the org leaves DRAFT/UNDER_REVIEW. Rate-limited "
+        "per-session at 60/hour."
+    ),
 )
 @limiter.limit("60/hour", key_func=user_or_ip_key)
 def upload_organization_attachment(
@@ -265,6 +322,13 @@ def upload_organization_attachment(
 @router.get(
     "/{organization_id}/attachments",
     response_model=list[OrganizationAttachmentRead],
+    summary="List attachments on an organization",
+    description=(
+        "Returns the supporting-document metadata (filename, mime, "
+        "size, storage path). Does NOT issue signed URLs — the owner "
+        "portal already has the org detail in cache; this endpoint is "
+        "primarily for admin tooling and tests."
+    ),
 )
 def list_organization_attachments(
     organization_id: UUID,
