@@ -26,6 +26,10 @@ const EVENT_STYLES: Record<string, { label: string; variant: Variant }> = {
   DELETED: { label: "Deleted", variant: "destructive" },
   RESTORED: { label: "Restored", variant: "success" },
   OWNERSHIP_GRANTED: { label: "Ownership granted", variant: "success" },
+  OWNERSHIP_REQUEST_SUBMITTED: {
+    label: "Ownership claim submitted",
+    variant: "info",
+  },
   OWNERSHIP_REQUEST_REJECTED: {
     label: "Ownership rejected",
     variant: "destructive",
@@ -33,6 +37,10 @@ const EVENT_STYLES: Record<string, { label: string; variant: Variant }> = {
   OWNERSHIP_REQUEST_NEEDS_EVIDENCE: {
     label: "Needs evidence",
     variant: "warning",
+  },
+  OWNERSHIP_REQUEST_RESUBMITTED: {
+    label: "Claim resubmitted",
+    variant: "info",
   },
   // Halal-claim cross-writes from the halal-trust v2 flow.
   HALAL_CLAIM_SUBMITTED: {

@@ -87,6 +87,73 @@ def test_authenticated_submit_attaches_requester(api, factories, db_session):
     assert row.requester_user_id == consumer.id
 
 
+def test_submit_logs_ownership_request_submitted_event(
+    api, factories, db_session
+):
+    """Initial claim submission writes an
+    OWNERSHIP_REQUEST_SUBMITTED row to place_events so the admin
+    event-history view shows when the claim arrived. Without this
+    the timeline jumps straight from CREATED to NEEDS_EVIDENCE /
+    REJECTED with no record of the submission itself."""
+    consumer = factories.consumer()
+    place = factories.place()
+    db_session.commit()
+
+    resp = api.as_user(consumer).post(
+        f"/places/{place.id}/ownership-requests",
+        json={
+            "contact_name": "Jane Owner",
+            "contact_email": "jane@example.com",
+            "message": "I run this restaurant.",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+
+    events = db_session.execute(
+        select(PlaceEvent).where(
+            PlaceEvent.place_id == place.id,
+            PlaceEvent.event_type
+            == PlaceEventType.OWNERSHIP_REQUEST_SUBMITTED.value,
+        )
+    ).scalars().all()
+    assert len(events) == 1
+    evt = events[0]
+    assert evt.actor_user_id == consumer.id
+    # Message carries the contact name + email so a future reviewer
+    # can scan the timeline without joining back to the claim row.
+    assert "Jane Owner" in (evt.message or "")
+    assert "jane@example.com" in (evt.message or "")
+
+
+def test_anonymous_submit_logs_event_with_null_actor(
+    api, factories, db_session
+):
+    """An anonymous public submission still logs the SUBMITTED
+    event — actor_user_id is NULL since there's no signed-in user,
+    but the row exists so admin can see when the claim came in."""
+    place = factories.place()
+
+    resp = api.as_anonymous().post(
+        f"/places/{place.id}/ownership-requests",
+        json={
+            "contact_name": "Anonymous",
+            "contact_email": "anon@example.com",
+            "message": "I own this place.",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+
+    events = db_session.execute(
+        select(PlaceEvent).where(
+            PlaceEvent.place_id == place.id,
+            PlaceEvent.event_type
+            == PlaceEventType.OWNERSHIP_REQUEST_SUBMITTED.value,
+        )
+    ).scalars().all()
+    assert len(events) == 1
+    assert events[0].actor_user_id is None
+
+
 def test_duplicate_active_request_blocks_anyone(api, factories):
     """Per-place duplicate guard: while ANY active claim is pending
     review on a place, a new claim from anyone (different email,

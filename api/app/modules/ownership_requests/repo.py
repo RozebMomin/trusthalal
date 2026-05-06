@@ -75,6 +75,35 @@ def create_ownership_request(
     )
 
     db.add(req)
+    db.flush()  # need req.id below
+
+    # Audit trail: log the submission on the place's timeline so
+    # the admin event-history view shows when the claim actually
+    # arrived, not just the downstream NEEDS_EVIDENCE / REJECTED /
+    # GRANTED transitions. Imported lazily to avoid the
+    # ownership_requests <-> places import cycle the rest of this
+    # module also navigates that way.
+    from app.modules.places.enums import PlaceEventType
+    from app.modules.places.models import PlaceEvent
+
+    db.add(
+        PlaceEvent(
+            place_id=place_id,
+            event_type=PlaceEventType.OWNERSHIP_REQUEST_SUBMITTED.value,
+            # ``actor_user_id`` is the requester when the claim
+            # came in via the owner portal or an authenticated
+            # public submission; left NULL for anonymous public
+            # submissions and admin-on-behalf intakes (the audit
+            # row still records *that* the claim was filed; who
+            # filed it lives on req.contact_email).
+            actor_user_id=requester_user_id,
+            message=(
+                f"Ownership claim submitted by {contact_name.strip()} "
+                f"({normalized_email})"
+            ),
+        )
+    )
+
     db.commit()
     db.refresh(req)
     return req
