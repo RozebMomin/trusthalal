@@ -4047,6 +4047,9 @@
             ],
             "title": "Organization Id"
           },
+          "place": {
+            "$ref": "#/components/schemas/MyOwnershipRequestPlaceSummary"
+          },
           "place_id": {
             "format": "uuid",
             "title": "Place Id",
@@ -4085,7 +4088,8 @@
           "message",
           "status",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "place"
         ],
         "title": "OwnershipRequestAdminRead",
         "type": "object"

@@ -3960,6 +3960,7 @@ export interface components {
             organization?: components["schemas"]["MyOwnershipRequestOrgSummary"] | null;
             /** Organization Id */
             organization_id: string | null;
+            place: components["schemas"]["MyOwnershipRequestPlaceSummary"];
             /**
              * Place Id
              * Format: uuid

@@ -94,13 +94,31 @@ export function RequestDetailDialog({ request, open, onOpenChange }: Props) {
               <span className="text-muted-foreground">&mdash;</span>
             )}
           </Field>
-          <Field label="Place id">
+          <Field label="Place">
+            {/* Name + address line so the reviewer doesn't have to
+                click through just to see what venue this claim is
+                for. UUID still in the title attr for support
+                debugging. */}
             <Link
-              href={`/places/${request.place_id}`}
-              className="font-mono text-xs text-primary hover:underline"
+              href={`/places/${request.place.id}`}
+              className="text-primary hover:underline"
+              title={request.place.id}
             >
-              {request.place_id}
+              {request.place.name}
             </Link>
+            {(request.place.address ||
+              request.place.city ||
+              request.place.region) && (
+              <div className="text-xs text-muted-foreground">
+                {[
+                  request.place.address,
+                  request.place.city,
+                  request.place.region,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </div>
+            )}
           </Field>
           <Field label="Requester user id">
             {request.requester_user_id ? (
