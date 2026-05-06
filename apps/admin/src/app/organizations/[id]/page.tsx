@@ -1,18 +1,19 @@
 "use client";
 
 /**
- * Admin organization detail page.
+ * Admin organization detail (read + decide).
  *
- * Header with name + org id chip, Edit button in the corner. Details
- * section shows contact email + created/updated timestamps. Members
- * section lists OrganizationMember rows with add/remove actions; the
- * underlying ``organization_members.status='REMOVED'`` keeps
- * historical relationships on the record, so removed members surface
- * as "REMOVED" badges instead of vanishing.
+ * Read-only audit surface for org review. Owners create + edit the
+ * org and manage their team in the owner portal; admin reads what
+ * they submitted, looks at the supporting attachments, and either
+ * verifies or rejects. Members are visible (badge-rendered) so a
+ * reviewer can see who's running the org, but admin can't add or
+ * remove them from here.
  *
- * (We may want to hide REMOVED rows behind an "include removed" toggle
- * once these lists grow; for now showing everything is the simpler
- * default and matches the Ownership section's "include historical" feel.)
+ * The two decision surfaces (Verify / Reject) live in the
+ * VerificationSection and only act on UNDER_REVIEW orgs. Already-
+ * VERIFIED or REJECTED orgs render the badge and history without
+ * action buttons.
  */
 
 import Link from "next/link";
@@ -23,19 +24,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
-import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type OrganizationAdminRead,
   type OrganizationMemberAdminRead,
   type OrganizationPlaceOwnerRead,
   useAdminOrganization,
   useAdminOrgPlaces,
-  useRemoveOrgMember,
 } from "@/lib/api/hooks";
-import { useToast } from "@/lib/hooks/use-toast";
 
-import { AddMemberDialog } from "../_components/add-member-dialog";
-import { EditOrganizationDialog } from "../_components/edit-org-dialog";
 import {
   MemberRoleBadge,
   MemberStatusBadge,
@@ -76,50 +72,41 @@ export default function OrganizationDetailPage() {
   const id = params?.id;
 
   const { data: org, isLoading, error } = useAdminOrganization(id);
-  const [editOpen, setEditOpen] = React.useState(false);
-  const [addMemberOpen, setAddMemberOpen] = React.useState(false);
   const [verifyOpen, setVerifyOpen] = React.useState(false);
   const [rejectOpen, setRejectOpen] = React.useState(false);
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <Link
-            href="/organizations"
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            ← All organizations
-          </Link>
-          <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">
-              {isLoading ? <Skeleton className="h-8 w-64" /> : org?.name}
-            </h1>
-            {org?.status && <OrgStatusBadge status={org.status} />}
-          </div>
-          {org?.contact_email && (
-            <p className="mt-1 text-muted-foreground">
-              <a
-                href={`mailto:${org.contact_email}`}
-                className="hover:underline"
-              >
-                {org.contact_email}
-              </a>
-            </p>
-          )}
-          {org?.id && (
-            <p
-              className="mt-1 font-mono text-[11px] text-muted-foreground/70"
-              title="Organization ID"
-            >
-              {org.id}
-            </p>
-          )}
+      <header>
+        <Link
+          href="/organizations"
+          className="text-sm text-muted-foreground hover:underline"
+        >
+          ← All organizations
+        </Link>
+        <div className="mt-1 flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isLoading ? <Skeleton className="h-8 w-64" /> : org?.name}
+          </h1>
+          {org?.status && <OrgStatusBadge status={org.status} />}
         </div>
-        {org && (
-          <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-            Edit
-          </Button>
+        {org?.contact_email && (
+          <p className="mt-1 text-muted-foreground">
+            <a
+              href={`mailto:${org.contact_email}`}
+              className="hover:underline"
+            >
+              {org.contact_email}
+            </a>
+          </p>
+        )}
+        {org?.id && (
+          <p
+            className="mt-1 font-mono text-[11px] text-muted-foreground/70"
+            title="Organization ID"
+          >
+            {org.id}
+          </p>
         )}
       </header>
 
@@ -155,24 +142,13 @@ export default function OrganizationDetailPage() {
             attachments={org.attachments ?? []}
           />
 
-          <MembersSection org={org} onAdd={() => setAddMemberOpen(true)} />
+          <MembersSection org={org} />
           <PlacesSection orgId={org.id} />
         </>
       )}
 
       {org && (
         <>
-          <EditOrganizationDialog
-            organization={org}
-            open={editOpen}
-            onOpenChange={setEditOpen}
-          />
-          <AddMemberDialog
-            orgId={org.id}
-            orgName={org.name}
-            open={addMemberOpen}
-            onOpenChange={setAddMemberOpen}
-          />
           <VerifyOrgDialog
             org={org}
             open={verifyOpen}
@@ -189,14 +165,15 @@ export default function OrganizationDetailPage() {
   );
 }
 
+// Read-only members listing. Owners manage their team in the owner
+// portal — the admin role for this section is "see who's running the
+// org" while reviewing, not "edit the roster."
 function MembersSection({
   org,
-  onAdd,
 }: {
   org: OrganizationAdminRead & {
     members?: OrganizationMemberAdminRead[];
   };
-  onAdd: () => void;
 }) {
   const members = org.members ?? [];
   // Sort active rows to the top so "who's actually running this today"
@@ -207,6 +184,9 @@ function MembersSection({
     if (aActive !== bActive) return aActive - bActive;
     return a.created_at.localeCompare(b.created_at);
   });
+  const activeCount = sorted.filter(
+    (m) => m.status.toUpperCase() === "ACTIVE",
+  ).length;
 
   return (
     <section className="rounded-md border p-4">
@@ -214,27 +194,24 @@ function MembersSection({
         <h2 className="text-sm font-semibold">
           Members{" "}
           <span className="text-xs font-normal text-muted-foreground">
-            ({sorted.filter((m) => m.status.toUpperCase() === "ACTIVE").length}{" "}
-            active)
+            ({activeCount} active)
           </span>
         </h2>
-        <Button size="sm" variant="outline" onClick={onAdd}>
-          Add member
-        </Button>
+        <span className="text-xs text-muted-foreground">
+          Members are managed by the owner in the owner portal.
+        </span>
       </div>
 
       {sorted.length === 0 && (
         <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-          No members linked to this organization yet. Click{" "}
-          <span className="font-medium text-foreground">Add member</span>{" "}
-          to add one.
+          No members linked to this organization yet.
         </div>
       )}
 
       {sorted.length > 0 && (
         <ul className="space-y-3">
           {sorted.map((m) => (
-            <MemberRow key={m.id} orgId={org.id} member={m} />
+            <MemberRow key={m.id} member={m} />
           ))}
         </ul>
       )}
@@ -242,72 +219,31 @@ function MembersSection({
   );
 }
 
-function MemberRow({
-  orgId,
-  member,
-}: {
-  orgId: string;
-  member: OrganizationMemberAdminRead;
-}) {
-  const { toast } = useToast();
-  const remove = useRemoveOrgMember();
-  const isRemoved = member.status.toUpperCase() === "REMOVED";
-
-  async function onRemove() {
-    if (
-      !window.confirm(
-        "Remove this member from the organization? Their row is kept with status=REMOVED for audit.",
-      )
-    ) {
-      return;
-    }
-    try {
-      await remove.mutateAsync({ orgId, userId: member.user_id });
-      toast({ title: "Member removed" });
-    } catch (err) {
-      const msg = friendlyApiError(err, {
-        defaultTitle: "Couldn't remove member",
-      });
-      toast({ ...msg, variant: "destructive" });
-    }
-  }
-
+function MemberRow({ member }: { member: OrganizationMemberAdminRead }) {
   return (
     <li className="rounded-md border p-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {/*
-              Link to the user's admin detail page — makes "check who
-              this user is" a one-click action without needing their
-              email rendered in the row.
-            */}
-            <Link
-              href={`/users/${member.user_id}`}
-              className="font-medium hover:underline"
-            >
-              User{" "}
-              <code className="font-mono text-xs text-muted-foreground">
-                {member.user_id.slice(0, 8)}…
-              </code>
-            </Link>
-            <MemberRoleBadge role={member.role} />
-            <MemberStatusBadge status={member.status} />
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Added {formatTimestamp(member.created_at)}
-          </p>
-        </div>
-        {!isRemoved && (
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={onRemove}
-            disabled={remove.isPending}
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          {/*
+            Link to the user's admin detail page — makes "check who
+            this user is" a one-click action without needing their
+            email rendered in the row.
+          */}
+          <Link
+            href={`/users/${member.user_id}`}
+            className="font-medium hover:underline"
           >
-            {remove.isPending ? "Removing…" : "Remove"}
-          </Button>
-        )}
+            User{" "}
+            <code className="font-mono text-xs text-muted-foreground">
+              {member.user_id.slice(0, 8)}…
+            </code>
+          </Link>
+          <MemberRoleBadge role={member.role} />
+          <MemberStatusBadge status={member.status} />
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Added {formatTimestamp(member.created_at)}
+        </p>
       </div>
     </li>
   );

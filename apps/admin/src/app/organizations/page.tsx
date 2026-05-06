@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * Admin organizations list.
+ * Admin organizations review queue.
  *
- * Simple "search + table" shape, same visual language as /places and
- * /users. Click a row to navigate to the org detail page where members
- * and (eventually) owned places live. The Create button opens the
- * dialog and routes straight to the new org's detail page on success.
+ * Search + table over the org directory, defaulting to UNDER_REVIEW
+ * (the work queue). Org creation, edits, and member management
+ * happen on the owner portal — admin staff don't author rows here;
+ * they review what owners submit. The detail page surfaces the
+ * decision actions (verify / reject) and the read-only audit data.
  */
 
 import Link from "next/link";
 import * as React from "react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -30,7 +30,6 @@ import {
 } from "@/lib/api/hooks";
 import type { components } from "@/lib/api/schema";
 
-import { CreateOrganizationDialog } from "./_components/create-org-dialog";
 import { OrgStatusBadge } from "./_components/org-status-badge";
 
 type OrganizationStatus = components["schemas"]["OrganizationStatus"];
@@ -75,7 +74,6 @@ export default function OrganizationsPage() {
   const [statusFilter, setStatusFilter] = React.useState<
     "" | OrganizationStatus
   >("UNDER_REVIEW");
-  const [createOpen, setCreateOpen] = React.useState(false);
   const query = useDebounced(rawQuery.trim(), 250);
 
   const { data, isLoading, error, isFetching } = useAdminOrganizations({
@@ -86,20 +84,13 @@ export default function OrganizationsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
-          <p className="mt-2 text-muted-foreground">
-            Curate the org directory and manage memberships.
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>Create organization</Button>
+      <header>
+        <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
+        <p className="mt-2 text-muted-foreground">
+          Review owner-submitted organizations. Verify them so they can
+          sponsor halal claims and ownership requests.
+        </p>
       </header>
-
-      <CreateOrganizationDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-      />
 
       <div className="flex flex-wrap items-center gap-3 border-b pb-3">
         <div className="flex-1 min-w-[240px]">

@@ -35,19 +35,12 @@ export type OrganizationDetailRead =
   components["schemas"]["OrganizationDetailRead"];
 export type OrganizationMemberAdminRead =
   components["schemas"]["OrganizationMemberAdminRead"];
-export type OrganizationAdminCreate =
-  components["schemas"]["OrganizationAdminCreate"];
-export type MemberAdminCreate = components["schemas"]["MemberAdminCreate"];
 
-/*
- * Awaiting next codegen pass — swap to generated schema refs when
- * ``make export-openapi && npm run codegen`` has run. Until then these
- * hand types keep ``tsc --noEmit`` green.
- */
-export type OrganizationAdminPatch = {
-  name?: string | null;
-  contact_email?: string | null;
-};
+// Org create / patch / member-create types (OrganizationAdminCreate,
+// OrganizationAdminPatch, MemberAdminCreate) live in the generated
+// schema and stay reachable via ``components["schemas"][...]`` if any
+// future admin-override surface needs them; we don't re-export them
+// here because the admin panel no longer authors orgs or members.
 
 export type UserOrganizationSummary = {
   id: string;
@@ -575,26 +568,14 @@ function invalidateOrganizations(qc: ReturnType<typeof useQueryClient>) {
   return qc.invalidateQueries({ queryKey: ["organizations"] });
 }
 
-// Also refresh the per-user organizations query — adding/removing a
-// member affects both sides of the relationship, and the user detail
-// page needs to pick up the change.
-function invalidateUserOrgs(qc: ReturnType<typeof useQueryClient>) {
-  return qc.invalidateQueries({ queryKey: ["users", "organizations"] });
-}
-
-export function useCreateOrganization() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: OrganizationAdminCreate) =>
-      apiFetch<OrganizationAdminRead>("/admin/organizations", {
-        method: "POST",
-        json: payload,
-      }),
-    onSuccess: () => {
-      void invalidateOrganizations(qc);
-    },
-  });
-}
+// Org create / edit / member-management belong to the owner portal —
+// owners self-serve at /me/organizations/*. The admin panel here only
+// reviews what owners submit, so the corresponding admin write hooks
+// (useCreateOrganization, usePatchOrganization, useAddOrgMember,
+// useRemoveOrgMember) were removed. The matching `/admin/organizations`
+// write endpoints stay on the server as an emergency-override surface
+// (security incidents, fraud takedowns) that staff can hit via Bruno
+// or curl when the rare case arises.
 
 /**
  * POST /admin/organizations/{id}/verify — UNDER_REVIEW → VERIFIED.
@@ -639,50 +620,6 @@ export function useRejectOrganization() {
       ),
     onSuccess: () => {
       void invalidateOrganizations(qc);
-    },
-  });
-}
-
-export function usePatchOrganization() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (args: { id: string; payload: OrganizationAdminPatch }) =>
-      apiFetch<OrganizationAdminRead>(`/admin/organizations/${args.id}`, {
-        method: "PATCH",
-        json: args.payload,
-      }),
-    onSuccess: () => {
-      void invalidateOrganizations(qc);
-    },
-  });
-}
-
-export function useAddOrgMember() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (args: { orgId: string; payload: MemberAdminCreate }) =>
-      apiFetch<OrganizationMemberAdminRead>(
-        `/admin/organizations/${args.orgId}/members`,
-        { method: "POST", json: args.payload },
-      ),
-    onSuccess: () => {
-      void invalidateOrganizations(qc);
-      void invalidateUserOrgs(qc);
-    },
-  });
-}
-
-export function useRemoveOrgMember() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (args: { orgId: string; userId: string }) =>
-      apiFetch<OrganizationMemberAdminRead>(
-        `/admin/organizations/${args.orgId}/members/${args.userId}`,
-        { method: "DELETE" },
-      ),
-    onSuccess: () => {
-      void invalidateOrganizations(qc);
-      void invalidateUserOrgs(qc);
     },
   });
 }
