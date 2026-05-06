@@ -121,13 +121,21 @@ class HalalQuestionnaireResponse(BaseModel):
         ),
     )
 
-    # Certification context — does the owner claim a recognized cert?
-    has_certification: bool = Field(
-        ...,
+    # Certification context — kept on the schema for back-compat
+    # with claims submitted before the questionnaire was simplified
+    # (and as a hook for admin overrides during review). The owner
+    # questionnaire no longer asks about this directly: a separate
+    # supporting-documents upload step covers the attachment side
+    # of the same question, and asking again in the form felt
+    # redundant. ``None`` means "owner didn't say"; admin can flip
+    # it to True/False during review if they want consumer-search
+    # filters to surface the place.
+    has_certification: Optional[bool] = Field(
+        default=None,
         description=(
             "True if the restaurant or supplier holds a halal "
-            "certificate from a recognized authority. Owner uploads "
-            "the document as a HALAL_CERTIFICATE attachment."
+            "certificate from a recognized authority. NULL means "
+            "the owner didn't declare either way."
         ),
     )
     certifying_body_name: Optional[str] = Field(
@@ -135,7 +143,8 @@ class HalalQuestionnaireResponse(BaseModel):
         max_length=255,
         description=(
             "Name of the certifying authority (IFANCA, HMA, HFSAA, "
-            "local mosque XYZ, etc.). Required if has_certification."
+            "local mosque XYZ, etc.). NULL when has_certification "
+            "is NULL or False."
         ),
     )
 

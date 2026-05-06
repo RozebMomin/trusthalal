@@ -350,30 +350,12 @@ export default function BatchHalalClaimPage() {
           onChange={(v) => setField("seafood_only", v)}
         />
 
-        <BoolField
-          label="Halal certification on file?"
-          help="Do you or your supplier hold a current halal certificate?"
-          value={draft.has_certification ?? null}
-          onChange={(v) => setField("has_certification", v)}
-        />
-
-        {draft.has_certification && (
-          <Field label="Certifying authority">
-            <Input
-              type="text"
-              value={draft.certifying_body_name ?? ""}
-              onChange={(e) =>
-                setField("certifying_body_name", e.target.value || null)
-              }
-              maxLength={255}
-              placeholder="e.g. IFANCA"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              You&apos;ll upload the certificate itself on each draft
-              after we create them.
-            </p>
-          </Field>
-        )}
+        {/* "Halal certification on file?" + "Certifying authority"
+            used to live here. They were redundant with the
+            HALAL_CERTIFICATE attachment + its issuing_authority
+            field on the next step. The HalalProfile derivation now
+            reads cert state straight from approved attachments,
+            so the form keeps the question to one place. */}
 
         <Field label="Anything else? (optional)">
           <textarea

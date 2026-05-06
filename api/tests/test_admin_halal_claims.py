@@ -84,16 +84,33 @@ COMPLETE_QUESTIONNAIRE: dict = {
     "lamb": {"slaughter_method": "NOT_SERVED"},
     "goat": {"slaughter_method": "NOT_SERVED"},
     "seafood_only": False,
-    "has_certification": True,
-    "certifying_body_name": "IFANCA",
+    # ``has_certification`` and ``certifying_body_name`` deliberately
+    # absent — they're now data-driven from HALAL_CERTIFICATE
+    # attachments, not the questionnaire (see profile-derivation
+    # service). Tests that need them seeded use
+    # ``with_certificate=True`` on _submit_pending_claim.
     "caveats": None,
 }
 
 
-def _submit_pending_claim(api, factories, db_session) -> tuple:
+def _submit_pending_claim(
+    api,
+    factories,
+    db_session,
+    *,
+    with_certificate: bool = False,
+    certifying_authority: str = "IFANCA",
+) -> tuple:
     """Helper: provision a place/org/owner, submit a complete claim,
     return (admin, owner, place, org, claim_id) ready for an admin
-    decision endpoint test."""
+    decision endpoint test.
+
+    ``with_certificate=True`` uploads a HALAL_CERTIFICATE
+    attachment between the create + submit steps so profile
+    derivation flips ``has_certification`` to True at approval
+    time. The owner's questionnaire no longer asks about
+    certification directly — it's data-driven from attachments.
+    """
     admin = factories.admin()
     owner = factories.owner()
     place, org = factories.managed_place(owner=owner)
@@ -109,6 +126,25 @@ def _submit_pending_claim(api, factories, db_session) -> tuple:
     )
     assert create_resp.status_code == 201, create_resp.text
     claim_id = create_resp.json()["id"]
+
+    if with_certificate:
+        # Upload while the claim is still DRAFT (the only state
+        # where the upload route accepts new files).
+        cert_resp = api.as_user(owner).post(
+            f"/me/halal-claims/{claim_id}/attachments",
+            files={
+                "file": (
+                    "cert.pdf",
+                    BytesIO(b"%PDF-1.4 fake cert"),
+                    "application/pdf",
+                ),
+            },
+            data={
+                "document_type": "HALAL_CERTIFICATE",
+                "issuing_authority": certifying_authority,
+            },
+        )
+        assert cert_resp.status_code == 201, cert_resp.text
 
     submit_resp = api.as_user(owner).post(
         f"/me/halal-claims/{claim_id}/submit"
@@ -166,8 +202,10 @@ def test_non_admin_blocked(api, factories, db_session):
 # Approve — profile derivation
 # ---------------------------------------------------------------------------
 def test_approve_creates_profile_first_time(api, factories, db_session):
+    # Seed a HALAL_CERTIFICATE attachment so the data-driven
+    # certification derivation has something to work with.
     admin, _, place, _, claim_id = _submit_pending_claim(
-        api, factories, db_session
+        api, factories, db_session, with_certificate=True
     )
 
     resp = api.as_user(admin).post(
@@ -197,11 +235,38 @@ def test_approve_creates_profile_first_time(api, factories, db_session):
     assert profile.chicken_slaughter == SlaughterMethod.ZABIHAH.value
     assert profile.beef_slaughter == SlaughterMethod.ZABIHAH.value
     assert profile.lamb_slaughter == SlaughterMethod.NOT_SERVED.value
+    # ``has_certification`` + ``certifying_body_name`` are now
+    # derived from the HALAL_CERTIFICATE attachment, not the
+    # questionnaire — see profile-derivation service.
     assert profile.has_certification is True
     assert profile.certifying_body_name == "IFANCA"
     assert profile.dispute_state == HalalProfileDisputeState.NONE.value
     assert profile.expires_at is not None
     assert profile.revoked_at is None
+
+
+def test_approve_without_certificate_attachment_sets_has_certification_false(
+    api, factories, db_session
+):
+    """Mirror of the happy-path test, but without a HALAL_CERTIFICATE
+    attachment. Profile derivation should land
+    ``has_certification=False`` + ``certifying_body_name=None``
+    even though the rest of the questionnaire is the same."""
+    admin, _, place, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "OWNER_ATTESTED"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    assert profile.has_certification is False
+    assert profile.certifying_body_name is None
 
     # Audit event row.
     events = db_session.execute(

@@ -31,7 +31,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BadRequestError
-from app.modules.halal_claims.enums import HalalClaimEventType, HalalClaimStatus
+from app.modules.halal_claims.enums import (
+    HalalClaimAttachmentType,
+    HalalClaimEventType,
+    HalalClaimStatus,
+)
 from app.modules.halal_claims.models import HalalClaim
 from app.modules.halal_claims.repo import log_halal_claim_event
 from app.modules.halal_claims.schemas import HalalQuestionnaireResponse
@@ -86,9 +90,48 @@ def _slaughter_for(meat_sourcing) -> str:
     return meat_sourcing.slaughter_method.value
 
 
+def _certification_from_claim(
+    claim: HalalClaim,
+) -> tuple[bool, Optional[str]]:
+    """Derive the (has_certification, certifying_body_name) pair
+    from the claim's HALAL_CERTIFICATE attachments.
+
+    Data-driven rather than asking the owner: the questionnaire used
+    to ask "Halal certification on file?" and again "Certifying
+    authority", but we already capture that signal when the owner
+    uploads a HALAL_CERTIFICATE attachment with an issuing_authority
+    field. Removing the duplicate question keeps the form short and
+    keeps the signal honest — the truth-set is the actual cert
+    document on file, not a self-declared yes/no.
+
+    Returns:
+        ``(True, "IFANCA")`` when at least one HALAL_CERTIFICATE
+        attachment exists; the name comes from the most recently
+        uploaded cert that has an ``issuing_authority`` filled in.
+        ``(False, None)`` when no cert attachments exist.
+    """
+    cert_attachments = [
+        a
+        for a in claim.attachments
+        if a.document_type == HalalClaimAttachmentType.HALAL_CERTIFICATE.value
+    ]
+    if not cert_attachments:
+        return False, None
+
+    # Prefer the most recent cert's issuing_authority — assume that's
+    # the current one even if older certs (with different bodies)
+    # are still on file for audit history.
+    cert_attachments.sort(key=lambda a: a.uploaded_at, reverse=True)
+    for a in cert_attachments:
+        if a.issuing_authority:
+            return True, a.issuing_authority
+    return True, None
+
+
 def _profile_fields_from_questionnaire(
     questionnaire: HalalQuestionnaireResponse,
     *,
+    claim: HalalClaim,
     validation_tier: ValidationTier,
     last_verified_at: datetime,
     expires_at: datetime,
@@ -97,7 +140,12 @@ def _profile_fields_from_questionnaire(
 ) -> dict:
     """Map a strict questionnaire + admin's tier choice → profile
     column values. Pure function; no DB.
+
+    ``has_certification`` and ``certifying_body_name`` are derived
+    from the claim's attachments rather than the questionnaire
+    response — see ``_certification_from_claim`` for the rationale.
     """
+    has_cert, cert_body = _certification_from_claim(claim)
     return {
         "validation_tier": validation_tier.value,
         "menu_posture": questionnaire.menu_posture.value,
@@ -109,8 +157,8 @@ def _profile_fields_from_questionnaire(
         "lamb_slaughter": _slaughter_for(questionnaire.lamb),
         "goat_slaughter": _slaughter_for(questionnaire.goat),
         "seafood_only": questionnaire.seafood_only,
-        "has_certification": questionnaire.has_certification,
-        "certifying_body_name": questionnaire.certifying_body_name,
+        "has_certification": has_cert,
+        "certifying_body_name": cert_body,
         "certificate_expires_at": certificate_expires_at,
         "caveats": questionnaire.caveats,
         # Always reset dispute state on a fresh approval. A claim
@@ -164,6 +212,7 @@ def derive_profile_from_approved_claim(
             place_id=claim.place_id,
             **_profile_fields_from_questionnaire(
                 questionnaire,
+                claim=claim,
                 validation_tier=validation_tier,
                 last_verified_at=now,
                 expires_at=final_expires_at,
@@ -229,6 +278,7 @@ def derive_profile_from_approved_claim(
 
     new_fields = _profile_fields_from_questionnaire(
         questionnaire,
+        claim=claim,
         validation_tier=validation_tier,
         last_verified_at=now,
         expires_at=final_expires_at,

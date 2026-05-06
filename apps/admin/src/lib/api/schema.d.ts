@@ -2903,16 +2903,17 @@ export interface components {
             caveats?: string | null;
             /**
              * Certifying Body Name
-             * @description Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). Required if has_certification.
+             * @description Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). NULL when has_certification is NULL or False.
              */
             certifying_body_name?: string | null;
             chicken?: components["schemas"]["MeatSourcing"] | null;
             goat?: components["schemas"]["MeatSourcing"] | null;
             /**
              * Has Certification
-             * @description True if the restaurant or supplier holds a halal certificate from a recognized authority. Owner uploads the document as a HALAL_CERTIFICATE attachment.
+             * @description True if the restaurant or supplier holds a halal certificate from a recognized authority. NULL means the owner didn't declare either way.
+             * @default null
              */
-            has_certification: boolean;
+            has_certification: boolean | null;
             /**
              * Has Pork
              * @description True if pork or pork products are on the menu.
@@ -2963,16 +2964,17 @@ export interface components {
             caveats?: string | null;
             /**
              * Certifying Body Name
-             * @description Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). Required if has_certification.
+             * @description Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). NULL when has_certification is NULL or False.
              */
             certifying_body_name?: string | null;
             chicken?: components["schemas"]["MeatSourcing"] | null;
             goat?: components["schemas"]["MeatSourcing"] | null;
             /**
              * Has Certification
-             * @description True if the restaurant or supplier holds a halal certificate from a recognized authority. Owner uploads the document as a HALAL_CERTIFICATE attachment.
+             * @description True if the restaurant or supplier holds a halal certificate from a recognized authority. NULL means the owner didn't declare either way.
+             * @default null
              */
-            has_certification: boolean;
+            has_certification: boolean | null;
             /**
              * Has Pork
              * @description True if pork or pork products are on the menu.

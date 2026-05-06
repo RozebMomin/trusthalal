@@ -422,35 +422,14 @@ function QuestionnaireSection({
           onChange={(v) => setField("seafood_only", v)}
         />
 
-        {/* Certification */}
-        <BoolField
-          label="Halal certification on file?"
-          help="Do you or your supplier hold a current halal certificate from a recognized authority?"
-          value={draft.has_certification ?? null}
-          onChange={(v) => setField("has_certification", v)}
-        />
-
-        {draft.has_certification && (
-          <Field
-            label="Certifying authority"
-            help="Name of the body that issued the certificate (e.g. IFANCA, HMA, HFSAA, your local mosque)."
-          >
-            <Input
-              type="text"
-              value={draft.certifying_body_name ?? ""}
-              onChange={(e) =>
-                setField("certifying_body_name", e.target.value || null)
-              }
-              maxLength={255}
-              placeholder="e.g. IFANCA"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Upload the certificate itself in the Attachments section
-              below — admin needs to see it to assign the
-              certificate-on-file tier.
-            </p>
-          </Field>
-        )}
+        {/* Certification fields used to live here as a yes/no +
+            certifying-body input. Removed because the same signal
+            comes from the HALAL_CERTIFICATE attachment in the
+            section below: the profile derivation now reads
+            ``has_certification`` and ``certifying_body_name``
+            straight off the attachments at approval time. Asking
+            twice cluttered the form without improving the truth
+            set. */}
 
         {/* Caveats */}
         <Field

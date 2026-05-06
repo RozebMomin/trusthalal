@@ -395,8 +395,11 @@ def test_submit_blocks_with_partial_questionnaire(
     partial = {
         "questionnaire_version": 1,
         "has_pork": False,
-        # Missing menu_posture, alcohol_policy, alcohol_in_cooking,
-        # has_certification — required by the strict shape.
+        # Missing menu_posture, alcohol_policy, alcohol_in_cooking
+        # — all required by the strict shape. (has_certification is
+        # optional now; certification state is derived from
+        # HALAL_CERTIFICATE attachments at approval time, not
+        # asked in the questionnaire.)
     }
     create_resp = api.as_user(owner).post(
         "/me/halal-claims",

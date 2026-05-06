@@ -1781,7 +1781,7 @@
                 "type": "null"
               }
             ],
-            "description": "Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). Required if has_certification.",
+            "description": "Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). NULL when has_certification is NULL or False.",
             "title": "Certifying Body Name"
           },
           "chicken": {
@@ -1805,9 +1805,17 @@
             ]
           },
           "has_certification": {
-            "description": "True if the restaurant or supplier holds a halal certificate from a recognized authority. Owner uploads the document as a HALAL_CERTIFICATE attachment.",
-            "title": "Has Certification",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "True if the restaurant or supplier holds a halal certificate from a recognized authority. NULL means the owner didn't declare either way.",
+            "title": "Has Certification"
           },
           "has_pork": {
             "description": "True if pork or pork products are on the menu.",
@@ -1845,8 +1853,7 @@
           "menu_posture",
           "has_pork",
           "alcohol_policy",
-          "alcohol_in_cooking",
-          "has_certification"
+          "alcohol_in_cooking"
         ],
         "title": "HalalQuestionnaireResponse",
         "type": "object"
@@ -1896,7 +1903,7 @@
                 "type": "null"
               }
             ],
-            "description": "Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). Required if has_certification.",
+            "description": "Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). NULL when has_certification is NULL or False.",
             "title": "Certifying Body Name"
           },
           "chicken": {
@@ -1920,9 +1927,17 @@
             ]
           },
           "has_certification": {
-            "description": "True if the restaurant or supplier holds a halal certificate from a recognized authority. Owner uploads the document as a HALAL_CERTIFICATE attachment.",
-            "title": "Has Certification",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "True if the restaurant or supplier holds a halal certificate from a recognized authority. NULL means the owner didn't declare either way.",
+            "title": "Has Certification"
           },
           "has_pork": {
             "description": "True if pork or pork products are on the menu.",
@@ -1960,8 +1975,7 @@
           "menu_posture",
           "has_pork",
           "alcohol_policy",
-          "alcohol_in_cooking",
-          "has_certification"
+          "alcohol_in_cooking"
         ],
         "title": "HalalQuestionnaireResponse",
         "type": "object"
