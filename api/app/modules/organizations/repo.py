@@ -133,9 +133,10 @@ def create_organization_for_user(
     """
     org = Organization(
         name=payload.name.strip(),
-        contact_email=(
-            str(payload.contact_email).lower() if payload.contact_email else None
-        ),
+        # ``contact_email`` is required on the create schema now.
+        # Lower-casing keeps the local part normalized — Pydantic's
+        # EmailStr already validated the structure.
+        contact_email=str(payload.contact_email).lower(),
         # Address fields are pass-through. Strip whitespace so a stray
         # newline pasted from a clipboard doesn't end up in the DB.
         # ``country_code`` upper-cased to match the ISO-3166-1 norm we

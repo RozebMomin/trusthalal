@@ -10,17 +10,19 @@ from sqlalchemy import select
 
 from app.modules.organizations.models import Organization
 
-# Address fields are required on POST /me/organizations now (the
-# polish-pass-v2 made them mandatory so admin staff can disambiguate
-# same-name LLCs across states). Tests that don't care about the
-# address still need to send a valid one — spread this constant.
-_VALID_ADDRESS = {
+# Required fields on POST /me/organizations: address fields plus
+# contact_email (polish-pass-v3). Spread this constant on tests that
+# don't care about the values — it covers everything the schema
+# expects so a green test body stays focused on its intent.
+_VALID_ORG_FIELDS = {
+    "contact_email": "owner@example.com",
     "address": "123 Main St",
     "city": "Detroit",
     "region": "MI",
     "country_code": "US",
     "postal_code": "48201",
 }
+_VALID_ADDRESS = _VALID_ORG_FIELDS  # back-compat alias
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +123,42 @@ def test_owner_create_org_rejects_blank_address(
             "name": "Khan Halal LLC",
             **_VALID_ADDRESS,
             "address": "   ",  # whitespace only
+        },
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_owner_create_org_rejects_missing_contact_email(
+    api, factories, db_session
+):
+    """contact_email is required on create — staff need a way to
+    reach the owner about this specific org. Patch stays permissive
+    so an owner can still clear it later if they want admin to use
+    their account email instead."""
+    owner = factories.owner()
+    db_session.commit()
+
+    payload = {"name": "No Email Co", **_VALID_ORG_FIELDS}
+    payload.pop("contact_email")
+
+    resp = api.as_user(owner).post("/me/organizations", json=payload)
+    assert resp.status_code == 422, resp.text
+
+
+def test_owner_create_org_rejects_invalid_contact_email(
+    api, factories, db_session
+):
+    """Pydantic's EmailStr validator catches malformed addresses
+    upfront — sanity test that the schema is wired right."""
+    owner = factories.owner()
+    db_session.commit()
+
+    resp = api.as_user(owner).post(
+        "/me/organizations",
+        json={
+            "name": "Bad Email Co",
+            **_VALID_ORG_FIELDS,
+            "contact_email": "not-an-email",
         },
     )
     assert resp.status_code == 422, resp.text

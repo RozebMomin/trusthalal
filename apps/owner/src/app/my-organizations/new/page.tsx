@@ -50,11 +50,13 @@ export default function NewMyOrganizationPage() {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   const trimmedName = name.trim();
+  const trimmedEmail = contactEmail.trim();
   const trimmedAddress = address.trim();
   const trimmedCity = city.trim();
   const trimmedPostal = postalCode.trim();
   const formInvalid =
     trimmedName.length === 0 ||
+    trimmedEmail.length === 0 ||
     trimmedAddress.length === 0 ||
     trimmedCity.length === 0 ||
     region.length === 0 ||
@@ -69,10 +71,11 @@ export default function NewMyOrganizationPage() {
     try {
       const created = await create.mutateAsync({
         name: trimmedName,
-        contact_email: contactEmail.trim() || null,
-        // All address fields required server-side now; sending the
-        // trimmed values directly. Country is locked to US so we
-        // ship the constant rather than a free-text value.
+        // contact_email + address are required server-side now;
+        // sending the trimmed values directly. Country is locked
+        // to US so we ship the constant rather than a free-text
+        // value.
+        contact_email: trimmedEmail,
         address: trimmedAddress,
         city: trimmedCity,
         region,
@@ -140,18 +143,19 @@ export default function NewMyOrganizationPage() {
         <div className="space-y-2">
           <Label htmlFor="org-email">
             Contact email{" "}
-            <span className="text-muted-foreground">(optional)</span>
+            <span aria-hidden className="text-destructive">*</span>
           </Label>
           <Input
             id="org-email"
             type="email"
             value={contactEmail}
             onChange={(e) => setContactEmail(e.target.value)}
+            required
             disabled={create.isPending}
             placeholder="contact@yourrestaurant.com"
           />
           <p className="text-xs text-muted-foreground">
-            Where Trust Halal staff should follow up if they have
+            Where Trust Halal staff will follow up if they have
             questions about this organization specifically.
           </p>
         </div>

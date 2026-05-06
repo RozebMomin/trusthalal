@@ -51,7 +51,10 @@ class MyOrganizationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., min_length=1, max_length=255)
-    contact_email: EmailStr | None = None
+    # Contact email is required on create (matches the address
+    # posture). Patch stays permissive so an owner can still clear
+    # it after the fact while staff are reviewing.
+    contact_email: EmailStr = Field(...)
 
     # All four explicitly required. ``min_length=1`` rejects empty
     # strings; the repo additionally trims so a whitespace-only

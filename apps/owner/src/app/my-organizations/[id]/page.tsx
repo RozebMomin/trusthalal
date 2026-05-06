@@ -339,10 +339,7 @@ function DetailsSection({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="org-detail-email">
-            Contact email{" "}
-            <span className="text-muted-foreground">(optional)</span>
-          </Label>
+          <Label htmlFor="org-detail-email">Contact email</Label>
           <Input
             id="org-detail-email"
             type="email"
@@ -351,6 +348,11 @@ function DetailsSection({
             disabled={!editable || patch.isPending}
             placeholder="contact@yourrestaurant.com"
           />
+          <p className="text-xs text-muted-foreground">
+            Required at create time. Leaving blank here clears the
+            value for now — Trust Halal staff will fall back to your
+            account email.
+          </p>
         </div>
 
         <fieldset className="space-y-3 rounded-md border bg-muted/20 p-3">

@@ -21,18 +21,22 @@ from app.modules.organizations.models import (
 )
 
 
-# Required-address fields default — every test that POSTs to
-# /me/organizations needs to include these now that the schema
-# enforces them. Spread with ``**VALID_ADDRESS`` to keep test
+# Required fields the schema enforces on POST /me/organizations.
+# Address fields landed in polish-pass-v2; contact_email landed in
+# polish-pass-v3. Spread with ``**VALID_ORG_FIELDS`` to keep test
 # bodies focused on the behavior under test rather than re-typing
-# five fields.
-VALID_ADDRESS = {
+# the boilerplate.
+VALID_ORG_FIELDS = {
+    "contact_email": "owner@example.com",
     "address": "123 Test St",
     "city": "Detroit",
     "region": "MI",
     "country_code": "US",
     "postal_code": "48201",
 }
+# Old name kept as an alias for any downstream test that still
+# references it; new tests should use VALID_ORG_FIELDS.
+VALID_ADDRESS = VALID_ORG_FIELDS
 
 
 # ---------------------------------------------------------------------------

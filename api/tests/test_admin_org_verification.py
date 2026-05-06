@@ -81,9 +81,11 @@ def _under_review_org(
         "/me/organizations",
         json={
             "name": name,
-            # Address is now required on create — admin-side
-            # verification tests still drive the org through the
-            # public owner API, so they need a valid address too.
+            # contact_email + address are required on create now —
+            # admin-side verification tests still drive the org
+            # through the public owner API, so they need to send the
+            # full create payload.
+            "contact_email": "owner@example.com",
             "address": "123 Main St",
             "city": "Detroit",
             "region": "MI",
