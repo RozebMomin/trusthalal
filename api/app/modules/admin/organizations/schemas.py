@@ -76,14 +76,20 @@ class OrganizationAdminRead(BaseModel):
 class OrganizationVerifyAdmin(BaseModel):
     """POST /admin/organizations/{id}/verify body.
 
-    ``note`` is optional — admins can record a brief context if
-    they want ("verified via SOS lookup") but mostly the act of
-    verifying is enough.
+    ``note`` is required (mirrors the reject side's ``reason``) so
+    every decision lands in the audit trail with a documented
+    basis. The admin UI ships a checklist of preset verification
+    checks (entity name matches, in good standing, articles
+    verified, recent annual report on file) plus an Other
+    free-text fallback; the composed string lands here.
+
+    Same ``min_length=3`` floor as reject — keeps a stray "ok"
+    or single-character fat-finger from clearing the bar.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    note: str | None = Field(default=None, max_length=2000)
+    note: str = Field(..., min_length=3, max_length=2000)
 
 
 class OrganizationRejectAdmin(BaseModel):
