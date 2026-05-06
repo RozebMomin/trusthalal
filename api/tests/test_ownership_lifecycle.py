@@ -357,8 +357,10 @@ def test_admin_approve_legacy_claim_with_body_org_works(
 # Admin reject
 # ---------------------------------------------------------------------------
 def test_admin_reject_flips_status_and_logs_event(api, factories, db_session):
-    """Rejecting a request flips it to REJECTED, stops future actions, and
-    records an OWNERSHIP_REQUEST_REJECTED PlaceEvent with the reason."""
+    """Rejecting a request flips it to REJECTED, stops future actions,
+    records an OWNERSHIP_REQUEST_REJECTED PlaceEvent with the reason,
+    and lands the reason on decision_note so the owner /my-claims
+    card can render it verbatim."""
     admin = factories.admin()
     place = factories.place()
     req = factories.ownership_request(place=place)
@@ -373,6 +375,7 @@ def test_admin_reject_flips_status_and_logs_event(api, factories, db_session):
 
     db_session.refresh(req)
     assert req.status == OwnershipRequestStatus.REJECTED.value
+    assert req.decision_note == "contact_name didn't match business records"
 
     events = db_session.execute(
         select(PlaceEvent).where(
@@ -384,6 +387,34 @@ def test_admin_reject_flips_status_and_logs_event(api, factories, db_session):
     ).scalars().all()
     assert len(events) == 1
     assert "didn't match" in (events[0].message or "")
+
+
+def test_owner_my_claims_surfaces_rejection_note(api, factories, db_session):
+    """Once admin rejects with a reason, the owner's /me/ownership-
+    requests feed exposes ``decision_note`` so the portal card can
+    render "Why this was rejected: …". Without this the owner only
+    sees the badge flip, which leaves them with no idea what to
+    fix."""
+    admin = factories.admin()
+    consumer = factories.consumer()
+    place = factories.place()
+    req = factories.ownership_request(place=place, requester=consumer)
+    db_session.commit()
+
+    api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/reject",
+        json={"reason": "Documents are illegible — please re-upload."},
+    )
+
+    listing = api.as_user(consumer).get("/me/ownership-requests")
+    assert listing.status_code == 200, listing.text
+    rows = [r for r in listing.json() if r["id"] == str(req.id)]
+    assert len(rows) == 1
+    assert rows[0]["status"] == OwnershipRequestStatus.REJECTED.value
+    assert (
+        rows[0]["decision_note"]
+        == "Documents are illegible — please re-upload."
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -135,6 +135,7 @@ function ClaimRow({ claim }: { claim: MyOwnershipRequestRead }) {
   });
 
   const isNeedsEvidence = claim.status === "NEEDS_EVIDENCE";
+  const isRejected = claim.status === "REJECTED";
 
   return (
     <li className="rounded-md border bg-card p-4">
@@ -164,6 +165,13 @@ function ClaimRow({ claim }: { claim: MyOwnershipRequestRead }) {
           doesn't have to leave the page to act on it. */}
       {isNeedsEvidence && <NeedsEvidenceSection claim={claim} />}
 
+      {/* REJECTED callout: read-only — the row is terminal, but the
+          owner deserves to see why it was rejected verbatim so they
+          know what to fix on the next attempt. */}
+      {isRejected && claim.decision_note && (
+        <RejectedSection note={claim.decision_note} />
+      )}
+
       {claim.message && (
         <details className="mt-3 text-xs text-muted-foreground">
           <summary className="cursor-pointer hover:text-foreground">
@@ -192,6 +200,36 @@ function ClaimRow({ claim }: { claim: MyOwnershipRequestRead }) {
         Submitted {submittedAt}
       </p>
     </li>
+  );
+}
+
+/**
+ * REJECTED state UI block. Read-only — the row is terminal, no
+ * affordance to upload or resubmit. The owner sees the rejection
+ * reason verbatim so they know what to fix before submitting a
+ * fresh claim. Styled red rather than amber to make the
+ * distinction from NEEDS_EVIDENCE legible at a glance.
+ */
+function RejectedSection({ note }: { note: string }) {
+  return (
+    <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+      <p className="font-medium text-destructive">
+        Why this was rejected
+      </p>
+      <p className="mt-1 whitespace-pre-wrap text-destructive/90">
+        {note}
+      </p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Address the issue above and{" "}
+        <Link
+          href="/claim"
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          submit a new claim
+        </Link>{" "}
+        when ready.
+      </p>
+    </div>
   );
 }
 

@@ -268,6 +268,11 @@ def admin_reject_ownership_request(
     _assert_not_terminal(req)
 
     req.status = OwnershipRequestStatus.REJECTED.value
+    # Land the rejection reason on decision_note so the owner can
+    # read it on their /my-claims card. Same pattern as
+    # request-evidence: row column for the latest staff guidance,
+    # place_events for the per-event audit trail.
+    req.decision_note = payload.reason
     db.add(req)
 
     db.add(
