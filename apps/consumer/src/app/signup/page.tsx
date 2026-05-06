@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import { useSignup } from "@/lib/api/hooks";
+import { syncLocalToServerOnLogin } from "@/lib/api/preferences";
 
 // Mirrors the server's SignupRequest min_length=8.
 const PASSWORD_MIN_LENGTH = 8;
@@ -77,6 +78,11 @@ export default function SignupPage() {
         password,
         display_name: displayName.trim(),
       });
+      // Migrate any anonymous-saved preferences to the new account
+      // before redirecting. Best-effort — a failure here doesn't
+      // block the signup flow; the local copy stays so the user
+      // can retry from /preferences.
+      await syncLocalToServerOnLogin();
       // Server auto-logs the new user in (sets the session cookie on
       // the response). Route home; AppShell reads the new auth state
       // on the next render.
