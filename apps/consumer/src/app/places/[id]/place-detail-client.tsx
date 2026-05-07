@@ -187,11 +187,13 @@ function PlaceHeader({
           page is preserved so existing links don&apos;t 404.
         </p>
       )}
-      <h1 className="text-3xl font-bold tracking-tight">{place.name}</h1>
+      <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">
+        {place.name}
+      </h1>
       {addressParts.length > 0 && (
         <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
           <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <span>{addressParts.join(" · ")}</span>
+          <span className="break-words">{addressParts.join(" · ")}</span>
         </p>
       )}
     </header>
