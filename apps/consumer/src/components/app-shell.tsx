@@ -25,6 +25,11 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { VersionTag } from "@/components/version-tag";
+import {
+  BRAND_NAME,
+  OWNER_PORTAL_URL,
+  TRUST_HALAL_URL,
+} from "@/lib/branding";
 import { useCurrentUser, useLogout } from "@/lib/api/hooks";
 
 const PUBLIC_BARE_PATHS = new Set<string>(["/login", "/signup"]);
@@ -58,6 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen flex-col">
         <PortalHeader me={null} pending />
         <main className="flex-1 px-4 py-8 md:px-8">{children}</main>
+        <SiteFooter />
       </div>
     );
   }
@@ -66,6 +72,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <PortalHeader me={me ?? null} />
       <main className="flex-1 px-4 py-8 md:px-8">{children}</main>
+      <SiteFooter />
     </div>
   );
 }
@@ -107,7 +114,7 @@ function PortalHeader({
           className="flex items-center gap-3 transition hover:opacity-80"
         >
           <span className="text-lg font-semibold tracking-tight">
-            Trust Halal
+            {BRAND_NAME}
           </span>
         </Link>
 
@@ -239,5 +246,58 @@ function WrongAudienceCallout({ role }: { role: string }) {
     >
       {label} →
     </a>
+  );
+}
+
+/**
+ * Sitewide footer.
+ *
+ * Three responsibilities, in order of weight:
+ *   1. Surface the "Powered by Trust Halal" attribution prominently
+ *      enough that consumers know where the verification data is
+ *      coming from. The brand promise of the site is data quality;
+ *      naming the source pays that promise off.
+ *   2. Quietly nudge restaurant operators toward the owner portal.
+ *      Owners discover the consumer site organically (a customer
+ *      shows them a listing) — the footer is the lowest-friction
+ *      handoff into "claim your listing."
+ *   3. Auxiliary nav (preferences, current build) without crowding
+ *      the header.
+ */
+function SiteFooter() {
+  return (
+    <footer className="mt-12 border-t bg-card text-sm">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between md:px-8">
+        <div className="flex flex-col gap-1">
+          <span className="font-semibold tracking-tight">{BRAND_NAME}</span>
+          <span className="text-xs text-muted-foreground">
+            Powered by{" "}
+            <a
+              href={TRUST_HALAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              Trust Halal
+            </a>
+            {" "}— the open verification platform for halal restaurants.
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+          <Link href="/preferences" className="hover:underline">
+            Preferences
+          </Link>
+          <a
+            href={OWNER_PORTAL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            Own a restaurant? Claim your listing →
+          </a>
+          <VersionTag />
+        </div>
+      </div>
+    </footer>
   );
 }

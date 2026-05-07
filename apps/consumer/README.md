@@ -122,10 +122,127 @@ schema change, run `make export-openapi` in `api/`, commit
 `src/lib/api/schema.d.ts`. The generated file is checked in
 deliberately so every contract change shows up in the diff.
 
-## Deploy
+## Branding
 
-Phase 9a is local-only — Vercel project setup happens once 9b's
-search surface lands and the site has something worth deploying.
-Plan: `consumer.trusthalal.org` → Vercel, same Sentry project as
-the other two apps but with a separate DSN so issue volume per
-audience stays distinguishable.
+The consumer site lives under its own brand
+(**HalalScout**) so the apex domain
+([halalfoodnearme.com](https://halalfoodnearme.com)) feels like a
+destination rather than a search-engine URL. The "Powered by Trust
+Halal" line in the footer keeps the credentialing platform connected
+to the surface so trust transfers without diluting either brand.
+
+Brand strings are centralized in
+[`src/lib/branding.ts`](src/lib/branding.ts):
+
+- `BRAND_NAME` — the consumer brand
+- `BRAND_TAGLINE` — apex-hero pitch
+- `BRAND_DESCRIPTION` — long-form copy used as the default OG / meta
+  description
+- `SITE_URL` — canonical origin (override via `NEXT_PUBLIC_SITE_URL`
+  on Vercel previews)
+- `TRUST_HALAL_URL` / `OWNER_PORTAL_URL` — outbound links surfaced in
+  the hero + footer
+
+Renaming the consumer site is a single edit to `BRAND_NAME` —
+nothing else hard-codes either name.
+
+## SEO
+
+What's wired up:
+
+- `app/layout.tsx` — root metadata, OG defaults, Twitter card,
+  `metadataBase`, title template (`%s · HalalScout`).
+- `app/places/[id]/page.tsx` — server-rendered `generateMetadata`
+  that fetches the place via `serverFetch` and builds per-place
+  title, description, canonical URL, and OG tags. Soft-deleted /
+  missing places return `noindex`.
+- `app/places/[id]/page.tsx` also injects JSON-LD
+  (`@type: Restaurant`) so Google can render the listing in rich
+  results.
+- `app/sitemap.ts` — static sitemap. **TODO** — add a backend
+  sitemap-friendly endpoint (`GET /places/sitemap`) and spread
+  `/places/{id}` URLs in here. The public `GET /places` requires a
+  query string or geo trio by design, so we can't enumerate the
+  catalog from the browser.
+- `app/robots.ts` — allows public surfaces, disallows the
+  signed-in-only routes (`/login`, `/signup`, `/preferences`,
+  `/disputes`).
+
+## Deploy (halalfoodnearme.com on Vercel)
+
+The consumer site ships to Vercel with the apex domain
+[halalfoodnearme.com](https://halalfoodnearme.com) pointed at it.
+Same Sentry project pattern as the admin + owner apps; separate DSN
+so issue volume per audience stays distinguishable.
+
+### One-time Vercel project setup
+
+1. **Create a new Vercel project** from the
+   [`RozebMomin/trusthalal`](https://github.com/RozebMomin/trusthalal)
+   repo.
+2. **Root directory:** `apps/consumer`. Vercel auto-detects Next.js
+   from there.
+3. **Build command:** leave default (`next build`).
+4. **Production branch:** `main`.
+
+### Environment variables (Vercel project → Settings → Environment Variables)
+
+Required:
+
+```
+NEXT_PUBLIC_API_BASE_URL=https://api.trusthalal.org
+NEXT_PUBLIC_SITE_URL=https://halalfoodnearme.com
+```
+
+Recommended (Sentry — separate DSN per app):
+
+```
+NEXT_PUBLIC_SENTRY_DSN=<consumer DSN>
+NEXT_PUBLIC_APP_ENV=production
+NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=0.1
+SENTRY_ORG=trusthalal
+SENTRY_PROJECT=consumer
+SENTRY_AUTH_TOKEN=<auth token>
+```
+
+### DNS (halalfoodnearme.com → Vercel)
+
+In the Vercel project, add both `halalfoodnearme.com` and
+`www.halalfoodnearme.com`. Vercel will surface the DNS records to
+add at the registrar:
+
+- Apex (`halalfoodnearme.com`) — `A` record `76.76.21.21`, **or**
+  the registrar's ALIAS / ANAME / flattened CNAME pointing to
+  `cname.vercel-dns.com`.
+- `www` — `CNAME` to `cname.vercel-dns.com`.
+
+Configure `www` to redirect to the apex (Vercel does this by
+default once both are added — pick "Redirect to" and choose the
+apex as primary).
+
+### Backend (Render) CORS update
+
+Add the new origins to the API's `CORS_ORIGINS` env var on Render so
+browser requests from the consumer domain are accepted with cookies:
+
+```
+CORS_ORIGINS=https://admin.trusthalal.org,https://owner.trusthalal.org,https://halalfoodnearme.com,https://www.halalfoodnearme.com
+```
+
+The API is already on `api.trusthalal.org`; cookies set by `/auth/login`
+are scoped to that origin and ride along on every cross-origin
+request via `credentials: "include"`.
+
+### Smoke checklist after first deploy
+
+- `https://halalfoodnearme.com/` loads, hero shows the brand + tagline,
+  footer shows "Powered by Trust Halal".
+- A search query (e.g. "halal") returns results from the production
+  API.
+- `https://halalfoodnearme.com/robots.txt` includes a `Sitemap:`
+  line and disallows `/login` etc.
+- `https://halalfoodnearme.com/sitemap.xml` lists `/` and
+  `/preferences`.
+- A place detail page (`/places/{id}`) has the restaurant name in
+  the `<title>`, a `Restaurant` JSON-LD `<script>` in the markup,
+  and the address in the meta description.

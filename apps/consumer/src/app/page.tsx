@@ -24,6 +24,7 @@ import * as React from "react";
 
 import { PlaceResultCard } from "@/components/place-result-card";
 import { SearchFilters } from "@/components/search-filters";
+import { SiteHero } from "@/components/site-hero";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
@@ -139,15 +140,7 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header className="space-y-2 pt-2">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Find verified halal restaurants
-        </h1>
-        <p className="text-muted-foreground">
-          Search by name, neighborhood, or city. Filter by trust
-          tier, menu posture, and dietary preferences.
-        </p>
-      </header>
+      <SiteHero compact={hasQuery} />
 
       <div className="space-y-3">
         <Input
