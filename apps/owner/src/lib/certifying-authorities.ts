@@ -74,15 +74,26 @@ export const AUTH_OTHER_SENTINEL = "__other__";
 /**
  * Map a stored string back to a dropdown selection.
  *
- *   - ``null`` / empty → ``__none__`` (nothing selected)
- *   - matches a curated value → the value verbatim
- *   - anything else → ``__other__`` (free-text fallback)
+ *   - ``null`` / ``undefined``  → ``__none__`` (nothing selected)
+ *   - ``""`` (empty string)     → ``__other__`` (user just clicked
+ *                                  "Other" but hasn't typed yet —
+ *                                  IMPORTANT: ``""`` must NOT
+ *                                  collapse to ``__none__`` or the
+ *                                  free-text input never gets a
+ *                                  chance to render after the click)
+ *   - matches a curated value   → the value verbatim
+ *   - anything else             → ``__other__`` (free-text fallback)
  *
  * The corresponding free-text input only renders for the
  * ``__other__`` case, pre-populated with the stored string.
  */
 export function authoritySentinelFor(stored: string | null | undefined): string {
-  if (!stored) return AUTH_NONE_SENTINEL;
+  if (stored === null || stored === undefined) {
+    return AUTH_NONE_SENTINEL;
+  }
+  if (stored === "") {
+    return AUTH_OTHER_SENTINEL;
+  }
   const match = CERTIFYING_AUTHORITIES.find((o) => o.value === stored);
   return match ? match.value : AUTH_OTHER_SENTINEL;
 }
