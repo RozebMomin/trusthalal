@@ -124,8 +124,8 @@ export default function DisputesPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">Disputes</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Disputes</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">
           Review consumer reports that a place&apos;s halal profile is
           wrong. Resolving uphold or dismiss clears the place&apos;s
           DISPUTED badge once no other active disputes remain.

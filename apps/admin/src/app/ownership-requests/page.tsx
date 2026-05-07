@@ -113,16 +113,16 @@ export default function OwnershipRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between gap-4">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Ownership requests
           </h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             Review merchant-submitted claim-this-place requests.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
           Create ownership request
         </Button>
       </header>

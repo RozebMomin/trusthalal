@@ -28,6 +28,7 @@
  * local presence.
  */
 
+import { Menu, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
@@ -140,17 +141,120 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  return <AuthedShell isFetching={isFetching}>{children}</AuthedShell>;
+}
+
+/**
+ * Authenticated layout shell.
+ *
+ * Desktop: classic two-column with a 256px-wide left sidebar that's
+ * always visible. Content fills the remainder.
+ *
+ * Mobile (< md, 768px): the sidebar would eat 256px of a 375px
+ * viewport, so it collapses into an off-canvas drawer that slides in
+ * from the left when the user taps the hamburger in a narrow top
+ * header. A backdrop click or a route change closes it. Body scroll
+ * is locked while the drawer is open so background content doesn't
+ * jiggle behind the overlay.
+ */
+function AuthedShell({
+  children,
+  isFetching,
+}: {
+  children: React.ReactNode;
+  isFetching: boolean;
+}) {
+  const pathname = usePathname() ?? "/";
+  const [navOpen, setNavOpen] = React.useState(false);
+
+  // Close the drawer whenever the user navigates. Without this, picking
+  // a sidebar link on mobile leaves the drawer covering the content
+  // they just opened.
+  React.useEffect(() => {
+    setNavOpen(false);
+  }, [pathname]);
+
+  // Lock body scroll while drawer is open on mobile. Dropped on
+  // unmount + when drawer closes so we never leave the page stuck.
+  React.useEffect(() => {
+    if (!navOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [navOpen]);
+
+  // Keep sidebar visibility predictable across resize: if the user
+  // resizes from mobile to desktop while the drawer is open, drop the
+  // open state so the desktop sidebar isn't doubled up with the
+  // mobile-drawer artifacts (z-index, transform, etc.).
+  React.useEffect(() => {
+    function onResize() {
+      if (window.innerWidth >= 768) setNavOpen(false);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
-    <div className="flex h-full min-h-screen">
-      <aside className="flex w-64 shrink-0 flex-col border-r bg-card">
+    <div className="flex h-full min-h-screen flex-col md:flex-row">
+      {/* Mobile-only top bar: hamburger + brand. Hidden on md+ where
+          the sidebar is always visible. */}
+      <header className="flex items-center gap-3 border-b bg-card px-4 py-3 md:hidden">
+        <button
+          type="button"
+          onClick={() => setNavOpen(true)}
+          aria-label="Open navigation menu"
+          aria-expanded={navOpen}
+          className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <Menu className="h-5 w-5" aria-hidden />
+        </button>
+        <span className="text-base font-semibold tracking-tight">
+          Trust Halal
+        </span>
+      </header>
+
+      {/* Backdrop: only rendered on mobile when drawer is open. Click
+          dismisses the drawer. */}
+      {navOpen && (
+        <div
+          aria-hidden
+          onClick={() => setNavOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+        />
+      )}
+
+      <aside
+        className={[
+          "flex w-64 shrink-0 flex-col border-r bg-card",
+          // Mobile: fixed slide-out drawer.
+          "fixed inset-y-0 left-0 z-40 transform transition-transform duration-200",
+          navOpen ? "translate-x-0" : "-translate-x-full",
+          // Desktop (md+): in-flow column, always visible.
+          "md:relative md:translate-x-0 md:transition-none",
+        ].join(" ")}
+      >
+        {/* Close affordance only on mobile drawer. */}
+        <div className="flex items-center justify-end px-2 py-2 md:hidden">
+          <button
+            type="button"
+            onClick={() => setNavOpen(false)}
+            aria-label="Close navigation menu"
+            className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
         <AppNav />
         <CurrentUserFooter
-          email={me ? undefined : undefined /* see SignedInIndicator */}
+          email={undefined /* see SignedInIndicator */}
         />
         <SignedInIndicator />
       </aside>
       <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
           {children}
           {/*
             isFetching indicator at bottom is just a hook for future
