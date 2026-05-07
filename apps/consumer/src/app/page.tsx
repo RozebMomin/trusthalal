@@ -3,9 +3,16 @@
 /**
  * Consumer site home — the search surface.
  *
- * Phase 9b ships text search + halal preference filters over the
- * public ``GET /places`` endpoint. Geo search ("near me") lands in
- * a follow-up; the API supports it already.
+ * Two search modes the public ``GET /places`` endpoint accepts, and
+ * both are wired here:
+ *
+ *   * **Text** — typing into the search input pushes a debounced
+ *     ``q`` into the URL.
+ *   * **Geo** — clicking "Near me" prompts the browser for
+ *     geolocation, then pushes ``lat`` + ``lng`` + ``radius`` into
+ *     the URL. Server semantics: q wins over geo, so activating
+ *     near-me clears any text query and typing in the search input
+ *     clears any active geo coords.
  *
  * URL state: every input writes its value into the query string so
  * a search result is shareable and the back button restores the
@@ -22,6 +29,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
+import { NearMeButton } from "@/components/near-me-button";
 import { PlaceResultCard } from "@/components/place-result-card";
 import { SearchFilters } from "@/components/search-filters";
 import { SiteHero } from "@/components/site-hero";
@@ -30,12 +38,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import {
   type MenuPosture,
+  type PlaceSearchResult,
   type SearchPlacesParams,
   type ValidationTier,
   useCurrentUser,
   useSearchPlaces,
 } from "@/lib/api/hooks";
 import { useMyPreferences } from "@/lib/api/preferences";
+import { haversineDistanceMeters } from "@/lib/geo";
+
+type DistanceSort = "closest" | "farthest";
 
 const DEBOUNCE_MS = 250;
 
@@ -144,10 +156,19 @@ function HomePageInner() {
     setRawQuery(filtersFromUrl.q ?? "");
   }, [filtersFromUrl.q]);
 
-  // Push debounced text changes into the URL.
+  // Push debounced text changes into the URL. When the user types,
+  // also drop any active "near me" coords — server semantics are that
+  // q wins over geo, so the UI mirrors that by clearing geo on the
+  // way out so the user isn't left with a misleading status pill.
   React.useEffect(() => {
     if ((filtersFromUrl.q ?? "") === debouncedQuery) return;
-    const next: SearchPlacesParams = { ...filtersFromUrl, q: debouncedQuery };
+    const next: SearchPlacesParams = {
+      ...filtersFromUrl,
+      q: debouncedQuery,
+      ...(debouncedQuery
+        ? { lat: undefined, lng: undefined, radius: undefined }
+        : {}),
+    };
     router.replace(`/?${stringifySearchParams(next)}`, { scroll: false });
     // We intentionally don't depend on `router` — Next's router
     // identity is stable enough that the lint rule is overly strict
@@ -159,16 +180,113 @@ function HomePageInner() {
     router.replace(`/?${stringifySearchParams(next)}`, { scroll: false });
   }
 
+  // Near-me coords from the URL, packed into the shape the
+  // NearMeButton expects. null when geo is off. Memoized so the
+  // object identity is stable across renders that don't actually
+  // change the geo trio — otherwise the decoratedResults useMemo
+  // below re-fires on every render even when nothing has changed.
+  const nearMeActive = React.useMemo<
+    { lat: number; lng: number; radius: number } | null
+  >(() => {
+    if (
+      filtersFromUrl.lat === undefined ||
+      filtersFromUrl.lng === undefined ||
+      filtersFromUrl.radius === undefined
+    ) {
+      return null;
+    }
+    return {
+      lat: filtersFromUrl.lat,
+      lng: filtersFromUrl.lng,
+      radius: filtersFromUrl.radius,
+    };
+  }, [filtersFromUrl.lat, filtersFromUrl.lng, filtersFromUrl.radius]);
+
+  function activateNearMe(next: {
+    lat: number;
+    lng: number;
+    radius: number;
+  }) {
+    // Activating near-me takes over the search: clear the q text
+    // (server ignores geo when q is set, and a stale text query
+    // sitting in the input would be confusing) and push coords +
+    // radius to the URL.
+    setRawQuery("");
+    router.replace(
+      `/?${stringifySearchParams({
+        ...filtersFromUrl,
+        q: undefined,
+        lat: next.lat,
+        lng: next.lng,
+        radius: next.radius,
+      })}`,
+      { scroll: false },
+    );
+  }
+
+  function clearNearMe() {
+    router.replace(
+      `/?${stringifySearchParams({
+        ...filtersFromUrl,
+        lat: undefined,
+        lng: undefined,
+        radius: undefined,
+      })}`,
+      { scroll: false },
+    );
+  }
+
   // Search uses the merged ``effectiveFilters`` — URL plus prefs —
   // so saved defaults narrow results without the user re-typing
   // them every visit.
   const search = useSearchPlaces(effectiveFilters);
 
   const hasQuery = Boolean(filtersFromUrl.q && filtersFromUrl.q.length > 0);
+  // Search runs whenever EITHER text or geo is set. The hero +
+  // results plumbing keys off this combined flag so a near-me
+  // search shows results / loading states the same way text search
+  // does.
+  const hasActiveSearch = hasQuery || nearMeActive !== null;
+
+  // Distance-aware sort, only meaningful when near-me is active.
+  // Default = closest first; the toggle flips to farthest. Lives in
+  // local state (not the URL) because it's a pure presentation
+  // choice — sharing a near-me link shouldn't surprise the recipient
+  // with a non-default sort.
+  const [distanceSort, setDistanceSort] =
+    React.useState<DistanceSort>("closest");
+
+  // Decorate every result with its distance from the geo center so
+  // each row can render a "X.X mi away" badge and the list can be
+  // sorted by it. Done client-side because every place already
+  // carries lat/lng on the wire — no need to add a `distance_meters`
+  // column to GET /places just to display.
+  const decoratedResults = React.useMemo<
+    Array<{ place: PlaceSearchResult; distanceMeters?: number }>
+  >(() => {
+    const data = search.data ?? [];
+    if (nearMeActive === null) {
+      return data.map((place) => ({ place }));
+    }
+    const center = { lat: nearMeActive.lat, lng: nearMeActive.lng };
+    const withDistance = data.map((place) => ({
+      place,
+      distanceMeters: haversineDistanceMeters(center, {
+        lat: place.lat,
+        lng: place.lng,
+      }),
+    }));
+    withDistance.sort((a, b) => {
+      const da = a.distanceMeters ?? 0;
+      const db = b.distanceMeters ?? 0;
+      return distanceSort === "closest" ? da - db : db - da;
+    });
+    return withDistance;
+  }, [search.data, nearMeActive, distanceSort]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <SiteHero compact={hasQuery} />
+      <SiteHero compact={hasActiveSearch} />
 
       <div className="space-y-3">
         <Input
@@ -178,6 +296,11 @@ function HomePageInner() {
           value={rawQuery}
           onChange={(e) => setRawQuery(e.target.value)}
           aria-label="Search restaurants"
+        />
+        <NearMeButton
+          active={nearMeActive}
+          onActivate={activateNearMe}
+          onClear={clearNearMe}
         />
         <SearchFilters
           filters={effectiveFilters}
@@ -197,28 +320,66 @@ function HomePageInner() {
         )}
       </div>
 
-      {!hasQuery && <PromptState />}
+      {!hasActiveSearch && <PromptState />}
 
-      {hasQuery && search.isLoading && <LoadingState />}
+      {hasActiveSearch && search.isLoading && <LoadingState />}
 
-      {hasQuery && search.error && <ErrorState error={search.error as Error} />}
+      {hasActiveSearch && search.error && (
+        <ErrorState error={search.error as Error} />
+      )}
 
-      {hasQuery &&
+      {hasActiveSearch &&
         !search.isLoading &&
         !search.error &&
         search.data &&
-        search.data.length === 0 && <NoResultsState />}
+        search.data.length === 0 && (
+          <NoResultsState
+            mode={nearMeActive !== null ? "geo" : "text"}
+          />
+        )}
 
-      {hasQuery &&
+      {hasActiveSearch &&
         !search.isLoading &&
         !search.error &&
         search.data &&
         search.data.length > 0 && (
-          <ul className="space-y-3">
-            {search.data.map((place) => (
-              <PlaceResultCard key={place.id} place={place} />
-            ))}
-          </ul>
+          <div className="space-y-3">
+            {/* Sort control only renders when near-me is active —
+                without a geo center there's no meaningful "closest
+                first" to sort by. The control sits above the list
+                and right-aligns so the result count or other future
+                metadata can sit on the left. */}
+            {nearMeActive !== null && (
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  {decoratedResults.length}{" "}
+                  {decoratedResults.length === 1 ? "result" : "results"}
+                </p>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  Sort
+                  <select
+                    value={distanceSort}
+                    onChange={(e) =>
+                      setDistanceSort(e.target.value as DistanceSort)
+                    }
+                    className="flex h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="closest">Closest first</option>
+                    <option value="farthest">Farthest first</option>
+                  </select>
+                </label>
+              </div>
+            )}
+            <ul className="space-y-3">
+              {decoratedResults.map(({ place, distanceMeters }) => (
+                <PlaceResultCard
+                  key={place.id}
+                  place={place}
+                  distanceMeters={distanceMeters}
+                />
+              ))}
+            </ul>
+          </div>
         )}
     </div>
   );
@@ -231,7 +392,9 @@ function HomePageInner() {
 function PromptState() {
   return (
     <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-      Type a name or neighborhood to start searching.
+      Type a name or neighborhood to start searching, or tap{" "}
+      <span className="font-medium text-foreground">Near me</span> to find
+      verified halal restaurants around you.
     </p>
   );
 }
@@ -248,11 +411,12 @@ function LoadingState() {
   );
 }
 
-function NoResultsState() {
+function NoResultsState({ mode }: { mode: "text" | "geo" }) {
   return (
     <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-      No restaurants matched your search. Try loosening filters or a
-      different name.
+      {mode === "geo"
+        ? "No verified halal restaurants found inside this radius. Try a wider radius, or loosen filters."
+        : "No restaurants matched your search. Try loosening filters or a different name."}
     </div>
   );
 }
@@ -295,6 +459,17 @@ function parseSearchParams(p: URLSearchParams | null): SearchPlacesParams {
   if (p.get("no_pork") === "true") out.no_pork = true;
   if (p.get("no_alcohol_served") === "true") out.no_alcohol_served = true;
   if (p.get("has_certification") === "true") out.has_certification = true;
+  // Geo trio: only commit if all three round-trip cleanly. Partial
+  // coords would 400 on the API and a stale lat without lng makes
+  // for a confusing back-button restoration.
+  const lat = parseNumber(p.get("lat"));
+  const lng = parseNumber(p.get("lng"));
+  const radius = parseNumber(p.get("radius"));
+  if (lat !== null && lng !== null && radius !== null) {
+    out.lat = lat;
+    out.lng = lng;
+    out.radius = radius;
+  }
   return out;
 }
 
@@ -310,7 +485,25 @@ function stringifySearchParams(params: SearchPlacesParams): string {
     u.set("no_alcohol_served", "true");
   if (params.has_certification === true)
     u.set("has_certification", "true");
+  // Geo trio — same all-or-nothing posture as the parser. Truncate
+  // lat/lng to 5 decimals (~1.1m precision, far below the 1-mile
+  // smallest radius) so the URL stays short and shareable.
+  if (
+    params.lat !== undefined &&
+    params.lng !== undefined &&
+    params.radius !== undefined
+  ) {
+    u.set("lat", params.lat.toFixed(5));
+    u.set("lng", params.lng.toFixed(5));
+    u.set("radius", String(Math.round(params.radius)));
+  }
   return u.toString();
+}
+
+function parseNumber(value: string | null): number | null {
+  if (value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 // ---------------------------------------------------------------------------
