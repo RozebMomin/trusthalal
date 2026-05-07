@@ -39,7 +39,35 @@ import { useMyPreferences } from "@/lib/api/preferences";
 
 const DEBOUNCE_MS = 250;
 
+/**
+ * Default export. The actual page lives in `HomePageInner` so we can
+ * wrap it in `<Suspense>` — `useSearchParams()` requires a Suspense
+ * boundary above it during the production prerender pass; without
+ * one Next 14's static analyzer bails on the route. The fallback is
+ * a compact hero + an empty results column so first paint matches
+ * the eventual layout.
+ */
 export default function HomePage() {
+  return (
+    <React.Suspense fallback={<HomePageFallback />}>
+      <HomePageInner />
+    </React.Suspense>
+  );
+}
+
+function HomePageFallback() {
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <SiteHero />
+      <div className="space-y-3">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-8 w-2/3" />
+      </div>
+    </div>
+  );
+}
+
+function HomePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: me } = useCurrentUser();
