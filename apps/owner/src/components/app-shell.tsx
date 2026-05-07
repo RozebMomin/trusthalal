@@ -25,6 +25,7 @@
  * source of truth is the API's /me endpoint.
  */
 
+import { Building2, ShieldCheck, Store } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
@@ -89,7 +90,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <PortalHeader />
-      <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
+      {/*
+        Bottom padding on mobile clears the fixed BottomTabBar (16px
+        gap + bar height ~64px + safe-area inset for iPhones with no
+        physical home button) so the last row of content isn't hidden
+        underneath. md+ removes the offset since the tab bar is hidden.
+      */}
+      <main className="flex-1 px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-6 md:px-8 md:pb-8 md:pt-8">
+        {children}
+      </main>
+      <BottomTabBar />
     </div>
   );
 }
@@ -125,7 +135,12 @@ function PortalHeader() {
           <span className="text-lg font-semibold tracking-tight">
             Trust Halal
           </span>
-          <span className="hidden text-xs text-muted-foreground sm:inline">
+          {/* "Owner portal" qualifier sits next to the brand at every
+              viewport so a user landing on a phone knows immediately
+              which surface they're on. Used to be hidden below sm —
+              that left mobile users staring at "Trust Halal" with no
+              indication this isn't the consumer site. */}
+          <span className="text-xs text-muted-foreground">
             Owner portal
           </span>
         </Link>
@@ -195,29 +210,102 @@ function PortalHeader() {
         </div>
       </div>
 
-      {/* Mobile-only secondary row: nav links wrap below the brand
-          when there's no horizontal room. Same three-item set as
-          desktop, abbreviated to fit narrow screens. */}
-      {me && (
-        <nav className="mx-auto mt-2 flex max-w-5xl items-center gap-1 md:hidden">
-          <NavLink
-            href="/my-halal-claims"
-            active={pathname.startsWith("/my-halal-claims")}
-          >
-            Halal
-          </NavLink>
-          <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
-            Places
-          </NavLink>
-          <NavLink
-            href="/my-organizations"
-            active={pathname.startsWith("/my-organizations")}
-          >
-            Orgs
-          </NavLink>
-        </nav>
-      )}
+      {/*
+        Mobile nav was previously a secondary row that wrapped below
+        the brand. It's been replaced by the BottomTabBar (rendered by
+        AppShell, fixed to the viewport bottom). That gives a more
+        native-app feel on a phone — three thumb-reachable tabs with
+        icons + labels — and frees up a row of vertical real estate
+        at the top of every screen.
+      */}
     </header>
+  );
+}
+
+/**
+ * Bottom tab bar — mobile-only, fixed to the viewport bottom.
+ *
+ * Three peer-level surfaces (Claims, Places, Organizations) map
+ * cleanly to a tab bar pattern lifted from native iOS / Android:
+ * persistent, thumb-reachable, always-visible. On md+ the desktop
+ * top-bar nav handles the same destinations and this component
+ * renders nothing.
+ *
+ * Implementation notes:
+ *   * `env(safe-area-inset-bottom)` keeps the bar above the iPhone
+ *     home indicator without overlapping it. Bar's vertical padding
+ *     adds the inset so the visual bar height varies by device.
+ *   * `backdrop-blur` lets translucent-but-readable content sit over
+ *     scrolled page content the way native bars do.
+ *   * Active item gets a stronger color treatment + thicker icon
+ *     stroke via lucide's default fill for instant glanceability.
+ *   * Each tab is a min-h-12 / min-w-16 touch target — comfortably
+ *     above Apple's 44pt and Material's 48dp guidance.
+ */
+function BottomTabBar() {
+  const pathname = usePathname() ?? "/";
+
+  const tabs: ReadonlyArray<{
+    href: string;
+    label: string;
+    icon: typeof ShieldCheck;
+    matches: (p: string) => boolean;
+  }> = [
+    {
+      href: "/my-halal-claims",
+      label: "Claims",
+      icon: ShieldCheck,
+      matches: (p) => p.startsWith("/my-halal-claims"),
+    },
+    {
+      href: "/my-claims",
+      label: "Places",
+      icon: Store,
+      // /my-claims AND the bare / home page both belong to this tab —
+      // home is effectively a places-overview surface.
+      matches: (p) => p === "/" || p.startsWith("/my-claims"),
+    },
+    {
+      href: "/my-organizations",
+      label: "Orgs",
+      icon: Building2,
+      matches: (p) => p.startsWith("/my-organizations"),
+    },
+  ];
+
+  return (
+    <nav
+      aria-label="Primary navigation"
+      className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+    >
+      <ul className="mx-auto flex max-w-md items-stretch justify-around">
+        {tabs.map((tab) => {
+          const active = tab.matches(pathname);
+          const Icon = tab.icon;
+          return (
+            <li key={tab.href} className="flex-1">
+              <Link
+                href={tab.href}
+                aria-current={active ? "page" : undefined}
+                className={[
+                  "flex min-h-[3rem] flex-col items-center justify-center gap-0.5 px-2 py-2 text-[11px] font-medium transition",
+                  active
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                ].join(" ")}
+              >
+                <Icon
+                  className="h-5 w-5"
+                  strokeWidth={active ? 2.5 : 2}
+                  aria-hidden
+                />
+                <span>{tab.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 
