@@ -9,7 +9,13 @@
  * name) for the same reason most apps do: a 44×44 hit target hurts
  * thumbs less than a name-only hot zone, and the user's mental model
  * is "tap the result," not "tap the name."
+ *
+ * Optional `distanceMeters` shows a "X.X mi away" pill in the top-
+ * right of the row when a near-me search is active. Computed by the
+ * parent (search page) so distance state lives next to the geo
+ * center it was measured from, not duplicated per card.
  */
+import { Navigation } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -18,8 +24,15 @@ import {
   HalalProfileMissingBadge,
 } from "@/components/halal-badges";
 import type { PlaceSearchResult } from "@/lib/api/hooks";
+import { formatDistanceMiles } from "@/lib/geo";
 
-export function PlaceResultCard({ place }: { place: PlaceSearchResult }) {
+export function PlaceResultCard({
+  place,
+  distanceMeters,
+}: {
+  place: PlaceSearchResult;
+  distanceMeters?: number;
+}) {
   const addressLine = [place.address, place.city, place.country_code]
     .filter(Boolean)
     .join(" · ");
@@ -39,6 +52,12 @@ export function PlaceResultCard({ place }: { place: PlaceSearchResult }) {
               </p>
             )}
           </div>
+          {distanceMeters !== undefined && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary">
+              <Navigation className="h-3 w-3" aria-hidden />
+              {formatDistanceMiles(distanceMeters)}
+            </span>
+          )}
         </div>
         <div className="mt-3">
           {place.halal_profile ? (
