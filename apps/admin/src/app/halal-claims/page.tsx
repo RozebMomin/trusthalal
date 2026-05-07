@@ -121,8 +121,8 @@ export default function HalalClaimsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">Halal claims</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Halal claims</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">
           Review owner-submitted halal-posture verifications. Approving
           a claim updates the place&apos;s consumer-facing halal profile.
         </p>

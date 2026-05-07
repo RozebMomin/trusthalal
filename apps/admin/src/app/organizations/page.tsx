@@ -85,8 +85,8 @@ export default function OrganizationsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Organizations</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">
           Review owner-submitted organizations. Verify them so they can
           sponsor halal claims and ownership requests.
         </p>

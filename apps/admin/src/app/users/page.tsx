@@ -79,14 +79,16 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-          <p className="mt-2 text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Users</h1>
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             Manage internal roles and audit actor history.
           </p>
         </div>
-        <Button onClick={() => setInviteOpen(true)}>Invite user</Button>
+        <Button onClick={() => setInviteOpen(true)} className="w-full sm:w-auto">
+          Invite user
+        </Button>
       </header>
 
       <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} />
