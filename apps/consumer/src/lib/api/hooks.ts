@@ -254,7 +254,22 @@ export const qk = {
     ["places", "search", params] as const,
   placeDetail: (placeId: string) => ["places", "detail", placeId] as const,
   myDisputes: () => ["me", "disputes"] as const,
+  reverseGeocode: (lat: number, lng: number) =>
+    ["places", "reverse-geocode", lat, lng] as const,
 } as const;
+
+/**
+ * Result shape from the consumer "near me" reverse-geocode proxy.
+ * Mirrors ``ReverseGeocodeResult`` server-side. All three fields are
+ * optional — Google can resolve a country but no locality for rural
+ * coordinates, and the consumer pill falls back gracefully when
+ * `city` is null.
+ */
+export type ReverseGeocodeResult = {
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+};
 
 // ---------------------------------------------------------------------------
 // Hooks
@@ -397,6 +412,56 @@ export function useSearchPlaces(params: SearchPlacesParams) {
     // public catalog doesn't churn quickly, and a refresh-on-back
     // navigation flicker is worse than a slightly stale list.
     staleTime: 60_000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reverse geocode (near-me city label)
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /places/google/reverse-geocode — proxy to Google Geocoding.
+ *
+ * Powers the "Searching X mi around <City>" label on the near-me
+ * pill. Disabled when lat/lng aren't both finite numbers (the hook
+ * gets called from a component that may render before the user has
+ * granted geolocation, so guard against the partial-coords case).
+ *
+ * Cached aggressively: a coordinate's city doesn't change minute to
+ * minute, and toggling near-me on/off shouldn't fire a fresh Google
+ * call every time. The 24-hour staleTime + queryKey-based dedupe by
+ * coords cover both.
+ *
+ * Lat/lng are quantized to 4 decimal places (~11m) before keying so
+ * tiny GPS jitter between activations doesn't bust the cache.
+ */
+export function useReverseGeocode(
+  lat: number | undefined,
+  lng: number | undefined,
+) {
+  const enabled =
+    typeof lat === "number" &&
+    Number.isFinite(lat) &&
+    typeof lng === "number" &&
+    Number.isFinite(lng);
+
+  const quantizedLat = enabled ? Number(lat!.toFixed(4)) : 0;
+  const quantizedLng = enabled ? Number(lng!.toFixed(4)) : 0;
+
+  return useQuery<ReverseGeocodeResult>({
+    queryKey: qk.reverseGeocode(quantizedLat, quantizedLng),
+    queryFn: () =>
+      apiFetch<ReverseGeocodeResult>("/places/google/reverse-geocode", {
+        searchParams: {
+          lat: quantizedLat,
+          lng: quantizedLng,
+        },
+      }),
+    enabled,
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+    // The pill is decoration — failures are silent. The active pill
+    // falls back to "around you" when this hook returns no data.
+    retry: false,
   });
 }
 

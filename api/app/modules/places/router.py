@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import lru_cache as _lru_cache
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -16,9 +17,13 @@ from app.modules.halal_profiles.enums import (
 )
 from app.modules.halal_profiles.repo import get_public_halal_profile
 from app.modules.halal_profiles.schemas import HalalProfileRead
+from app.modules.places.integrations.google import (
+    extract_locality_from_geocode,
+)
 from app.modules.places.integrations.google_client import (
     GoogleAPIError,
     fetch_place_autocomplete_google,
+    fetch_reverse_geocode_google,
 )
 from app.modules.places.repo import (
     HalalSearchFilters,
@@ -36,6 +41,7 @@ from app.modules.places.schemas import (
     PlaceDetail,
     PlaceRead,
     PlaceSearchResult,
+    ReverseGeocodeResult,
 )
 from app.core.auth import CurrentUser, get_current_user
 from app.modules.users.enums import UserRole
@@ -187,6 +193,107 @@ def google_autocomplete(
         # rather than rendering a row that 404s on submit.
         if p.get("place_id")
     ]
+
+
+# Process-local cache for reverse-geocode results, keyed on
+# coordinates rounded to 3 decimal places (~110m grid). Two users in
+# the same neighborhood collapse to a single Google call, which
+# matters a lot at scale: Google Geocoding charges $5/1000 after the
+# $200/month free credit, and most consumer traffic clusters around
+# a small number of metro areas. Cache TTL is 30 days — cities don't
+# move, and the LRU cap of 10000 entries covers about a million
+# square miles of grid before evicting anything.
+#
+# In-memory only — restarts drop the cache. That's fine: a Render
+# redeploy still costs at most one Google call per active grid cell
+# in the ~minutes after restart. If/when this app sees enough traffic
+# to matter, swap to Redis or a Postgres-backed (lat_3dp, lng_3dp,
+# resolved_at, city, region, country) table without changing this
+# function's signature.
+@_lru_cache(maxsize=10_000)
+def _cached_reverse_geocode_locality(
+    lat_3dp: float, lng_3dp: float
+) -> tuple[str | None, str | None, str | None]:
+    """Cached wrapper. Key is (rounded lat, rounded lng); value is the
+    triple of (city, region, country_code). Exceptions are not cached
+    — a transient Google outage shouldn't poison the cache."""
+    payload = fetch_reverse_geocode_google(lat_3dp, lng_3dp)
+    locality = extract_locality_from_geocode(payload)
+    return (locality.city, locality.region, locality.country_code)
+
+
+@router.get(
+    "/google/reverse-geocode",
+    response_model=ReverseGeocodeResult,
+    summary="Google Geocoding reverse-lookup proxy",
+    description=(
+        "Server-side proxy to the Google Geocoding API. Given a "
+        "lat/lng, returns the resolved city / region (short code) / "
+        "country code for the consumer 'near me' surface — the active "
+        "pill renders 'Searching X mi around Snellville' rather than "
+        "the generic 'around you'. Same key-hygiene posture as the "
+        "autocomplete proxy: GOOGLE_MAPS_API_KEY is never exposed to "
+        "the browser. Coordinates are rounded to 3 decimals (~110m "
+        "grid) before lookup so two users in the same neighborhood "
+        "collapse to a single billed call. Rate-limited per-IP "
+        "(60/min, 600/hour). All three response fields are optional; "
+        "rural / ocean coordinates can return a 200 OK with `city` "
+        "null and the consumer pill falls back accordingly."
+    ),
+)
+@limiter.limit("60/minute", key_func=ip_key)
+@limiter.limit("600/hour", key_func=ip_key)
+def google_reverse_geocode(
+    request: Request,
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    db: Session = Depends(get_db),
+) -> ReverseGeocodeResult:
+    """Reverse-geocode a coordinate to a city label.
+
+    Public on purpose: the consumer "near me" feature is anonymous-
+    friendly and there's no PII in the response (just the publicly-
+    knowable city name for a coordinate the caller already told us).
+    Rate-limited per-IP to bound Google quota cost — every near-me
+    activation fires one call, but a misconfigured client bouncing
+    coords every render would otherwise burn quota fast.
+
+    Coordinates are rounded to 3 decimal places (~110m grid) before
+    being sent to Google. That trades the difference between two
+    sub-block points (which would resolve to the same city anyway)
+    for a much higher cache hit rate across users.
+
+    Empty / ZERO_RESULTS responses translate to ``ReverseGeocodeResult(
+    city=None, region=None, country_code=None)`` rather than a 404 —
+    "we couldn't resolve a city for this point" is a normal soft
+    outcome on the consumer side and the pill falls back to "around
+    you" when ``city`` is null.
+    """
+    del db  # see autocomplete handler — kept for signature symmetry
+
+    lat_3dp = round(lat, 3)
+    lng_3dp = round(lng, 3)
+
+    try:
+        city, region, country_code = _cached_reverse_geocode_locality(
+            lat_3dp, lng_3dp
+        )
+    except GoogleAPIError as exc:
+        # Same posture as autocomplete: hide Google's verbose error
+        # text from the client. The proxy is never required for the
+        # near-me feature to work — the consumer pill degrades to
+        # "around you" — so the client can also render this as a soft
+        # warning rather than a hard error.
+        raise BadRequestError(
+            "GOOGLE_REVERSE_GEOCODE_UNAVAILABLE",
+            f"Google Reverse Geocoding is currently unavailable: {exc}",
+        )
+
+    return ReverseGeocodeResult(
+        city=city,
+        region=region,
+        country_code=country_code,
+    )
 
 
 @router.get(

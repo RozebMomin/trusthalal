@@ -193,3 +193,77 @@ def fetch_place_details_google(
         )
 
     return payload
+
+
+class ReverseGeocodeFetcher(Protocol):
+    """Callable that maps a (lat, lng) pair to a Google Geocoding payload.
+
+    Same swappable-dependency posture as the autocomplete + place-details
+    fetchers above so tests can inject captured fixture JSON without
+    burning real Google quota.
+    """
+
+    def __call__(self, lat: float, lng: float) -> dict[str, Any]: ...
+
+
+def fetch_reverse_geocode_google(
+    lat: float,
+    lng: float,
+    *,
+    api_key: str | None = None,
+    url: str | None = None,
+    timeout_s: float = 10.0,
+) -> dict[str, Any]:
+    """Reverse-geocode a lat/lng to a Google Geocoding payload.
+
+    Returns the full JSON response (``{"status": "OK", "results": [...]}``).
+    Caller is responsible for picking the most appropriate result and
+    parsing address_components — the helper in
+    ``app/modules/places/integrations/google.py`` already knows how to
+    extract city / region / country, so the proxy endpoint reuses it.
+
+    Status handling mirrors ``fetch_place_details_google``:
+      * ``OK`` → return payload
+      * ``ZERO_RESULTS`` → return payload as-is so the caller can render
+        a "no city" outcome cleanly. Reverse-geocoding the middle of an
+        ocean isn't an error condition; it's just empty.
+      * Anything else → raise ``GoogleAPIError``.
+    """
+    effective_key = api_key or settings.GOOGLE_MAPS_API_KEY
+    if not effective_key:
+        raise GoogleAPIError(
+            "GOOGLE_MAPS_API_KEY is not configured; reverse geocoding is unavailable."
+        )
+
+    effective_url = url or settings.GOOGLE_GEOCODE_URL
+
+    # `result_type=locality|...` would let Google pre-filter, but the
+    # legacy Geocoding API doesn't support a useful filter for "the
+    # city of this point". Letting Google return the full ranked list
+    # and picking client-side via the existing component-priority
+    # ladder is more reliable across countries.
+    params = {
+        "latlng": f"{lat},{lng}",
+        "key": effective_key,
+    }
+
+    try:
+        resp = httpx.get(effective_url, params=params, timeout=timeout_s)
+        resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise GoogleAPIError(
+            f"Google Geocoding HTTP error: {exc}"
+        ) from exc
+
+    payload = resp.json()
+    status = payload.get("status")
+
+    if status == "ZERO_RESULTS":
+        return payload
+    if status != "OK":
+        raise GoogleAPIError(
+            f"Google Geocoding returned status={status!r}: "
+            f"{payload.get('error_message') or '(no error_message)'}"
+        )
+
+    return payload
