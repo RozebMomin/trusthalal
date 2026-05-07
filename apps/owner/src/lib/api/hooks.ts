@@ -907,6 +907,33 @@ export function useSubmitMyHalalClaim() {
 }
 
 /**
+ * DELETE /me/halal-claims/{id} — discard a DRAFT claim.
+ *
+ * Server returns 204 No Content; we don't expect a body so the
+ * mutation result is ``void``. The server cascades to attached
+ * files (DB rows + storage blobs) so callers don't need a
+ * separate cleanup step. Server returns 409
+ * ``HALAL_CLAIM_NOT_DELETABLE`` for any non-DRAFT status — the UI
+ * should hide the Delete button outside DRAFT but the typed code
+ * is there as a defensive fallback.
+ */
+export function useDeleteMyHalalClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (claimId: string) =>
+      apiFetch<void>(`/me/halal-claims/${claimId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: (_data, claimId) => {
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
+      // Drop the per-claim cache entry too so a stale read can't
+      // surface the row after delete.
+      qc.removeQueries({ queryKey: qk.myHalalClaim(claimId) });
+    },
+  });
+}
+
+/**
  * Multipart upload for halal-claim evidence. Optional metadata
  * (document_type / issuing_authority / certificate_number /
  * valid_until) rides as form fields alongside the file.

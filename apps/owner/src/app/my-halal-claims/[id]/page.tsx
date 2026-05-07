@@ -24,7 +24,7 @@
  */
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,7 @@ import {
   useMyHalalClaim,
   useMyHalalClaimEvents,
   usePatchMyHalalClaim,
+  useDeleteMyHalalClaim,
   useSubmitMyHalalClaim,
   useUploadMyHalalClaimAttachment,
 } from "@/lib/api/hooks";
@@ -955,9 +956,18 @@ function formatBytes(bytes: number): string {
 // Submit section
 // ---------------------------------------------------------------------------
 function SubmitSection({ claim }: { claim: MyHalalClaimRead }) {
+  const router = useRouter();
   const submit = useSubmitMyHalalClaim();
+  const deleteClaim = useDeleteMyHalalClaim();
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<string[]>([]);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
+  // Two-step confirm: first click reveals the explicit "Yes,
+  // delete" button rather than firing immediately. Inline state
+  // beats a Dialog primitive here — the section is already a
+  // bordered card, so the confirm fits naturally below the submit
+  // button without a modal.
+  const [confirmingDelete, setConfirmingDelete] = React.useState(false);
 
   if (claim.status === "PENDING_REVIEW") {
     return (
@@ -1058,6 +1068,91 @@ function SubmitSection({ claim }: { claim: MyHalalClaimRead }) {
       >
         {submit.isPending ? "Submitting…" : "Submit for review"}
       </Button>
+
+      {/* Discard-draft escape hatch. Only renders for DRAFT (the
+          surrounding component is gated to non-PENDING_REVIEW
+          and DRAFT is the only other status that lands here in
+          practice). Two-step confirm to make accidental clicks
+          recoverable. */}
+      <div className="border-t pt-3">
+        {!confirmingDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => {
+              setConfirmingDelete(true);
+              setDeleteError(null);
+            }}
+            disabled={submit.isPending || deleteClaim.isPending}
+          >
+            Discard this draft
+          </Button>
+        ) : (
+          <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+            <p className="text-destructive">
+              <strong>Discard this draft?</strong>
+              {claim.attachments.length > 0 ? (
+                <>
+                  {" "}
+                  This will also delete{" "}
+                  {claim.attachments.length} attached file
+                  {claim.attachments.length === 1 ? "" : "s"}.
+                </>
+              ) : null}{" "}
+              The draft can&apos;t be recovered after this — you&apos;ll
+              need to start a new claim.
+            </p>
+            {deleteError && (
+              <p role="alert" className="text-xs text-destructive">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={async () => {
+                  setDeleteError(null);
+                  try {
+                    await deleteClaim.mutateAsync(claim.id);
+                    router.replace("/my-halal-claims");
+                  } catch (err) {
+                    const { description } = friendlyApiError(err, {
+                      defaultTitle: "Couldn't discard the draft",
+                      overrides: {
+                        HALAL_CLAIM_NOT_DELETABLE: {
+                          title: "Already submitted",
+                          description:
+                            "This claim has already been submitted for review and can no longer be discarded.",
+                        },
+                      },
+                    });
+                    setDeleteError(description);
+                  }
+                }}
+                disabled={deleteClaim.isPending}
+              >
+                {deleteClaim.isPending ? "Discarding…" : "Yes, discard"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setConfirmingDelete(false);
+                  setDeleteError(null);
+                }}
+                disabled={deleteClaim.isPending}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

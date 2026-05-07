@@ -1430,7 +1430,11 @@ export interface paths {
         get: operations["get_my_halal_claim_me_halal_claims__claim_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Discard a DRAFT claim
+         * @description Delete a halal claim that the caller owns AND is still in DRAFT. Cascades to attached files (DB rows + storage blobs). Conflict 409 (`HALAL_CLAIM_NOT_DELETABLE`) for any non-DRAFT status — submitted claims are part of the audit trail and stay around. Admin's REJECT / REVOKE flows cover the 'we don't want this anymore' cases for those.
+         */
+        delete: operations["delete_my_halal_claim_me_halal_claims__claim_id__delete"];
         options?: never;
         head?: never;
         /**
@@ -8391,6 +8395,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MyHalalClaimRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_my_halal_claim_me_halal_claims__claim_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

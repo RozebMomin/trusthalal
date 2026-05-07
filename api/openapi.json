@@ -13456,6 +13456,41 @@
         "tags": [
           "halal-claims"
         ]
+      },
+      "delete": {
+        "tags": [
+          "halal-claims"
+        ],
+        "summary": "Discard a DRAFT claim",
+        "description": "Delete a halal claim that the caller owns AND is still in DRAFT. Cascades to attached files (DB rows + storage blobs). Conflict 409 (`HALAL_CLAIM_NOT_DELETABLE`) for any non-DRAFT status \u2014 submitted claims are part of the audit trail and stay around. Admin's REJECT / REVOKE flows cover the 'we don't want this anymore' cases for those.",
+        "operationId": "delete_my_halal_claim_me_halal_claims__claim_id__delete",
+        "parameters": [
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+              "title": "Claim Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/me/halal-claims/{claim_id}/attachments": {

@@ -346,6 +346,131 @@ def test_patch_blocked_after_submit(api, factories, db_session):
     assert patch_resp.json()["error"]["code"] == "HALAL_CLAIM_NOT_EDITABLE"
 
 
+
+# ---------------------------------------------------------------------------
+# Delete (DRAFT-only, with attachment cleanup)
+# ---------------------------------------------------------------------------
+def test_delete_draft_removes_claim_and_attachments(
+    api, factories, db_session, fake_storage,
+):
+    """Owner discards a DRAFT — claim row gone, attachment rows
+    cascade off, blob bytes deleted from storage."""
+    owner = factories.owner()
+    place, org = factories.managed_place(owner=owner)
+    db_session.commit()
+
+    create_resp = api.as_user(owner).post(
+        "/me/halal-claims",
+        json=_create_claim_payload(place.id, org.id),
+    )
+    claim_id = create_resp.json()["id"]
+
+    # Upload one attachment so the cascade has something to clean.
+    upload_resp = api.as_user(owner).post(
+        f"/me/halal-claims/{claim_id}/attachments",
+        files={
+            "file": ("cert.pdf", BytesIO(b"%PDF-1.4 fake"), "application/pdf"),
+        },
+        data={"document_type": "HALAL_CERTIFICATE"},
+    )
+    assert upload_resp.status_code == 201, upload_resp.text
+
+    storage_path = next(iter(fake_storage.uploaded.keys()))
+
+    delete_resp = api.as_user(owner).delete(
+        f"/me/halal-claims/{claim_id}"
+    )
+    assert delete_resp.status_code == 204, delete_resp.text
+
+    # Claim row gone.
+    row = db_session.execute(
+        select(HalalClaim).where(HalalClaim.id == claim_id)
+    ).scalar_one_or_none()
+    assert row is None
+
+    # Attachment rows gone (cascade).
+    attachments = db_session.execute(
+        select(HalalClaimAttachment).where(
+            HalalClaimAttachment.claim_id == claim_id
+        )
+    ).scalars().all()
+    assert attachments == []
+
+    # Storage blob deleted.
+    assert storage_path in fake_storage.deleted
+
+
+def test_delete_blocks_after_submit(
+    api, factories, db_session, fake_storage,
+):
+    """Once a claim is PENDING_REVIEW it's part of the audit trail
+    and can't be deleted — even by the owner. 409 with the typed
+    code so the UI hides the button."""
+    owner = factories.owner()
+    place, org = factories.managed_place(owner=owner)
+    db_session.commit()
+
+    create_resp = api.as_user(owner).post(
+        "/me/halal-claims",
+        json=_create_claim_payload(
+            place.id, org.id, structured=COMPLETE_QUESTIONNAIRE
+        ),
+    )
+    claim_id = create_resp.json()["id"]
+    api.as_user(owner).post(f"/me/halal-claims/{claim_id}/submit")
+
+    delete_resp = api.as_user(owner).delete(
+        f"/me/halal-claims/{claim_id}"
+    )
+    assert delete_resp.status_code == 409, delete_resp.text
+    assert (
+        delete_resp.json()["error"]["code"] == "HALAL_CLAIM_NOT_DELETABLE"
+    )
+
+
+def test_delete_blocked_for_other_users_draft(
+    api, factories, db_session, fake_storage,
+):
+    """The membership/ownership gate fires before the status
+    check — another owner can't delete your DRAFT just because
+    it's deletable in principle."""
+    owner = factories.owner(email="own@example.com")
+    other = factories.owner(email="other@example.com")
+    place, org = factories.managed_place(owner=owner)
+    db_session.commit()
+
+    create_resp = api.as_user(owner).post(
+        "/me/halal-claims",
+        json=_create_claim_payload(place.id, org.id),
+    )
+    claim_id = create_resp.json()["id"]
+
+    delete_resp = api.as_user(other).delete(
+        f"/me/halal-claims/{claim_id}"
+    )
+    # Same posture as the GET ownership check: 403 with FORBIDDEN.
+    assert delete_resp.status_code == 403, delete_resp.text
+    assert (
+        delete_resp.json()["error"]["code"] == "HALAL_CLAIM_FORBIDDEN"
+    )
+
+
+def test_delete_unknown_id_returns_404(
+    api, factories, db_session, fake_storage,
+):
+    """Bogus UUID → 404 NOT_FOUND, not 409 NOT_DELETABLE."""
+    import uuid
+
+    owner = factories.owner()
+    db_session.commit()
+
+    resp = api.as_user(owner).delete(
+        f"/me/halal-claims/{uuid.uuid4()}"
+    )
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["error"]["code"] == "HALAL_CLAIM_NOT_FOUND"
+
+
 # ---------------------------------------------------------------------------
 # Submit
 # ---------------------------------------------------------------------------
