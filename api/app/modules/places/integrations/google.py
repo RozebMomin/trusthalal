@@ -22,6 +22,21 @@ from typing import Any, Iterable
 
 
 @dataclass(frozen=True, slots=True)
+class ReverseGeocodeLocality:
+    """City-ish summary of a reverse-geocoded coordinate.
+
+    Used by the consumer "near me" pill to render a label like
+    "Searching 5 mi around Snellville" rather than the generic
+    "around you". Only carries the fields the consumer surface
+    needs; the canonical-fields dataclass below is used for ingest.
+    """
+
+    city: str | None
+    region: str | None
+    country_code: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class CanonicalPlaceFields:
     """Shape the ingest service expects from any provider extractor.
 
@@ -233,3 +248,71 @@ def extract_from_google_place(payload: dict[str, Any]) -> CanonicalPlaceFields:
         postal_code=postal_code if isinstance(postal_code, str) else None,
         timezone=_extract_timezone(root),
     )
+
+
+def extract_locality_from_geocode(
+    payload: dict[str, Any],
+) -> ReverseGeocodeLocality:
+    """Map a Google Geocoding API response (``{"status": ..., "results":
+    [...]}``) to a ``ReverseGeocodeLocality``.
+
+    Strategy: scan each result's ``address_components`` and use the
+    existing component-priority ladder (locality → postal_town →
+    sublocality → admin levels) to pick the best city-like name. The
+    first result Google returns is typically the most specific (street
+    address); its components include the city for that point. If the
+    first result's components don't contain anything we can call a
+    city, walk through the rest of the list looking for one that does.
+
+    Returns ``ReverseGeocodeLocality(None, None, None)`` for empty /
+    ZERO_RESULTS payloads — callers (the proxy endpoint) translate
+    that into "no city resolved" and the consumer pill falls back to
+    "around you".
+    """
+    results = payload.get("results") or []
+    if not isinstance(results, list):
+        return ReverseGeocodeLocality(None, None, None)
+
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        components = _normalize_components(
+            result.get("address_components")
+            or result.get("addressComponents")
+            or []
+        )
+        if not components:
+            continue
+
+        country_comp = _find_component(components, "country")
+        country_code: str | None = None
+        if country_comp:
+            sc = country_comp.get("short_name")
+            if isinstance(sc, str) and sc:
+                country_code = sc.upper()
+
+        city = _extract_city(components, country_code)
+        if not city:
+            # No city-like component on this result — try the next one.
+            continue
+
+        region_comp = _find_component(
+            components, "administrative_area_level_1"
+        )
+        # Prefer the short region name (e.g. "GA") since the consumer
+        # pill stays terse; fall back to the long name if Google didn't
+        # ship a short_name.
+        region: str | None = None
+        if region_comp:
+            sn = region_comp.get("short_name")
+            ln = region_comp.get("long_name")
+            region = sn if isinstance(sn, str) and sn else ln
+
+        return ReverseGeocodeLocality(
+            city=city if isinstance(city, str) else None,
+            region=region if isinstance(region, str) else None,
+            country_code=country_code,
+        )
+
+    # Walked every result, none had a usable city.
+    return ReverseGeocodeLocality(None, None, None)

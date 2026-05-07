@@ -72,6 +72,25 @@ class GoogleAutocompletePrediction(BaseModel):
     secondary_text: str | None = None
 
 
+class ReverseGeocodeResult(BaseModel):
+    """City-ish summary returned by the consumer "near me" reverse-
+    geocode proxy.
+
+    Powers the active-state pill on the search surface ("Searching X
+    mi around Snellville"). All three fields are optional because
+    Google can return a result with a country but no locality (rural
+    coordinates, oceans, etc.) and the consumer surface degrades
+    gracefully — the pill falls back to "around you" when ``city`` is
+    null. Region is the short code (e.g. "GA") so the pill can read
+    "Snellville, GA" without taking too much horizontal space on a
+    phone.
+    """
+
+    city: str | None = None
+    region: str | None = None
+    country_code: str | None = None
+
+
 class PlaceDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

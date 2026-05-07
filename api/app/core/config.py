@@ -93,6 +93,14 @@ class Settings(BaseSettings):
     GOOGLE_PLACES_AUTOCOMPLETE_URL: str = (
         "https://maps.googleapis.com/maps/api/place/autocomplete/json"
     )
+    # Reverse Geocoding endpoint for the consumer "near me" pill —
+    # given the user's lat/lng, derive the city label so the active
+    # pill can read "Searching X mi around Snellville" rather than the
+    # generic "around you". Hit server-side for the same key-hygiene
+    # reasons as the autocomplete proxy.
+    GOOGLE_GEOCODE_URL: str = (
+        "https://maps.googleapis.com/maps/api/geocode/json"
+    )
 
     # ------------------------------------------------------------------
     # Object storage (Supabase Storage for v1)

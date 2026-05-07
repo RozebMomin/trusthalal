@@ -42,6 +42,7 @@ import {
   type SearchPlacesParams,
   type ValidationTier,
   useCurrentUser,
+  useReverseGeocode,
   useSearchPlaces,
 } from "@/lib/api/hooks";
 import { useMyPreferences } from "@/lib/api/preferences";
@@ -248,6 +249,20 @@ function HomePageInner() {
   // does.
   const hasActiveSearch = hasQuery || nearMeActive !== null;
 
+  // Resolve the user's coordinates to a city label so the active
+  // pill can read "Searching X mi around Snellville, GA" rather than
+  // the generic "around you". Server-side caches by rounded coords
+  // and the client-side TanStack Query cache keys on quantized
+  // coords too, so toggling near-me on/off doesn't burn Google
+  // calls. Hook is no-op when coords aren't set.
+  const reverseGeocode = useReverseGeocode(
+    nearMeActive?.lat,
+    nearMeActive?.lng,
+  );
+  const cityLabel = nearMeActive
+    ? formatCityLabel(reverseGeocode.data?.city ?? null, reverseGeocode.data?.region ?? null)
+    : null;
+
   // Distance-aware sort, only meaningful when near-me is active.
   // Default = closest first; the toggle flips to farthest. Lives in
   // local state (not the URL) because it's a pure presentation
@@ -299,6 +314,7 @@ function HomePageInner() {
         />
         <NearMeButton
           active={nearMeActive}
+          cityLabel={cityLabel}
           onActivate={activateNearMe}
           onClear={clearNearMe}
         />
@@ -504,6 +520,25 @@ function parseNumber(value: string | null): number | null {
   if (value === null || value === "") return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Compose a short label for the near-me pill from the reverse-
+ * geocode result. Examples:
+ *   * city = "Snellville", region = "GA"  →  "Snellville, GA"
+ *   * city = "Snellville", region = null  →  "Snellville"
+ *   * city = null                         →  null (fall back to "you")
+ *
+ * Region is shown only when the city is also present; a stand-alone
+ * region is too vague to label "around" with.
+ */
+function formatCityLabel(
+  city: string | null,
+  region: string | null,
+): string | null {
+  if (!city) return null;
+  if (region) return `${city}, ${region}`;
+  return city;
 }
 
 // ---------------------------------------------------------------------------

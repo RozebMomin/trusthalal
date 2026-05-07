@@ -51,6 +51,11 @@ type GeoCoords = { lat: number; lng: number };
 type Props = {
   /** Active geo coords from the URL, or null when near-me is off. */
   active: (GeoCoords & { radius: number }) | null;
+  /** Optional resolved city label for the active state pill. When
+   *  null/undefined, the pill falls back to "around you". The parent
+   *  resolves this via `useReverseGeocode` so the network state
+   *  lives next to the rest of the page's data fetching. */
+  cityLabel?: string | null;
   /** Called when the user successfully grants geolocation OR adjusts
    *  the radius while already active. */
   onActivate: (next: GeoCoords & { radius: number }) => void;
@@ -58,7 +63,12 @@ type Props = {
   onClear: () => void;
 };
 
-export function NearMeButton({ active, onActivate, onClear }: Props) {
+export function NearMeButton({
+  active,
+  cityLabel,
+  onActivate,
+  onClear,
+}: Props) {
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
@@ -117,7 +127,12 @@ export function NearMeButton({ active, onActivate, onClear }: Props) {
             aria-hidden
           />
           <span className="flex-1 text-foreground">
-            Searching {radiusLabel} around you
+            Searching {radiusLabel} around{" "}
+            {cityLabel ? (
+              <span className="font-medium">{cityLabel}</span>
+            ) : (
+              "you"
+            )}
           </span>
           <button
             type="button"
