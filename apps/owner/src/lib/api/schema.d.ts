@@ -5149,11 +5149,6 @@ export interface components {
              */
             supplier_name: string | null;
             /**
-             * Supplier Location
-             * @default null
-             */
-            supplier_location: string | null;
-            /**
              * Certifying Authority
              * @default null
              */
@@ -5163,6 +5158,18 @@ export interface components {
              * @default null
              */
             certificate_number: string | null;
+            /**
+             * Supplier City
+             * @description Supplier's city. Optional.
+             * @default null
+             */
+            supplier_city: string | null;
+            /**
+             * Supplier State
+             * @description Supplier's state / province / region. Free text rather than an enum so non-US suppliers fit cleanly.
+             * @default null
+             */
+            supplier_state: string | null;
         };
     };
     responses: never;

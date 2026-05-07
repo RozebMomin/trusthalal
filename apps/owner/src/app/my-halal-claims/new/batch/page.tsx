@@ -22,6 +22,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CertifyingAuthoritySelect } from "@/components/certifying-authority-select";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
@@ -105,7 +106,8 @@ function blankProduct(): MeatProductSourcing {
     product_name: "",
     slaughter_method: "ZABIHAH",
     supplier_name: null,
-    supplier_location: null,
+    supplier_city: null,
+    supplier_state: null,
     certifying_authority: null,
     certificate_number: null,
   };
@@ -568,38 +570,43 @@ function ProductRow({
           </option>
         ))}
       </select>
+      <Input
+        type="text"
+        aria-label="Supplier name"
+        placeholder="Supplier name (optional)"
+        value={value.supplier_name ?? ""}
+        onChange={(e) =>
+          onChange({ supplier_name: e.target.value || null })
+        }
+        maxLength={255}
+      />
       <div className="grid gap-2 sm:grid-cols-2">
         <Input
           type="text"
-          aria-label="Supplier name"
-          placeholder="Supplier name (optional)"
-          value={value.supplier_name ?? ""}
+          aria-label="Supplier city"
+          placeholder="Supplier city (optional)"
+          value={value.supplier_city ?? ""}
           onChange={(e) =>
-            onChange({ supplier_name: e.target.value || null })
+            onChange({ supplier_city: e.target.value || null })
           }
-          maxLength={255}
+          maxLength={120}
         />
         <Input
           type="text"
-          aria-label="Supplier location"
-          placeholder="Supplier location (optional)"
-          value={value.supplier_location ?? ""}
+          aria-label="Supplier state"
+          placeholder="Supplier state (optional)"
+          value={value.supplier_state ?? ""}
           onChange={(e) =>
-            onChange({ supplier_location: e.target.value || null })
+            onChange({ supplier_state: e.target.value || null })
           }
-          maxLength={255}
+          maxLength={120}
         />
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
-        <Input
-          type="text"
-          aria-label="Certifying authority"
-          placeholder="Certifying authority (optional)"
-          value={value.certifying_authority ?? ""}
-          onChange={(e) =>
-            onChange({ certifying_authority: e.target.value || null })
-          }
-          maxLength={255}
+        <CertifyingAuthoritySelect
+          ariaLabel="Certifying authority"
+          value={value.certifying_authority ?? null}
+          onChange={(next) => onChange({ certifying_authority: next })}
         />
         <Input
           type="text"

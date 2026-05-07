@@ -6376,19 +6376,6 @@
             "default": null,
             "title": "Supplier Name"
           },
-          "supplier_location": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Supplier Location"
-          },
           "certifying_authority": {
             "anyOf": [
               {
@@ -6414,6 +6401,34 @@
             ],
             "default": null,
             "title": "Certificate Number"
+          },
+          "supplier_city": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Supplier's city. Optional.",
+            "title": "Supplier City"
+          },
+          "supplier_state": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Supplier's state / province / region. Free text rather than an enum so non-US suppliers fit cleanly.",
+            "title": "Supplier State"
           }
         },
         "required": [

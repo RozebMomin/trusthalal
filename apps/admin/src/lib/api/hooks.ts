@@ -831,7 +831,8 @@ export type MeatProductSourcing = {
   product_name: string;
   slaughter_method: SlaughterMethod;
   supplier_name?: string | null;
-  supplier_location?: string | null;
+  supplier_city?: string | null;
+  supplier_state?: string | null;
   certifying_authority?: string | null;
   certificate_number?: string | null;
 };

@@ -99,7 +99,13 @@ function MeatProductsRow({
             MEAT_TYPE_LABELS[p.meat_type] ?? p.meat_type;
           const slaughterLabel =
             SLAUGHTER_LABELS[p.slaughter_method] ?? p.slaughter_method;
-          const supplierLine = [p.supplier_name, p.supplier_location]
+          // Supplier location is split into city + state on the
+          // schema; render as "City, State" when both are present
+          // and fall back gracefully when only one is.
+          const supplierLocation = [p.supplier_city, p.supplier_state]
+            .filter(Boolean)
+            .join(", ");
+          const supplierLine = [p.supplier_name, supplierLocation]
             .filter(Boolean)
             .join(" · ");
           const certLine = [p.certifying_authority, p.certificate_number]

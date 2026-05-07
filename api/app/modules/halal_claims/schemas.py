@@ -90,10 +90,22 @@ class MeatProductSourcing(BaseModel):
         max_length=255,
         description="Supplier the restaurant sources this product from.",
     )
-    supplier_location: Optional[str] = Field(
+    # Supplier location is split into city + state (was a single
+    # free-text ``supplier_location`` field). Split lets future
+    # surfaces (admin search, supplier-cluster reports, etc.) sort
+    # / filter on city or state independently. Both still optional.
+    supplier_city: Optional[str] = Field(
         default=None,
-        max_length=255,
-        description="City / state / country of the supplier.",
+        max_length=120,
+        description="Supplier's city. Optional.",
+    )
+    supplier_state: Optional[str] = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Supplier's state / province / region. Free text rather "
+            "than an enum so non-US suppliers fit cleanly."
+        ),
     )
     certifying_authority: Optional[str] = Field(
         default=None,
