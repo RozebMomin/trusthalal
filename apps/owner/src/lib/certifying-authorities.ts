@@ -34,6 +34,10 @@ export const CERTIFYING_AUTHORITIES: ReadonlyArray<CertifyingAuthorityOption> = 
     description: "Islamic Food and Nutrition Council of America",
   },
   {
+    value: "HTO",
+    description: "Halal Transactions of Omaha",
+  },
+  {
     value: "HMS",
     description: "Halal Monitoring Services",
   },
