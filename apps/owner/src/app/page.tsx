@@ -41,8 +41,8 @@ export default function HomePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">{greeting}</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">{greeting}</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">
           You&apos;re signed in to the Trust Halal owner portal.
         </p>
         {me?.id && (
@@ -59,8 +59,8 @@ export default function HomePage() {
         )}
       </header>
 
-      <section className="rounded-md border bg-card p-6">
-        <div className="flex items-start justify-between gap-4">
+      <section className="rounded-md border bg-card p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
             <h2 className="text-lg font-semibold">Claim a place</h2>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -69,8 +69,8 @@ export default function HomePage() {
               your listing is officially tied to your account.
             </p>
           </div>
-          <Link href="/claim" className="shrink-0">
-            <Button>Start a claim</Button>
+          <Link href="/claim" className="sm:shrink-0">
+            <Button className="w-full sm:w-auto">Start a claim</Button>
           </Link>
         </div>
       </section>

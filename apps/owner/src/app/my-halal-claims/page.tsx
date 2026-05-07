@@ -29,12 +29,12 @@ export default function MyHalalClaimsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Halal claims
           </h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             Submit and track halal-posture verifications for places
             your organization owns.
           </p>
@@ -44,8 +44,8 @@ export default function MyHalalClaimsPage() {
             handles the "no owned places yet" empty state cleanly, so
             gating the button here would just create an inconsistent
             three-page layout for no real protection. */}
-        <Link href="/my-halal-claims/new">
-          <Button>New halal claim</Button>
+        <Link href="/my-halal-claims/new" className="sm:shrink-0">
+          <Button className="w-full sm:w-auto">New halal claim</Button>
         </Link>
       </header>
 

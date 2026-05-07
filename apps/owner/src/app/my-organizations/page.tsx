@@ -95,18 +95,18 @@ export default function MyOrganizationsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Organizations
           </h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             The business entities you operate. Trust Halal verifies
             each one before it can sponsor a place claim.
           </p>
         </div>
-        <Link href="/my-organizations/new">
-          <Button>Add organization</Button>
+        <Link href="/my-organizations/new" className="sm:shrink-0">
+          <Button className="w-full sm:w-auto">Add organization</Button>
         </Link>
       </header>
 

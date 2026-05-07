@@ -112,10 +112,10 @@ export default function NewHalalClaimPage() {
         >
           ← All halal claims
         </Link>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">
+        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
           Start a halal claim
         </h1>
-        <p className="mt-2 text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">
           Pick the places you want to share halal information for.
           Select multiple if every location maintains the same
           standard — you&apos;ll fill out the questionnaire once and
