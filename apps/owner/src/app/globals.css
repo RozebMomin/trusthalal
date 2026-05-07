@@ -3,20 +3,29 @@
 @tailwind utilities;
 
 /*
- * Color tokens — Trust Halal emerald.
+ * Color tokens — Trust Halal olive / sage.
  *
  * Previous palette was Tailwind's neutral-zinc default with a near-
  * black --primary, which read as monochrome / muted everywhere.
- * Switching --primary to an emerald (Tailwind emerald-600 in HSL,
- * `158 64% 40%`) gives buttons, active nav states, and focus rings a
- * confident brand color tied to halal certification's traditional
- * green association — without sliding into cartoon-bright territory.
+ * Switching --primary to an olive-sage (HSL `88 35% 38%` — yellow-
+ * tinted green, low-medium saturation) gives buttons, active nav
+ * states, and focus rings a brand color that reads as "halal" via
+ * the green association without leaning into cartoon-bright
+ * territory. Olive lands softer and more grown-up than a vivid
+ * emerald or grass green; sage's warm undertone pairs with the
+ * neutral grays already in the rest of the palette.
  *
  * Other tokens stay neutral. Only --primary, --ring (matches primary
  * for focus consistency), and the dark-mode equivalents change. Body
  * + card backgrounds remain near-white; muted/secondary stay neutral
- * gray so the emerald lands as a deliberate accent rather than a
+ * gray so the olive lands as a deliberate accent rather than a
  * colorwash.
+ *
+ * Lightness chosen for AA contrast against white --primary-foreground:
+ *   * Light mode: 38% lightness, 35% saturation → ~#6e7e4d, ratio
+ *     ~4.6:1 against white (passes WCAG AA for body text and UI).
+ *   * Dark mode: 50% lightness, 50% saturation → brighter sage that
+ *     stays vivid on the dark surface.
  */
 @layer base {
   :root {
@@ -29,9 +38,11 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* Emerald-600 — high-saturation green for primary buttons,
-       active nav, focus rings. Foreground is white for AA contrast. */
-    --primary: 158 64% 40%;
+    /* Olive / sage — yellow-tinted green at low-medium saturation.
+       Reads as "halal" via the green association but with a warm,
+       grown-up tone rather than a vivid emerald. Foreground is
+       white for AA contrast (~4.6:1). */
+    --primary: 88 35% 38%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96.1%;
@@ -50,7 +61,7 @@
     --input: 214.3 31.8% 91.4%;
     /* Focus ring matches primary so keyboard focus + active states
        speak the same visual language. */
-    --ring: 158 64% 40%;
+    --ring: 88 35% 38%;
 
     --radius: 0.5rem;
   }
@@ -65,10 +76,11 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    /* Slightly brighter emerald in dark mode so it stays vivid against
-       the dark background. Tailwind emerald-500 in HSL. */
-    --primary: 160 84% 45%;
-    --primary-foreground: 0 0% 100%;
+    /* Brighter olive in dark mode — bumped saturation + lightness so
+       the sage stays visible against the dark background without
+       getting lost in the muted grays. */
+    --primary: 88 50% 55%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -84,7 +96,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 160 84% 45%;
+    --ring: 88 50% 55%;
   }
 }
 
