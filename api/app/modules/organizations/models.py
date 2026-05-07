@@ -30,6 +30,18 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     contact_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
 
+    # Mailing / business address. All five columns nullable so legacy
+    # rows (and orgs created via the admin path that don't capture
+    # this) survive without a backfill. Owner UI prompts for them on
+    # create + edit; admin staff use them to tell same-name LLCs in
+    # different states apart. ``country_code`` stays nullable too so
+    # we don't have to assume a default jurisdiction.
+    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    region: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    country_code: Mapped[Optional[str]] = mapped_column(String(2), nullable=True)
+    postal_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
     # Verification workflow status. New owner-self-service rows start
     # at DRAFT; admin-created rows start at VERIFIED. Migration
     # ``f1a3b8d6c2e9`` backfilled existing rows to VERIFIED.

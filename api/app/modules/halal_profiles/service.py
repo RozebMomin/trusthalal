@@ -8,12 +8,12 @@ reset).
 
 Why a separate service module
 -----------------------------
-The mapping is non-trivial — nested ``MeatSourcing`` objects collapse
-into per-meat slaughter columns, the questionnaire is versioned, and
-admin's optional overrides (validation_tier, expires_at) layer on
-top. Keeping it in one well-tested place means admin endpoint and
-any future revoke/restore paths share the exact same derivation
-logic.
+The mapping is non-trivial — the questionnaire's per-product meat
+list rolls up into per-meat slaughter columns on HalalProfile, the
+questionnaire is versioned, and admin's optional overrides
+(validation_tier, expires_at) layer on top. Keeping it in one
+well-tested place means admin endpoint and any future
+revoke/restore paths share the exact same derivation logic.
 
 This module does not commit. Callers (admin halal-claim repo)
 control the transaction boundary so a single approve-claim operation
@@ -31,7 +31,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BadRequestError
-from app.modules.halal_claims.enums import HalalClaimEventType, HalalClaimStatus
+from app.modules.halal_claims.enums import (
+    HalalClaimAttachmentType,
+    HalalClaimEventType,
+    HalalClaimStatus,
+)
 from app.modules.halal_claims.models import HalalClaim
 from app.modules.halal_claims.repo import log_halal_claim_event
 from app.modules.halal_claims.schemas import HalalQuestionnaireResponse
@@ -41,6 +45,7 @@ from app.modules.halal_profiles.enums import (
     AlcoholPolicy,
     HalalProfileDisputeState,
     HalalProfileEventType,
+    MeatType,
     MenuPosture,
     SlaughterMethod,
     ValidationTier,
@@ -48,10 +53,16 @@ from app.modules.halal_profiles.enums import (
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
 
 
-# Default profile lifetime when admin doesn't override. 12 months
-# matches the typical halal-cert renewal cadence; long enough for the
-# owner to plan, short enough that stale profiles don't linger.
-_DEFAULT_PROFILE_TTL_DAYS = 365
+# Profile lifetime — both the default AND a hard cap on admin
+# overrides. Trust Halal company policy: every approved claim is
+# good for 90 days, period. A short window keeps the catalog
+# self-correcting (owners renew, disputes surface fresh) and means
+# a verified place that quietly stops being halal can't sit in
+# "verified" forever. Admin's ``expires_at_override`` can pull the
+# date IN (e.g. for a cert that expires in 30 days), but never
+# OUT past 90 days from the approval moment.
+_MAX_PROFILE_TTL_DAYS = 90
+_DEFAULT_PROFILE_TTL_DAYS = _MAX_PROFILE_TTL_DAYS
 
 
 def _coerce_questionnaire(claim: HalalClaim) -> HalalQuestionnaireResponse:
@@ -79,16 +90,83 @@ def _coerce_questionnaire(claim: HalalClaim) -> HalalQuestionnaireResponse:
         )
 
 
-def _slaughter_for(meat_sourcing) -> str:
-    """Pull a SlaughterMethod from a MeatSourcing or default."""
-    if meat_sourcing is None:
+def _slaughter_rollup(products, meat_type: "MeatType") -> str:
+    """Roll up multiple per-product slaughter methods to a single
+    profile column value.
+
+    Rule: profile.<meat>_slaughter = the LEAST conservative method
+    across that type's products. If any product is MACHINE-slaughtered,
+    the column lands MACHINE — even if other products are ZABIHAH —
+    because that's the worst-case the consumer would encounter.
+    A consumer searching for ZABIHAH-only places filters this out;
+    a consumer accepting machine-halal still sees the place.
+
+    NOT_SERVED ranks below MACHINE/ZABIHAH and is the fallback when
+    the meat type has no entries (e.g. a place that doesn't serve
+    beef at all leaves ``beef_slaughter = NOT_SERVED``).
+
+    Per-product NOT_SERVED entries are unusual (an entry exists
+    because the product is served), but if encountered they're
+    excluded from the rollup so a stray "NOT_SERVED" row doesn't
+    drag the worst-case down.
+    """
+    matching = [
+        p
+        for p in (products or [])
+        if p.meat_type == meat_type
+        and p.slaughter_method != SlaughterMethod.NOT_SERVED
+    ]
+    if not matching:
         return SlaughterMethod.NOT_SERVED.value
-    return meat_sourcing.slaughter_method.value
+    methods = {p.slaughter_method for p in matching}
+    # MACHINE is "less strict" than ZABIHAH — the worst-case wins.
+    if SlaughterMethod.MACHINE in methods:
+        return SlaughterMethod.MACHINE.value
+    return SlaughterMethod.ZABIHAH.value
+
+
+def _certification_from_claim(
+    claim: HalalClaim,
+) -> tuple[bool, Optional[str]]:
+    """Derive the (has_certification, certifying_body_name) pair
+    from the claim's HALAL_CERTIFICATE attachments.
+
+    Data-driven rather than asking the owner: the questionnaire used
+    to ask "Halal certification on file?" and again "Certifying
+    authority", but we already capture that signal when the owner
+    uploads a HALAL_CERTIFICATE attachment with an issuing_authority
+    field. Removing the duplicate question keeps the form short and
+    keeps the signal honest — the truth-set is the actual cert
+    document on file, not a self-declared yes/no.
+
+    Returns:
+        ``(True, "IFANCA")`` when at least one HALAL_CERTIFICATE
+        attachment exists; the name comes from the most recently
+        uploaded cert that has an ``issuing_authority`` filled in.
+        ``(False, None)`` when no cert attachments exist.
+    """
+    cert_attachments = [
+        a
+        for a in claim.attachments
+        if a.document_type == HalalClaimAttachmentType.HALAL_CERTIFICATE.value
+    ]
+    if not cert_attachments:
+        return False, None
+
+    # Prefer the most recent cert's issuing_authority — assume that's
+    # the current one even if older certs (with different bodies)
+    # are still on file for audit history.
+    cert_attachments.sort(key=lambda a: a.uploaded_at, reverse=True)
+    for a in cert_attachments:
+        if a.issuing_authority:
+            return True, a.issuing_authority
+    return True, None
 
 
 def _profile_fields_from_questionnaire(
     questionnaire: HalalQuestionnaireResponse,
     *,
+    claim: HalalClaim,
     validation_tier: ValidationTier,
     last_verified_at: datetime,
     expires_at: datetime,
@@ -97,20 +175,31 @@ def _profile_fields_from_questionnaire(
 ) -> dict:
     """Map a strict questionnaire + admin's tier choice → profile
     column values. Pure function; no DB.
+
+    ``has_certification`` and ``certifying_body_name`` are derived
+    from the claim's attachments rather than the questionnaire
+    response — see ``_certification_from_claim`` for the rationale.
     """
+    has_cert, cert_body = _certification_from_claim(claim)
+    products = questionnaire.meat_products or []
     return {
         "validation_tier": validation_tier.value,
         "menu_posture": questionnaire.menu_posture.value,
         "has_pork": questionnaire.has_pork,
         "alcohol_policy": questionnaire.alcohol_policy.value,
         "alcohol_in_cooking": questionnaire.alcohol_in_cooking,
-        "chicken_slaughter": _slaughter_for(questionnaire.chicken),
-        "beef_slaughter": _slaughter_for(questionnaire.beef),
-        "lamb_slaughter": _slaughter_for(questionnaire.lamb),
-        "goat_slaughter": _slaughter_for(questionnaire.goat),
+        # Per-meat slaughter columns roll up from the products
+        # list. New meat types (TURKEY / DUCK / FISH / OTHER) live
+        # on the questionnaire JSON only — no profile column to
+        # land in. Adding columns for those is a separate phase
+        # if/when consumer search needs them.
+        "chicken_slaughter": _slaughter_rollup(products, MeatType.CHICKEN),
+        "beef_slaughter": _slaughter_rollup(products, MeatType.BEEF),
+        "lamb_slaughter": _slaughter_rollup(products, MeatType.LAMB),
+        "goat_slaughter": _slaughter_rollup(products, MeatType.GOAT),
         "seafood_only": questionnaire.seafood_only,
-        "has_certification": questionnaire.has_certification,
-        "certifying_body_name": questionnaire.certifying_body_name,
+        "has_certification": has_cert,
+        "certifying_body_name": cert_body,
         "certificate_expires_at": certificate_expires_at,
         "caveats": questionnaire.caveats,
         # Always reset dispute state on a fresh approval. A claim
@@ -150,8 +239,13 @@ def derive_profile_from_approved_claim(
     questionnaire = _coerce_questionnaire(claim)
 
     now = datetime.now(timezone.utc)
+    # Cap admin overrides at the 90-day company maximum. ``min(...)``
+    # against ``hard_cap`` means a shorter override (cert expiring
+    # in 30 days, etc.) wins, but a longer one gets clamped — admin
+    # can't accidentally grant a year-long approval.
+    hard_cap = now + timedelta(days=_MAX_PROFILE_TTL_DAYS)
     final_expires_at = (
-        expires_at or now + timedelta(days=_DEFAULT_PROFILE_TTL_DAYS)
+        min(expires_at, hard_cap) if expires_at else hard_cap
     )
 
     existing_profile = db.execute(
@@ -164,6 +258,7 @@ def derive_profile_from_approved_claim(
             place_id=claim.place_id,
             **_profile_fields_from_questionnaire(
                 questionnaire,
+                claim=claim,
                 validation_tier=validation_tier,
                 last_verified_at=now,
                 expires_at=final_expires_at,
@@ -229,6 +324,7 @@ def derive_profile_from_approved_claim(
 
     new_fields = _profile_fields_from_questionnaire(
         questionnaire,
+        claim=claim,
         validation_tier=validation_tier,
         last_verified_at=now,
         expires_at=final_expires_at,

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.modules.ownership_requests.schemas import (
     MyOwnershipRequestOrgSummary,
+    MyOwnershipRequestPlaceSummary,
     OwnershipRequestAttachmentRead,
 )
 
@@ -21,8 +22,11 @@ class OwnershipRequestAdminRead(BaseModel):
 
     contact_name: str
     contact_email: EmailStr
-    contact_phone: str | None
     message: str | None
+    # Admin's most recent guidance note (set by request-evidence).
+    # Surfaces on both admin + owner detail views so both sides
+    # see the same instruction.
+    decision_note: str | None = None
 
     status: str
     created_at: datetime
@@ -33,6 +37,14 @@ class OwnershipRequestAdminRead(BaseModel):
     # without a per-row roundtrip to the attachments endpoint.
     # Empty list when nothing was uploaded.
     attachments: list[OwnershipRequestAttachmentRead] = []
+
+    # Place summary (name + address fields) inlined so the admin
+    # ownership-requests queue can render "Khan Halal Grill — 123
+    # Main St, Detroit" instead of a truncated UUID. Same shape
+    # the owner-portal /me/claims feed uses; reusing it keeps the
+    # two surfaces in lockstep. Required because every claim row
+    # has a place FK (the place_id column is non-nullable).
+    place: MyOwnershipRequestPlaceSummary
 
     # Sponsoring organization summary so admin queue can show
     # "Khan Halal LLC — UNDER_REVIEW" inline. Nullable because
@@ -61,7 +73,6 @@ class OwnershipRequestAdminCreate(BaseModel):
 
     contact_name: str = Field(..., min_length=1, max_length=255)
     contact_email: EmailStr = Field(..., max_length=255)
-    contact_phone: str | None = Field(default=None, max_length=50)
     message: str | None = Field(default=None, max_length=2000)
 
 
@@ -99,4 +110,13 @@ class OwnershipRequestReject(BaseModel):
 
 
 class OwnershipRequestEvidence(BaseModel):
-    note: str | None = Field(default=None, max_length=2000)
+    """POST /admin/ownership-requests/{id}/request-evidence body.
+
+    ``note`` is required (min_length=3, mirrors reject + verify) so
+    the owner has actionable guidance on what to upload next. Without
+    it, NEEDS_EVIDENCE is a dead-end status — the owner sees the
+    state change but no instructions, and admin staff just bounce
+    the claim around without driving it to a decision.
+    """
+
+    note: str = Field(..., min_length=3, max_length=2000)

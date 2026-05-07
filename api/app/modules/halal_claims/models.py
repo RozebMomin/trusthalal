@@ -152,8 +152,10 @@ class HalalClaim(Base):
     internal_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # When the resulting profile should expire if no renewal lands.
-    # Set on approval. Most claims default to 12 months but admin
-    # can adjust per case.
+    # Set on approval. Defaults to 90 days (Trust Halal company
+    # policy); admin can pull the date in for shorter cert
+    # lifetimes but the derivation service clamps anything past
+    # the 90-day cap.
     expires_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

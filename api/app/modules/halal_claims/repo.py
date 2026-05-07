@@ -42,6 +42,7 @@ from app.core.exceptions import (
     ForbiddenError,
     NotFoundError,
 )
+from app.core.storage import StorageClient, StorageError
 from app.modules.halal_claims.enums import (
     HalalClaimEventType,
     HalalClaimStatus,
@@ -471,6 +472,82 @@ def patch_halal_claim_for_user(
     db.commit()
     db.refresh(claim)
     return claim
+
+
+def delete_halal_claim_for_user(
+    db: Session,
+    *,
+    claim_id: UUID,
+    user_id: UUID,
+    storage: StorageClient,
+) -> None:
+    """Discard a DRAFT claim owned by ``user_id``.
+
+    Owners use this to throw away a draft they never finished —
+    picked the wrong place, started experimenting, etc. Only DRAFT
+    is deletable; once a claim hits PENDING_REVIEW it's part of the
+    audit trail and stays around (admin's REJECT / REVOKE flows
+    cover the "we don't want this anymore" cases for non-DRAFT
+    rows).
+
+    Cascade behavior:
+      * ``HalalClaimAttachment`` rows fall off via the model's
+        ``cascade='all, delete-orphan'`` relationship — no extra
+        DB plumbing needed.
+      * The bytes in object storage do NOT cascade. We snapshot the
+        attachment storage paths BEFORE issuing the DB delete, then
+        best-effort delete each blob after the row is gone. Storage
+        failures are swallowed deliberately: the owner's intent is
+        "remove this claim," and a Supabase outage shouldn't block
+        them. Orphaned blobs are reapable via a future cleanup
+        script.
+
+    Raises:
+        NotFoundError(HALAL_CLAIM_NOT_FOUND)  — unknown claim id.
+        ForbiddenError(HALAL_CLAIM_FORBIDDEN) — claim exists but
+            isn't owned by ``user_id``.
+        ConflictError(HALAL_CLAIM_NOT_DELETABLE) — claim is past
+            DRAFT and can't be deleted.
+    """
+    claim = get_halal_claim_for_user(
+        db, claim_id=claim_id, user_id=user_id
+    )
+
+    if claim.status != HalalClaimStatus.DRAFT.value:
+        raise ConflictError(
+            "HALAL_CLAIM_NOT_DELETABLE",
+            (
+                f"This claim is in status {claim.status} and can no "
+                "longer be deleted. Only DRAFT claims can be discarded; "
+                "submitted claims are part of the audit trail."
+            ),
+        )
+
+    # Snapshot before the cascade wipes the attachment rows. We need
+    # the storage paths to issue blob deletes after the DB transaction
+    # completes — accessing claim.attachments after db.delete would
+    # be undefined behavior.
+    storage_paths = [a.storage_path for a in claim.attachments]
+
+    db.delete(claim)
+    db.commit()
+
+    # Best-effort blob cleanup. A failure here means an orphaned blob
+    # but the owner has their delete confirmation — that's the
+    # correct trade-off. ``StorageError`` is the documented exception
+    # the StorageClient raises; catching ``Exception`` keeps an
+    # unexpected error from leaking out of an already-completed
+    # delete operation.
+    for path in storage_paths:
+        try:
+            storage.delete_object(path)
+        except StorageError:
+            # TODO: emit a structured warning so the orphan-cleanup
+            # script can pick this up. For now, accept the orphan.
+            pass
+        except Exception:
+            # Same posture as above for unexpected exceptions.
+            pass
 
 
 def submit_halal_claim_for_user(

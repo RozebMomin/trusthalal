@@ -4,6 +4,14 @@
  * Approve a halal claim. Admin picks a validation tier + optional
  * expiry + optional notes; the server flips the claim to APPROVED
  * and runs profile derivation in the same transaction.
+ *
+ * Override flow: when the claim is in NEEDS_MORE_INFO, DRAFT,
+ * REJECTED, or REVOKED, approving is outside the standard
+ * PENDING_REVIEW → APPROVED happy path. The dialog shows a yellow
+ * callout, requires staff to tick an "I acknowledge this is an
+ * override approval" checkbox, and the decision_note becomes
+ * required so the audit trail records WHY the unusual transition
+ * happened.
  */
 
 import * as React from "react";
@@ -33,6 +41,17 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
+
+// Statuses where approval requires the override flow. Mirrors
+// _OVERRIDE_APPROVABLE_STATUSES on the server. APPROVED + SUPERSEDED
+// + PENDING_REVIEW aren't here on purpose — the first two are
+// meaningless to re-approve, and PENDING_REVIEW is the happy path.
+const OVERRIDE_REQUIRED_STATUSES: ReadonlySet<string> = new Set([
+  "DRAFT",
+  "NEEDS_MORE_INFO",
+  "REJECTED",
+  "REVOKED",
+]);
 
 // Default is SELF_ATTESTED — the conservative pick. Admin upgrades
 // to CERTIFICATE_ON_FILE only after verifying an uploaded cert;
@@ -86,8 +105,17 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
   const [internalNotes, setInternalNotes] = React.useState<string>("");
   const [expiresAtOverride, setExpiresAtOverride] = React.useState<string>("");
   const [certExpiresAt, setCertExpiresAt] = React.useState<string>("");
+  const [overrideAck, setOverrideAck] = React.useState<boolean>(false);
   const { toast } = useToast();
   const approve = useApproveHalalClaim();
+
+  const isOverride = OVERRIDE_REQUIRED_STATUSES.has(claim.status);
+  const trimmedNote = decisionNote.trim();
+  // Override path requires both the ack flag AND a non-empty note.
+  // Happy path leaves both unconstrained.
+  const canSubmit = isOverride
+    ? overrideAck && trimmedNote.length > 0 && !approve.isPending
+    : !approve.isPending;
 
   // Reset the form whenever the dialog opens for a different claim.
   // Re-opening for the same claim keeps the prior selection so admin
@@ -99,22 +127,24 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
       setInternalNotes("");
       setExpiresAtOverride("");
       setCertExpiresAt("");
+      setOverrideAck(false);
     }
   }, [open, claim.id]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (approve.isPending) return;
+    if (!canSubmit) return;
 
     try {
       await approve.mutateAsync({
         id: claim.id,
         payload: {
           validation_tier: tier,
-          decision_note: decisionNote.trim() || null,
+          decision_note: trimmedNote || null,
           internal_notes: internalNotes.trim() || null,
           expires_at_override: toIsoOrNull(expiresAtOverride),
           certificate_expires_at: toIsoOrNull(certExpiresAt),
+          override_acknowledged: isOverride ? overrideAck : false,
         },
       });
       toast({
@@ -131,7 +161,12 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
           HALAL_CLAIM_NOT_DECIDABLE: {
             title: "Claim isn't reviewable",
             description:
-              "Only PENDING_REVIEW or NEEDS_MORE_INFO claims can be approved. Reload to see the latest state.",
+              "This claim is APPROVED or SUPERSEDED — there's nothing to approve from here. Reload the queue.",
+          },
+          HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE: {
+            title: "Override acknowledgement required",
+            description:
+              "You're approving outside the standard PENDING_REVIEW flow. Tick the override checkbox and add a decision note explaining the reasoning.",
           },
           HALAL_CLAIM_NOT_FOUND: {
             title: "Claim no longer exists",
@@ -155,6 +190,37 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
               confidence level on the place&apos;s halal profile.
             </DialogDescription>
           </DialogHeader>
+
+          {isOverride && (
+            <div
+              role="alert"
+              className="mt-4 space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950"
+            >
+              <p className="font-medium text-amber-950 dark:text-amber-100">
+                Override approval — outside the standard flow
+              </p>
+              <p className="text-amber-900 dark:text-amber-100">
+                This claim is in <strong>{claim.status}</strong>, not
+                PENDING_REVIEW. Approving from here is allowed but
+                requires you to acknowledge the deviation and leave a
+                decision note explaining why. The note lands on the
+                audit trail and is visible to the owner.
+              </p>
+              <label className="flex items-start gap-2 pt-1 text-amber-950 dark:text-amber-100">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4"
+                  checked={overrideAck}
+                  onChange={(e) => setOverrideAck(e.target.checked)}
+                  disabled={approve.isPending}
+                />
+                <span>
+                  I acknowledge this is an override approval and have
+                  reviewed the claim&apos;s history.
+                </span>
+              </label>
+            </div>
+          )}
 
           <div className="mt-4 space-y-5">
             {/* Validation tier */}
@@ -196,18 +262,40 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
               </div>
             </fieldset>
 
-            {/* Decision note (optional, owner-visible) */}
+            {/* Decision note. Required in override mode, optional
+                otherwise. The required-asterisk + helper copy flip
+                between the two. */}
             <div className="space-y-2">
               <Label htmlFor="approve-decision-note">
-                Decision note (optional, visible to owner)
+                Decision note{" "}
+                {isOverride ? (
+                  <span aria-hidden className="text-destructive">
+                    *
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    (optional, visible to owner)
+                  </span>
+                )}
               </Label>
               <Textarea
                 id="approve-decision-note"
                 value={decisionNote}
                 onChange={(e) => setDecisionNote(e.target.value)}
-                placeholder="e.g. Cert on file matches the IFANCA registry; approved."
+                placeholder={
+                  isOverride
+                    ? "Explain why you're approving outside the standard flow."
+                    : "e.g. Cert on file matches the IFANCA registry; approved."
+                }
                 maxLength={2000}
+                required={isOverride}
               />
+              {isOverride && (
+                <p className="text-xs text-muted-foreground">
+                  Required for override approvals. Lands on the audit
+                  trail and is shown to the owner.
+                </p>
+              )}
             </div>
 
             {/* Internal notes (optional, staff-only) */}
@@ -237,7 +325,8 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
                   onChange={(e) => setExpiresAtOverride(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Leave blank for the 12-month default.
+                  Leave blank for the 90-day default. Overrides past
+                  90 days are clamped server-side — company policy.
                 </p>
               </div>
               <div className="space-y-2">
@@ -265,8 +354,12 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={approve.isPending}>
-              {approve.isPending ? "Approving…" : "Approve claim"}
+            <Button type="submit" disabled={!canSubmit}>
+              {approve.isPending
+                ? "Approving…"
+                : isOverride
+                  ? "Approve (override)"
+                  : "Approve claim"}
             </Button>
           </DialogFooter>
         </form>

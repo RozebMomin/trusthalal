@@ -63,13 +63,26 @@ export type MyOwnershipRequestOrgSummary = {
   status: OrganizationStatus;
 };
 
-/** GET /me/organizations row + most owner-facing org responses. */
+/** GET /me/organizations row + most owner-facing org responses.
+ *
+ * Address fields landed in the org-polish migration so admin staff
+ * can disambiguate same-name LLCs across states. ``decision_note``
+ * surfaces an admin's rejection reason on REJECTED so the owner
+ * sees WHY before they reapply.
+ */
 export type MyOrganizationRead = {
   id: string;
   name: string;
   contact_email: string | null;
+  address: string | null;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+  postal_code: string | null;
   status: OrganizationStatus;
   submitted_at: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
   created_at: string;
   updated_at: string;
   attachments: OrganizationAttachmentRead[];
@@ -78,11 +91,21 @@ export type MyOrganizationRead = {
 export type MyOrganizationCreate = {
   name: string;
   contact_email?: string | null;
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country_code?: string | null;
+  postal_code?: string | null;
 };
 
 export type MyOrganizationPatch = {
   name?: string;
   contact_email?: string | null;
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country_code?: string | null;
+  postal_code?: string | null;
 };
 
 /** Result row of GET /places?q=... — lightweight place fields. */
@@ -132,6 +155,14 @@ export type MyOwnershipRequestRead = {
   organization: MyOwnershipRequestOrgSummary | null;
   status: OwnershipRequestStatus;
   message: string | null;
+  /**
+   * Latest admin instruction on this claim. Populated when the
+   * claim is in NEEDS_EVIDENCE — staff explains exactly what the
+   * owner needs to upload next. Stays populated through resubmit
+   * so the owner can re-read the original instruction even after
+   * they've moved the claim back to UNDER_REVIEW.
+   */
+  decision_note: string | null;
   created_at: string;
   updated_at: string;
   attachments: OwnershipRequestAttachmentRead[];
@@ -154,7 +185,6 @@ export type MyOwnershipRequestCreate = {
   place_id?: string;
   google_place_id?: string;
   message?: string | null;
-  contact_phone?: string | null;
 };
 
 /**
@@ -402,6 +432,28 @@ export function useUploadOwnershipRequestAttachment() {
 }
 
 /**
+ * POST /me/ownership-requests/{id}/resubmit — flip a NEEDS_EVIDENCE
+ * claim back to UNDER_REVIEW after the owner has uploaded the
+ * additional documents staff requested. Server returns 409
+ * OWNERSHIP_REQUEST_NOT_RESUBMITTABLE if the claim isn't in
+ * NEEDS_EVIDENCE; the UI hides the button outside that state so
+ * this is mostly a defensive guard.
+ */
+export function useResubmitOwnershipRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (requestId: string) =>
+      apiFetch<MyOwnershipRequestRead>(
+        `/me/ownership-requests/${requestId}/resubmit`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.myOwnershipRequests() });
+    },
+  });
+}
+
+/**
  * POST /me/ownership-requests — submit a claim against an existing
  * place. Server auto-fills contact_name/contact_email from the
  * signed-in user. Invalidates the my-claims list on success so the
@@ -603,11 +655,32 @@ export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
 
 export type SlaughterMethod = "ZABIHAH" | "MACHINE" | "NOT_SERVED";
 
-/** Per-meat sourcing — repeated across chicken/beef/lamb/goat. */
-export type MeatSourcing = {
+/** Closed enum the new per-product meat list keys on. */
+export type MeatType =
+  | "CHICKEN"
+  | "BEEF"
+  | "LAMB"
+  | "GOAT"
+  | "TURKEY"
+  | "DUCK"
+  | "FISH"
+  | "OTHER";
+
+/**
+ * One specific product the restaurant serves, with its own
+ * supplier and (optionally) cert. Replaces the old per-meat
+ * MeatSourcing — owners declare multiple products per meat type
+ * ("Beef bacon" + "Ground beef" with different suppliers / certs).
+ */
+export type MeatProductSourcing = {
+  meat_type: MeatType;
+  product_name: string;
   slaughter_method: SlaughterMethod;
   supplier_name?: string | null;
-  supplier_location?: string | null;
+  supplier_city?: string | null;
+  supplier_state?: string | null;
+  certifying_authority?: string | null;
+  certificate_number?: string | null;
 };
 
 /**
@@ -622,10 +695,7 @@ export type HalalQuestionnaireDraft = {
   has_pork?: boolean | null;
   alcohol_policy?: AlcoholPolicy | null;
   alcohol_in_cooking?: boolean | null;
-  chicken?: MeatSourcing | null;
-  beef?: MeatSourcing | null;
-  lamb?: MeatSourcing | null;
-  goat?: MeatSourcing | null;
+  meat_products?: MeatProductSourcing[];
   seafood_only?: boolean | null;
   has_certification?: boolean | null;
   certifying_body_name?: string | null;
@@ -832,6 +902,33 @@ export function useSubmitMyHalalClaim() {
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
       void qc.invalidateQueries({ queryKey: qk.myHalalClaim(data.id) });
+    },
+  });
+}
+
+/**
+ * DELETE /me/halal-claims/{id} — discard a DRAFT claim.
+ *
+ * Server returns 204 No Content; we don't expect a body so the
+ * mutation result is ``void``. The server cascades to attached
+ * files (DB rows + storage blobs) so callers don't need a
+ * separate cleanup step. Server returns 409
+ * ``HALAL_CLAIM_NOT_DELETABLE`` for any non-DRAFT status — the UI
+ * should hide the Delete button outside DRAFT but the typed code
+ * is there as a defensive fallback.
+ */
+export function useDeleteMyHalalClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (claimId: string) =>
+      apiFetch<void>(`/me/halal-claims/${claimId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: (_data, claimId) => {
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
+      // Drop the per-claim cache entry too so a stale read can't
+      // surface the row after delete.
+      qc.removeQueries({ queryKey: qk.myHalalClaim(claimId) });
     },
   });
 }

@@ -81,6 +81,35 @@ class SlaughterMethod(StrEnum):
     questionnaire doesn't force a meaningless answer."""
 
 
+class MeatType(StrEnum):
+    """Meat categories the questionnaire tracks per-product.
+
+    The owner used to answer one ``MeatSourcing`` per fixed slot
+    (chicken / beef / lamb / goat). Restaurants in practice sell
+    multiple products per meat — beef bacon, beef hot dogs, ground
+    beef, each potentially sourced differently — so the
+    questionnaire now carries a list of ``MeatProductSourcing``
+    keyed on this enum.
+
+    Closed enum (not free text) because the consumer-search filters
+    and ``HalalProfile`` per-meat slaughter columns rely on a known
+    vocabulary. Adding a new value is a one-line change here, and
+    a follow-up if the new type needs its own profile column for
+    filtering. ``OTHER`` is the safety valve — line items still
+    carry their detail (name, supplier, slaughter), they just
+    don't roll up to a profile column.
+    """
+
+    CHICKEN = "CHICKEN"
+    BEEF = "BEEF"
+    LAMB = "LAMB"
+    GOAT = "GOAT"
+    TURKEY = "TURKEY"
+    DUCK = "DUCK"
+    FISH = "FISH"
+    OTHER = "OTHER"
+
+
 class AlcoholPolicy(StrEnum):
     """Alcohol on premises."""
 

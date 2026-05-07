@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import {
   type OrganizationAdminRead,
+  type OrganizationDetailRead,
   type OrganizationMemberAdminRead,
   type OrganizationPlaceOwnerRead,
   useAdminOrganization,
@@ -63,6 +64,43 @@ function Field({
     <div className="grid grid-cols-[160px_1fr] items-start gap-2 py-1.5 text-sm">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="break-words">{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * Multi-line address renderer that handles "every field is null"
+ * gracefully (older rows don't have address data on file). Splits
+ * "city, region postal_code" / country onto its own line for
+ * readability.
+ */
+function OrgAddressView({
+  org,
+}: {
+  org: OrganizationAdminRead | OrganizationDetailRead;
+}) {
+  const street = org.address;
+  const localityParts = [
+    org.city,
+    [org.region, org.postal_code].filter(Boolean).join(" "),
+  ].filter(Boolean);
+  const country = org.country_code;
+
+  if (!street && localityParts.length === 0 && !country) {
+    return (
+      <span className="italic text-muted-foreground">
+        no address on file
+      </span>
+    );
+  }
+
+  return (
+    <div className="space-y-0.5">
+      {street && <div>{street}</div>}
+      {localityParts.length > 0 && <div>{localityParts.join(", ")}</div>}
+      {country && (
+        <div className="text-xs text-muted-foreground">{country}</div>
+      )}
     </div>
   );
 }
@@ -123,6 +161,9 @@ export default function OrganizationDetailPage() {
                     no contact email
                   </span>
                 )}
+              </Field>
+              <Field label="Address">
+                <OrgAddressView org={org} />
               </Field>
               <Field label="Created">{formatTimestamp(org.created_at)}</Field>
               <Field label="Last updated">
@@ -220,24 +261,30 @@ function MembersSection({
 }
 
 function MemberRow({ member }: { member: OrganizationMemberAdminRead }) {
+  // Server-side now denormalizes display_name + email onto the
+  // member row so we can render a human label without an extra
+  // /admin/users/{id} round-trip. Falls back to the UUID prefix if
+  // both are missing (legacy rows or a rare null).
+  const label =
+    member.user_display_name ||
+    member.user_email ||
+    `User ${member.user_id.slice(0, 8)}…`;
   return (
     <li className="rounded-md border p-3">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          {/*
-            Link to the user's admin detail page — makes "check who
-            this user is" a one-click action without needing their
-            email rendered in the row.
-          */}
           <Link
             href={`/users/${member.user_id}`}
             className="font-medium hover:underline"
+            title={member.user_email ?? member.user_id}
           >
-            User{" "}
-            <code className="font-mono text-xs text-muted-foreground">
-              {member.user_id.slice(0, 8)}…
-            </code>
+            {label}
           </Link>
+          {member.user_email && member.user_display_name && (
+            <span className="text-xs text-muted-foreground">
+              {member.user_email}
+            </span>
+          )}
           <MemberRoleBadge role={member.role} />
           <MemberStatusBadge status={member.status} />
         </div>

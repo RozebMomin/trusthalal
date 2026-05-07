@@ -19,6 +19,7 @@ from app.modules.ownership_requests.repo import (
     create_ownership_request,
     get_ownership_request,
     list_ownership_requests_for_user,
+    resubmit_ownership_request_for_review,
 )
 from app.modules.ownership_requests.schemas import (
     MyOwnershipRequestCreate,
@@ -47,9 +48,10 @@ router = APIRouter(tags=["ownership-requests"])
     description=(
         "Public path used by the consumer site or any 'I own this "
         "restaurant, get me on your list' flow. Caller can be "
-        "unauthenticated — the contact_name + contact_email + "
-        "contact_phone come from the request body. Rejects with "
-        "`PLACE_NOT_FOUND` if the place is missing or hard-deleted. "
+        "unauthenticated — the contact_name + contact_email come from "
+        "the request body. Rejects with `PLACE_NOT_FOUND` if the place "
+        "is missing or hard-deleted, or `OWNERSHIP_REQUEST_ALREADY_EXISTS` "
+        "if any active claim is already pending review for the place. "
         "Owners signed into the portal should use `POST /me/ownership-"
         "requests` instead — that path enforces the org-sponsor "
         "requirement and ties claims back to their account."
@@ -72,7 +74,6 @@ def submit_ownership_request(
         requester_user_id=(user.id if user else None),
         contact_name=payload.contact_name,
         contact_email=str(payload.contact_email),
-        contact_phone=payload.contact_phone,
         message=payload.message,
     )
     return req
@@ -284,7 +285,6 @@ def submit_my_ownership_request(
         requester_user_id=user.id,
         contact_name=contact_name,
         contact_email=user_row.email,
-        contact_phone=payload.contact_phone,
         message=payload.message,
         organization_id=org.id,
     )
@@ -324,6 +324,31 @@ def list_my_ownership_requests(
         db, user_id=user.id, limit=limit, offset=offset
     )
     return [MyOwnershipRequestRead.model_validate(r) for r in rows]
+
+
+@router.post(
+    "/me/ownership-requests/{request_id}/resubmit",
+    response_model=MyOwnershipRequestRead,
+    summary="Resubmit a NEEDS_EVIDENCE claim for review",
+    description=(
+        "Owner-driven flow for the bounce-back loop: admin moves a "
+        "claim to NEEDS_EVIDENCE with a guidance note, owner uploads "
+        "additional attachments via "
+        "`POST /me/ownership-requests/{id}/attachments`, then calls "
+        "this endpoint to flip the status back to UNDER_REVIEW so "
+        "the admin queue picks it up again. Returns 409 "
+        "`OWNERSHIP_REQUEST_NOT_RESUBMITTABLE` if the claim isn't in "
+        "NEEDS_EVIDENCE."
+    ),
+)
+def resubmit_my_ownership_request(
+    request_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> MyOwnershipRequestRead:
+    req = _load_owned_request(db, request_id=request_id, user_id=user.id)
+    updated = resubmit_ownership_request_for_review(db, req=req)
+    return MyOwnershipRequestRead.model_validate(updated)
 
 
 # ---------------------------------------------------------------------------

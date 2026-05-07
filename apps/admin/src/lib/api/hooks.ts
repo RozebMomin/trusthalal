@@ -29,12 +29,29 @@ export type OwnershipRequestEvidence =
 export type OwnershipRequestAdminCreate = 
 components["schemas"]["OwnershipRequestAdminCreate"];
 
+// Pending the next codegen pass, layer the org-polish fields onto the
+// generated shapes so the admin UI can reference them. Once
+// ``make export-openapi && npm run codegen`` runs, these intersections
+// become redundant but harmless — the generated types will already
+// carry the same fields.
+type _OrgAddressExtras = {
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country_code?: string | null;
+  postal_code?: string | null;
+};
+type _MemberUserExtras = {
+  user_email?: string | null;
+  user_display_name?: string | null;
+};
+
 export type OrganizationAdminRead =
-  components["schemas"]["OrganizationAdminRead"];
+  components["schemas"]["OrganizationAdminRead"] & _OrgAddressExtras;
 export type OrganizationDetailRead =
-  components["schemas"]["OrganizationDetailRead"];
+  components["schemas"]["OrganizationDetailRead"] & _OrgAddressExtras;
 export type OrganizationMemberAdminRead =
-  components["schemas"]["OrganizationMemberAdminRead"];
+  components["schemas"]["OrganizationMemberAdminRead"] & _MemberUserExtras;
 
 // Org create / patch / member-create types (OrganizationAdminCreate,
 // OrganizationAdminPatch, MemberAdminCreate) live in the generated
@@ -791,11 +808,33 @@ export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
 
 export type SlaughterMethod = "ZABIHAH" | "MACHINE" | "NOT_SERVED";
 
-/** Per-meat sourcing — repeated across chicken/beef/lamb/goat. */
-export type MeatSourcing = {
+/** Closed enum the new per-product meat list keys on. */
+export type MeatType =
+  | "CHICKEN"
+  | "BEEF"
+  | "LAMB"
+  | "GOAT"
+  | "TURKEY"
+  | "DUCK"
+  | "FISH"
+  | "OTHER";
+
+/**
+ * One specific product the restaurant serves, with its own
+ * supplier and (optionally) cert. Replaces the old per-meat
+ * MeatSourcing — owners can declare multiple products under each
+ * meat type ("Beef bacon" + "Ground beef" with different
+ * suppliers / certs).
+ */
+export type MeatProductSourcing = {
+  meat_type: MeatType;
+  product_name: string;
   slaughter_method: SlaughterMethod;
   supplier_name?: string | null;
-  supplier_location?: string | null;
+  supplier_city?: string | null;
+  supplier_state?: string | null;
+  certifying_authority?: string | null;
+  certificate_number?: string | null;
 };
 
 /**
@@ -811,10 +850,7 @@ export type HalalQuestionnaireDraft = {
   has_pork?: boolean | null;
   alcohol_policy?: AlcoholPolicy | null;
   alcohol_in_cooking?: boolean | null;
-  chicken?: MeatSourcing | null;
-  beef?: MeatSourcing | null;
-  lamb?: MeatSourcing | null;
-  goat?: MeatSourcing | null;
+  meat_products?: MeatProductSourcing[];
   seafood_only?: boolean | null;
   has_certification?: boolean | null;
   certifying_body_name?: string | null;
@@ -883,10 +919,21 @@ export type HalalClaimApprove = {
   validation_tier: ValidationTier;
   decision_note?: string | null;
   internal_notes?: string | null;
-  /** ISO-8601. Override the default 12-month expiry if needed. */
+  /**
+   * ISO-8601. Shortens the default 90-day expiry. Overrides past
+   * the 90-day cap are clamped server-side — company policy.
+   */
   expires_at_override?: string | null;
   /** ISO-8601. Mirrors the cert's own expiry; metadata-only. */
   certificate_expires_at?: string | null;
+  /**
+   * Acknowledgement flag for approving outside the standard
+   * PENDING_REVIEW → APPROVED flow. Required (along with a
+   * non-empty decision_note) when the claim is in DRAFT,
+   * NEEDS_MORE_INFO, REJECTED, or REVOKED. Server returns
+   * HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE if missing.
+   */
+  override_acknowledged?: boolean;
 };
 
 /** POST /admin/halal-claims/{id}/reject. */

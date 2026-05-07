@@ -24,7 +24,7 @@
  */
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
   HalalClaimStatusBadge,
   halalClaimStatusDescription,
 } from "@/components/halal-claim-status-badge";
+import { CertifyingAuthoritySelect } from "@/components/certifying-authority-select";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
@@ -41,7 +42,8 @@ import {
   type HalalClaimAttachmentRead,
   type HalalClaimAttachmentType,
   type HalalQuestionnaireDraft,
-  type MeatSourcing,
+  type MeatProductSourcing,
+  type MeatType,
   type MenuPosture,
   type MyHalalClaimRead,
   type SlaughterMethod,
@@ -49,6 +51,7 @@ import {
   useMyHalalClaim,
   useMyHalalClaimEvents,
   usePatchMyHalalClaim,
+  useDeleteMyHalalClaim,
   useSubmitMyHalalClaim,
   useUploadMyHalalClaimAttachment,
 } from "@/lib/api/hooks";
@@ -127,15 +130,29 @@ const SLAUGHTER_OPTIONS: Array<{
   { value: "NOT_SERVED", label: "Not served" },
 ];
 
-const MEAT_KEYS = ["chicken", "beef", "lamb", "goat"] as const;
-type MeatKey = (typeof MEAT_KEYS)[number];
+const MEAT_TYPE_OPTIONS: Array<{ value: MeatType; label: string }> = [
+  { value: "CHICKEN", label: "Chicken" },
+  { value: "BEEF", label: "Beef" },
+  { value: "LAMB", label: "Lamb" },
+  { value: "GOAT", label: "Goat" },
+  { value: "TURKEY", label: "Turkey" },
+  { value: "DUCK", label: "Duck" },
+  { value: "FISH", label: "Fish" },
+  { value: "OTHER", label: "Other" },
+];
 
-const MEAT_LABELS: Record<MeatKey, string> = {
-  chicken: "Chicken",
-  beef: "Beef",
-  lamb: "Lamb",
-  goat: "Goat",
-};
+function blankProduct(): MeatProductSourcing {
+  return {
+    meat_type: "CHICKEN",
+    product_name: "",
+    slaughter_method: "ZABIHAH",
+    supplier_name: null,
+    supplier_city: null,
+    supplier_state: null,
+    certifying_authority: null,
+    certificate_number: null,
+  };
+}
 
 export default function MyHalalClaimDetailPage() {
   const params = useParams<{ id: string }>();
@@ -293,8 +310,23 @@ function QuestionnaireSection({
     setDraft((d) => ({ ...d, [key]: value }));
   }
 
-  function setMeat(meat: MeatKey, sourcing: MeatSourcing | null) {
-    setDraft((d) => ({ ...d, [meat]: sourcing }));
+  // Per-product list helpers — questionnaire stores meat sourcing
+  // as a flat list of products (Beef bacon, Ground beef, ...) so a
+  // restaurant can declare different suppliers / certs per item.
+  const products = draft.meat_products ?? [];
+  function setProducts(next: MeatProductSourcing[]) {
+    setDraft((d) => ({ ...d, meat_products: next }));
+  }
+  function patchProduct(index: number, patch: Partial<MeatProductSourcing>) {
+    setProducts(
+      products.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+    );
+  }
+  function addProduct() {
+    setProducts([...products, blankProduct()]);
+  }
+  function removeProduct(index: number) {
+    setProducts(products.filter((_, i) => i !== index));
   }
 
   async function onSave() {
@@ -398,20 +430,29 @@ function QuestionnaireSection({
           onChange={(v) => setField("alcohol_in_cooking", v)}
         />
 
-        {/* Per-meat */}
+        {/* Meat products */}
         <Field
-          label="Per-meat slaughter & sourcing"
-          help="For each meat your restaurant serves, indicate how it's slaughtered. Select 'Not served' if you don't serve it at all."
+          label="Meat products"
+          help="One entry per product you serve — e.g. 'Beef bacon' and 'Ground beef' as separate rows when they come from different suppliers. Each entry carries its own slaughter method and supplier / cert info. Skip if seafood-only."
         >
           <div className="space-y-3">
-            {MEAT_KEYS.map((meat) => (
-              <MeatRow
-                key={meat}
-                meat={meat}
-                value={(draft[meat] as MeatSourcing | null | undefined) ?? null}
-                onChange={(sourcing) => setMeat(meat, sourcing)}
+            {products.map((p, i) => (
+              <ProductRow
+                key={i}
+                value={p}
+                onChange={(patch) => patchProduct(i, patch)}
+                onRemove={() => removeProduct(i)}
               />
             ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addProduct}
+              disabled={!editable}
+            >
+              + Add product
+            </Button>
           </div>
         </Field>
 
@@ -422,35 +463,14 @@ function QuestionnaireSection({
           onChange={(v) => setField("seafood_only", v)}
         />
 
-        {/* Certification */}
-        <BoolField
-          label="Halal certification on file?"
-          help="Do you or your supplier hold a current halal certificate from a recognized authority?"
-          value={draft.has_certification ?? null}
-          onChange={(v) => setField("has_certification", v)}
-        />
-
-        {draft.has_certification && (
-          <Field
-            label="Certifying authority"
-            help="Name of the body that issued the certificate (e.g. IFANCA, HMA, HFSAA, your local mosque)."
-          >
-            <Input
-              type="text"
-              value={draft.certifying_body_name ?? ""}
-              onChange={(e) =>
-                setField("certifying_body_name", e.target.value || null)
-              }
-              maxLength={255}
-              placeholder="e.g. IFANCA"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Upload the certificate itself in the Attachments section
-              below — admin needs to see it to assign the
-              certificate-on-file tier.
-            </p>
-          </Field>
-        )}
+        {/* Certification fields used to live here as a yes/no +
+            certifying-body input. Removed because the same signal
+            comes from the HALAL_CERTIFICATE attachment in the
+            section below: the profile derivation now reads
+            ``has_certification`` and ``certifying_body_name``
+            straight off the attachments at approval time. Asking
+            twice cluttered the form without improving the truth
+            set. */}
 
         {/* Caveats */}
         <Field
@@ -575,80 +595,122 @@ function BoolButton({
   );
 }
 
-function MeatRow({
-  meat,
+/**
+ * One per-product card — same shape as the batch creation page's
+ * ProductRow. Owner picks meat type + product name + slaughter +
+ * (optional) supplier and cert info; multiple products under a
+ * single meat type are expected.
+ */
+function ProductRow({
   value,
   onChange,
+  onRemove,
 }: {
-  meat: MeatKey;
-  value: MeatSourcing | null;
-  onChange: (sourcing: MeatSourcing | null) => void;
+  value: MeatProductSourcing;
+  onChange: (patch: Partial<MeatProductSourcing>) => void;
+  onRemove: () => void;
 }) {
-  const slaughter = value?.slaughter_method ?? null;
-  const isServed = slaughter && slaughter !== "NOT_SERVED";
-
   return (
     <div className="space-y-2 rounded-md border bg-background p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-[5rem] text-sm font-medium">
-          {MEAT_LABELS[meat]}
-        </span>
+      <div className="grid gap-2 sm:grid-cols-2">
         <select
-          className="flex h-8 rounded-md border border-input bg-transparent px-2 py-0.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          value={slaughter ?? ""}
-          onChange={(e) => {
-            const next = (e.target.value || null) as
-              | SlaughterMethod
-              | null;
-            if (next === null) {
-              onChange(null);
-            } else {
-              onChange({
-                slaughter_method: next,
-                supplier_name: value?.supplier_name ?? null,
-                supplier_location: value?.supplier_location ?? null,
-              });
-            }
-          }}
+          aria-label="Meat type"
+          className="flex h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          value={value.meat_type}
+          onChange={(e) =>
+            onChange({ meat_type: e.target.value as MeatType })
+          }
         >
-          <option value="">— select —</option>
-          {SLAUGHTER_OPTIONS.map((opt) => (
+          {MEAT_TYPE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
         </select>
+        <Input
+          type="text"
+          aria-label="Product name"
+          placeholder="Product (e.g. Beef bacon, Ground beef)"
+          value={value.product_name}
+          onChange={(e) => onChange({ product_name: e.target.value })}
+          maxLength={255}
+        />
       </div>
-      {isServed && (
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Input
-            type="text"
-            placeholder="Supplier name"
-            value={value?.supplier_name ?? ""}
-            onChange={(e) =>
-              onChange({
-                slaughter_method: slaughter as SlaughterMethod,
-                supplier_name: e.target.value || null,
-                supplier_location: value?.supplier_location ?? null,
-              })
-            }
-            maxLength={255}
-          />
-          <Input
-            type="text"
-            placeholder="Supplier location (city / state)"
-            value={value?.supplier_location ?? ""}
-            onChange={(e) =>
-              onChange({
-                slaughter_method: slaughter as SlaughterMethod,
-                supplier_name: value?.supplier_name ?? null,
-                supplier_location: e.target.value || null,
-              })
-            }
-            maxLength={255}
-          />
-        </div>
-      )}
+      <select
+        aria-label="Slaughter method"
+        className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        value={value.slaughter_method}
+        onChange={(e) =>
+          onChange({
+            slaughter_method: e.target.value as SlaughterMethod,
+          })
+        }
+      >
+        {SLAUGHTER_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <Input
+        type="text"
+        aria-label="Supplier name"
+        placeholder="Supplier name (optional)"
+        value={value.supplier_name ?? ""}
+        onChange={(e) =>
+          onChange({ supplier_name: e.target.value || null })
+        }
+        maxLength={255}
+      />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input
+          type="text"
+          aria-label="Supplier city"
+          placeholder="Supplier city (optional)"
+          value={value.supplier_city ?? ""}
+          onChange={(e) =>
+            onChange({ supplier_city: e.target.value || null })
+          }
+          maxLength={120}
+        />
+        <Input
+          type="text"
+          aria-label="Supplier state"
+          placeholder="Supplier state (optional)"
+          value={value.supplier_state ?? ""}
+          onChange={(e) =>
+            onChange({ supplier_state: e.target.value || null })
+          }
+          maxLength={120}
+        />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <CertifyingAuthoritySelect
+          ariaLabel="Certifying authority"
+          value={value.certifying_authority ?? null}
+          onChange={(next) => onChange({ certifying_authority: next })}
+        />
+        <Input
+          type="text"
+          aria-label="Certificate number"
+          placeholder="Cert number (optional)"
+          value={value.certificate_number ?? ""}
+          onChange={(e) =>
+            onChange({ certificate_number: e.target.value || null })
+          }
+          maxLength={255}
+        />
+      </div>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onRemove}
+        >
+          Remove
+        </Button>
+      </div>
     </div>
   );
 }
@@ -668,7 +730,12 @@ function AttachmentsSection({
   const [docType, setDocType] = React.useState<HalalClaimAttachmentType>(
     "HALAL_CERTIFICATE",
   );
-  const [issuingAuthority, setIssuingAuthority] = React.useState("");
+  // ``null`` = "None / not certified" (the dropdown's default).
+  // Curated authority strings round-trip verbatim; "Other" lands as
+  // whatever free text the owner typed.
+  const [issuingAuthority, setIssuingAuthority] = React.useState<
+    string | null
+  >(null);
   const [certificateNumber, setCertificateNumber] = React.useState("");
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
@@ -700,7 +767,9 @@ function AttachmentsSection({
         file,
         document_type: docType,
         issuing_authority:
-          docType === "HALAL_CERTIFICATE" ? issuingAuthority || null : null,
+          docType === "HALAL_CERTIFICATE"
+            ? (issuingAuthority?.trim() || null)
+            : null,
         certificate_number:
           docType === "HALAL_CERTIFICATE"
             ? certificateNumber || null
@@ -710,7 +779,7 @@ function AttachmentsSection({
       // second upload doesn't accidentally inherit the previous
       // metadata.
       if (docType === "HALAL_CERTIFICATE") {
-        setIssuingAuthority("");
+        setIssuingAuthority(null);
         setCertificateNumber("");
       }
     } catch (err) {
@@ -754,12 +823,10 @@ function AttachmentsSection({
             </Field>
             {docType === "HALAL_CERTIFICATE" && (
               <Field label="Issuing authority (optional)">
-                <Input
-                  type="text"
+                <CertifyingAuthoritySelect
+                  ariaLabel="Issuing authority"
                   value={issuingAuthority}
-                  onChange={(e) => setIssuingAuthority(e.target.value)}
-                  maxLength={255}
-                  placeholder="IFANCA, HMA, etc."
+                  onChange={setIssuingAuthority}
                 />
               </Field>
             )}
@@ -889,9 +956,18 @@ function formatBytes(bytes: number): string {
 // Submit section
 // ---------------------------------------------------------------------------
 function SubmitSection({ claim }: { claim: MyHalalClaimRead }) {
+  const router = useRouter();
   const submit = useSubmitMyHalalClaim();
+  const deleteClaim = useDeleteMyHalalClaim();
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<string[]>([]);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
+  // Two-step confirm: first click reveals the explicit "Yes,
+  // delete" button rather than firing immediately. Inline state
+  // beats a Dialog primitive here — the section is already a
+  // bordered card, so the confirm fits naturally below the submit
+  // button without a modal.
+  const [confirmingDelete, setConfirmingDelete] = React.useState(false);
 
   if (claim.status === "PENDING_REVIEW") {
     return (
@@ -992,6 +1068,91 @@ function SubmitSection({ claim }: { claim: MyHalalClaimRead }) {
       >
         {submit.isPending ? "Submitting…" : "Submit for review"}
       </Button>
+
+      {/* Discard-draft escape hatch. Only renders for DRAFT (the
+          surrounding component is gated to non-PENDING_REVIEW
+          and DRAFT is the only other status that lands here in
+          practice). Two-step confirm to make accidental clicks
+          recoverable. */}
+      <div className="border-t pt-3">
+        {!confirmingDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => {
+              setConfirmingDelete(true);
+              setDeleteError(null);
+            }}
+            disabled={submit.isPending || deleteClaim.isPending}
+          >
+            Discard this draft
+          </Button>
+        ) : (
+          <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+            <p className="text-destructive">
+              <strong>Discard this draft?</strong>
+              {claim.attachments.length > 0 ? (
+                <>
+                  {" "}
+                  This will also delete{" "}
+                  {claim.attachments.length} attached file
+                  {claim.attachments.length === 1 ? "" : "s"}.
+                </>
+              ) : null}{" "}
+              The draft can&apos;t be recovered after this — you&apos;ll
+              need to start a new claim.
+            </p>
+            {deleteError && (
+              <p role="alert" className="text-xs text-destructive">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={async () => {
+                  setDeleteError(null);
+                  try {
+                    await deleteClaim.mutateAsync(claim.id);
+                    router.replace("/my-halal-claims");
+                  } catch (err) {
+                    const { description } = friendlyApiError(err, {
+                      defaultTitle: "Couldn't discard the draft",
+                      overrides: {
+                        HALAL_CLAIM_NOT_DELETABLE: {
+                          title: "Already submitted",
+                          description:
+                            "This claim has already been submitted for review and can no longer be discarded.",
+                        },
+                      },
+                    });
+                    setDeleteError(description);
+                  }
+                }}
+                disabled={deleteClaim.isPending}
+              >
+                {deleteClaim.isPending ? "Discarding…" : "Yes, discard"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setConfirmingDelete(false);
+                  setDeleteError(null);
+                }}
+                disabled={deleteClaim.isPending}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

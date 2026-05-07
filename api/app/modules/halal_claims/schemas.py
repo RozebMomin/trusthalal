@@ -28,6 +28,7 @@ from app.modules.halal_claims.enums import (
 )
 from app.modules.halal_profiles.enums import (
     AlcoholPolicy,
+    MeatType,
     MenuPosture,
     SlaughterMethod,
 )
@@ -38,34 +39,87 @@ from app.modules.halal_profiles.enums import (
 # ---------------------------------------------------------------------------
 
 
-class MeatSourcing(BaseModel):
-    """How a single meat type is sourced.
+class MeatProductSourcing(BaseModel):
+    """One specific product the restaurant serves, with its own
+    supplier and (optionally) cert.
 
-    Repeated per meat (chicken / beef / lamb / goat / etc.). Owner
-    can declare ``not_served`` to mark "we don't serve this protein"
-    without leaving an awkward "n/a" answer. ``supplier_name`` and
-    ``supplier_location`` are free-form text — admin uses them to
-    sanity-check the certificate authority claims.
+    Restaurants typically sell multiple products per meat —
+    'beef bacon' and 'ground beef' might come from different
+    suppliers, each with their own halal certificate (or none).
+    The owner adds one entry per product so the audit trail
+    captures the real-world fragmentation.
+
+    The ``slaughter_method`` rolls up to the place's
+    ``HalalProfile.<meat>_slaughter`` column at admin-approval
+    time. Multiple products under the same meat type collapse to
+    the LEAST conservative method (i.e. if any beef product is
+    MACHINE-slaughtered, the place's beef column lands MACHINE,
+    even if some other beef products are ZABIHAH). The full
+    per-product breakdown stays on the questionnaire JSON for
+    consumer-facing transparency on the place detail page.
     """
 
     model_config = ConfigDict(extra="forbid")
 
+    meat_type: MeatType = Field(
+        ...,
+        description=(
+            "Which meat this product is. Drives the per-meat profile "
+            "column rollup at approval time."
+        ),
+    )
+    product_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description=(
+            "Free-text product label — 'Beef bacon', 'Ground beef', "
+            "'Chicken nuggets'. Surfaces verbatim on the place detail."
+        ),
+    )
     slaughter_method: SlaughterMethod = Field(
         ...,
         description=(
-            "ZABIHAH / MACHINE / NOT_SERVED. NOT_SERVED means the "
-            "restaurant doesn't serve this protein at all."
+            "ZABIHAH / MACHINE / NOT_SERVED. NOT_SERVED is unusual on "
+            "a per-product entry (an entry exists because the product "
+            "is served) but kept for symmetry."
         ),
     )
     supplier_name: Optional[str] = Field(
         default=None,
         max_length=255,
-        description="Halal supplier name, if applicable.",
+        description="Supplier the restaurant sources this product from.",
     )
-    supplier_location: Optional[str] = Field(
+    # Supplier location is split into city + state (was a single
+    # free-text ``supplier_location`` field). Split lets future
+    # surfaces (admin search, supplier-cluster reports, etc.) sort
+    # / filter on city or state independently. Both still optional.
+    supplier_city: Optional[str] = Field(
+        default=None,
+        max_length=120,
+        description="Supplier's city. Optional.",
+    )
+    supplier_state: Optional[str] = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Supplier's state / province / region. Free text rather "
+            "than an enum so non-US suppliers fit cleanly."
+        ),
+    )
+    certifying_authority: Optional[str] = Field(
         default=None,
         max_length=255,
-        description="City / state / country of the supplier.",
+        description=(
+            "Name of the body that certified this product (IFANCA, "
+            "HMA, the supplier's own cert, etc.). Optional — many "
+            "products are supplier-attested without a third-party cert."
+        ),
+    )
+    certificate_number: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="Optional cert / batch number for traceability.",
     )
 
 
@@ -106,28 +160,45 @@ class HalalQuestionnaireResponse(BaseModel):
         ),
     )
 
-    # Per-meat detail. Optional fields so an owner can submit "we "
-    # don't serve goat" by either omitting the key or sending
-    # ``slaughter_method: NOT_SERVED``.
-    chicken: Optional[MeatSourcing] = None
-    beef: Optional[MeatSourcing] = None
-    lamb: Optional[MeatSourcing] = None
-    goat: Optional[MeatSourcing] = None
+    # Per-product meat detail — list of every product the kitchen
+    # serves, each with its own meat type, slaughter method, and
+    # supplier / cert info. The questionnaire previously had one
+    # ``MeatSourcing`` per fixed slot (chicken / beef / lamb /
+    # goat) which couldn't model "beef bacon comes from supplier
+    # A but ground beef comes from supplier B." Empty list is
+    # valid when ``seafood_only`` is True.
+    meat_products: list[MeatProductSourcing] = Field(
+        default_factory=list,
+        description=(
+            "One entry per product the kitchen serves (beef bacon, "
+            "ground beef, chicken nuggets, etc.). Multiple entries "
+            "per meat type are allowed and expected — different "
+            "products often have different suppliers / certs."
+        ),
+    )
     seafood_only: bool = Field(
         default=False,
         description=(
-            "True if the kitchen serves no land-meat at all. Mutually "
-            "exclusive with the per-meat fields above (admin can flag)."
+            "True if the kitchen serves no land-meat at all. When "
+            "True, ``meat_products`` is expected to be empty."
         ),
     )
 
-    # Certification context — does the owner claim a recognized cert?
-    has_certification: bool = Field(
-        ...,
+    # Certification context — kept on the schema for back-compat
+    # with claims submitted before the questionnaire was simplified
+    # (and as a hook for admin overrides during review). The owner
+    # questionnaire no longer asks about this directly: a separate
+    # supporting-documents upload step covers the attachment side
+    # of the same question, and asking again in the form felt
+    # redundant. ``None`` means "owner didn't say"; admin can flip
+    # it to True/False during review if they want consumer-search
+    # filters to surface the place.
+    has_certification: Optional[bool] = Field(
+        default=None,
         description=(
             "True if the restaurant or supplier holds a halal "
-            "certificate from a recognized authority. Owner uploads "
-            "the document as a HALAL_CERTIFICATE attachment."
+            "certificate from a recognized authority. NULL means "
+            "the owner didn't declare either way."
         ),
     )
     certifying_body_name: Optional[str] = Field(
@@ -135,7 +206,8 @@ class HalalQuestionnaireResponse(BaseModel):
         max_length=255,
         description=(
             "Name of the certifying authority (IFANCA, HMA, HFSAA, "
-            "local mosque XYZ, etc.). Required if has_certification."
+            "local mosque XYZ, etc.). NULL when has_certification "
+            "is NULL or False."
         ),
     )
 
@@ -174,10 +246,7 @@ class HalalQuestionnaireDraft(BaseModel):
     alcohol_policy: Optional[AlcoholPolicy] = None
     alcohol_in_cooking: Optional[bool] = None
 
-    chicken: Optional[MeatSourcing] = None
-    beef: Optional[MeatSourcing] = None
-    lamb: Optional[MeatSourcing] = None
-    goat: Optional[MeatSourcing] = None
+    meat_products: list[MeatProductSourcing] = Field(default_factory=list)
     seafood_only: Optional[bool] = None
 
     has_certification: Optional[bool] = None

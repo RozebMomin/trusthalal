@@ -42,7 +42,6 @@ def test_anonymous_can_submit_ownership_request(api, factories, db_session):
         json={
             "contact_name": "Anon Claimant",
             "contact_email": "anon@example.com",
-            "contact_phone": "+1-555-0188",
             "message": "I just opened this spot last week",
         },
     )
@@ -88,34 +87,138 @@ def test_authenticated_submit_attaches_requester(api, factories, db_session):
     assert row.requester_user_id == consumer.id
 
 
-def test_duplicate_active_request_for_same_place_and_email_conflicts(
-    api, factories
+def test_submit_logs_ownership_request_submitted_event(
+    api, factories, db_session
 ):
-    """A second open request from the same email against the same place
-    must 409 — we don't want duplicate queues for the same claimant."""
+    """Initial claim submission writes an
+    OWNERSHIP_REQUEST_SUBMITTED row to place_events so the admin
+    event-history view shows when the claim arrived. Without this
+    the timeline jumps straight from CREATED to NEEDS_EVIDENCE /
+    REJECTED with no record of the submission itself."""
+    consumer = factories.consumer()
+    place = factories.place()
+    db_session.commit()
+
+    resp = api.as_user(consumer).post(
+        f"/places/{place.id}/ownership-requests",
+        json={
+            "contact_name": "Jane Owner",
+            "contact_email": "jane@example.com",
+            "message": "I run this restaurant.",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+
+    events = db_session.execute(
+        select(PlaceEvent).where(
+            PlaceEvent.place_id == place.id,
+            PlaceEvent.event_type
+            == PlaceEventType.OWNERSHIP_REQUEST_SUBMITTED.value,
+        )
+    ).scalars().all()
+    assert len(events) == 1
+    evt = events[0]
+    assert evt.actor_user_id == consumer.id
+    # Message carries the contact name + email so a future reviewer
+    # can scan the timeline without joining back to the claim row.
+    assert "Jane Owner" in (evt.message or "")
+    assert "jane@example.com" in (evt.message or "")
+
+
+def test_anonymous_submit_logs_event_with_null_actor(
+    api, factories, db_session
+):
+    """An anonymous public submission still logs the SUBMITTED
+    event — actor_user_id is NULL since there's no signed-in user,
+    but the row exists so admin can see when the claim came in."""
+    place = factories.place()
+
+    resp = api.as_anonymous().post(
+        f"/places/{place.id}/ownership-requests",
+        json={
+            "contact_name": "Anonymous",
+            "contact_email": "anon@example.com",
+            "message": "I own this place.",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+
+    events = db_session.execute(
+        select(PlaceEvent).where(
+            PlaceEvent.place_id == place.id,
+            PlaceEvent.event_type
+            == PlaceEventType.OWNERSHIP_REQUEST_SUBMITTED.value,
+        )
+    ).scalars().all()
+    assert len(events) == 1
+    assert events[0].actor_user_id is None
+
+
+def test_duplicate_active_request_blocks_anyone(api, factories):
+    """Per-place duplicate guard: while ANY active claim is pending
+    review on a place, a new claim from anyone (different email,
+    different requester) must 409. Keeps the admin queue free of
+    competing duplicates — staff finishes the open one first."""
     place = factories.place()
 
     first = api.as_anonymous().post(
         f"/places/{place.id}/ownership-requests",
         json={
-            "contact_name": "Dup User",
-            "contact_email": "dup@example.com",
+            "contact_name": "First Claimant",
+            "contact_email": "first@example.com",
             "message": "first submission",
         },
     )
     assert first.status_code == 201, first.text
 
+    # Different email + name — same place. Pre-polish-pass-v4 this
+    # would have been allowed; now it's blocked.
     second = api.as_anonymous().post(
         f"/places/{place.id}/ownership-requests",
         json={
-            "contact_name": "Dup User",
-            "contact_email": "dup@example.com",
-            "message": "second submission",
+            "contact_name": "Second Claimant",
+            "contact_email": "second@example.com",
+            "message": "second submission, different person",
         },
     )
 
     assert second.status_code == 409, second.text
     assert second.json()["error"]["code"] == "OWNERSHIP_REQUEST_ALREADY_EXISTS"
+
+
+def test_admin_create_bypasses_per_place_duplicate_guard(
+    api, factories, db_session
+):
+    """The admin "create on behalf of someone" path skips the
+    per-place duplicate guard so staff can record an inbound
+    phone-in / in-person intake even while another claim is in
+    flight. Audit trail prefers two parallel rows over a
+    phantom one that never got recorded."""
+    admin = factories.admin()
+    place = factories.place()
+
+    first = api.as_anonymous().post(
+        f"/places/{place.id}/ownership-requests",
+        json={
+            "contact_name": "Public Form Claimant",
+            "contact_email": "public@example.com",
+            "message": "submitted via the public form",
+        },
+    )
+    assert first.status_code == 201, first.text
+
+    # Admin records a phone-in intake against the same place — should
+    # succeed, not 409.
+    second = api.as_user(admin).post(
+        "/admin/ownership-requests",
+        json={
+            "place_id": str(place.id),
+            "contact_name": "Phone Intake Claimant",
+            "contact_email": "intake@example.com",
+            "message": "called in to claim, admin recorded",
+        },
+    )
+    assert second.status_code == 201, second.text
 
 
 # ---------------------------------------------------------------------------
@@ -321,8 +424,10 @@ def test_admin_approve_legacy_claim_with_body_org_works(
 # Admin reject
 # ---------------------------------------------------------------------------
 def test_admin_reject_flips_status_and_logs_event(api, factories, db_session):
-    """Rejecting a request flips it to REJECTED, stops future actions, and
-    records an OWNERSHIP_REQUEST_REJECTED PlaceEvent with the reason."""
+    """Rejecting a request flips it to REJECTED, stops future actions,
+    records an OWNERSHIP_REQUEST_REJECTED PlaceEvent with the reason,
+    and lands the reason on decision_note so the owner /my-claims
+    card can render it verbatim."""
     admin = factories.admin()
     place = factories.place()
     req = factories.ownership_request(place=place)
@@ -337,6 +442,7 @@ def test_admin_reject_flips_status_and_logs_event(api, factories, db_session):
 
     db_session.refresh(req)
     assert req.status == OwnershipRequestStatus.REJECTED.value
+    assert req.decision_note == "contact_name didn't match business records"
 
     events = db_session.execute(
         select(PlaceEvent).where(
@@ -348,6 +454,34 @@ def test_admin_reject_flips_status_and_logs_event(api, factories, db_session):
     ).scalars().all()
     assert len(events) == 1
     assert "didn't match" in (events[0].message or "")
+
+
+def test_owner_my_claims_surfaces_rejection_note(api, factories, db_session):
+    """Once admin rejects with a reason, the owner's /me/ownership-
+    requests feed exposes ``decision_note`` so the portal card can
+    render "Why this was rejected: …". Without this the owner only
+    sees the badge flip, which leaves them with no idea what to
+    fix."""
+    admin = factories.admin()
+    consumer = factories.consumer()
+    place = factories.place()
+    req = factories.ownership_request(place=place, requester=consumer)
+    db_session.commit()
+
+    api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/reject",
+        json={"reason": "Documents are illegible — please re-upload."},
+    )
+
+    listing = api.as_user(consumer).get("/me/ownership-requests")
+    assert listing.status_code == 200, listing.text
+    rows = [r for r in listing.json() if r["id"] == str(req.id)]
+    assert len(rows) == 1
+    assert rows[0]["status"] == OwnershipRequestStatus.REJECTED.value
+    assert (
+        rows[0]["decision_note"]
+        == "Documents are illegible — please re-upload."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +520,151 @@ def test_admin_request_evidence_is_idempotent(api, factories, db_session):
     # Only the first call transitioned status + logged the event; the
     # second call is a no-op.
     assert len(events) == 1
+
+
+def test_admin_request_evidence_requires_note(api, factories):
+    """note is required now (mirrors reject + verify) so the owner
+    has actionable guidance on what to upload next. Empty body →
+    422; the audit trail and the NEEDS_EVIDENCE state are
+    pointless without it."""
+    admin = factories.admin()
+    place = factories.place()
+    req = factories.ownership_request(place=place)
+
+    resp = api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/request-evidence",
+        json={},
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_admin_request_evidence_rejects_short_note(api, factories):
+    """min_length=3 keeps a 1-char fat-finger from clearing the bar."""
+    admin = factories.admin()
+    place = factories.place()
+    req = factories.ownership_request(place=place)
+
+    resp = api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/request-evidence",
+        json={"note": "x"},
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_admin_request_evidence_writes_decision_note(
+    api, factories, db_session
+):
+    """The note lands on the row's decision_note column so the
+    owner portal can render it. A second call overwrites with the
+    latest instruction (the per-event audit trail keeps the prior
+    on place_events)."""
+    admin = factories.admin()
+    place = factories.place()
+    req = factories.ownership_request(place=place)
+
+    api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/request-evidence",
+        json={"note": "Please upload a business license."},
+    )
+    db_session.refresh(req)
+    assert req.decision_note == "Please upload a business license."
+
+    # Second call updates the note + keeps status idempotent.
+    api.as_user(admin).post(
+        f"/admin/ownership-requests/{req.id}/request-evidence",
+        json={"note": "Actually, a utility bill works too."},
+    )
+    db_session.refresh(req)
+    assert req.decision_note == "Actually, a utility bill works too."
+    assert req.status == OwnershipRequestStatus.NEEDS_EVIDENCE.value
+
+
+# ---------------------------------------------------------------------------
+# Owner resubmit (NEEDS_EVIDENCE → UNDER_REVIEW)
+# ---------------------------------------------------------------------------
+def test_owner_resubmit_flips_needs_evidence_to_under_review(
+    api, factories, db_session
+):
+    """Owner finishes uploading the requested docs and clicks
+    Resubmit → status flips back to UNDER_REVIEW so admin queue
+    picks it up again. A PlaceEvent records the transition."""
+    admin = factories.admin()
+    consumer = factories.consumer()
+    place = factories.place()
+    req = factories.ownership_request(
+        place=place,
+        requester=consumer,
+        status=OwnershipRequestStatus.NEEDS_EVIDENCE,
+    )
+    db_session.commit()
+
+    resp = api.as_user(consumer).post(
+        f"/me/ownership-requests/{req.id}/resubmit"
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == OwnershipRequestStatus.UNDER_REVIEW.value
+
+    db_session.refresh(req)
+    assert req.status == OwnershipRequestStatus.UNDER_REVIEW.value
+
+    events = db_session.execute(
+        select(PlaceEvent).where(
+            PlaceEvent.place_id == place.id,
+            PlaceEvent.event_type
+            == PlaceEventType.OWNERSHIP_REQUEST_RESUBMITTED.value,
+        )
+    ).scalars().all()
+    assert len(events) == 1
+    # Resubmit should NOT also write to admin's request-evidence
+    # event slot.
+    _ = admin  # silence unused fixture if linter complains
+
+
+def test_owner_resubmit_rejected_when_not_needs_evidence(
+    api, factories, db_session
+):
+    """Resubmitting a claim that's still SUBMITTED (or any non-
+    NEEDS_EVIDENCE status) returns 409 — there's nothing to
+    resubmit."""
+    consumer = factories.consumer()
+    place = factories.place()
+    req = factories.ownership_request(
+        place=place,
+        requester=consumer,
+        status=OwnershipRequestStatus.SUBMITTED,
+    )
+    db_session.commit()
+
+    resp = api.as_user(consumer).post(
+        f"/me/ownership-requests/{req.id}/resubmit"
+    )
+    assert resp.status_code == 409, resp.text
+    assert (
+        resp.json()["error"]["code"]
+        == "OWNERSHIP_REQUEST_NOT_RESUBMITTABLE"
+    )
+
+
+def test_owner_cannot_resubmit_someone_elses_claim(
+    api, factories, db_session
+):
+    """Ownership gate: another user's claim returns 403, even if
+    it's in NEEDS_EVIDENCE."""
+    owner = factories.consumer(email="owner@example.com")
+    other = factories.consumer(email="other@example.com")
+    place = factories.place()
+    req = factories.ownership_request(
+        place=place,
+        requester=owner,
+        status=OwnershipRequestStatus.NEEDS_EVIDENCE,
+    )
+    db_session.commit()
+
+    resp = api.as_user(other).post(
+        f"/me/ownership-requests/{req.id}/resubmit"
+    )
+    assert resp.status_code == 403, resp.text
 
 
 # ---------------------------------------------------------------------------

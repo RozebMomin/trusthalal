@@ -61,6 +61,31 @@ _DECIDABLE_STATUSES: tuple[str, ...] = (
     HalalClaimStatus.NEEDS_MORE_INFO.value,
 )
 
+# Statuses where an admin CAN approve, but it's outside the standard
+# PENDING_REVIEW → APPROVED happy path. The schema's
+# ``override_acknowledged=True`` + a non-empty ``decision_note`` are
+# both required when approving from one of these — the server
+# returns HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE if the admin tried
+# without acknowledging.
+#
+# DRAFT — owner hasn't even submitted; admin is approving on
+#         their behalf (rare; e.g. a phone-call intake where the
+#         owner can't finish the form themselves).
+# NEEDS_MORE_INFO — admin previously asked for more info but is now
+#         approving without the owner having resubmitted. The
+#         exact accident the user wants the override flow to catch.
+# REJECTED — reversal of an earlier reject decision.
+# REVOKED — reactivation of a previously-revoked claim.
+#
+# APPROVED + SUPERSEDED stay 409 — they aren't "approve outside the
+# happy path" cases, they're "this transition is meaningless."
+_OVERRIDE_APPROVABLE_STATUSES: tuple[str, ...] = (
+    HalalClaimStatus.DRAFT.value,
+    HalalClaimStatus.NEEDS_MORE_INFO.value,
+    HalalClaimStatus.REJECTED.value,
+    HalalClaimStatus.REVOKED.value,
+)
+
 
 def admin_get_halal_claim(db: Session, claim_id: UUID) -> HalalClaim:
     """Fetch a claim with no ownership check — admin can see all.
@@ -202,7 +227,20 @@ def admin_approve_halal_claim(
     transaction rolls back — claim stays in its prior state.
     """
     claim = admin_get_halal_claim(db, claim_id)
-    if claim.status not in _DECIDABLE_STATUSES:
+
+    # Three buckets:
+    #   1. PENDING_REVIEW — happy path, no override needed.
+    #   2. NEEDS_MORE_INFO / DRAFT / REJECTED / REVOKED — admin can
+    #      approve with explicit acknowledgement + a decision_note
+    #      explaining the reasoning. The UI catches the typed error
+    #      below and shows a confirm dialog.
+    #   3. APPROVED / SUPERSEDED — meaningless transition, 409.
+    is_happy_path = (
+        claim.status == HalalClaimStatus.PENDING_REVIEW.value
+    )
+    is_override_path = claim.status in _OVERRIDE_APPROVABLE_STATUSES
+
+    if not is_happy_path and not is_override_path:
         raise ConflictError(
             "HALAL_CLAIM_NOT_DECIDABLE",
             (
@@ -210,6 +248,24 @@ def admin_approve_halal_claim(
                 "decided from here."
             ),
         )
+
+    if is_override_path:
+        # Both the ack flag AND a non-empty decision_note are
+        # required so the audit trail records WHY the admin took
+        # the unusual path. Empty / whitespace-only notes don't
+        # count.
+        note = (payload.decision_note or "").strip()
+        if not payload.override_acknowledged or not note:
+            raise ConflictError(
+                "HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE",
+                (
+                    f"Approving a claim in status {claim.status} is "
+                    "outside the standard PENDING_REVIEW → APPROVED "
+                    "flow. Re-submit with override_acknowledged=true "
+                    "and a non-empty decision_note explaining the "
+                    "decision."
+                ),
+            )
 
     _stamp_decision(
         claim,
@@ -260,8 +316,9 @@ def admin_approve_halal_claim(
         certificate_expires_at=payload.certificate_expires_at,
     )
     # Sync claim.expires_at with what the profile actually got — the
-    # service applies the default-12-months when expires_at_override
-    # was None, so we read it back.
+    # service applies the default 90-day TTL (or clamps an override
+    # past 90 days) so the value we'd land on the claim row may
+    # differ from what was sent in the request body.
     claim.expires_at = profile.expires_at
     db.add(claim)
 

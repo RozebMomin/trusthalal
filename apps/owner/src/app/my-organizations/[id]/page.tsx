@@ -6,15 +6,21 @@
  * One page covers the full self-service lifecycle for a single org:
  *
  *   * View status + summary fields.
- *   * Edit name / contact email (only while DRAFT or UNDER_REVIEW).
- *   * Upload supporting documents (drag-drop, same constraints as
- *     the claim attachment endpoint: PDF/JPEG/PNG/HEIC, 10MB,
- *     max 10 files per org).
- *   * Submit for admin review (DRAFT → UNDER_REVIEW; requires at
- *     least one attached document).
+ *   * Edit name / contact email / address (only while DRAFT or
+ *     UNDER_REVIEW).
+ *   * Stage supporting documents (drag-drop, same constraints as the
+ *     claim attachment endpoint: PDF/JPEG/PNG/HEIC, 10MB, max 10
+ *     files per org). Per the polish-pass requirement, files are
+ *     held in browser memory until the owner clicks Submit for
+ *     review — uploading on pick was creating orphan files when
+ *     users navigated away mid-flow.
+ *   * Submit for admin review (DRAFT → UNDER_REVIEW; uploads
+ *     pending files first, then transitions). Requires at least one
+ *     attached document.
  *
- * Once an org is VERIFIED or REJECTED the page becomes read-only and
- * surfaces a "Contact support" line for changes.
+ * Once an org is VERIFIED or REJECTED the page becomes read-only.
+ * REJECTED rows surface ``decision_note`` so the owner sees WHY
+ * before they reapply.
  */
 
 import Link from "next/link";
@@ -28,7 +34,7 @@ import {
   OrgStatusBadge,
   orgStatusDescription,
 } from "@/components/org-status-badge";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, apiFetch } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type MyOrganizationRead,
@@ -38,6 +44,22 @@ import {
   useSubmitMyOrganization,
   useUploadMyOrganizationAttachment,
 } from "@/lib/api/hooks";
+import { US_STATES } from "@/lib/us-states";
+
+// Country is locked to US for v1; same constant the new-org page
+// uses so the two stay in sync.
+const DEFAULT_COUNTRY_CODE = "US";
+
+// Wire shape of the owner-self attachment signed-URL endpoint —
+// /me/organizations/{id}/attachments/{aid}/url. Hand-typed pending
+// the next codegen pass; mirrors ``_MyOrgAttachmentSignedUrl`` on
+// the API.
+type OwnerOrgAttachmentSignedUrl = {
+  url: string;
+  expires_in_seconds: number;
+  original_filename: string;
+  content_type: string;
+};
 
 // Mirror of the server's allow-list. Server validates independently.
 const ALLOWED_MIME_TYPES = new Set([
@@ -86,8 +108,8 @@ export default function MyOrganizationDetailPage() {
           {status === 404
             ? "We couldn't find that organization."
             : status === 403
-            ? "You don't have access to that organization."
-            : "Couldn't load this organization. Try refreshing."}
+              ? "You don't have access to that organization."
+              : "Couldn't load this organization. Try refreshing."}
         </p>
       </div>
     );
@@ -99,6 +121,11 @@ export default function MyOrganizationDetailPage() {
 
 function OrgDetailBody({ org }: { org: MyOrganizationRead }) {
   const isEditable = EDITABLE_STATUSES.includes(org.status);
+  // Pending files live in parent state so the AttachmentsSection and
+  // SubmitSection both touch the same queue. AttachmentsSection
+  // adds/removes; SubmitSection uploads them all before flipping
+  // the org status.
+  const [pendingFiles, setPendingFiles] = React.useState<File[]>([]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -125,7 +152,15 @@ function OrgDetailBody({ org }: { org: MyOrganizationRead }) {
         </p>
       </header>
 
-      {!isEditable && (
+      {/* REJECTED orgs surface admin's decision note loud-and-clear
+          so the owner knows WHY they were rejected and can fix it
+          before submitting again. Server now exposes the column on
+          the owner-self read shape. */}
+      {org.status === "REJECTED" && (
+        <RejectionNotice org={org} />
+      )}
+
+      {!isEditable && org.status !== "REJECTED" && (
         <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
           This organization is locked while in <strong>{org.status}</strong>{" "}
           state. Contact{" "}
@@ -140,14 +175,67 @@ function OrgDetailBody({ org }: { org: MyOrganizationRead }) {
       )}
 
       <DetailsSection org={org} editable={isEditable} />
-      <AttachmentsSection org={org} editable={isEditable} />
-      {isEditable && <SubmitSection org={org} />}
+      <AttachmentsSection
+        org={org}
+        editable={isEditable}
+        pendingFiles={pendingFiles}
+        setPendingFiles={setPendingFiles}
+      />
+      {isEditable && (
+        <SubmitSection
+          org={org}
+          pendingFiles={pendingFiles}
+          clearPending={() => setPendingFiles([])}
+        />
+      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Details (name + contact_email edit)
+// Rejection notice (REJECTED only)
+// ---------------------------------------------------------------------------
+function RejectionNotice({ org }: { org: MyOrganizationRead }) {
+  return (
+    <div
+      role="alert"
+      className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm"
+    >
+      <p className="font-semibold text-destructive">
+        Trust Halal didn&rsquo;t accept this organization.
+      </p>
+      {org.decision_note ? (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">
+            Their note for you:
+          </p>
+          <p className="whitespace-pre-line rounded-md bg-background p-2 text-sm">
+            {org.decision_note}
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          No reason was given. Reach out to support if you&rsquo;d
+          like more context.
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        You can address the issue and create a new organization to
+        try again. This row is kept for audit history; reach out to{" "}
+        <a
+          href="mailto:support@trusthalal.org"
+          className="underline-offset-4 hover:underline"
+        >
+          support@trusthalal.org
+        </a>{" "}
+        if you need help.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Details (name + contact_email + address)
 // ---------------------------------------------------------------------------
 function DetailsSection({
   org,
@@ -161,28 +249,59 @@ function DetailsSection({
   const [contactEmail, setContactEmail] = React.useState(
     org.contact_email ?? "",
   );
+  const [address, setAddress] = React.useState(org.address ?? "");
+  const [city, setCity] = React.useState(org.city ?? "");
+  const [region, setRegion] = React.useState(org.region ?? "");
+  const [postalCode, setPostalCode] = React.useState(
+    org.postal_code ?? "",
+  );
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [savedAt, setSavedAt] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     setName(org.name);
     setContactEmail(org.contact_email ?? "");
-  }, [org.id, org.name, org.contact_email]);
+    setAddress(org.address ?? "");
+    setCity(org.city ?? "");
+    setRegion(org.region ?? "");
+    setPostalCode(org.postal_code ?? "");
+  }, [
+    org.id,
+    org.name,
+    org.contact_email,
+    org.address,
+    org.city,
+    org.region,
+    org.postal_code,
+  ]);
 
   const dirty =
     name.trim() !== org.name.trim() ||
-    contactEmail.trim() !== (org.contact_email ?? "").trim();
+    contactEmail.trim() !== (org.contact_email ?? "").trim() ||
+    address.trim() !== (org.address ?? "").trim() ||
+    city.trim() !== (org.city ?? "").trim() ||
+    region.trim() !== (org.region ?? "").trim() ||
+    postalCode.trim() !== (org.postal_code ?? "").trim();
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
     if (!editable || !dirty || patch.isPending) return;
     setErrorMsg(null);
+
     try {
       await patch.mutateAsync({
         organizationId: org.id,
         patch: {
           name: name.trim(),
           contact_email: contactEmail.trim() || null,
+          address: address.trim() || null,
+          city: city.trim() || null,
+          region: region.trim() || null,
+          // Country stays locked to US — explicit on every save so
+          // even an admin-created row with a different value gets
+          // normalized once the owner edits.
+          country_code: DEFAULT_COUNTRY_CODE,
+          postal_code: postalCode.trim() || null,
         },
       });
       setSavedAt(Date.now());
@@ -220,10 +339,7 @@ function DetailsSection({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="org-detail-email">
-            Contact email{" "}
-            <span className="text-muted-foreground">(optional)</span>
-          </Label>
+          <Label htmlFor="org-detail-email">Contact email</Label>
           <Input
             id="org-detail-email"
             type="email"
@@ -232,7 +348,95 @@ function DetailsSection({
             disabled={!editable || patch.isPending}
             placeholder="contact@yourrestaurant.com"
           />
+          <p className="text-xs text-muted-foreground">
+            Required at create time. Leaving blank here clears the
+            value for now — Trust Halal staff will fall back to your
+            account email.
+          </p>
         </div>
+
+        <fieldset className="space-y-3 rounded-md border bg-muted/20 p-3">
+          <legend className="-ml-1 px-1 text-sm font-medium">
+            Address{" "}
+            <span className="text-xs font-normal text-muted-foreground">
+              (optional)
+            </span>
+          </legend>
+          <div className="space-y-2">
+            <Label htmlFor="org-detail-address">Street address</Label>
+            <Input
+              id="org-detail-address"
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              disabled={!editable || patch.isPending}
+              maxLength={500}
+              placeholder="123 Main St, Suite 200"
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="org-detail-city">City</Label>
+              <Input
+                id="org-detail-city"
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                disabled={!editable || patch.isPending}
+                maxLength={120}
+                placeholder="Detroit"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="org-detail-region">State</Label>
+              {/* Same 50-state dropdown the new-org page uses, so a
+                  state set on create round-trips intact when editing
+                  later. Native <select> for a11y + mobile UX. */}
+              <select
+                id="org-detail-region"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                disabled={!editable || patch.isPending}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Select a state…</option>
+                {US_STATES.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.name} ({s.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="org-detail-postal">Postal code</Label>
+              <Input
+                id="org-detail-postal"
+                type="text"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                disabled={!editable || patch.isPending}
+                maxLength={20}
+                placeholder="48201"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="org-detail-country">Country</Label>
+              {/* Locked to United States for v1. The owner can't
+                  change the value; we still display the field so
+                  it's clear what address jurisdiction the row is
+                  filed under. */}
+              <Input
+                id="org-detail-country"
+                type="text"
+                value="United States"
+                disabled
+                aria-readonly
+              />
+            </div>
+          </div>
+        </fieldset>
 
         {errorMsg && (
           <p
@@ -246,10 +450,7 @@ function DetailsSection({
 
         {editable && (
           <div className="flex items-center gap-3">
-            <Button
-              type="submit"
-              disabled={!dirty || patch.isPending}
-            >
+            <Button type="submit" disabled={!dirty || patch.isPending}>
               {patch.isPending ? "Saving…" : "Save changes"}
             </Button>
             {savedAt && !dirty && (
@@ -263,26 +464,34 @@ function DetailsSection({
 }
 
 // ---------------------------------------------------------------------------
-// Attachments
+// Attachments — stage in browser memory; upload happens at submit time.
 // ---------------------------------------------------------------------------
 function AttachmentsSection({
   org,
   editable,
+  pendingFiles,
+  setPendingFiles,
 }: {
   org: MyOrganizationRead;
   editable: boolean;
+  pendingFiles: File[];
+  setPendingFiles: React.Dispatch<React.SetStateAction<File[]>>;
 }) {
-  const upload = useUploadMyOrganizationAttachment();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
-  const atCap = org.attachments.length >= MAX_FILES_PER_ORG;
+  // Cap counts both already-uploaded attachments AND pending. Server
+  // would reject a stage-then-upload sequence past the cap, but we
+  // surface it client-side for nicer UX.
+  const totalCount = org.attachments.length + pendingFiles.length;
+  const atCap = totalCount >= MAX_FILES_PER_ORG;
 
-  async function handleFiles(files: FileList | File[]) {
+  function stageFiles(files: FileList | File[]) {
     setErrorMsg(null);
     const list = Array.from(files);
-    let remaining = MAX_FILES_PER_ORG - org.attachments.length;
+    let remaining = MAX_FILES_PER_ORG - totalCount;
+    const accepted: File[] = [];
 
     for (const file of list) {
       if (remaining <= 0) {
@@ -301,19 +510,17 @@ function AttachmentsSection({
         );
         continue;
       }
-      try {
-        await upload.mutateAsync({ organizationId: org.id, file });
-        remaining -= 1;
-      } catch (err) {
-        const { description } = friendlyApiError(err, {
-          defaultTitle: `Couldn't upload ${file.name}`,
-        });
-        setErrorMsg(description);
-        // Stop on first failure so the user can retry from a known
-        // state rather than chasing partial progress.
-        return;
-      }
+      accepted.push(file);
+      remaining -= 1;
     }
+
+    if (accepted.length > 0) {
+      setPendingFiles((prev) => [...prev, ...accepted]);
+    }
+  }
+
+  function removePending(index: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   function onDrop(e: React.DragEvent<HTMLDivElement>) {
@@ -321,7 +528,7 @@ function AttachmentsSection({
     setIsDragOver(false);
     if (!editable || atCap) return;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      void handleFiles(e.dataTransfer.files);
+      stageFiles(e.dataTransfer.files);
     }
   }
 
@@ -339,6 +546,13 @@ function AttachmentsSection({
         business license, lease, or sales-tax permit) belong on the
         individual claim, not here.
       </p>
+      {editable && org.status === "DRAFT" && (
+        <p className="text-xs text-muted-foreground">
+          Files stay on this device until you click{" "}
+          <strong>Submit for review</strong> below — that&rsquo;s when
+          they upload to Trust Halal.
+        </p>
+      )}
 
       {editable && (
         <div
@@ -350,10 +564,8 @@ function AttachmentsSection({
           onDrop={onDrop}
           className={[
             "rounded-md border border-dashed bg-background px-4 py-6 text-center transition",
-            isDragOver
-              ? "border-primary bg-primary/5"
-              : "border-input",
-            atCap || upload.isPending ? "opacity-60" : "",
+            isDragOver ? "border-primary bg-primary/5" : "border-input",
+            atCap ? "opacity-60" : "",
           ]
             .filter(Boolean)
             .join(" ")}
@@ -369,7 +581,6 @@ function AttachmentsSection({
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
-                disabled={upload.isPending}
                 className="font-medium text-foreground underline-offset-4 hover:underline disabled:cursor-not-allowed"
               >
                 browse
@@ -387,10 +598,10 @@ function AttachmentsSection({
             multiple
             accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/jpeg,image/png,image/heic,image/heif"
             className="hidden"
-            disabled={!editable || atCap || upload.isPending}
+            disabled={!editable || atCap}
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) {
-                void handleFiles(e.target.files);
+                stageFiles(e.target.files);
               }
               e.target.value = "";
             }}
@@ -398,15 +609,6 @@ function AttachmentsSection({
         </div>
       )}
 
-      {upload.isPending && (
-        <p
-          className="text-xs text-muted-foreground"
-          role="status"
-          aria-live="polite"
-        >
-          Uploading…
-        </p>
-      )}
       {errorMsg && (
         <p
           className="text-xs text-destructive"
@@ -417,34 +619,134 @@ function AttachmentsSection({
         </p>
       )}
 
-      {org.attachments.length === 0 ? (
+      {/* Already-uploaded attachments (server-side). For an org that
+          existed before the deferred-upload change OR for orgs that
+          have moved past DRAFT and re-opened editing, these stay
+          visible and read-only here. */}
+      {org.attachments.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Uploaded
+          </p>
+          <ul className="space-y-1.5">
+            {org.attachments.map((a) => (
+              <AttachmentRow
+                key={a.id}
+                organizationId={org.id}
+                attachment={a}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Pending files — held in browser, not yet uploaded. Shown
+          beneath the already-uploaded set so the user can tell them
+          apart. Each row gets a remove button so a misclick is
+          fixable without re-picking the rest. */}
+      {pendingFiles.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Pending — upload on submit
+          </p>
+          <ul className="space-y-1.5">
+            {pendingFiles.map((file, index) => (
+              <li
+                key={`${file.name}-${index}`}
+                className="flex items-center justify-between gap-3 rounded-md border border-dashed bg-background px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {file.type || "unknown type"} ·{" "}
+                    {formatBytes(file.size)}
+                  </p>
+                </div>
+                {editable && (
+                  <button
+                    type="button"
+                    onClick={() => removePending(index)}
+                    className="shrink-0 text-xs text-muted-foreground hover:underline"
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {org.attachments.length === 0 && pendingFiles.length === 0 && (
         <p className="text-xs text-muted-foreground">
           No documents attached yet.
         </p>
-      ) : (
-        <ul className="space-y-1.5">
-          {org.attachments.map((a) => (
-            <AttachmentRow key={a.id} attachment={a} />
-          ))}
-        </ul>
       )}
     </section>
   );
 }
 
 function AttachmentRow({
+  organizationId,
   attachment,
 }: {
+  organizationId: string;
   attachment: OrganizationAttachmentRead;
 }) {
+  // Per-row pending + error state — each click mints a fresh signed
+  // URL; an error on one row shouldn't bleed into the others. Same
+  // pattern as the admin-side dispute / claim attachment viewers.
+  const [pending, setPending] = React.useState(false);
+  const [errMsg, setErrMsg] = React.useState<string | null>(null);
+
+  async function onView() {
+    setPending(true);
+    setErrMsg(null);
+    try {
+      const resp = await apiFetch<OwnerOrgAttachmentSignedUrl>(
+        `/me/organizations/${organizationId}/attachments/${attachment.id}/url`,
+      );
+      // 60s TTL — opening in a new tab so a stale tab can't replay
+      // later. Each click mints a fresh URL.
+      window.open(resp.url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      const { description } = friendlyApiError(err, {
+        defaultTitle: "Couldn't open the file",
+      });
+      setErrMsg(
+        err instanceof ApiError && err.status >= 500
+          ? "Storage is temporarily unavailable. Try again in a moment."
+          : description,
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
-    <li className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm">
+    <li className="flex items-start justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm">
       <div className="min-w-0">
         <p className="truncate font-medium">{attachment.original_filename}</p>
         <p className="text-xs text-muted-foreground">
           {attachment.content_type} · {formatBytes(attachment.size_bytes)}
         </p>
+        {errMsg && (
+          <p
+            role="alert"
+            className="mt-1 text-xs text-destructive"
+          >
+            {errMsg}
+          </p>
+        )}
       </div>
+      <button
+        type="button"
+        onClick={() => void onView()}
+        disabled={pending}
+        className="shrink-0 rounded-md border px-3 py-1 text-xs font-medium transition hover:bg-accent disabled:opacity-50"
+      >
+        {pending ? "Opening…" : "View"}
+      </button>
     </li>
   );
 }
@@ -456,11 +758,24 @@ function formatBytes(bytes: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Submit-for-review
+// Submit-for-review — uploads pending files first, then transitions.
 // ---------------------------------------------------------------------------
-function SubmitSection({ org }: { org: MyOrganizationRead }) {
+function SubmitSection({
+  org,
+  pendingFiles,
+  clearPending,
+}: {
+  org: MyOrganizationRead;
+  pendingFiles: File[];
+  clearPending: () => void;
+}) {
   const submit = useSubmitMyOrganization();
+  const upload = useUploadMyOrganizationAttachment();
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [progress, setProgress] = React.useState<{
+    uploaded: number;
+    total: number;
+  } | null>(null);
 
   if (org.status === "UNDER_REVIEW") {
     return (
@@ -479,11 +794,49 @@ function SubmitSection({ org }: { org: MyOrganizationRead }) {
     );
   }
 
-  const canSubmit = org.attachments.length > 0 && !submit.isPending;
+  // The owner needs at least one document at submit time. Either
+  // already-uploaded or pending in the browser counts.
+  const docCount = org.attachments.length + pendingFiles.length;
+  const busy = upload.isPending || submit.isPending;
+  const canSubmit = docCount > 0 && !busy;
 
   async function onSubmit() {
     if (!canSubmit) return;
     setErrorMsg(null);
+
+    // Upload phase — sequential so a partial failure leaves a clear
+    // "we got this far" state. After each successful upload we
+    // surface progress so a slow connection doesn't feel hung.
+    if (pendingFiles.length > 0) {
+      setProgress({ uploaded: 0, total: pendingFiles.length });
+      for (let i = 0; i < pendingFiles.length; i++) {
+        const file = pendingFiles[i];
+        try {
+          await upload.mutateAsync({
+            organizationId: org.id,
+            file,
+          });
+          setProgress({ uploaded: i + 1, total: pendingFiles.length });
+        } catch (err) {
+          const { description } = friendlyApiError(err, {
+            defaultTitle: `Couldn't upload ${file.name}`,
+          });
+          setErrorMsg(
+            `${description} (${i} of ${pendingFiles.length} files uploaded before this one failed).`,
+          );
+          setProgress(null);
+          // Leave the remaining pending files in queue so the user
+          // can retry from a known state.
+          return;
+        }
+      }
+      // All uploads succeeded; clear the staged queue so the UI
+      // stops showing them as "pending."
+      clearPending();
+      setProgress(null);
+    }
+
+    // Submit phase — flips DRAFT → UNDER_REVIEW server-side.
     try {
       await submit.mutateAsync(org.id);
     } catch (err) {
@@ -502,10 +855,19 @@ function SubmitSection({ org }: { org: MyOrganizationRead }) {
         and queues it for Trust Halal staff. You can keep filing claims
         under it while review is pending.
       </p>
-      {org.attachments.length === 0 && (
+      {docCount === 0 && (
         <p className="text-xs text-muted-foreground">
           Add at least one supporting document above to enable
           submission.
+        </p>
+      )}
+      {progress && (
+        <p
+          className="text-xs text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
+          Uploading {progress.uploaded} of {progress.total}…
         </p>
       )}
       {errorMsg && (
@@ -522,7 +884,7 @@ function SubmitSection({ org }: { org: MyOrganizationRead }) {
         onClick={() => void onSubmit()}
         disabled={!canSubmit}
       >
-        {submit.isPending ? "Submitting…" : "Submit for review"}
+        {busy ? "Submitting…" : "Submit for review"}
       </Button>
     </section>
   );

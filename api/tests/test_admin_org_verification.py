@@ -78,7 +78,20 @@ def _under_review_org(
     db_session.commit()
 
     create = api.as_user(owner).post(
-        "/me/organizations", json={"name": name}
+        "/me/organizations",
+        json={
+            "name": name,
+            # contact_email + address are required on create now —
+            # admin-side verification tests still drive the org
+            # through the public owner API, so they need to send the
+            # full create payload.
+            "contact_email": "owner@example.com",
+            "address": "123 Main St",
+            "city": "Detroit",
+            "region": "MI",
+            "country_code": "US",
+            "postal_code": "48201",
+        },
     )
     assert create.status_code == 201, create.text
     org_id = create.json()["id"]
@@ -130,11 +143,12 @@ def test_admin_verify_org_transitions_to_verified(
     assert row.decided_by_user_id == admin.id
 
 
-def test_admin_verify_org_accepts_no_note(
+def test_admin_verify_org_requires_note(
     api, factories, db_session, fake_storage,
 ):
-    """note is optional. Verifying without one leaves
-    decision_note null on the row."""
+    """note is required now (mirrors reject) so every decision
+    has a documented basis. Empty body → 422 with the standard
+    validation envelope."""
     admin = factories.admin()
     _, org_id = _under_review_org(api, factories, db_session)
 
@@ -142,8 +156,22 @@ def test_admin_verify_org_accepts_no_note(
         f"/admin/organizations/{org_id}/verify",
         json={},
     )
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["decision_note"] is None
+    assert resp.status_code == 422, resp.text
+
+
+def test_admin_verify_org_rejects_short_note(
+    api, factories, db_session, fake_storage,
+):
+    """min_length=3 keeps a stray "ok" or 1-char fat-finger from
+    clearing the bar."""
+    admin = factories.admin()
+    _, org_id = _under_review_org(api, factories, db_session)
+
+    resp = api.as_user(admin).post(
+        f"/admin/organizations/{org_id}/verify",
+        json={"note": "x"},
+    )
+    assert resp.status_code == 422, resp.text
 
 
 def test_admin_verify_org_rejects_non_under_review(
@@ -159,19 +187,24 @@ def test_admin_verify_org_rejects_non_under_review(
 
     resp = api.as_user(admin).post(
         f"/admin/organizations/{org.id}/verify",
-        json={},
+        json={"note": "Cross-checked SOS filing."},
     )
     assert resp.status_code == 409, resp.text
     assert resp.json()["error"]["code"] == "ORGANIZATION_NOT_REVIEWABLE"
 
 
 def test_admin_verify_org_requires_admin_role(api, factories, db_session, fake_storage):
-    """Owner role → 401/403. Verification is staff-only."""
+    """Owner role → 401/403. Verification is staff-only.
+
+    Sending a valid body so we definitively hit the auth gate
+    rather than a 422 from the now-required note field.
+    """
     other_owner = factories.user(role="OWNER", email="other@example.com")
     _, org_id = _under_review_org(api, factories, db_session)
 
     resp = api.as_user(other_owner).post(
-        f"/admin/organizations/{org_id}/verify", json={}
+        f"/admin/organizations/{org_id}/verify",
+        json={"note": "Cross-checked SOS filing."},
     )
     assert resp.status_code in (401, 403), resp.text
 

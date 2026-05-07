@@ -10,13 +10,13 @@
  *   1. Pick a place via debounced search (useAdminPlaces q param).
  *   2. Optionally pick a requester user via debounced search — leave
  *      null for anonymous / walk-in intakes.
- *   3. Fill in contact name / email / optional phone / optional
- *      message and submit.
+ *   3. Fill in contact name / email / optional message and submit.
  *
- * The server-side ``create_ownership_request`` already handles
- * duplicate prevention (active request for the same place + email),
- * so the dialog catches that as OWNERSHIP_REQUEST_ALREADY_EXISTS and
- * points the admin at the existing row.
+ * Unlike the public claim form, the admin path bypasses the
+ * per-place duplicate guard server-side — staff can record an
+ * inbound intake even while another claim is in flight. The audit
+ * trail prefers two parallel rows over a phantom one that never
+ * got recorded.
  */
 
 import * as React from "react";
@@ -64,7 +64,6 @@ type FormState = {
   user: UserAdminRead | null;
   contact_name: string;
   contact_email: string;
-  contact_phone: string;
   message: string;
 };
 
@@ -73,7 +72,6 @@ const BLANK: FormState = {
   user: null,
   contact_name: "",
   contact_email: "",
-  contact_phone: "",
   message: "",
 };
 
@@ -102,7 +100,7 @@ export function CreateRequestDialog({
     initialFormState(initialPlace),
   );
   const [fieldErrors, setFieldErrors] = React.useState<
-    Partial<Record<"contact_name" | "contact_email" | "contact_phone" | "message", string>>
+    Partial<Record<"contact_name" | "contact_email" | "message", string>>
   >({});
 
   const [placeQuery, setPlaceQuery] = React.useState("");
@@ -155,7 +153,6 @@ export function CreateRequestDialog({
       requester_user_id: form.user ? form.user.id : null,
       contact_name: form.contact_name.trim(),
       contact_email: form.contact_email.trim(),
-      contact_phone: form.contact_phone.trim() || null,
       message: form.message.trim() || null,
     };
 
@@ -175,7 +172,6 @@ export function CreateRequestDialog({
       for (const k of [
         "contact_name",
         "contact_email",
-        "contact_phone",
         "message",
       ] as const) {
         if (raw[k]) narrowed[k] = raw[k];
@@ -185,10 +181,14 @@ export function CreateRequestDialog({
       const msg = friendlyApiError(err, {
         defaultTitle: "Couldn't create request",
         overrides: {
+          // The admin path bypasses the per-place duplicate guard
+          // server-side, so this code shouldn't fire here. Kept as
+          // a defensive fallback in case the server contract
+          // changes — message is intentionally generic.
           OWNERSHIP_REQUEST_ALREADY_EXISTS: {
-            title: "Request already exists",
+            title: "Active request already exists",
             description:
-              "An active request for this place + email is already open. Check the ownership requests list.",
+              "An active claim is already pending review for this place. Check the ownership requests list.",
           },
           PLACE_NOT_FOUND: {
             title: "Place not found",
@@ -447,20 +447,6 @@ export function CreateRequestDialog({
               <FieldError
                 id="create-req-contact-email-error"
                 message={fieldErrors.contact_email}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="create-req-contact-phone">
-                Contact phone{" "}
-                <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Input
-                id="create-req-contact-phone"
-                value={form.contact_phone}
-                onChange={(e) => update("contact_phone", e.target.value)}
-                maxLength={50}
-                placeholder="+1 555 0100"
               />
             </div>
 

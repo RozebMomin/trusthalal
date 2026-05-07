@@ -12,8 +12,19 @@ class PlaceEventType(StrEnum):
     DELETED = "DELETED"
     RESTORED = "RESTORED"
     OWNERSHIP_GRANTED = "OWNERSHIP_GRANTED"
+    # Initial claim submission — fired the moment a new ownership
+    # request row is inserted (owner portal, public anonymous form,
+    # or admin-create-on-behalf intake all hit the same code path).
+    # Without this the place timeline jumped straight from CREATED
+    # to NEEDS_EVIDENCE / REJECTED with no record of when the claim
+    # actually showed up.
+    OWNERSHIP_REQUEST_SUBMITTED = "OWNERSHIP_REQUEST_SUBMITTED"
     OWNERSHIP_REQUEST_REJECTED = "OWNERSHIP_REQUEST_REJECTED"
     OWNERSHIP_REQUEST_NEEDS_EVIDENCE = "OWNERSHIP_REQUEST_NEEDS_EVIDENCE"
+    # Owner re-submitting after a NEEDS_EVIDENCE request — claim
+    # flips back to UNDER_REVIEW with fresh attachments. Same audit
+    # surface so place detail's timeline reads as a single story.
+    OWNERSHIP_REQUEST_RESUBMITTED = "OWNERSHIP_REQUEST_RESUBMITTED"
 
     # Halal-claim cross-writes. The per-claim audit trail
     # (halal_claim_events) is the canonical detailed log; these

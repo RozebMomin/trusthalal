@@ -44,9 +44,16 @@ class PlaceOwnershipRequest(Base):
 
     contact_name: Mapped[str] = mapped_column(String(255), nullable=False)
     contact_email: Mapped[str] = mapped_column(String(255), nullable=False)
-    contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Latest admin instruction on this claim — populated when admin
+    # clicks "Request more evidence" with a guidance note. Owner
+    # portal renders this prominently on a NEEDS_EVIDENCE claim so
+    # the owner knows what to upload next. Overwritten on each
+    # subsequent admin action (the per-event audit history lives on
+    # place_events for forensic context).
+    decision_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     status: Mapped[str] = mapped_column(
         String(50),

@@ -44,6 +44,7 @@ from app.modules.halal_claims.models import HalalClaimAttachment
 from app.modules.halal_claims.repo import (
     batch_create_halal_claims_for_user,
     create_halal_claim_for_user,
+    delete_halal_claim_for_user,
     get_halal_claim_for_user,
     list_halal_claim_events_for_user,
     list_halal_claims_for_user,
@@ -250,6 +251,41 @@ def patch_my_halal_claim(
         db, claim_id=claim_id, user_id=user.id, patch=patch
     )
     return MyHalalClaimRead.model_validate(claim)
+
+
+@router.delete(
+    "/{claim_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Discard a DRAFT claim",
+    description=(
+        "Delete a halal claim that the caller owns AND is still in "
+        "DRAFT. Cascades to attached files (DB rows + storage blobs). "
+        "Conflict 409 (`HALAL_CLAIM_NOT_DELETABLE`) for any non-DRAFT "
+        "status — submitted claims are part of the audit trail and "
+        "stay around. Admin's REJECT / REVOKE flows cover the "
+        "'we don't want this anymore' cases for those."
+    ),
+)
+def delete_my_halal_claim(
+    claim_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+    storage: StorageClient = Depends(get_storage_client),
+) -> None:
+    """Delete a DRAFT claim + its attachments.
+
+    Only DRAFT is deletable. Once a claim hits PENDING_REVIEW it's
+    permanent audit data; admin can REJECT or REVOKE but not
+    delete.
+
+    Storage cleanup is best-effort — see
+    ``delete_halal_claim_for_user`` for the trade-off rationale.
+    """
+    delete_halal_claim_for_user(
+        db, claim_id=claim_id, user_id=user.id, storage=storage
+    )
+    # 204 No Content — no body. FastAPI handles the response shape
+    # automatically when we return None.
 
 
 @router.post(

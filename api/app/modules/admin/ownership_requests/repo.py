@@ -49,14 +49,17 @@ def admin_create_ownership_request(
         opening new ownership conversations on dead rows).
       * ``requester_user_id``, if supplied, points at a real user.
 
-    Then delegates to the existing public ``create_ownership_request``
-    so duplicate-prevention (active request for the same place+email)
-    and the commit shape stay in one place.
+    Then delegates to ``create_ownership_request`` for the actual
+    insert. The public path's per-place duplicate guard is
+    deliberately bypassed here: admins recording an inbound intake
+    (phone-call, in-person walk-in, forwarded email) need to be
+    able to do it even while another claim sits in the review queue,
+    and the audit trail prefers two parallel rows over a phantom one
+    that never got recorded.
 
     Raises:
         NotFoundError(PLACE_NOT_FOUND)  if the place is unknown/deleted.
         NotFoundError(USER_NOT_FOUND)   if requester_user_id is unknown.
-        ConflictError(OWNERSHIP_REQUEST_ALREADY_EXISTS) on duplicate.
     """
     place = get_place(db, payload.place_id)
     if not place:
@@ -81,8 +84,8 @@ def admin_create_ownership_request(
         requester_user_id=payload.requester_user_id,
         contact_name=payload.contact_name,
         contact_email=str(payload.contact_email),
-        contact_phone=payload.contact_phone,
         message=payload.message,
+        skip_duplicate_check=True,
     )
 
 
@@ -265,6 +268,11 @@ def admin_reject_ownership_request(
     _assert_not_terminal(req)
 
     req.status = OwnershipRequestStatus.REJECTED.value
+    # Land the rejection reason on decision_note so the owner can
+    # read it on their /my-claims card. Same pattern as
+    # request-evidence: row column for the latest staff guidance,
+    # place_events for the per-event audit trail.
+    req.decision_note = payload.reason
     db.add(req)
 
     db.add(
@@ -291,8 +299,19 @@ def admin_request_more_evidence(
     req = _get_request_or_404(db, request_id)
     _assert_not_terminal(req)
 
+    # Always overwrite decision_note with the latest instruction —
+    # the owner needs the most recent guidance, not the first one.
+    # Per-event history still lives on place_events for forensics.
+    req.decision_note = payload.note
+
     if req.status == OwnershipRequestStatus.NEEDS_EVIDENCE.value:
-        return req  # idempotent
+        # Idempotent on status: no fresh event row, but the
+        # decision_note refresh above already happened so a second
+        # call still updates the owner-visible instruction.
+        db.add(req)
+        db.commit()
+        db.refresh(req)
+        return req
 
     req.status = OwnershipRequestStatus.NEEDS_EVIDENCE.value
     db.add(req)
@@ -302,7 +321,7 @@ def admin_request_more_evidence(
             place_id=req.place_id,
             event_type=PlaceEventType.OWNERSHIP_REQUEST_NEEDS_EVIDENCE.value,
             actor_user_id=actor_user_id,
-            message=payload.note or "Admin requested more evidence",
+            message=payload.note,
         )
     )
 

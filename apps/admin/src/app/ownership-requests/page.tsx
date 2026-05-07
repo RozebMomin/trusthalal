@@ -188,14 +188,26 @@ export default function OwnershipRequestsPage() {
                         <span className="italic">&mdash;</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="max-w-[260px]">
+                      {/* Place name + a thin address line so staff
+                          can disambiguate two same-named venues
+                          across cities. Falls back to the UUID
+                          chip only on the (defensive) case where
+                          the embedded summary somehow didn't load. */}
                       <Link
-                        href={`/places/${row.place_id}`}
-                        className="font-mono text-xs text-primary hover:underline"
-                        title={row.place_id}
+                        href={`/places/${row.place.id}`}
+                        className="font-medium text-primary hover:underline"
+                        title={row.place.name}
                       >
-                        {row.place_id.slice(0, 8)}…
+                        {row.place.name}
                       </Link>
+                      {(row.place.city || row.place.region) && (
+                        <div className="truncate text-xs text-muted-foreground">
+                          {[row.place.city, row.place.region]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={row.status} />

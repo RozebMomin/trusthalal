@@ -26,10 +26,18 @@ COMPLETE_FULLY_HALAL: dict = {
     "has_pork": False,
     "alcohol_policy": "NONE",
     "alcohol_in_cooking": False,
-    "chicken": {"slaughter_method": "ZABIHAH"},
-    "beef": {"slaughter_method": "ZABIHAH"},
-    "lamb": {"slaughter_method": "NOT_SERVED"},
-    "goat": {"slaughter_method": "NOT_SERVED"},
+    "meat_products": [
+        {
+            "meat_type": "CHICKEN",
+            "product_name": "Chicken",
+            "slaughter_method": "ZABIHAH",
+        },
+        {
+            "meat_type": "BEEF",
+            "product_name": "Beef",
+            "slaughter_method": "ZABIHAH",
+        },
+    ],
     "seafood_only": False,
     "has_certification": True,
     "certifying_body_name": "IFANCA",

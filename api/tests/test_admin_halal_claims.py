@@ -79,21 +79,46 @@ COMPLETE_QUESTIONNAIRE: dict = {
     "has_pork": False,
     "alcohol_policy": "NONE",
     "alcohol_in_cooking": False,
-    "chicken": {"slaughter_method": "ZABIHAH"},
-    "beef": {"slaughter_method": "ZABIHAH"},
-    "lamb": {"slaughter_method": "NOT_SERVED"},
-    "goat": {"slaughter_method": "NOT_SERVED"},
+    "meat_products": [
+        {
+            "meat_type": "CHICKEN",
+            "product_name": "Chicken",
+            "slaughter_method": "ZABIHAH",
+        },
+        {
+            "meat_type": "BEEF",
+            "product_name": "Beef",
+            "slaughter_method": "ZABIHAH",
+        },
+    ],
     "seafood_only": False,
-    "has_certification": True,
-    "certifying_body_name": "IFANCA",
+    # ``has_certification`` and ``certifying_body_name`` deliberately
+    # absent — they're now data-driven from HALAL_CERTIFICATE
+    # attachments, not the questionnaire (see profile-derivation
+    # service). Tests that need them seeded use
+    # ``with_certificate=True`` on _submit_pending_claim.
     "caveats": None,
 }
 
 
-def _submit_pending_claim(api, factories, db_session) -> tuple:
+def _submit_pending_claim(
+    api,
+    factories,
+    db_session,
+    *,
+    with_certificate: bool = False,
+    certifying_authority: str = "IFANCA",
+) -> tuple:
     """Helper: provision a place/org/owner, submit a complete claim,
     return (admin, owner, place, org, claim_id) ready for an admin
-    decision endpoint test."""
+    decision endpoint test.
+
+    ``with_certificate=True`` uploads a HALAL_CERTIFICATE
+    attachment between the create + submit steps so profile
+    derivation flips ``has_certification`` to True at approval
+    time. The owner's questionnaire no longer asks about
+    certification directly — it's data-driven from attachments.
+    """
     admin = factories.admin()
     owner = factories.owner()
     place, org = factories.managed_place(owner=owner)
@@ -109,6 +134,25 @@ def _submit_pending_claim(api, factories, db_session) -> tuple:
     )
     assert create_resp.status_code == 201, create_resp.text
     claim_id = create_resp.json()["id"]
+
+    if with_certificate:
+        # Upload while the claim is still DRAFT (the only state
+        # where the upload route accepts new files).
+        cert_resp = api.as_user(owner).post(
+            f"/me/halal-claims/{claim_id}/attachments",
+            files={
+                "file": (
+                    "cert.pdf",
+                    BytesIO(b"%PDF-1.4 fake cert"),
+                    "application/pdf",
+                ),
+            },
+            data={
+                "document_type": "HALAL_CERTIFICATE",
+                "issuing_authority": certifying_authority,
+            },
+        )
+        assert cert_resp.status_code == 201, cert_resp.text
 
     submit_resp = api.as_user(owner).post(
         f"/me/halal-claims/{claim_id}/submit"
@@ -166,8 +210,10 @@ def test_non_admin_blocked(api, factories, db_session):
 # Approve — profile derivation
 # ---------------------------------------------------------------------------
 def test_approve_creates_profile_first_time(api, factories, db_session):
+    # Seed a HALAL_CERTIFICATE attachment so the data-driven
+    # certification derivation has something to work with.
     admin, _, place, _, claim_id = _submit_pending_claim(
-        api, factories, db_session
+        api, factories, db_session, with_certificate=True
     )
 
     resp = api.as_user(admin).post(
@@ -197,11 +243,110 @@ def test_approve_creates_profile_first_time(api, factories, db_session):
     assert profile.chicken_slaughter == SlaughterMethod.ZABIHAH.value
     assert profile.beef_slaughter == SlaughterMethod.ZABIHAH.value
     assert profile.lamb_slaughter == SlaughterMethod.NOT_SERVED.value
+    # ``has_certification`` + ``certifying_body_name`` are now
+    # derived from the HALAL_CERTIFICATE attachment, not the
+    # questionnaire — see profile-derivation service.
     assert profile.has_certification is True
     assert profile.certifying_body_name == "IFANCA"
     assert profile.dispute_state == HalalProfileDisputeState.NONE.value
     assert profile.expires_at is not None
     assert profile.revoked_at is None
+
+
+def test_approve_rolls_up_multiple_products_to_least_strict_method(
+    api, factories, db_session
+):
+    """When the questionnaire carries multiple products under the
+    same meat type, the profile column rolls up to the LEAST
+    conservative method (worst-case for the consumer). Two beef
+    products — one ZABIHAH, one MACHINE — collapse to
+    beef_slaughter = MACHINE."""
+    admin = factories.admin()
+    owner = factories.owner()
+    place, org = factories.managed_place(owner=owner)
+    db_session.commit()
+
+    questionnaire = {
+        "questionnaire_version": 1,
+        "menu_posture": "FULLY_HALAL",
+        "has_pork": False,
+        "alcohol_policy": "NONE",
+        "alcohol_in_cooking": False,
+        "meat_products": [
+            # Two beef products — one strict, one less strict.
+            # Roll-up should land MACHINE (the worst case).
+            {
+                "meat_type": "BEEF",
+                "product_name": "Beef bacon",
+                "slaughter_method": "MACHINE",
+                "supplier_name": "Acme Halal",
+                "certifying_authority": "IFANCA",
+            },
+            {
+                "meat_type": "BEEF",
+                "product_name": "Ground beef",
+                "slaughter_method": "ZABIHAH",
+                "supplier_name": "Local Zabihah Co",
+            },
+            # All-zabihah chicken should roll up to ZABIHAH.
+            {
+                "meat_type": "CHICKEN",
+                "product_name": "Chicken thighs",
+                "slaughter_method": "ZABIHAH",
+            },
+        ],
+        "seafood_only": False,
+        "caveats": None,
+    }
+
+    create_resp = api.as_user(owner).post(
+        "/me/halal-claims",
+        json={
+            "place_id": str(place.id),
+            "organization_id": str(org.id),
+            "structured_response": questionnaire,
+        },
+    )
+    claim_id = create_resp.json()["id"]
+    api.as_user(owner).post(f"/me/halal-claims/{claim_id}/submit")
+
+    api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "OWNER_ATTESTED"},
+    )
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    assert profile.beef_slaughter == SlaughterMethod.MACHINE.value
+    assert profile.chicken_slaughter == SlaughterMethod.ZABIHAH.value
+    # Lamb / goat had no entries → NOT_SERVED fallback.
+    assert profile.lamb_slaughter == SlaughterMethod.NOT_SERVED.value
+    assert profile.goat_slaughter == SlaughterMethod.NOT_SERVED.value
+
+
+def test_approve_without_certificate_attachment_sets_has_certification_false(
+    api, factories, db_session
+):
+    """Mirror of the happy-path test, but without a HALAL_CERTIFICATE
+    attachment. Profile derivation should land
+    ``has_certification=False`` + ``certifying_body_name=None``
+    even though the rest of the questionnaire is the same."""
+    admin, _, place, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "OWNER_ATTESTED"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    assert profile.has_certification is False
+    assert profile.certifying_body_name is None
 
     # Audit event row.
     events = db_session.execute(
@@ -275,8 +420,12 @@ def test_approve_supersedes_prior_claim(api, factories, db_session):
     assert events[1].event_type == HalalProfileEventType.UPDATED.value
 
 
-def test_approve_rejects_non_decidable_status(api, factories, db_session):
-    """Can't approve a DRAFT claim — must be PENDING_REVIEW."""
+def test_approve_draft_without_override_requires_override(
+    api, factories, db_session
+):
+    """Approving a DRAFT claim is allowed but requires the
+    override flow — without ack + note, the server returns
+    HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE so the UI can prompt."""
     admin = factories.admin()
     owner = factories.owner()
     place, org = factories.managed_place(owner=owner)
@@ -293,12 +442,165 @@ def test_approve_rejects_non_decidable_status(api, factories, db_session):
     )
     claim_id = create_resp.json()["id"]
 
+    # No override flag → 409 with the prompt-the-UI code.
     resp = api.as_user(admin).post(
         f"/admin/halal-claims/{claim_id}/approve",
         json={"validation_tier": "SELF_ATTESTED"},
     )
     assert resp.status_code == 409, resp.text
-    assert resp.json()["error"]["code"] == "HALAL_CLAIM_NOT_DECIDABLE"
+    assert (
+        resp.json()["error"]["code"]
+        == "HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE"
+    )
+
+
+def test_approve_draft_with_override_succeeds(
+    api, factories, db_session
+):
+    """Same DRAFT claim approves cleanly when admin sets the
+    override flag + provides a decision note explaining the
+    deviation."""
+    admin = factories.admin()
+    owner = factories.owner()
+    place, org = factories.managed_place(owner=owner)
+    db_session.commit()
+
+    create_resp = api.as_user(owner).post(
+        "/me/halal-claims",
+        json={
+            "place_id": str(place.id),
+            "organization_id": str(org.id),
+            "structured_response": COMPLETE_QUESTIONNAIRE,
+        },
+    )
+    claim_id = create_resp.json()["id"]
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "SELF_ATTESTED",
+            "decision_note": "Phone-call intake; owner can't finish the form. Approved on faith.",
+            "override_acknowledged": True,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "APPROVED"
+
+
+def test_approve_needs_more_info_without_override_requires_override(
+    api, factories, db_session
+):
+    """The textbook accident the override flow guards: admin had
+    asked for more info, owner hasn't responded, admin tries to
+    approve anyway. Without the ack flag this 409s."""
+    admin, _, _, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+    # Move PENDING_REVIEW → NEEDS_MORE_INFO.
+    api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/request-info",
+        json={"decision_note": "Need a current cert."},
+    )
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "SELF_ATTESTED"},
+    )
+    assert resp.status_code == 409, resp.text
+    assert (
+        resp.json()["error"]["code"]
+        == "HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE"
+    )
+
+
+def test_approve_needs_more_info_override_requires_decision_note(
+    api, factories, db_session
+):
+    """Override flag alone isn't enough — admin must also leave a
+    non-empty decision_note explaining why the standard flow was
+    bypassed. Empty / whitespace-only notes count as missing."""
+    admin, _, _, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+    api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/request-info",
+        json={"decision_note": "Need a current cert."},
+    )
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "SELF_ATTESTED",
+            "override_acknowledged": True,
+            # Whitespace-only note doesn't satisfy the requirement.
+            "decision_note": "   ",
+        },
+    )
+    assert resp.status_code == 409, resp.text
+    assert (
+        resp.json()["error"]["code"]
+        == "HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE"
+    )
+
+
+def test_approve_needs_more_info_with_override_succeeds(
+    api, factories, db_session
+):
+    """Override + note → approves cleanly. Decision note lands on
+    the claim row so the audit trail records why the standard
+    flow was bypassed."""
+    admin, _, _, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+    api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/request-info",
+        json={"decision_note": "Need a current cert."},
+    )
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "SELF_ATTESTED",
+            "override_acknowledged": True,
+            "decision_note": (
+                "Verified the cert by phone with IFANCA directly. "
+                "Owner unresponsive but cert is current — approved."
+            ),
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "APPROVED"
+    assert "Verified the cert" in (body["decision_note"] or "")
+
+
+def test_approve_already_approved_returns_not_decidable(
+    api, factories, db_session
+):
+    """Re-approving an already-APPROVED claim is still meaningless
+    — stays at the original 409 code (NOT_DECIDABLE), not the new
+    override code, since this isn't a 'standard flow' deviation."""
+    admin, _, _, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+    first = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "SELF_ATTESTED"},
+    )
+    assert first.status_code == 200, first.text
+
+    second = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "SELF_ATTESTED",
+            "override_acknowledged": True,
+            "decision_note": "Trying to re-approve.",
+        },
+    )
+    assert second.status_code == 409, second.text
+    assert (
+        second.json()["error"]["code"] == "HALAL_CLAIM_NOT_DECIDABLE"
+    )
 
 
 def test_approve_with_expires_at_override(api, factories, db_session):
@@ -306,14 +608,12 @@ def test_approve_with_expires_at_override(api, factories, db_session):
         api, factories, db_session
     )
 
-    custom_expiry = (
-        datetime.now(timezone.utc) + timedelta(days=30)
-    ).isoformat()
+    custom_expiry_dt = datetime.now(timezone.utc) + timedelta(days=30)
     resp = api.as_user(admin).post(
         f"/admin/halal-claims/{claim_id}/approve",
         json={
             "validation_tier": "CERTIFICATE_ON_FILE",
-            "expires_at_override": custom_expiry,
+            "expires_at_override": custom_expiry_dt.isoformat(),
         },
     )
     assert resp.status_code == 200, resp.text
@@ -321,9 +621,78 @@ def test_approve_with_expires_at_override(api, factories, db_session):
     profile = db_session.execute(
         select(HalalProfile).where(HalalProfile.place_id == place.id)
     ).scalar_one()
-    # Profile expires_at ~= the override (within a second of the
-    # supplied ISO string).
+    # 30-day override is shorter than the 90-day cap, so it lands
+    # verbatim on the row (within a second of the ISO timestamp).
     assert profile.expires_at is not None
+    delta = abs((profile.expires_at - custom_expiry_dt).total_seconds())
+    assert delta < 2, f"profile.expires_at drifted: delta={delta}s"
+
+
+def test_approve_default_expiry_is_90_days(api, factories, db_session):
+    """Trust Halal company policy: every approved claim is good for
+    90 days by default. No override + no certificate_expires_at →
+    profile.expires_at lands ~90 days from approve time."""
+    admin, _, place, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+
+    before = datetime.now(timezone.utc)
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "OWNER_ATTESTED"},
+    )
+    after = datetime.now(timezone.utc)
+    assert resp.status_code == 200, resp.text
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    # Profile.expires_at sits between (before + 90d) and
+    # (after + 90d) — bounded interval that doesn't depend on
+    # the test's wall-clock precision.
+    lower = before + timedelta(days=90)
+    upper = after + timedelta(days=90)
+    assert lower <= profile.expires_at <= upper, (
+        f"expected ~90 days from approve, got "
+        f"{profile.expires_at} (lower={lower}, upper={upper})"
+    )
+
+
+def test_approve_clamps_overlong_override_to_90_days(
+    api, factories, db_session
+):
+    """Admin can't accidentally grant a year-long approval. An
+    override past the 90-day company cap is clamped server-side to
+    the cap; the request still succeeds (no 422) so admin staff
+    don't get confusing errors when they try to be generous."""
+    admin, _, place, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+
+    overlong = (
+        datetime.now(timezone.utc) + timedelta(days=365)
+    ).isoformat()
+    before = datetime.now(timezone.utc)
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "TRUST_HALAL_VERIFIED",
+            "expires_at_override": overlong,
+        },
+    )
+    after = datetime.now(timezone.utc)
+    assert resp.status_code == 200, resp.text
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    # Should land at the 90-day cap, NOT the 365-day override.
+    lower = before + timedelta(days=90)
+    upper = after + timedelta(days=90)
+    assert lower <= profile.expires_at <= upper, (
+        f"override of 365d should have been clamped to 90d, got "
+        f"{profile.expires_at}"
+    )
 
 
 # ---------------------------------------------------------------------------

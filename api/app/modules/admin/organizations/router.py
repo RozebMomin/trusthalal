@@ -136,9 +136,33 @@ def get_org_admin(
     base = OrganizationAdminRead.model_validate(org)
     return OrganizationDetailRead(
         **base.model_dump(),
-        members=[
-            OrganizationMemberAdminRead.model_validate(m) for m in members
-        ],
+        members=[_member_view(m) for m in members],
+    )
+
+
+def _member_view(member) -> OrganizationMemberAdminRead:
+    """Project an OrganizationMember row + its eager-loaded user
+    onto the admin read shape with display_name + email pulled
+    through.
+
+    The User relationship has ``lazy="selectin"`` so the join is one
+    extra query for the whole member set, not one per row. Falls
+    back to ``None`` if the user FK got SET NULL'd somehow — the
+    member row is kept for audit even if the user is gone.
+    """
+    user = getattr(member, "user", None)
+    return OrganizationMemberAdminRead.model_validate(
+        {
+            "id": member.id,
+            "organization_id": member.organization_id,
+            "user_id": member.user_id,
+            "user_email": user.email if user else None,
+            "user_display_name": user.display_name if user else None,
+            "role": member.role,
+            "status": member.status,
+            "created_at": member.created_at,
+            "updated_at": member.updated_at,
+        }
     )
 
 
@@ -214,7 +238,8 @@ def add_member_admin(
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> OrganizationMemberAdminRead:
-    return admin_add_member(db, org_id=org_id, payload=payload)
+    member = admin_add_member(db, org_id=org_id, payload=payload)
+    return _member_view(member)
 
 
 @router.delete(
@@ -229,7 +254,8 @@ def deactivate_member_admin(
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> OrganizationMemberAdminRead:
-    return admin_deactivate_member(db, org_id=org_id, user_id=user_id)
+    member = admin_deactivate_member(db, org_id=org_id, user_id=user_id)
+    return _member_view(member)
 
 
 # ---------------------------------------------------------------------------

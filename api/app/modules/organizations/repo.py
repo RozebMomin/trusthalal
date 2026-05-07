@@ -47,6 +47,21 @@ _EDITABLE_STATUSES = (
 )
 
 
+def _clean_str(value: str | None) -> str | None:
+    """Trim whitespace and collapse the empty string to None.
+
+    Used for the org address fields so a user clearing an input box
+    (which yields ``""`` from a form) is treated the same as
+    "remove this field" — the column ends up NULL instead of holding
+    an empty string. Symmetric with how the place address fields
+    handle the same shape.
+    """
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
 def list_organizations_for_user(
     db: Session, *, user_id: UUID
 ) -> list[Organization]:
@@ -118,9 +133,21 @@ def create_organization_for_user(
     """
     org = Organization(
         name=payload.name.strip(),
-        contact_email=(
-            str(payload.contact_email).lower() if payload.contact_email else None
+        # ``contact_email`` is required on the create schema now.
+        # Lower-casing keeps the local part normalized — Pydantic's
+        # EmailStr already validated the structure.
+        contact_email=str(payload.contact_email).lower(),
+        # Address fields are pass-through. Strip whitespace so a stray
+        # newline pasted from a clipboard doesn't end up in the DB.
+        # ``country_code`` upper-cased to match the ISO-3166-1 norm we
+        # apply on places.
+        address=_clean_str(payload.address),
+        city=_clean_str(payload.city),
+        region=_clean_str(payload.region),
+        country_code=(
+            payload.country_code.upper() if payload.country_code else None
         ),
+        postal_code=_clean_str(payload.postal_code),
         status=OrganizationStatus.DRAFT.value,
         created_by_user_id=user_id,
     )
@@ -179,6 +206,23 @@ def patch_organization_for_user(
         new_email = str(raw).lower() if raw is not None else None
         if new_email != org.contact_email:
             org.contact_email = new_email
+            changed = True
+
+    # Address fields all share the same null-vs-absent contract. Loop
+    # so adding more later (e.g. lat/lng) is one column-name addition,
+    # not five copy-pasted blocks.
+    for column in ("address", "city", "region", "postal_code"):
+        if column in data:
+            new_val = _clean_str(data[column])
+            if new_val != getattr(org, column):
+                setattr(org, column, new_val)
+                changed = True
+
+    if "country_code" in data:
+        raw = data["country_code"]
+        new_country = raw.upper() if raw else None
+        if new_country != org.country_code:
+            org.country_code = new_country
             changed = True
 
     if not changed:

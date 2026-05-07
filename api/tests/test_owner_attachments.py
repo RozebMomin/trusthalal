@@ -474,6 +474,39 @@ def test_admin_ownership_request_list_embeds_attachments(
     assert rows[0]["attachments"][0]["original_filename"] == "ub.pdf"
 
 
+def test_admin_ownership_request_list_embeds_place_summary(
+    api, factories, db_session, fake_storage,
+):
+    """Admin queue gets the place name + address inline so the
+    queue table can render "Khan Halal Grill — Detroit, MI"
+    instead of a truncated UUID. Mirrors the owner /my-claims
+    feed's place summary."""
+    admin = factories.admin()
+    owner = factories.user(role="OWNER")
+    place = factories.place(name="Khan Halal Grill", address="123 Main St")
+    # The factory's surface stops at name + address; set the
+    # canonical address fields directly so we can assert the
+    # embedded summary surfaces them. Same shape the ingest path
+    # would land for a real Google Places lookup.
+    place.city = "Detroit"
+    place.region = "MI"
+    place.country_code = "US"
+    db_session.add(place)
+    db_session.commit()
+    request_id = _claim_for(api, factories, db_session, owner, place)
+
+    listing = api.as_user(admin).get("/admin/ownership-requests")
+    assert listing.status_code == 200, listing.text
+    rows = [r for r in listing.json() if r["id"] == request_id]
+    assert len(rows) == 1
+    embedded = rows[0]["place"]
+    assert embedded["id"] == str(place.id)
+    assert embedded["name"] == "Khan Halal Grill"
+    assert embedded["address"] == "123 Main St"
+    assert embedded["city"] == "Detroit"
+    assert embedded["region"] == "MI"
+
+
 def test_my_ownership_requests_list_embeds_attachments(
     api, factories, db_session, fake_storage):
     """GET /me/ownership-requests now embeds the per-claim

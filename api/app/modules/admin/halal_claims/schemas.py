@@ -25,10 +25,12 @@ class HalalClaimApprove(BaseModel):
     CERTIFICATE_ON_FILE (cert verified), or TRUST_HALAL_VERIFIED
     (Trust Halal staff or community verifier site visit confirms).
 
-    ``expires_at_override`` lets admin pick a non-default expiry
-    (defaults to 12 months from approve). Useful for short-lived
-    certifications or for placing a verified claim on a tighter
-    re-verification cadence.
+    ``expires_at_override`` lets admin pick a SHORTER-than-default
+    expiry. Defaults to 90 days from approve (company policy: every
+    approved claim has a 90-day lifetime so the catalog stays
+    self-correcting). Overrides past 90 days are clamped server-
+    side; useful when a cert expires sooner than 90 days and the
+    admin wants the profile to time-out with the cert.
 
     ``certificate_expires_at`` mirrors the cert's own expiry date.
     Optional and metadata-only — drives the consumer-facing
@@ -42,6 +44,22 @@ class HalalClaimApprove(BaseModel):
     internal_notes: Optional[str] = Field(default=None, max_length=4000)
     expires_at_override: Optional[datetime] = None
     certificate_expires_at: Optional[datetime] = None
+    # Acknowledgement flag for approving outside the standard
+    # PENDING_REVIEW → APPROVED happy path. The server returns
+    # ``HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE`` when the claim is
+    # in DRAFT / NEEDS_MORE_INFO / REJECTED / REVOKED and this is
+    # False; the admin UI catches that code and shows a confirm
+    # dialog that re-submits with the flag flipped + a
+    # required decision_note explaining the reasoning.
+    #
+    # Why not auto-allow: a NEEDS_MORE_INFO → APPROVED transition
+    # without the owner ever resubmitting evidence is the
+    # textbook accident — admin meant to flip a different claim,
+    # or forgot the owner's missing-info request was unanswered.
+    # Requiring a deliberate ack + a note gives the audit trail
+    # a paper trail for "admin overrode the standard flow on
+    # 2026-05-06 because <reason>."
+    override_acknowledged: bool = False
 
 
 class HalalClaimReject(BaseModel):

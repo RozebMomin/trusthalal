@@ -144,7 +144,8 @@ def get_claim_admin(
         "(CREATED or UPDATED) audit rows. Admin assigns the "
         "`validation_tier` (SELF_ATTESTED / CERTIFICATE_ON_FILE / "
         "TRUST_HALAL_VERIFIED). Optional `expires_at_override` "
-        "tweaks the default 12-month expiry."
+        "shortens the default 90-day TTL (overrides past 90 days "
+        "are clamped server-side — company policy)."
     ),
 )
 def approve_claim_admin(
@@ -162,7 +163,9 @@ def approve_claim_admin(
 
     Admin assigns ``validation_tier`` here (SELF_ATTESTED /
     CERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional
-    ``expires_at_override`` overrides the default 12-month TTL.
+    ``expires_at_override`` shortens the default 90-day TTL (the
+    derivation service clamps any override past 90 days back to
+    the cap — company policy).
     """
     claim = admin_approve_halal_claim(
         db,
