@@ -79,10 +79,18 @@ COMPLETE_QUESTIONNAIRE: dict = {
     "has_pork": False,
     "alcohol_policy": "NONE",
     "alcohol_in_cooking": False,
-    "chicken": {"slaughter_method": "ZABIHAH"},
-    "beef": {"slaughter_method": "ZABIHAH"},
-    "lamb": {"slaughter_method": "NOT_SERVED"},
-    "goat": {"slaughter_method": "NOT_SERVED"},
+    "meat_products": [
+        {
+            "meat_type": "CHICKEN",
+            "product_name": "Chicken",
+            "slaughter_method": "ZABIHAH",
+        },
+        {
+            "meat_type": "BEEF",
+            "product_name": "Beef",
+            "slaughter_method": "ZABIHAH",
+        },
+    ],
     "seafood_only": False,
     # ``has_certification`` and ``certifying_body_name`` deliberately
     # absent — they're now data-driven from HALAL_CERTIFICATE
@@ -243,6 +251,78 @@ def test_approve_creates_profile_first_time(api, factories, db_session):
     assert profile.dispute_state == HalalProfileDisputeState.NONE.value
     assert profile.expires_at is not None
     assert profile.revoked_at is None
+
+
+def test_approve_rolls_up_multiple_products_to_least_strict_method(
+    api, factories, db_session
+):
+    """When the questionnaire carries multiple products under the
+    same meat type, the profile column rolls up to the LEAST
+    conservative method (worst-case for the consumer). Two beef
+    products — one ZABIHAH, one MACHINE — collapse to
+    beef_slaughter = MACHINE."""
+    admin = factories.admin()
+    owner = factories.owner()
+    place, org = factories.managed_place(owner=owner)
+    db_session.commit()
+
+    questionnaire = {
+        "questionnaire_version": 1,
+        "menu_posture": "FULLY_HALAL",
+        "has_pork": False,
+        "alcohol_policy": "NONE",
+        "alcohol_in_cooking": False,
+        "meat_products": [
+            # Two beef products — one strict, one less strict.
+            # Roll-up should land MACHINE (the worst case).
+            {
+                "meat_type": "BEEF",
+                "product_name": "Beef bacon",
+                "slaughter_method": "MACHINE",
+                "supplier_name": "Acme Halal",
+                "certifying_authority": "IFANCA",
+            },
+            {
+                "meat_type": "BEEF",
+                "product_name": "Ground beef",
+                "slaughter_method": "ZABIHAH",
+                "supplier_name": "Local Zabihah Co",
+            },
+            # All-zabihah chicken should roll up to ZABIHAH.
+            {
+                "meat_type": "CHICKEN",
+                "product_name": "Chicken thighs",
+                "slaughter_method": "ZABIHAH",
+            },
+        ],
+        "seafood_only": False,
+        "caveats": None,
+    }
+
+    create_resp = api.as_user(owner).post(
+        "/me/halal-claims",
+        json={
+            "place_id": str(place.id),
+            "organization_id": str(org.id),
+            "structured_response": questionnaire,
+        },
+    )
+    claim_id = create_resp.json()["id"]
+    api.as_user(owner).post(f"/me/halal-claims/{claim_id}/submit")
+
+    api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "OWNER_ATTESTED"},
+    )
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    assert profile.beef_slaughter == SlaughterMethod.MACHINE.value
+    assert profile.chicken_slaughter == SlaughterMethod.ZABIHAH.value
+    # Lamb / goat had no entries → NOT_SERVED fallback.
+    assert profile.lamb_slaughter == SlaughterMethod.NOT_SERVED.value
+    assert profile.goat_slaughter == SlaughterMethod.NOT_SERVED.value
 
 
 def test_approve_without_certificate_attachment_sets_has_certification_false(

@@ -808,11 +808,32 @@ export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
 
 export type SlaughterMethod = "ZABIHAH" | "MACHINE" | "NOT_SERVED";
 
-/** Per-meat sourcing — repeated across chicken/beef/lamb/goat. */
-export type MeatSourcing = {
+/** Closed enum the new per-product meat list keys on. */
+export type MeatType =
+  | "CHICKEN"
+  | "BEEF"
+  | "LAMB"
+  | "GOAT"
+  | "TURKEY"
+  | "DUCK"
+  | "FISH"
+  | "OTHER";
+
+/**
+ * One specific product the restaurant serves, with its own
+ * supplier and (optionally) cert. Replaces the old per-meat
+ * MeatSourcing — owners can declare multiple products under each
+ * meat type ("Beef bacon" + "Ground beef" with different
+ * suppliers / certs).
+ */
+export type MeatProductSourcing = {
+  meat_type: MeatType;
+  product_name: string;
   slaughter_method: SlaughterMethod;
   supplier_name?: string | null;
   supplier_location?: string | null;
+  certifying_authority?: string | null;
+  certificate_number?: string | null;
 };
 
 /**
@@ -828,10 +849,7 @@ export type HalalQuestionnaireDraft = {
   has_pork?: boolean | null;
   alcohol_policy?: AlcoholPolicy | null;
   alcohol_in_cooking?: boolean | null;
-  chicken?: MeatSourcing | null;
-  beef?: MeatSourcing | null;
-  lamb?: MeatSourcing | null;
-  goat?: MeatSourcing | null;
+  meat_products?: MeatProductSourcing[];
   seafood_only?: boolean | null;
   has_certification?: boolean | null;
   certifying_body_name?: string | null;

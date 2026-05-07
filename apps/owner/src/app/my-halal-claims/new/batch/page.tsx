@@ -27,7 +27,8 @@ import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type AlcoholPolicy,
   type HalalQuestionnaireDraft,
-  type MeatSourcing,
+  type MeatProductSourcing,
+  type MeatType,
   type MenuPosture,
   type MyHalalClaimBatchSelection,
   type OwnedPlaceRead,
@@ -87,15 +88,28 @@ const SLAUGHTER_OPTIONS: Array<{
   { value: "NOT_SERVED", label: "Not served" },
 ];
 
-const MEAT_KEYS = ["chicken", "beef", "lamb", "goat"] as const;
-type MeatKey = (typeof MEAT_KEYS)[number];
+const MEAT_TYPE_OPTIONS: Array<{ value: MeatType; label: string }> = [
+  { value: "CHICKEN", label: "Chicken" },
+  { value: "BEEF", label: "Beef" },
+  { value: "LAMB", label: "Lamb" },
+  { value: "GOAT", label: "Goat" },
+  { value: "TURKEY", label: "Turkey" },
+  { value: "DUCK", label: "Duck" },
+  { value: "FISH", label: "Fish" },
+  { value: "OTHER", label: "Other" },
+];
 
-const MEAT_LABELS: Record<MeatKey, string> = {
-  chicken: "Chicken",
-  beef: "Beef",
-  lamb: "Lamb",
-  goat: "Goat",
-};
+function blankProduct(): MeatProductSourcing {
+  return {
+    meat_type: "CHICKEN",
+    product_name: "",
+    slaughter_method: "ZABIHAH",
+    supplier_name: null,
+    supplier_location: null,
+    certifying_authority: null,
+    certificate_number: null,
+  };
+}
 
 export default function BatchHalalClaimPage() {
   const router = useRouter();
@@ -140,8 +154,25 @@ export default function BatchHalalClaimPage() {
     setDraft((d) => ({ ...d, [key]: value }));
   }
 
-  function setMeat(meat: MeatKey, sourcing: MeatSourcing | null) {
-    setDraft((d) => ({ ...d, [meat]: sourcing }));
+  // Per-product list helpers. The questionnaire used to pin one
+  // entry per fixed meat slot; the new shape is a flat list so a
+  // restaurant can have e.g. 'Beef bacon' and 'Ground beef' as
+  // separate rows under the same meat type with different
+  // suppliers / certs.
+  const products = draft.meat_products ?? [];
+  function setProducts(next: MeatProductSourcing[]) {
+    setDraft((d) => ({ ...d, meat_products: next }));
+  }
+  function patchProduct(index: number, patch: Partial<MeatProductSourcing>) {
+    setProducts(
+      products.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+    );
+  }
+  function addProduct() {
+    setProducts([...products, blankProduct()]);
+  }
+  function removeProduct(index: number) {
+    setProducts(products.filter((_, i) => i !== index));
   }
 
   function removeSelection(row: OwnedPlaceRead) {
@@ -328,18 +359,26 @@ export default function BatchHalalClaimPage() {
         />
 
         <Field
-          label="Per-meat slaughter & sourcing"
-          help="For each meat your restaurants serve, indicate how it's slaughtered. Select 'Not served' if you don't serve it."
+          label="Meat products"
+          help="One entry per product you serve — a restaurant might list 'Beef bacon' and 'Ground beef' separately if they come from different suppliers. Each entry carries its own slaughter method and supplier / cert info. Skip if seafood-only."
         >
           <div className="space-y-3">
-            {MEAT_KEYS.map((meat) => (
-              <MeatRow
-                key={meat}
-                meat={meat}
-                value={(draft[meat] as MeatSourcing | null | undefined) ?? null}
-                onChange={(s) => setMeat(meat, s)}
+            {products.map((p, i) => (
+              <ProductRow
+                key={i}
+                value={p}
+                onChange={(patch) => patchProduct(i, patch)}
+                onRemove={() => removeProduct(i)}
               />
             ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addProduct}
+            >
+              + Add product
+            </Button>
           </div>
         </Field>
 
@@ -471,80 +510,118 @@ function BoolButton({
   );
 }
 
-function MeatRow({
-  meat,
+/**
+ * One per-product card. Owner specifies meat type + product name +
+ * slaughter method + (optional) supplier and cert info. Multiple
+ * products under the same meat type are expected and supported —
+ * a restaurant might list 'Beef bacon' and 'Ground beef' as
+ * separate rows with different suppliers.
+ */
+function ProductRow({
   value,
   onChange,
+  onRemove,
 }: {
-  meat: MeatKey;
-  value: MeatSourcing | null;
-  onChange: (sourcing: MeatSourcing | null) => void;
+  value: MeatProductSourcing;
+  onChange: (patch: Partial<MeatProductSourcing>) => void;
+  onRemove: () => void;
 }) {
-  const slaughter = value?.slaughter_method ?? null;
-  const isServed = slaughter && slaughter !== "NOT_SERVED";
-
   return (
     <div className="space-y-2 rounded-md border bg-background p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-[5rem] text-sm font-medium">
-          {MEAT_LABELS[meat]}
-        </span>
+      <div className="grid gap-2 sm:grid-cols-2">
         <select
-          className="flex h-8 rounded-md border border-input bg-transparent px-2 py-0.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          value={slaughter ?? ""}
-          onChange={(e) => {
-            const next = (e.target.value || null) as
-              | SlaughterMethod
-              | null;
-            if (next === null) {
-              onChange(null);
-            } else {
-              onChange({
-                slaughter_method: next,
-                supplier_name: value?.supplier_name ?? null,
-                supplier_location: value?.supplier_location ?? null,
-              });
-            }
-          }}
+          aria-label="Meat type"
+          className="flex h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          value={value.meat_type}
+          onChange={(e) =>
+            onChange({ meat_type: e.target.value as MeatType })
+          }
         >
-          <option value="">— select —</option>
-          {SLAUGHTER_OPTIONS.map((opt) => (
+          {MEAT_TYPE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
         </select>
+        <Input
+          type="text"
+          aria-label="Product name"
+          placeholder="Product (e.g. Beef bacon, Ground beef)"
+          value={value.product_name}
+          onChange={(e) => onChange({ product_name: e.target.value })}
+          maxLength={255}
+        />
       </div>
-      {isServed && (
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Input
-            type="text"
-            placeholder="Supplier name"
-            value={value?.supplier_name ?? ""}
-            onChange={(e) =>
-              onChange({
-                slaughter_method: slaughter as SlaughterMethod,
-                supplier_name: e.target.value || null,
-                supplier_location: value?.supplier_location ?? null,
-              })
-            }
-            maxLength={255}
-          />
-          <Input
-            type="text"
-            placeholder="Supplier location (city / state)"
-            value={value?.supplier_location ?? ""}
-            onChange={(e) =>
-              onChange({
-                slaughter_method: slaughter as SlaughterMethod,
-                supplier_name: value?.supplier_name ?? null,
-                supplier_location: e.target.value || null,
-              })
-            }
-            maxLength={255}
-          />
-        </div>
-      )}
+      <select
+        aria-label="Slaughter method"
+        className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        value={value.slaughter_method}
+        onChange={(e) =>
+          onChange({
+            slaughter_method: e.target.value as SlaughterMethod,
+          })
+        }
+      >
+        {SLAUGHTER_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input
+          type="text"
+          aria-label="Supplier name"
+          placeholder="Supplier name (optional)"
+          value={value.supplier_name ?? ""}
+          onChange={(e) =>
+            onChange({ supplier_name: e.target.value || null })
+          }
+          maxLength={255}
+        />
+        <Input
+          type="text"
+          aria-label="Supplier location"
+          placeholder="Supplier location (optional)"
+          value={value.supplier_location ?? ""}
+          onChange={(e) =>
+            onChange({ supplier_location: e.target.value || null })
+          }
+          maxLength={255}
+        />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input
+          type="text"
+          aria-label="Certifying authority"
+          placeholder="Certifying authority (optional)"
+          value={value.certifying_authority ?? ""}
+          onChange={(e) =>
+            onChange({ certifying_authority: e.target.value || null })
+          }
+          maxLength={255}
+        />
+        <Input
+          type="text"
+          aria-label="Certificate number"
+          placeholder="Cert number (optional)"
+          value={value.certificate_number ?? ""}
+          onChange={(e) =>
+            onChange({ certificate_number: e.target.value || null })
+          }
+          maxLength={255}
+        />
+      </div>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onRemove}
+        >
+          Remove
+        </Button>
+      </div>
     </div>
   );
 }

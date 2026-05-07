@@ -1625,16 +1625,6 @@
               }
             ]
           },
-          "beef": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "caveats": {
             "anyOf": [
               {
@@ -1659,26 +1649,6 @@
             ],
             "title": "Certifying Body Name"
           },
-          "chicken": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "goat": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "has_certification": {
             "anyOf": [
               {
@@ -1700,16 +1670,6 @@
               }
             ],
             "title": "Has Pork"
-          },
-          "lamb": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "menu_posture": {
             "anyOf": [
@@ -1737,6 +1697,15 @@
               }
             ],
             "title": "Seafood Only"
+          },
+          "meat_products": {
+            "default": [],
+            "description": "One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected \u2014 different products often have different suppliers / certs.",
+            "items": {
+              "$ref": "#/components/schemas/MeatProductSourcing"
+            },
+            "title": "Meat Products",
+            "type": "array"
           }
         },
         "title": "HalalQuestionnaireDraft",
@@ -1753,16 +1722,6 @@
           },
           "alcohol_policy": {
             "$ref": "#/components/schemas/AlcoholPolicy"
-          },
-          "beef": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "caveats": {
             "anyOf": [
@@ -1790,26 +1749,6 @@
             "description": "Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). NULL when has_certification is NULL or False.",
             "title": "Certifying Body Name"
           },
-          "chicken": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "goat": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "has_certification": {
             "anyOf": [
               {
@@ -1828,16 +1767,6 @@
             "title": "Has Pork",
             "type": "boolean"
           },
-          "lamb": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "menu_posture": {
             "$ref": "#/components/schemas/MenuPosture"
           },
@@ -1853,6 +1782,15 @@
             "description": "True if the kitchen serves no land-meat at all. Mutually exclusive with the per-meat fields above (admin can flag).",
             "title": "Seafood Only",
             "type": "boolean"
+          },
+          "meat_products": {
+            "default": [],
+            "description": "One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected \u2014 different products often have different suppliers / certs.",
+            "items": {
+              "$ref": "#/components/schemas/MeatProductSourcing"
+            },
+            "title": "Meat Products",
+            "type": "array"
           }
         },
         "required": [
@@ -1876,16 +1814,6 @@
           "alcohol_policy": {
             "$ref": "#/components/schemas/AlcoholPolicy"
           },
-          "beef": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "caveats": {
             "anyOf": [
               {
@@ -1912,26 +1840,6 @@
             "description": "Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). NULL when has_certification is NULL or False.",
             "title": "Certifying Body Name"
           },
-          "chicken": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "goat": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "has_certification": {
             "anyOf": [
               {
@@ -1950,16 +1858,6 @@
             "title": "Has Pork",
             "type": "boolean"
           },
-          "lamb": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeatSourcing"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "menu_posture": {
             "$ref": "#/components/schemas/MenuPosture"
           },
@@ -1975,6 +1873,15 @@
             "description": "True if the kitchen serves no land-meat at all. Mutually exclusive with the per-meat fields above (admin can flag).",
             "title": "Seafood Only",
             "type": "boolean"
+          },
+          "meat_products": {
+            "default": [],
+            "description": "One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected \u2014 different products often have different suppliers / certs.",
+            "items": {
+              "$ref": "#/components/schemas/MeatProductSourcing"
+            },
+            "title": "Meat Products",
+            "type": "array"
           }
         },
         "required": [
@@ -2114,47 +2021,6 @@
           "role"
         ],
         "title": "MeResponse",
-        "type": "object"
-      },
-      "MeatSourcing": {
-        "additionalProperties": false,
-        "description": "How a single meat type is sourced.\n\nRepeated per meat (chicken / beef / lamb / goat / etc.). Owner\ncan declare ``not_served`` to mark \"we don't serve this protein\"\nwithout leaving an awkward \"n/a\" answer. ``supplier_name`` and\n``supplier_location`` are free-form text \u2014 admin uses them to\nsanity-check the certificate authority claims.",
-        "properties": {
-          "slaughter_method": {
-            "$ref": "#/components/schemas/SlaughterMethod",
-            "description": "ZABIHAH / MACHINE / NOT_SERVED. NOT_SERVED means the restaurant doesn't serve this protein at all."
-          },
-          "supplier_location": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "City / state / country of the supplier.",
-            "title": "Supplier Location"
-          },
-          "supplier_name": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Halal supplier name, if applicable.",
-            "title": "Supplier Name"
-          }
-        },
-        "required": [
-          "slaughter_method"
-        ],
-        "title": "MeatSourcing",
         "type": "object"
       },
       "MemberAdminCreate": {
@@ -6464,6 +6330,98 @@
           "content_type"
         ],
         "title": "_AdminAttachmentSignedUrl",
+        "type": "object"
+      },
+      "MeatType": {
+        "description": "Meat categories the questionnaire tracks per-product. OTHER is the safety valve for entries that don't roll up to a per-meat HalalProfile column.",
+        "enum": [
+          "CHICKEN",
+          "BEEF",
+          "LAMB",
+          "GOAT",
+          "TURKEY",
+          "DUCK",
+          "FISH",
+          "OTHER"
+        ],
+        "title": "MeatType",
+        "type": "string"
+      },
+      "MeatProductSourcing": {
+        "additionalProperties": false,
+        "description": "One specific product the restaurant serves, with its own supplier and (optionally) cert.",
+        "properties": {
+          "meat_type": {
+            "$ref": "#/components/schemas/MeatType"
+          },
+          "product_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Product Name",
+            "type": "string"
+          },
+          "slaughter_method": {
+            "$ref": "#/components/schemas/SlaughterMethod"
+          },
+          "supplier_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Supplier Name"
+          },
+          "supplier_location": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Supplier Location"
+          },
+          "certifying_authority": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Certifying Authority"
+          },
+          "certificate_number": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Certificate Number"
+          }
+        },
+        "required": [
+          "meat_type",
+          "product_name",
+          "slaughter_method"
+        ],
+        "title": "MeatProductSourcing",
         "type": "object"
       }
     }

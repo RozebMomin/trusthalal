@@ -8,12 +8,12 @@ reset).
 
 Why a separate service module
 -----------------------------
-The mapping is non-trivial — nested ``MeatSourcing`` objects collapse
-into per-meat slaughter columns, the questionnaire is versioned, and
-admin's optional overrides (validation_tier, expires_at) layer on
-top. Keeping it in one well-tested place means admin endpoint and
-any future revoke/restore paths share the exact same derivation
-logic.
+The mapping is non-trivial — the questionnaire's per-product meat
+list rolls up into per-meat slaughter columns on HalalProfile, the
+questionnaire is versioned, and admin's optional overrides
+(validation_tier, expires_at) layer on top. Keeping it in one
+well-tested place means admin endpoint and any future
+revoke/restore paths share the exact same derivation logic.
 
 This module does not commit. Callers (admin halal-claim repo)
 control the transaction boundary so a single approve-claim operation
@@ -45,6 +45,7 @@ from app.modules.halal_profiles.enums import (
     AlcoholPolicy,
     HalalProfileDisputeState,
     HalalProfileEventType,
+    MeatType,
     MenuPosture,
     SlaughterMethod,
     ValidationTier,
@@ -89,11 +90,39 @@ def _coerce_questionnaire(claim: HalalClaim) -> HalalQuestionnaireResponse:
         )
 
 
-def _slaughter_for(meat_sourcing) -> str:
-    """Pull a SlaughterMethod from a MeatSourcing or default."""
-    if meat_sourcing is None:
+def _slaughter_rollup(products, meat_type: "MeatType") -> str:
+    """Roll up multiple per-product slaughter methods to a single
+    profile column value.
+
+    Rule: profile.<meat>_slaughter = the LEAST conservative method
+    across that type's products. If any product is MACHINE-slaughtered,
+    the column lands MACHINE — even if other products are ZABIHAH —
+    because that's the worst-case the consumer would encounter.
+    A consumer searching for ZABIHAH-only places filters this out;
+    a consumer accepting machine-halal still sees the place.
+
+    NOT_SERVED ranks below MACHINE/ZABIHAH and is the fallback when
+    the meat type has no entries (e.g. a place that doesn't serve
+    beef at all leaves ``beef_slaughter = NOT_SERVED``).
+
+    Per-product NOT_SERVED entries are unusual (an entry exists
+    because the product is served), but if encountered they're
+    excluded from the rollup so a stray "NOT_SERVED" row doesn't
+    drag the worst-case down.
+    """
+    matching = [
+        p
+        for p in (products or [])
+        if p.meat_type == meat_type
+        and p.slaughter_method != SlaughterMethod.NOT_SERVED
+    ]
+    if not matching:
         return SlaughterMethod.NOT_SERVED.value
-    return meat_sourcing.slaughter_method.value
+    methods = {p.slaughter_method for p in matching}
+    # MACHINE is "less strict" than ZABIHAH — the worst-case wins.
+    if SlaughterMethod.MACHINE in methods:
+        return SlaughterMethod.MACHINE.value
+    return SlaughterMethod.ZABIHAH.value
 
 
 def _certification_from_claim(
@@ -152,16 +181,22 @@ def _profile_fields_from_questionnaire(
     response — see ``_certification_from_claim`` for the rationale.
     """
     has_cert, cert_body = _certification_from_claim(claim)
+    products = questionnaire.meat_products or []
     return {
         "validation_tier": validation_tier.value,
         "menu_posture": questionnaire.menu_posture.value,
         "has_pork": questionnaire.has_pork,
         "alcohol_policy": questionnaire.alcohol_policy.value,
         "alcohol_in_cooking": questionnaire.alcohol_in_cooking,
-        "chicken_slaughter": _slaughter_for(questionnaire.chicken),
-        "beef_slaughter": _slaughter_for(questionnaire.beef),
-        "lamb_slaughter": _slaughter_for(questionnaire.lamb),
-        "goat_slaughter": _slaughter_for(questionnaire.goat),
+        # Per-meat slaughter columns roll up from the products
+        # list. New meat types (TURKEY / DUCK / FISH / OTHER) live
+        # on the questionnaire JSON only — no profile column to
+        # land in. Adding columns for those is a separate phase
+        # if/when consumer search needs them.
+        "chicken_slaughter": _slaughter_rollup(products, MeatType.CHICKEN),
+        "beef_slaughter": _slaughter_rollup(products, MeatType.BEEF),
+        "lamb_slaughter": _slaughter_rollup(products, MeatType.LAMB),
+        "goat_slaughter": _slaughter_rollup(products, MeatType.GOAT),
         "seafood_only": questionnaire.seafood_only,
         "has_certification": has_cert,
         "certifying_body_name": cert_body,

@@ -21,10 +21,22 @@ import * as React from "react";
 import type {
   AlcoholPolicy,
   HalalQuestionnaireDraft,
-  MeatSourcing,
+  MeatProductSourcing,
+  MeatType,
   MenuPosture,
   SlaughterMethod,
 } from "@/lib/api/hooks";
+
+const MEAT_TYPE_LABELS: Record<MeatType, string> = {
+  CHICKEN: "Chicken",
+  BEEF: "Beef",
+  LAMB: "Lamb",
+  GOAT: "Goat",
+  TURKEY: "Turkey",
+  DUCK: "Duck",
+  FISH: "Fish",
+  OTHER: "Other",
+};
 
 const MENU_POSTURE_LABELS: Record<MenuPosture, string> = {
   FULLY_HALAL: "Fully halal",
@@ -71,30 +83,49 @@ function Row({
   );
 }
 
-function MeatRow({
-  label,
-  meat,
+function MeatProductsRow({
+  products,
 }: {
-  label: string;
-  meat: MeatSourcing | null | undefined;
+  products: MeatProductSourcing[] | null | undefined;
 }) {
-  if (!meat) {
-    return <Row label={label}>{dash()}</Row>;
+  if (!products || products.length === 0) {
+    return <Row label="Meat products">{dash()}</Row>;
   }
   return (
-    <Row label={label}>
-      <div className="space-y-0.5">
-        <div className="font-medium">
-          {SLAUGHTER_LABELS[meat.slaughter_method] ?? meat.slaughter_method}
-        </div>
-        {(meat.supplier_name || meat.supplier_location) && (
-          <div className="text-xs text-muted-foreground">
-            {[meat.supplier_name, meat.supplier_location]
-              .filter(Boolean)
-              .join(" · ")}
-          </div>
-        )}
-      </div>
+    <Row label="Meat products">
+      <ul className="space-y-2">
+        {products.map((p, i) => {
+          const meatLabel =
+            MEAT_TYPE_LABELS[p.meat_type] ?? p.meat_type;
+          const slaughterLabel =
+            SLAUGHTER_LABELS[p.slaughter_method] ?? p.slaughter_method;
+          const supplierLine = [p.supplier_name, p.supplier_location]
+            .filter(Boolean)
+            .join(" · ");
+          const certLine = [p.certifying_authority, p.certificate_number]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <li
+              key={i}
+              className="rounded-md border bg-muted/20 p-2 text-sm"
+            >
+              <div className="font-medium">
+                {meatLabel} — {p.product_name}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {slaughterLabel}
+                {supplierLine ? ` · ${supplierLine}` : ""}
+              </div>
+              {certLine && (
+                <div className="text-xs text-muted-foreground">
+                  Cert: {certLine}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </Row>
   );
 }
@@ -155,10 +186,7 @@ export function QuestionnaireView({
           <YesNo value={questionnaire.seafood_only} />
         </Row>
 
-        <MeatRow label="Chicken sourcing" meat={questionnaire.chicken} />
-        <MeatRow label="Beef sourcing" meat={questionnaire.beef} />
-        <MeatRow label="Lamb sourcing" meat={questionnaire.lamb} />
-        <MeatRow label="Goat sourcing" meat={questionnaire.goat} />
+        <MeatProductsRow products={questionnaire.meat_products} />
 
         <Row label="Has certification?">
           <YesNo value={questionnaire.has_certification} />

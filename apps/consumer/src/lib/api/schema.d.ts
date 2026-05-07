@@ -2860,18 +2860,14 @@ export interface components {
             /** Alcohol In Cooking */
             alcohol_in_cooking?: boolean | null;
             alcohol_policy?: components["schemas"]["AlcoholPolicy"] | null;
-            beef?: components["schemas"]["MeatSourcing"] | null;
             /** Caveats */
             caveats?: string | null;
             /** Certifying Body Name */
             certifying_body_name?: string | null;
-            chicken?: components["schemas"]["MeatSourcing"] | null;
-            goat?: components["schemas"]["MeatSourcing"] | null;
             /** Has Certification */
             has_certification?: boolean | null;
             /** Has Pork */
             has_pork?: boolean | null;
-            lamb?: components["schemas"]["MeatSourcing"] | null;
             menu_posture?: components["schemas"]["MenuPosture"] | null;
             /**
              * Questionnaire Version
@@ -2880,6 +2876,12 @@ export interface components {
             questionnaire_version: number;
             /** Seafood Only */
             seafood_only?: boolean | null;
+            /**
+             * Meat Products
+             * @description One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected — different products often have different suppliers / certs.
+             * @default []
+             */
+            meat_products: components["schemas"]["MeatProductSourcing"][];
         };
         /**
          * HalalQuestionnaireResponse
@@ -2903,7 +2905,6 @@ export interface components {
              */
             alcohol_in_cooking: boolean;
             alcohol_policy: components["schemas"]["AlcoholPolicy"];
-            beef?: components["schemas"]["MeatSourcing"] | null;
             /**
              * Caveats
              * @description Anything else a halal-conscious diner should know. Examples: 'Halal only at lunch', 'No halal on holidays.'
@@ -2914,8 +2915,6 @@ export interface components {
              * @description Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). NULL when has_certification is NULL or False.
              */
             certifying_body_name?: string | null;
-            chicken?: components["schemas"]["MeatSourcing"] | null;
-            goat?: components["schemas"]["MeatSourcing"] | null;
             /**
              * Has Certification
              * @description True if the restaurant or supplier holds a halal certificate from a recognized authority. NULL means the owner didn't declare either way.
@@ -2927,7 +2926,6 @@ export interface components {
              * @description True if pork or pork products are on the menu.
              */
             has_pork: boolean;
-            lamb?: components["schemas"]["MeatSourcing"] | null;
             menu_posture: components["schemas"]["MenuPosture"];
             /**
              * Questionnaire Version
@@ -2941,6 +2939,12 @@ export interface components {
              * @default false
              */
             seafood_only: boolean;
+            /**
+             * Meat Products
+             * @description One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected — different products often have different suppliers / certs.
+             * @default []
+             */
+            meat_products: components["schemas"]["MeatProductSourcing"][];
         };
         /**
          * HalalQuestionnaireResponse
@@ -2964,7 +2968,6 @@ export interface components {
              */
             alcohol_in_cooking: boolean;
             alcohol_policy: components["schemas"]["AlcoholPolicy"];
-            beef?: components["schemas"]["MeatSourcing"] | null;
             /**
              * Caveats
              * @description Anything else a halal-conscious diner should know. Examples: 'Halal only at lunch', 'No halal on holidays.'
@@ -2975,8 +2978,6 @@ export interface components {
              * @description Name of the certifying authority (IFANCA, HMA, HFSAA, local mosque XYZ, etc.). NULL when has_certification is NULL or False.
              */
             certifying_body_name?: string | null;
-            chicken?: components["schemas"]["MeatSourcing"] | null;
-            goat?: components["schemas"]["MeatSourcing"] | null;
             /**
              * Has Certification
              * @description True if the restaurant or supplier holds a halal certificate from a recognized authority. NULL means the owner didn't declare either way.
@@ -2988,7 +2989,6 @@ export interface components {
              * @description True if pork or pork products are on the menu.
              */
             has_pork: boolean;
-            lamb?: components["schemas"]["MeatSourcing"] | null;
             menu_posture: components["schemas"]["MenuPosture"];
             /**
              * Questionnaire Version
@@ -3002,6 +3002,12 @@ export interface components {
              * @default false
              */
             seafood_only: boolean;
+            /**
+             * Meat Products
+             * @description One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected — different products often have different suppliers / certs.
+             * @default []
+             */
+            meat_products: components["schemas"]["MeatProductSourcing"][];
         };
         /**
          * InviteInfoResponse
@@ -3081,30 +3087,6 @@ export interface components {
              */
             id: string;
             role: components["schemas"]["UserRole"];
-        };
-        /**
-         * MeatSourcing
-         * @description How a single meat type is sourced.
-         *
-         *     Repeated per meat (chicken / beef / lamb / goat / etc.). Owner
-         *     can declare ``not_served`` to mark "we don't serve this protein"
-         *     without leaving an awkward "n/a" answer. ``supplier_name`` and
-         *     ``supplier_location`` are free-form text — admin uses them to
-         *     sanity-check the certificate authority claims.
-         */
-        MeatSourcing: {
-            /** @description ZABIHAH / MACHINE / NOT_SERVED. NOT_SERVED means the restaurant doesn't serve this protein at all. */
-            slaughter_method: components["schemas"]["SlaughterMethod"];
-            /**
-             * Supplier Location
-             * @description City / state / country of the supplier.
-             */
-            supplier_location?: string | null;
-            /**
-             * Supplier Name
-             * @description Halal supplier name, if applicable.
-             */
-            supplier_name?: string | null;
         };
         /** MemberAdminCreate */
         MemberAdminCreate: {
@@ -5145,6 +5127,42 @@ export interface components {
             original_filename: string;
             /** Url */
             url: string;
+        };
+        /**
+         * MeatType
+         * @description Meat categories the questionnaire tracks per-product. OTHER is the safety valve for entries that don't roll up to a per-meat HalalProfile column.
+         * @enum {string}
+         */
+        MeatType: "CHICKEN" | "BEEF" | "LAMB" | "GOAT" | "TURKEY" | "DUCK" | "FISH" | "OTHER";
+        /**
+         * MeatProductSourcing
+         * @description One specific product the restaurant serves, with its own supplier and (optionally) cert.
+         */
+        MeatProductSourcing: {
+            meat_type: components["schemas"]["MeatType"];
+            /** Product Name */
+            product_name: string;
+            slaughter_method: components["schemas"]["SlaughterMethod"];
+            /**
+             * Supplier Name
+             * @default null
+             */
+            supplier_name: string | null;
+            /**
+             * Supplier Location
+             * @default null
+             */
+            supplier_location: string | null;
+            /**
+             * Certifying Authority
+             * @default null
+             */
+            certifying_authority: string | null;
+            /**
+             * Certificate Number
+             * @default null
+             */
+            certificate_number: string | null;
         };
     };
     responses: never;
