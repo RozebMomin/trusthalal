@@ -127,16 +127,16 @@ export default function MyClaimsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Places</h1>
-          <p className="mt-2 text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Places</h1>
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             Restaurants you&apos;ve claimed, plus any claims still under
             Trust Halal review.
           </p>
         </div>
-        <Link href="/claim">
-          <Button>Claim a place</Button>
+        <Link href="/claim" className="sm:shrink-0">
+          <Button className="w-full sm:w-auto">Claim a place</Button>
         </Link>
       </header>
 

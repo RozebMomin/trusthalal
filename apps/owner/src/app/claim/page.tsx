@@ -270,8 +270,8 @@ export default function ClaimPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">Claim a place</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Claim a place</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">
           Find your restaurant in our catalog and submit a verification
           request. You&apos;ll be asked for evidence that ties your
           organization to this specific location — typically a business

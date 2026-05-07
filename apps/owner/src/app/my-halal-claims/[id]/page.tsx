@@ -208,11 +208,11 @@ function ClaimDetailBody({ claim }: { claim: MyHalalClaimRead }) {
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">
               {claim.place?.name ?? "Halal claim"}
             </h1>
             {claim.place && (
-              <p className="mt-1 truncate text-sm text-muted-foreground">
+              <p className="mt-1 break-words text-sm text-muted-foreground">
                 {[
                   claim.place.address,
                   claim.place.city,
