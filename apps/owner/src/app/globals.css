@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Color tokens — Trust Halal emerald.
+ *
+ * Previous palette was Tailwind's neutral-zinc default with a near-
+ * black --primary, which read as monochrome / muted everywhere.
+ * Switching --primary to an emerald (Tailwind emerald-600 in HSL,
+ * `158 64% 40%`) gives buttons, active nav states, and focus rings a
+ * confident brand color tied to halal certification's traditional
+ * green association — without sliding into cartoon-bright territory.
+ *
+ * Other tokens stay neutral. Only --primary, --ring (matches primary
+ * for focus consistency), and the dark-mode equivalents change. Body
+ * + card backgrounds remain near-white; muted/secondary stay neutral
+ * gray so the emerald lands as a deliberate accent rather than a
+ * colorwash.
+ */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -13,8 +29,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Emerald-600 — high-saturation green for primary buttons,
+       active nav, focus rings. Foreground is white for AA contrast. */
+    --primary: 158 64% 40%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -30,7 +48,9 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Focus ring matches primary so keyboard focus + active states
+       speak the same visual language. */
+    --ring: 158 64% 40%;
 
     --radius: 0.5rem;
   }
@@ -45,8 +65,10 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Slightly brighter emerald in dark mode so it stays vivid against
+       the dark background. Tailwind emerald-500 in HSL. */
+    --primary: 160 84% 45%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -62,7 +84,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 160 84% 45%;
   }
 }
 

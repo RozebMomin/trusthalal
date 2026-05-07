@@ -284,16 +284,35 @@ function BottomTabBar() {
           const Icon = tab.icon;
           return (
             <li key={tab.href} className="flex-1">
+              {/*
+                Active state stack — three signals working together so
+                the selection is obvious at a glance even on a small,
+                glance-able mobile bar:
+                  1. Top accent bar in --primary (3px, full width of
+                     the cell) reads as the bar of an iOS-style
+                     selection indicator.
+                  2. Soft primary tint (`bg-primary/10`) washes the
+                     entire cell — distinguishes from inactive tabs
+                     even peripherally.
+                  3. Icon + label switch to --primary text color and
+                     the icon stroke thickens.
+              */}
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
                 className={[
-                  "flex min-h-[3rem] flex-col items-center justify-center gap-0.5 px-2 py-2 text-[11px] font-medium transition",
+                  "relative flex min-h-[3rem] flex-col items-center justify-center gap-0.5 px-2 py-2 text-[11px] font-medium transition",
                   active
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 ].join(" ")}
               >
+                {active && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-2 top-0 h-[3px] rounded-b-full bg-primary"
+                  />
+                )}
                 <Icon
                   className="h-5 w-5"
                   strokeWidth={active ? 2.5 : 2}
