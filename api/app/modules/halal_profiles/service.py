@@ -52,10 +52,16 @@ from app.modules.halal_profiles.enums import (
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
 
 
-# Default profile lifetime when admin doesn't override. 12 months
-# matches the typical halal-cert renewal cadence; long enough for the
-# owner to plan, short enough that stale profiles don't linger.
-_DEFAULT_PROFILE_TTL_DAYS = 365
+# Profile lifetime — both the default AND a hard cap on admin
+# overrides. Trust Halal company policy: every approved claim is
+# good for 90 days, period. A short window keeps the catalog
+# self-correcting (owners renew, disputes surface fresh) and means
+# a verified place that quietly stops being halal can't sit in
+# "verified" forever. Admin's ``expires_at_override`` can pull the
+# date IN (e.g. for a cert that expires in 30 days), but never
+# OUT past 90 days from the approval moment.
+_MAX_PROFILE_TTL_DAYS = 90
+_DEFAULT_PROFILE_TTL_DAYS = _MAX_PROFILE_TTL_DAYS
 
 
 def _coerce_questionnaire(claim: HalalClaim) -> HalalQuestionnaireResponse:
@@ -198,8 +204,13 @@ def derive_profile_from_approved_claim(
     questionnaire = _coerce_questionnaire(claim)
 
     now = datetime.now(timezone.utc)
+    # Cap admin overrides at the 90-day company maximum. ``min(...)``
+    # against ``hard_cap`` means a shorter override (cert expiring
+    # in 30 days, etc.) wins, but a longer one gets clamped — admin
+    # can't accidentally grant a year-long approval.
+    hard_cap = now + timedelta(days=_MAX_PROFILE_TTL_DAYS)
     final_expires_at = (
-        expires_at or now + timedelta(days=_DEFAULT_PROFILE_TTL_DAYS)
+        min(expires_at, hard_cap) if expires_at else hard_cap
     )
 
     existing_profile = db.execute(

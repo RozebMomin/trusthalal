@@ -260,8 +260,9 @@ def admin_approve_halal_claim(
         certificate_expires_at=payload.certificate_expires_at,
     )
     # Sync claim.expires_at with what the profile actually got — the
-    # service applies the default-12-months when expires_at_override
-    # was None, so we read it back.
+    # service applies the default 90-day TTL (or clamps an override
+    # past 90 days) so the value we'd land on the claim row may
+    # differ from what was sent in the request body.
     claim.expires_at = profile.expires_at
     db.add(claim)
 

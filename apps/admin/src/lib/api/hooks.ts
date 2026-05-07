@@ -900,7 +900,10 @@ export type HalalClaimApprove = {
   validation_tier: ValidationTier;
   decision_note?: string | null;
   internal_notes?: string | null;
-  /** ISO-8601. Override the default 12-month expiry if needed. */
+  /**
+   * ISO-8601. Shortens the default 90-day expiry. Overrides past
+   * the 90-day cap are clamped server-side — company policy.
+   */
   expires_at_override?: string | null;
   /** ISO-8601. Mirrors the cert's own expiry; metadata-only. */
   certificate_expires_at?: string | null;

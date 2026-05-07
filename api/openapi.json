@@ -945,7 +945,7 @@
       },
       "HalalClaimApprove": {
         "additionalProperties": false,
-        "description": "Payload for ``POST /admin/halal-claims/{id}/approve``.\n\n``validation_tier`` is the admin's confidence-level call \u2014\nSELF_ATTESTED (no evidence verified beyond on-file docs),\nCERTIFICATE_ON_FILE (cert verified), or TRUST_HALAL_VERIFIED\n(Trust Halal staff or community verifier site visit confirms).\n\n``expires_at_override`` lets admin pick a non-default expiry\n(defaults to 12 months from approve). Useful for short-lived\ncertifications or for placing a verified claim on a tighter\nre-verification cadence.\n\n``certificate_expires_at`` mirrors the cert's own expiry date.\nOptional and metadata-only \u2014 drives the consumer-facing\n\"Certificate expires Mar 2027\" line.",
+        "description": "Payload for ``POST /admin/halal-claims/{id}/approve``.\n\n``validation_tier`` is the admin's confidence-level call \u2014\nSELF_ATTESTED (no evidence verified beyond on-file docs),\nCERTIFICATE_ON_FILE (cert verified), or TRUST_HALAL_VERIFIED\n(Trust Halal staff or community verifier site visit confirms).\n\n``expires_at_override`` lets admin pick a SHORTER-than-default\nexpiry. Defaults to 90 days from approve (company policy: every\napproved claim has a 90-day lifetime so the catalog stays\nself-correcting). Overrides past 90 days are clamped server-\nside; useful when a cert expires sooner than 90 days and the\nadmin wants the profile to time-out with the cert.\n\n``certificate_expires_at`` mirrors the cert's own expiry date.\nOptional and metadata-only \u2014 drives the consumer-facing\n\"Certificate expires Mar 2027\" line.",
         "properties": {
           "certificate_expires_at": {
             "anyOf": [
@@ -7275,7 +7275,7 @@
     },
     "/admin/halal-claims/{claim_id}/approve": {
       "post": {
-        "description": "Approves a PENDING_REVIEW or NEEDS_MORE_INFO claim. Runs the profile-derivation service in the same transaction: creates or updates the place's `HalalProfile`, marks any prior source claim as SUPERSEDED, and writes `HalalClaimEvent` (APPROVED) + `HalalProfileEvent` (CREATED or UPDATED) audit rows. Admin assigns the `validation_tier` (SELF_ATTESTED / CERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional `expires_at_override` tweaks the default 12-month expiry.",
+        "description": "Approves a PENDING_REVIEW or NEEDS_MORE_INFO claim. Runs the profile-derivation service in the same transaction: creates or updates the place's `HalalProfile`, marks any prior source claim as SUPERSEDED, and writes `HalalClaimEvent` (APPROVED) + `HalalProfileEvent` (CREATED or UPDATED) audit rows. Admin assigns the `validation_tier` (SELF_ATTESTED / CERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional `expires_at_override` shortens the default 90-day TTL (overrides past 90 days are clamped server-side \u2014 company policy).",
         "operationId": "approve_claim_admin_admin_halal_claims__claim_id__approve_post",
         "parameters": [
           {

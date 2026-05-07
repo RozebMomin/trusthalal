@@ -371,14 +371,12 @@ def test_approve_with_expires_at_override(api, factories, db_session):
         api, factories, db_session
     )
 
-    custom_expiry = (
-        datetime.now(timezone.utc) + timedelta(days=30)
-    ).isoformat()
+    custom_expiry_dt = datetime.now(timezone.utc) + timedelta(days=30)
     resp = api.as_user(admin).post(
         f"/admin/halal-claims/{claim_id}/approve",
         json={
             "validation_tier": "CERTIFICATE_ON_FILE",
-            "expires_at_override": custom_expiry,
+            "expires_at_override": custom_expiry_dt.isoformat(),
         },
     )
     assert resp.status_code == 200, resp.text
@@ -386,9 +384,78 @@ def test_approve_with_expires_at_override(api, factories, db_session):
     profile = db_session.execute(
         select(HalalProfile).where(HalalProfile.place_id == place.id)
     ).scalar_one()
-    # Profile expires_at ~= the override (within a second of the
-    # supplied ISO string).
+    # 30-day override is shorter than the 90-day cap, so it lands
+    # verbatim on the row (within a second of the ISO timestamp).
     assert profile.expires_at is not None
+    delta = abs((profile.expires_at - custom_expiry_dt).total_seconds())
+    assert delta < 2, f"profile.expires_at drifted: delta={delta}s"
+
+
+def test_approve_default_expiry_is_90_days(api, factories, db_session):
+    """Trust Halal company policy: every approved claim is good for
+    90 days by default. No override + no certificate_expires_at →
+    profile.expires_at lands ~90 days from approve time."""
+    admin, _, place, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+
+    before = datetime.now(timezone.utc)
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "OWNER_ATTESTED"},
+    )
+    after = datetime.now(timezone.utc)
+    assert resp.status_code == 200, resp.text
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    # Profile.expires_at sits between (before + 90d) and
+    # (after + 90d) — bounded interval that doesn't depend on
+    # the test's wall-clock precision.
+    lower = before + timedelta(days=90)
+    upper = after + timedelta(days=90)
+    assert lower <= profile.expires_at <= upper, (
+        f"expected ~90 days from approve, got "
+        f"{profile.expires_at} (lower={lower}, upper={upper})"
+    )
+
+
+def test_approve_clamps_overlong_override_to_90_days(
+    api, factories, db_session
+):
+    """Admin can't accidentally grant a year-long approval. An
+    override past the 90-day company cap is clamped server-side to
+    the cap; the request still succeeds (no 422) so admin staff
+    don't get confusing errors when they try to be generous."""
+    admin, _, place, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+
+    overlong = (
+        datetime.now(timezone.utc) + timedelta(days=365)
+    ).isoformat()
+    before = datetime.now(timezone.utc)
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "TRUST_HALAL_VERIFIED",
+            "expires_at_override": overlong,
+        },
+    )
+    after = datetime.now(timezone.utc)
+    assert resp.status_code == 200, resp.text
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    # Should land at the 90-day cap, NOT the 365-day override.
+    lower = before + timedelta(days=90)
+    upper = after + timedelta(days=90)
+    assert lower <= profile.expires_at <= upper, (
+        f"override of 365d should have been clamped to 90d, got "
+        f"{profile.expires_at}"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -237,7 +237,8 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
                   onChange={(e) => setExpiresAtOverride(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Leave blank for the 12-month default.
+                  Leave blank for the 90-day default. Overrides past
+                  90 days are clamped server-side — company policy.
                 </p>
               </div>
               <div className="space-y-2">

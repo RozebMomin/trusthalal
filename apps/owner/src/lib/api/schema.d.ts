@@ -192,7 +192,7 @@ export interface paths {
         put?: never;
         /**
          * Approve a halal claim
-         * @description Approves a PENDING_REVIEW or NEEDS_MORE_INFO claim. Runs the profile-derivation service in the same transaction: creates or updates the place's `HalalProfile`, marks any prior source claim as SUPERSEDED, and writes `HalalClaimEvent` (APPROVED) + `HalalProfileEvent` (CREATED or UPDATED) audit rows. Admin assigns the `validation_tier` (SELF_ATTESTED / CERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional `expires_at_override` tweaks the default 12-month expiry.
+         * @description Approves a PENDING_REVIEW or NEEDS_MORE_INFO claim. Runs the profile-derivation service in the same transaction: creates or updates the place's `HalalProfile`, marks any prior source claim as SUPERSEDED, and writes `HalalClaimEvent` (APPROVED) + `HalalProfileEvent` (CREATED or UPDATED) audit rows. Admin assigns the `validation_tier` (SELF_ATTESTED / CERTIFICATE_ON_FILE / TRUST_HALAL_VERIFIED). Optional `expires_at_override` shortens the default 90-day TTL (overrides past 90 days are clamped server-side — company policy).
          */
         post: operations["approve_claim_admin_admin_halal_claims__claim_id__approve_post"];
         delete?: never;
@@ -2504,10 +2504,12 @@ export interface components {
          *     CERTIFICATE_ON_FILE (cert verified), or TRUST_HALAL_VERIFIED
          *     (Trust Halal staff or community verifier site visit confirms).
          *
-         *     ``expires_at_override`` lets admin pick a non-default expiry
-         *     (defaults to 12 months from approve). Useful for short-lived
-         *     certifications or for placing a verified claim on a tighter
-         *     re-verification cadence.
+         *     ``expires_at_override`` lets admin pick a SHORTER-than-default
+         *     expiry. Defaults to 90 days from approve (company policy: every
+         *     approved claim has a 90-day lifetime so the catalog stays
+         *     self-correcting). Overrides past 90 days are clamped server-
+         *     side; useful when a cert expires sooner than 90 days and the
+         *     admin wants the profile to time-out with the cert.
          *
          *     ``certificate_expires_at`` mirrors the cert's own expiry date.
          *     Optional and metadata-only — drives the consumer-facing
