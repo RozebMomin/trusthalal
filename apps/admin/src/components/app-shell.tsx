@@ -198,9 +198,20 @@ function AuthedShell({
   }, []);
 
   return (
-    <div className="flex h-full min-h-screen flex-col md:flex-row">
-      {/* Mobile-only top bar: hamburger + brand. Hidden on md+ where
-          the sidebar is always visible. */}
+    /*
+      `min-h-[100dvh]` instead of `min-h-screen` (= 100vh): on mobile
+      Safari the URL bar contributes to vh, so vh changes when the
+      bar collapses on scroll. dvh = "dynamic viewport height" tracks
+      the actual visible area, which avoids the empty band that
+      appeared at the bottom of admin dashboard scrolls. h-full kept
+      so the desktop sidebar still stretches to the body's height.
+    */
+    <div className="flex h-full min-h-[100dvh] flex-col md:flex-row">
+      {/* Mobile-only top bar: hamburger + brand + portal qualifier.
+          The "Admin panel" subtitle next to the wordmark mirrors the
+          pattern on the owner portal so users landing on a phone
+          know which surface they're on. Hidden on md+ where the
+          sidebar is always visible. */}
       <header className="flex items-center gap-3 border-b bg-card px-4 py-3 md:hidden">
         <button
           type="button"
@@ -211,9 +222,12 @@ function AuthedShell({
         >
           <Menu className="h-5 w-5" aria-hidden />
         </button>
-        <span className="text-base font-semibold tracking-tight">
-          Trust Halal
-        </span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-base font-semibold tracking-tight">
+            Trust Halal
+          </span>
+          <span className="text-xs text-muted-foreground">Admin panel</span>
+        </div>
       </header>
 
       {/* Backdrop: only rendered on mobile when drawer is open. Click
@@ -253,8 +267,24 @@ function AuthedShell({
         />
         <SignedInIndicator />
       </aside>
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+      {/*
+        Inner content column.
+
+        Desktop (md+): classic "fixed sidebar, scrolling main" pattern
+        — the wrapper clips overflow and `<main>` owns its own
+        scroll region. Sidebar stays put while content scrolls.
+
+        Mobile (< md): nested overflow regions confused mobile Safari
+        — the URL bar's collapse-on-scroll didn't expand the visible
+        area, leaving an empty band at the bottom (the "weird end
+        scroll" the user reported). Drop the inner overflow and let
+        the page scroll naturally on the body, the same way every
+        normal mobile site does. We still guard `overflow-x` so a
+        wide row inside a card or table can't introduce horizontal
+        scroll.
+      */}
+      <div className="flex flex-1 flex-col overflow-x-hidden md:overflow-hidden">
+        <main className="flex-1 p-4 md:overflow-y-auto md:p-8">
           {children}
           {/*
             isFetching indicator at bottom is just a hook for future
