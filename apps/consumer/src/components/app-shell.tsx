@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen flex-col">
         <PortalHeader me={null} pending />
-        <main className="flex-1 px-4 py-8 md:px-8">{children}</main>
+        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
         <SiteFooter />
       </div>
     );
@@ -71,7 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <PortalHeader me={me ?? null} />
-      <main className="flex-1 px-4 py-8 md:px-8">{children}</main>
+      <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
       <SiteFooter />
     </div>
   );
@@ -108,10 +108,10 @@ function PortalHeader({
 
   return (
     <header className="border-b bg-card px-4 py-3 md:px-8">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 md:gap-4">
         <Link
           href="/"
-          className="flex items-center gap-3 transition hover:opacity-80"
+          className="flex shrink-0 items-center gap-3 transition hover:opacity-80"
         >
           <span className="text-lg font-semibold tracking-tight">
             {BRAND_NAME}
@@ -121,8 +121,10 @@ function PortalHeader({
         {/* Right-side header: split into "nav" and "auth" groups
             with a thin divider between them so the user can tell
             which buttons take them somewhere on the site (nav) and
-            which ones change their session state (auth). */}
-        <div className="flex items-center gap-4">
+            which ones change their session state (auth). The gap
+            tightens on mobile so the cluster fits next to the brand
+            wordmark on iPhone-SE-class viewports without wrapping. */}
+        <div className="flex items-center gap-2 md:gap-4">
           {wrongAudience && me && <WrongAudienceCallout role={me.role} />}
 
           {pending && (

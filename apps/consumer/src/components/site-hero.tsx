@@ -50,12 +50,12 @@ export function SiteHero({ compact = false }: Props) {
   }
 
   return (
-    <header className="space-y-3 pt-2 sm:pt-6">
+    <header className="space-y-3 pt-1 sm:pt-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">
           {BRAND_NAME}
         </h1>
-        <p className="text-base text-muted-foreground sm:text-lg">
+        <p className="text-sm text-muted-foreground sm:text-lg">
           {BRAND_TAGLINE}
         </p>
       </div>
