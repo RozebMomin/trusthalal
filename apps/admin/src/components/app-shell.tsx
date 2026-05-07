@@ -226,7 +226,7 @@ function AuthedShell({
           <span className="text-base font-semibold tracking-tight">
             Trust Halal
           </span>
-          <span className="text-xs text-muted-foreground">Admin panel</span>
+          <span className="text-xs text-muted-foreground">Admin portal</span>
         </div>
       </header>
 

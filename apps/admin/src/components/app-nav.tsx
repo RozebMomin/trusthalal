@@ -37,8 +37,19 @@ export function AppNav() {
 
   return (
     <nav className="flex flex-col gap-1 p-4">
-      <div className="mb-4 px-2 text-lg font-semibold tracking-tight">
-        trusthalal admin
+      {/* Brand block at the top of the sidebar / drawer. Two lines:
+          the wordmark in proper title case ("Trust Halal") and a
+          smaller "Admin portal" qualifier underneath, matching the
+          pattern used in the owner-portal header. The old single-
+          line "trusthalal admin" felt like a slug rather than a
+          brand — capitalization signals a polished surface, and
+          the explicit qualifier tells someone landing on the
+          mobile drawer which Trust Halal surface they're on. */}
+      <div className="mb-4 flex flex-col gap-0.5 px-2 leading-tight">
+        <span className="text-lg font-semibold tracking-tight">
+          Trust Halal
+        </span>
+        <span className="text-xs text-muted-foreground">Admin portal</span>
       </div>
       {visibleItems.map((item) => {
         const active =
