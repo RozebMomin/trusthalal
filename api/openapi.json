@@ -997,6 +997,12 @@
           },
           "validation_tier": {
             "$ref": "#/components/schemas/ValidationTier"
+          },
+          "override_acknowledged": {
+            "default": false,
+            "description": "Acknowledgement flag for approving outside the standard PENDING_REVIEW \u2192 APPROVED flow. Required (along with a non-empty decision_note) when the claim is in DRAFT, NEEDS_MORE_INFO, REJECTED, or REVOKED. Server returns HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE if missing.",
+            "title": "Override Acknowledged",
+            "type": "boolean"
           }
         },
         "required": [

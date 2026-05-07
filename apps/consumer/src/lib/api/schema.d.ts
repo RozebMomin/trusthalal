@@ -2525,6 +2525,12 @@ export interface components {
             /** Internal Notes */
             internal_notes?: string | null;
             validation_tier: components["schemas"]["ValidationTier"];
+            /**
+             * Override Acknowledged
+             * @description Acknowledgement flag for approving outside the standard PENDING_REVIEW → APPROVED flow. Required (along with a non-empty decision_note) when the claim is in DRAFT, NEEDS_MORE_INFO, REJECTED, or REVOKED. Server returns HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE if missing.
+             * @default false
+             */
+            override_acknowledged: boolean;
         };
         /**
          * HalalClaimAttachmentRead

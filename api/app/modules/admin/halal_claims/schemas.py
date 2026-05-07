@@ -44,6 +44,22 @@ class HalalClaimApprove(BaseModel):
     internal_notes: Optional[str] = Field(default=None, max_length=4000)
     expires_at_override: Optional[datetime] = None
     certificate_expires_at: Optional[datetime] = None
+    # Acknowledgement flag for approving outside the standard
+    # PENDING_REVIEW → APPROVED happy path. The server returns
+    # ``HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE`` when the claim is
+    # in DRAFT / NEEDS_MORE_INFO / REJECTED / REVOKED and this is
+    # False; the admin UI catches that code and shows a confirm
+    # dialog that re-submits with the flag flipped + a
+    # required decision_note explaining the reasoning.
+    #
+    # Why not auto-allow: a NEEDS_MORE_INFO → APPROVED transition
+    # without the owner ever resubmitting evidence is the
+    # textbook accident — admin meant to flip a different claim,
+    # or forgot the owner's missing-info request was unanswered.
+    # Requiring a deliberate ack + a note gives the audit trail
+    # a paper trail for "admin overrode the standard flow on
+    # 2026-05-06 because <reason>."
+    override_acknowledged: bool = False
 
 
 class HalalClaimReject(BaseModel):

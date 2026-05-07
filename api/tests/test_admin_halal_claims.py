@@ -340,8 +340,12 @@ def test_approve_supersedes_prior_claim(api, factories, db_session):
     assert events[1].event_type == HalalProfileEventType.UPDATED.value
 
 
-def test_approve_rejects_non_decidable_status(api, factories, db_session):
-    """Can't approve a DRAFT claim — must be PENDING_REVIEW."""
+def test_approve_draft_without_override_requires_override(
+    api, factories, db_session
+):
+    """Approving a DRAFT claim is allowed but requires the
+    override flow — without ack + note, the server returns
+    HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE so the UI can prompt."""
     admin = factories.admin()
     owner = factories.owner()
     place, org = factories.managed_place(owner=owner)
@@ -358,12 +362,165 @@ def test_approve_rejects_non_decidable_status(api, factories, db_session):
     )
     claim_id = create_resp.json()["id"]
 
+    # No override flag → 409 with the prompt-the-UI code.
     resp = api.as_user(admin).post(
         f"/admin/halal-claims/{claim_id}/approve",
         json={"validation_tier": "SELF_ATTESTED"},
     )
     assert resp.status_code == 409, resp.text
-    assert resp.json()["error"]["code"] == "HALAL_CLAIM_NOT_DECIDABLE"
+    assert (
+        resp.json()["error"]["code"]
+        == "HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE"
+    )
+
+
+def test_approve_draft_with_override_succeeds(
+    api, factories, db_session
+):
+    """Same DRAFT claim approves cleanly when admin sets the
+    override flag + provides a decision note explaining the
+    deviation."""
+    admin = factories.admin()
+    owner = factories.owner()
+    place, org = factories.managed_place(owner=owner)
+    db_session.commit()
+
+    create_resp = api.as_user(owner).post(
+        "/me/halal-claims",
+        json={
+            "place_id": str(place.id),
+            "organization_id": str(org.id),
+            "structured_response": COMPLETE_QUESTIONNAIRE,
+        },
+    )
+    claim_id = create_resp.json()["id"]
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "SELF_ATTESTED",
+            "decision_note": "Phone-call intake; owner can't finish the form. Approved on faith.",
+            "override_acknowledged": True,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "APPROVED"
+
+
+def test_approve_needs_more_info_without_override_requires_override(
+    api, factories, db_session
+):
+    """The textbook accident the override flow guards: admin had
+    asked for more info, owner hasn't responded, admin tries to
+    approve anyway. Without the ack flag this 409s."""
+    admin, _, _, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+    # Move PENDING_REVIEW → NEEDS_MORE_INFO.
+    api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/request-info",
+        json={"decision_note": "Need a current cert."},
+    )
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "SELF_ATTESTED"},
+    )
+    assert resp.status_code == 409, resp.text
+    assert (
+        resp.json()["error"]["code"]
+        == "HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE"
+    )
+
+
+def test_approve_needs_more_info_override_requires_decision_note(
+    api, factories, db_session
+):
+    """Override flag alone isn't enough — admin must also leave a
+    non-empty decision_note explaining why the standard flow was
+    bypassed. Empty / whitespace-only notes count as missing."""
+    admin, _, _, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+    api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/request-info",
+        json={"decision_note": "Need a current cert."},
+    )
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "SELF_ATTESTED",
+            "override_acknowledged": True,
+            # Whitespace-only note doesn't satisfy the requirement.
+            "decision_note": "   ",
+        },
+    )
+    assert resp.status_code == 409, resp.text
+    assert (
+        resp.json()["error"]["code"]
+        == "HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE"
+    )
+
+
+def test_approve_needs_more_info_with_override_succeeds(
+    api, factories, db_session
+):
+    """Override + note → approves cleanly. Decision note lands on
+    the claim row so the audit trail records why the standard
+    flow was bypassed."""
+    admin, _, _, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+    api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/request-info",
+        json={"decision_note": "Need a current cert."},
+    )
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "SELF_ATTESTED",
+            "override_acknowledged": True,
+            "decision_note": (
+                "Verified the cert by phone with IFANCA directly. "
+                "Owner unresponsive but cert is current — approved."
+            ),
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "APPROVED"
+    assert "Verified the cert" in (body["decision_note"] or "")
+
+
+def test_approve_already_approved_returns_not_decidable(
+    api, factories, db_session
+):
+    """Re-approving an already-APPROVED claim is still meaningless
+    — stays at the original 409 code (NOT_DECIDABLE), not the new
+    override code, since this isn't a 'standard flow' deviation."""
+    admin, _, _, _, claim_id = _submit_pending_claim(
+        api, factories, db_session
+    )
+    first = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={"validation_tier": "SELF_ATTESTED"},
+    )
+    assert first.status_code == 200, first.text
+
+    second = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "SELF_ATTESTED",
+            "override_acknowledged": True,
+            "decision_note": "Trying to re-approve.",
+        },
+    )
+    assert second.status_code == 409, second.text
+    assert (
+        second.json()["error"]["code"] == "HALAL_CLAIM_NOT_DECIDABLE"
+    )
 
 
 def test_approve_with_expires_at_override(api, factories, db_session):

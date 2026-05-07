@@ -907,6 +907,14 @@ export type HalalClaimApprove = {
   expires_at_override?: string | null;
   /** ISO-8601. Mirrors the cert's own expiry; metadata-only. */
   certificate_expires_at?: string | null;
+  /**
+   * Acknowledgement flag for approving outside the standard
+   * PENDING_REVIEW → APPROVED flow. Required (along with a
+   * non-empty decision_note) when the claim is in DRAFT,
+   * NEEDS_MORE_INFO, REJECTED, or REVOKED. Server returns
+   * HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE if missing.
+   */
+  override_acknowledged?: boolean;
 };
 
 /** POST /admin/halal-claims/{id}/reject. */
