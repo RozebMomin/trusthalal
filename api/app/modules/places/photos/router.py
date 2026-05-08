@@ -332,10 +332,19 @@ def upload_place_photo(
     db.commit()
     db.refresh(photo)
 
+    # ``CurrentUser`` is a thin {id, role} record — display_name lives
+    # on ``User``, fetched here. Same pattern as the PATCH endpoint
+    # below: one tiny scalar SELECT instead of teaching CurrentUser to
+    # carry the field across every auth path. Falls back to None if
+    # the row is missing (shouldn't happen, but defensive).
+    uploader_display_name = db.execute(
+        select(User.display_name).where(User.id == user.id)
+    ).scalar_one_or_none()
+
     return _build_photo_read(
         photo,
         storage=storage,
-        uploader_display_name=user.display_name,
+        uploader_display_name=uploader_display_name,
     )
 
 
