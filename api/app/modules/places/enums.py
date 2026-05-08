@@ -92,12 +92,21 @@ class Cuisine(StrEnum):
     CARIBBEAN = "CARIBBEAN"
     SOUL_FOOD = "SOUL_FOOD"
 
-    # Format / generic
+    # Format / generic — food-format buckets (vs. country-of-origin
+    # buckets above). DELI / SANDWICHES / WINGS / HOT_DOGS land here
+    # because Google's vocabulary distinguishes them as primary types
+    # (deli, sandwich_shop, chicken_wings_restaurant, hot_dog_restaurant)
+    # and the consumer surface plans curated lists ("best wings near
+    # me") that need finer cuts than AMERICAN provides.
     BURGERS = "BURGERS"
     PIZZA = "PIZZA"
     BBQ = "BBQ"
     STEAKHOUSE = "STEAKHOUSE"
     SEAFOOD = "SEAFOOD"
+    SANDWICHES = "SANDWICHES"
+    DELI = "DELI"
+    WINGS = "WINGS"
+    HOT_DOGS = "HOT_DOGS"
     BREAKFAST = "BREAKFAST"
     BAKERY = "BAKERY"
     DESSERTS = "DESSERTS"
