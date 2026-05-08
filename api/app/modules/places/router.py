@@ -47,8 +47,10 @@ from app.modules.places.schemas import (
 )
 from app.modules.places.models import Place, PlaceEvent
 from app.modules.places.enums import PlaceEventType
+from app.modules.places.photos.repo import serialize_photos_for_place
 from app.modules.organizations.deps import assert_can_manage_place
 from app.core.auth import CurrentUser, get_current_user
+from app.core.storage import StorageClient, get_photos_storage_client
 from app.modules.users.enums import UserRole
 from sqlalchemy import select
 
@@ -121,6 +123,7 @@ def patch_owned_place(
     body: OwnedPlaceUpdate,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    photos_storage: StorageClient = Depends(get_photos_storage_client),
 ) -> PlaceDetail:
     # Ownership gate first — assert_can_manage_place 403s on miss.
     # Admins fall through this check for parity with the halal-claim
@@ -180,6 +183,9 @@ def patch_owned_place(
         if profile is not None
         else None
     )
+    photos_payload, hero_url = serialize_photos_for_place(
+        db, place=place, storage=photos_storage
+    )
     return PlaceDetail.model_validate(
         {
             "id": place.id,
@@ -196,6 +202,8 @@ def patch_owned_place(
             "cuisine_types": list(place.cuisine_types or []),
             "updated_at": place.updated_at,
             "halal_profile": halal_embed,
+            "photos": photos_payload,
+            "hero_photo_url": hero_url,
         }
     )
 
@@ -422,6 +430,7 @@ def google_reverse_geocode(
 def get_place_by_id(
     place_id: UUID,
     db: Session = Depends(get_db),
+    photos_storage: StorageClient = Depends(get_photos_storage_client),
 ) -> PlaceDetail:
     # Ensure place exists
     place = get_place(db, place_id)
@@ -436,6 +445,14 @@ def get_place_by_id(
         HalalProfileEmbed.model_validate(profile, from_attributes=True)
         if profile is not None
         else None
+    )
+
+    # Photos are loaded eagerly via the Place.photos relationship
+    # (selectin), so this is a pure transform — no extra DB hit
+    # beyond the uploader-display-name batch lookup inside the
+    # helper.
+    photos_payload, hero_url = serialize_photos_for_place(
+        db, place=place, storage=photos_storage
     )
 
     return PlaceDetail.model_validate(
@@ -457,6 +474,8 @@ def get_place_by_id(
             "cuisine_types": list(place.cuisine_types or []),
             "updated_at": place.updated_at,
             "halal_profile": halal_embed,
+            "photos": photos_payload,
+            "hero_photo_url": hero_url,
         }
     )
 
@@ -572,6 +591,7 @@ def search_places(
         ),
     ),
     db: Session = Depends(get_db),
+    photos_storage: StorageClient = Depends(get_photos_storage_client),
 ) -> list[PlaceSearchResult]:
     """Browse the public places catalog.
 
@@ -642,6 +662,19 @@ def search_places(
     # response_model coercion because the repo returns tuples and
     # PlaceSearchResult has from_attributes=True (which doesn't know
     # how to read a tuple).
+    #
+    # ``hero_photo_url`` is derived inline from the eagerly-loaded
+    # ``place.photos`` relationship — search results don't carry
+    # the full gallery (the result card only renders the cover) so
+    # we skip the full ``serialize_photos_for_place`` call that does
+    # the uploader-display-name batch lookup. One Python iteration
+    # per place; no extra DB hit.
+    def _hero_url_for(place: Place) -> str | None:
+        for p in place.photos or []:
+            if p.deleted_at is None and p.is_hero:
+                return photos_storage.public_url(p.storage_path)
+        return None
+
     return [
         PlaceSearchResult.model_validate(
             {
@@ -654,6 +687,7 @@ def search_places(
                 "region": place.region,
                 "country_code": place.country_code,
                 "cuisine_types": list(place.cuisine_types or []),
+                "hero_photo_url": _hero_url_for(place),
                 "halal_profile": (
                     HalalProfileEmbed.model_validate(profile)
                     if profile is not None

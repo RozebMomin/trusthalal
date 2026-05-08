@@ -1,6 +1,6 @@
 {
   "name": "trusthalal-owner",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Customer-facing dashboard for restaurant owners on Trust Halal.",
   "scripts": {

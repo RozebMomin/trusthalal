@@ -54,6 +54,12 @@ class StorageClient(Protocol):
     Tests inject in-memory implementations; production uses
     ``SupabaseStorageClient``. Keeping this lean — no presigned-upload
     yet, no metadata read, no list — until those are actually needed.
+
+    ``public_url`` is meaningful only for buckets configured public on
+    the Supabase side (e.g. the place-photos bucket). Calling it on a
+    private bucket returns a URL that resolves to a 400 from Supabase
+    — the contract is "the caller knows whether their bucket is
+    public." We don't enforce that at the type level.
     """
 
     @property
@@ -68,6 +74,8 @@ class StorageClient(Protocol):
     ) -> None: ...
 
     def signed_url(self, path: str, *, expires_in_seconds: int) -> str: ...
+
+    def public_url(self, path: str) -> str: ...
 
     def delete_object(self, path: str) -> None: ...
 
@@ -190,20 +198,45 @@ class SupabaseStorageClient:
         except httpx.HTTPError as exc:
             raise StorageError(f"Object storage delete failed: {exc}") from exc
 
+    def public_url(self, path: str) -> str:
+        """Return the public URL for a public-bucket object.
+
+        Supabase serves public buckets at
+        ``{base}/storage/v1/object/public/{bucket}/{path}`` —
+        no signing, no expiry. Bucket must be configured public in
+        the Supabase dashboard for the URL to actually resolve.
+
+        Path components are escaped the same way as ``_api_url`` so
+        a ``+`` or space in the filename doesn't truncate. Slashes
+        inside ``path`` (folder structure) stay unescaped via
+        ``safe="/"``.
+        """
+        safe_path = urlquote(path, safe="/")
+        return (
+            f"{self.base_url.rstrip('/')}/storage/v1/object/public/"
+            f"{self.bucket}/{safe_path}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Factory + DI
 # ---------------------------------------------------------------------------
 
-# Cache the client across requests — httpx itself isn't being held open
+# Cache the clients across requests — httpx itself isn't being held open
 # (each call is a new short-lived connection), but the dataclass + key
 # materialization is cheap-but-not-free, and there's no value in
-# rebuilding it per request.
+# rebuilding it per request. Two singletons because the evidence and
+# place-photos buckets have different access posture (private vs
+# public) and we want callers to grab the one that matches their use
+# case via the FastAPI dependency layer rather than passing a bucket
+# string around at every call site.
 _storage_client_singleton: StorageClient | None = None
+_photos_storage_client_singleton: StorageClient | None = None
 
 
 def get_storage_client() -> StorageClient:
-    """FastAPI dependency. Returns a configured StorageClient.
+    """FastAPI dependency. Returns a configured StorageClient bound
+    to the private evidence bucket.
 
     Tests override this dependency via FastAPI's
     ``app.dependency_overrides[get_storage_client]`` to inject an
@@ -237,3 +270,42 @@ def get_storage_client() -> StorageClient:
         bucket=bucket,
     )
     return _storage_client_singleton
+
+
+def get_photos_storage_client() -> StorageClient:
+    """FastAPI dependency. Returns a configured StorageClient bound
+    to the public place-photos bucket.
+
+    Same factory pattern as ``get_storage_client`` but a separate
+    singleton so the bucket binding is unambiguous per call site.
+    Callers (the place-photos upload route) should use
+    ``client.public_url(path)`` to derive the consumer-visible URL.
+
+    Note: bucket must be configured public-readable in the Supabase
+    dashboard. The runtime can't verify that; if it isn't, public
+    URLs render with a 400 and the consumer site shows broken
+    images. The README onboarding step documents the dashboard
+    config.
+    """
+    global _photos_storage_client_singleton
+
+    if _photos_storage_client_singleton is not None:
+        return _photos_storage_client_singleton
+
+    base_url = settings.SUPABASE_URL
+    service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
+    bucket = settings.SUPABASE_PHOTOS_BUCKET
+
+    if not (base_url and service_role_key and bucket):
+        raise StorageError(
+            "Place-photos storage is not configured "
+            "(SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / "
+            "SUPABASE_PHOTOS_BUCKET). Set these in the environment."
+        )
+
+    _photos_storage_client_singleton = SupabaseStorageClient(
+        base_url=base_url,
+        service_role_key=service_role_key,
+        bucket=bucket,
+    )
+    return _photos_storage_client_singleton

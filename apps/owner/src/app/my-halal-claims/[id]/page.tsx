@@ -47,6 +47,7 @@ import {
   type MeatType,
   type MenuPosture,
   type MyHalalClaimRead,
+  type PlacePhotoRead,
   type SlaughterMethod,
   CUISINE_LABELS,
   CUISINE_OPTIONS,
@@ -56,8 +57,12 @@ import {
   usePatchMyHalalClaim,
   usePatchMyOwnedPlace,
   useDeleteMyHalalClaim,
+  useDeletePlacePhoto,
+  usePatchPlacePhoto,
+  usePlacePhotos,
   useSubmitMyHalalClaim,
   useUploadMyHalalClaimAttachment,
+  useUploadPlacePhoto,
 } from "@/lib/api/hooks";
 import { HalalClaimTimeline } from "@/components/halal-claim-timeline";
 
@@ -252,10 +257,250 @@ function ClaimDetailBody({ claim }: { claim: MyHalalClaimRead }) {
       </header>
 
       {claim.place && <CuisineSection place={claim.place} />}
+      {claim.place && <PhotosSection placeId={claim.place.id} />}
       <QuestionnaireSection claim={claim} editable={isEditable} />
       <AttachmentsSection claim={claim} editable={isEditable} />
       {isEditable && <SubmitSection claim={claim} />}
       <ActivitySection claimId={claim.id} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Photos — owner manages the place's gallery + hero
+// ---------------------------------------------------------------------------
+//
+// Always-editable section (not gated by claim status, the same
+// reasoning as the cuisine picker — photos are place metadata,
+// not claim metadata). Three operations:
+//
+//   * Upload — single file at a time, server runs SafeSearch +
+//     HEIC convert + EXIF strip before storing. Per-place cap
+//     of 50 photos enforced on the server.
+//   * Set hero — owner picks the cover image. Server clears the
+//     previous hero atomically (DB partial unique index).
+//   * Delete — soft delete. Owners can delete any photo on their
+//     place; the server enforces the auth tier.
+//
+// We don't show consumer-vs-owner attribution in alpha; PR B's
+// consumer gallery surfaces the "by [name]" credit. Here every
+// photo on the page is the owner's to manage regardless of
+// origin.
+const PHOTO_ALLOWED_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+const PHOTO_ALLOWED_HUMAN = "JPEG, PNG, WebP, HEIC";
+const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+
+function PhotosSection({ placeId }: { placeId: string }) {
+  const photosQuery = usePlacePhotos(placeId);
+  const upload = useUploadPlacePhoto();
+  const patch = usePatchPlacePhoto();
+  const remove = useDeletePlacePhoto();
+
+  const [error, setError] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const photos = photosQuery.data ?? [];
+  const heroId = photos.find((p) => p.is_hero)?.id ?? null;
+
+  function onPickFile() {
+    fileInputRef.current?.click();
+  }
+
+  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setError(null);
+    const file = e.target.files?.[0];
+    // Reset the input so picking the same file twice in a row
+    // (e.g. after a server reject) re-fires the change event.
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+
+    if (!PHOTO_ALLOWED_MIME.has(file.type)) {
+      setError(`Allowed photo types: ${PHOTO_ALLOWED_HUMAN}.`);
+      return;
+    }
+    if (file.size > PHOTO_MAX_BYTES) {
+      setError(
+        `Photos must be ${Math.floor(PHOTO_MAX_BYTES / (1024 * 1024))} MB or smaller.`,
+      );
+      return;
+    }
+
+    try {
+      await upload.mutateAsync({ placeId, file });
+    } catch (err) {
+      const apiError = err instanceof ApiError ? err : null;
+      if (
+        apiError?.code === "PLACE_PHOTO_INAPPROPRIATE_CONTENT"
+      ) {
+        setError(
+          "This photo doesn't meet our content guidelines. Please choose a different photo.",
+        );
+        return;
+      }
+      const { description } = friendlyApiError(err, {
+        defaultTitle: "Couldn't upload that photo",
+      });
+      setError(description);
+    }
+  }
+
+  async function onSetHero(photo: PlacePhotoRead) {
+    setError(null);
+    try {
+      await patch.mutateAsync({
+        placeId,
+        photoId: photo.id,
+        patch: { is_hero: true },
+      });
+    } catch (err) {
+      const { description } = friendlyApiError(err, {
+        defaultTitle: "Couldn't set the hero photo",
+      });
+      setError(description);
+    }
+  }
+
+  async function onDelete(photo: PlacePhotoRead) {
+    setError(null);
+    if (
+      !window.confirm(
+        photo.is_hero
+          ? "Delete the hero photo? Your place will have no cover image until you pick a new one."
+          : "Delete this photo? This cannot be undone from here.",
+      )
+    ) {
+      return;
+    }
+    try {
+      await remove.mutateAsync({ placeId, photoId: photo.id });
+    } catch (err) {
+      const { description } = friendlyApiError(err, {
+        defaultTitle: "Couldn't delete that photo",
+      });
+      setError(description);
+    }
+  }
+
+  return (
+    <section className="space-y-4 rounded-md border bg-card p-5">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold">Photos</h2>
+        <p className="text-sm text-muted-foreground">
+          Upload photos of your restaurant. Pick one to be the cover image
+          diners see in search results and at the top of your place page.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          onClick={onPickFile}
+          disabled={upload.isPending}
+        >
+          {upload.isPending ? "Uploading…" : "Upload photo"}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          {PHOTO_ALLOWED_HUMAN} · up to{" "}
+          {Math.floor(PHOTO_MAX_BYTES / (1024 * 1024))} MB
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={Array.from(PHOTO_ALLOWED_MIME).join(",")}
+          onChange={onFileChange}
+          className="hidden"
+          aria-hidden
+        />
+      </div>
+
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {photosQuery.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading photos…</p>
+      ) : photos.length === 0 ? (
+        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+          No photos yet. Add one so diners know what to expect.
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {photos.map((photo) => (
+            <PhotoCard
+              key={photo.id}
+              photo={photo}
+              isHero={photo.id === heroId}
+              busy={patch.isPending || remove.isPending}
+              onSetHero={() => onSetHero(photo)}
+              onDelete={() => onDelete(photo)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PhotoCard({
+  photo,
+  isHero,
+  busy,
+  onSetHero,
+  onDelete,
+}: {
+  photo: PlacePhotoRead;
+  isHero: boolean;
+  busy: boolean;
+  onSetHero: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      className={
+        "group relative overflow-hidden rounded-md border bg-muted " +
+        (isHero ? "ring-2 ring-primary" : "")
+      }
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photo.url}
+        alt={photo.caption ?? "Place photo"}
+        className="aspect-square w-full object-cover"
+        loading="lazy"
+      />
+      {isHero && (
+        <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase text-primary-foreground">
+          Hero
+        </span>
+      )}
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        {!isHero && (
+          <button
+            type="button"
+            onClick={onSetHero}
+            disabled={busy}
+            className="rounded-full bg-background/90 px-2 py-1 text-xs font-medium text-foreground hover:bg-background disabled:opacity-60"
+          >
+            Set as hero
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={busy}
+          className="ml-auto rounded-full bg-destructive/90 px-2 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive disabled:opacity-60"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 }

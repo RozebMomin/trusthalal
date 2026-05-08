@@ -113,6 +113,19 @@ class Cuisine(StrEnum):
     CAFE = "CAFE"
 
 
+class PlacePhotoSource(StrEnum):
+    """Who uploaded a place photo.
+
+    Drives both authority (only OWNER photos can be hero) and
+    consumer-visible badging on the place detail page. Stored as a
+    plain TEXT column on ``place_photos.source`` so adding a
+    VERIFIER variant later is a code-only change.
+    """
+
+    OWNER = "OWNER"
+    CONSUMER = "CONSUMER"
+
+
 class PlaceEventType(StrEnum):
     CREATED = "CREATED"
     EDITED = "EDITED"

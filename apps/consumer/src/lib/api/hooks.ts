@@ -206,6 +206,31 @@ export type HalalProfileEmbed = {
   updated_at: string;
 };
 
+/**
+ * Source attribution for an uploaded place photo. Mirrors
+ * ``PlacePhotoSource`` server-side. Drives the "Owner" / "Customer"
+ * badge on the consumer gallery + the hero-eligibility gate.
+ */
+export type PlacePhotoSource = "OWNER" | "CONSUMER";
+
+/**
+ * Photo row as returned by GET /places/{id}/photos and embedded
+ * in PlaceDetail.photos. ``url`` is the public Supabase Storage
+ * URL — render directly in an <img>, no signing.
+ */
+export type PlacePhotoRead = {
+  id: string;
+  place_id: string;
+  url: string;
+  source: PlacePhotoSource;
+  width_px: number | null;
+  height_px: number | null;
+  caption: string | null;
+  is_hero: boolean;
+  uploaded_by_display_name: string | null;
+  created_at: string;
+};
+
 export type PlaceSearchResult = {
   id: string;
   name: string;
@@ -219,6 +244,10 @@ export type PlaceSearchResult = {
    * appears in unfiltered searches; only drops out when the consumer
    * is filtering on cuisine and this place doesn't match). */
   cuisine_types: Cuisine[];
+  /** Hero photo URL for the result-card thumbnail. Null when the
+   * place has no owner-set hero (or no photos at all). The result
+   * card renders a placeholder in that case. */
+  hero_photo_url: string | null;
   /** Embedded halal profile — null when the place has no approved
    * claim or the profile was revoked. The search result row renders
    * a "no halal profile yet" affordance in that case. */
@@ -246,6 +275,12 @@ export type PlaceDetail = {
   cuisine_types: Cuisine[];
   updated_at: string | null;
   halal_profile: HalalProfileEmbed | null;
+  /** Owner + consumer uploaded photos, hero-first then newest-first.
+   * Empty array when no photos uploaded yet. */
+  photos: PlacePhotoRead[];
+  /** Convenience shortcut: the URL of the photo with is_hero=true,
+   * or null when no hero is set. */
+  hero_photo_url: string | null;
 };
 
 // ---------------------------------------------------------------------------
