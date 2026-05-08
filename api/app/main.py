@@ -359,7 +359,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     summary="Backend for the Trust Halal halal-restaurant verification platform.",
     description=_API_DESCRIPTION,
-    version="0.3.0",
+    version="0.4.0",
     contact={
         "name": "Trust Halal",
         "email": "support@trusthalal.org",

@@ -165,7 +165,10 @@ function PortalHeader() {
             >
               Halal claims
             </NavLink>
-            <NavLink href="/my-claims" active={pathname.startsWith("/my-claims")}>
+            <NavLink
+              href="/my-places"
+              active={pathname.startsWith("/my-places")}
+            >
               Places
             </NavLink>
             <NavLink
@@ -258,12 +261,15 @@ function BottomTabBar() {
       matches: (p) => p.startsWith("/my-halal-claims"),
     },
     {
-      href: "/my-claims",
+      href: "/my-places",
       label: "Places",
       icon: Store,
-      // /my-claims AND the bare / home page both belong to this tab —
-      // home is effectively a places-overview surface.
-      matches: (p) => p === "/" || p.startsWith("/my-claims"),
+      // /my-places is the new owned-place management hub. The home
+      // page (/) plus the legacy /my-claims (ownership-request
+      // lifecycle) both still match this tab so the highlight tracks
+      // when the owner navigates to either of those surfaces.
+      matches: (p) =>
+        p === "/" || p.startsWith("/my-places") || p.startsWith("/my-claims"),
     },
     {
       href: "/my-organizations",

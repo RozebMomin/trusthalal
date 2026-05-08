@@ -293,6 +293,34 @@ export type PlaceSearchResult = {
   country_code: string | null;
 };
 
+/**
+ * GET /places/{id} response — the full public place detail. Used by
+ * the owner-portal /my-places/[id] surface so cuisines + photos can
+ * render alongside the canonical address fields without an extra
+ * round-trip. Mirrors ``PlaceDetail`` server-side.
+ *
+ * Hand-typed for now; replace with codegen on the next pass.
+ */
+export type PlaceDetail = {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  is_deleted: boolean;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+  postal_code: string | null;
+  timezone: string | null;
+  cuisine_types: Cuisine[];
+  updated_at: string | null;
+  /** Owner + consumer uploaded photos, hero-first then newest-first. */
+  photos: PlacePhotoRead[];
+  /** URL of the photo with is_hero=true, or null when no hero set. */
+  hero_photo_url: string | null;
+};
+
 /** Slim shape returned by GET /places/google/autocomplete. */
 export type GoogleAutocompletePrediction = {
   google_place_id: string;
@@ -412,6 +440,7 @@ const qk = {
     ["places", "google", "autocomplete", q] as const,
   placePhotos: (placeId: string) =>
     ["places", placeId, "photos"] as const,
+  placeDetail: (placeId: string) => ["places", placeId, "detail"] as const,
 } as const;
 
 /**
@@ -1070,11 +1099,14 @@ export function usePatchMyOwnedPlace() {
         method: "PATCH",
         json: args.patch,
       }),
-    onSuccess: () => {
+    onSuccess: (_data, args) => {
       // Claim caches embed cuisine_types via MyHalalClaimPlaceSummary,
       // so the editor's cuisine picker stays in sync after a save.
       void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
       void qc.invalidateQueries({ queryKey: qk.myOwnedPlaces() });
+      // /my-places/[id] now reads cuisines from PlaceDetail so its
+      // cache needs to refresh too.
+      void qc.invalidateQueries({ queryKey: qk.placeDetail(args.placeId) });
     },
   });
 }
@@ -1085,6 +1117,23 @@ export function usePatchMyOwnedPlace() {
 // /my-halal-claims/[id] uses these to render the gallery section + drive
 // upload / hero / delete flows. Same hooks back the future consumer
 // gallery in PR B.
+
+/**
+ * GET /places/{place_id} — public place detail.
+ *
+ * Powers the /my-places/[id] surface in the owner portal. Public
+ * endpoint so no special auth gate; the page itself enforces "you
+ * own this place" by 404'ing the route in the UI when the place_id
+ * isn't in the caller's owned list.
+ */
+export function usePlaceDetail(placeId: string | null | undefined) {
+  return useQuery<PlaceDetail>({
+    queryKey: qk.placeDetail(placeId ?? "__nil__"),
+    queryFn: () => apiFetch<PlaceDetail>(`/places/${placeId}`),
+    enabled: typeof placeId === "string" && placeId.length > 0,
+    staleTime: 30 * 1000,
+  });
+}
 
 /** GET /places/{place_id}/photos — public list, hero-first. */
 export function usePlacePhotos(placeId: string | null | undefined) {
@@ -1156,6 +1205,9 @@ export function usePatchPlacePhoto() {
       ),
     onSuccess: (_data, args) => {
       void qc.invalidateQueries({ queryKey: qk.placePhotos(args.placeId) });
+      // The hero photo lives on PlaceDetail.hero_photo_url, so the
+      // detail cache for this place needs to refresh too.
+      void qc.invalidateQueries({ queryKey: qk.placeDetail(args.placeId) });
     },
   });
 }
@@ -1175,6 +1227,9 @@ export function useDeletePlacePhoto() {
       ),
     onSuccess: (_data, args) => {
       void qc.invalidateQueries({ queryKey: qk.placePhotos(args.placeId) });
+      // The hero photo lives on PlaceDetail.hero_photo_url, so the
+      // detail cache for this place needs to refresh too.
+      void qc.invalidateQueries({ queryKey: qk.placeDetail(args.placeId) });
     },
   });
 }
