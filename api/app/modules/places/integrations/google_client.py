@@ -62,6 +62,26 @@ _DEFAULT_FIELDS = ",".join(
 )
 
 
+# Field mask for the Places API New (sent via the X-Goog-FieldMask header
+# rather than as a query param). The New API uses different field paths
+# than the legacy ``fields`` query string — they're billed per field set
+# the same way, so keep this minimal. ``primaryType`` is the headline
+# add: it's how we auto-tag cuisine on ingest. ``types`` is included as
+# a fallback for places where Google didn't pick a primary.
+_DEFAULT_FIELDS_NEW = ",".join(
+    (
+        "id",
+        "displayName",
+        "formattedAddress",
+        "addressComponents",
+        "location",
+        "primaryType",
+        "types",
+        "businessStatus",
+    )
+)
+
+
 class GoogleAPIError(Exception):
     """Raised when Google returns a non-OK status or HTTP error."""
 
@@ -141,37 +161,27 @@ def fetch_place_autocomplete_google(
     return list(predictions)
 
 
-def fetch_place_details_google(
+def _fetch_place_details_legacy(
     place_id: str,
     *,
-    api_key: str | None = None,
-    url: str | None = None,
-    fields: str = _DEFAULT_FIELDS,
-    timeout_s: float = 10.0,
+    api_key: str,
+    url: str,
+    fields: str,
+    timeout_s: float,
 ) -> dict[str, Any]:
-    """Fetch a Google Place Details payload synchronously.
+    """Legacy ``maps.googleapis.com/maps/api/place/details/json`` path.
 
-    Returns the full JSON response (including the ``{"status": "...", "result":
-    {...}}`` envelope). Callers are expected to persist the full response to
-    ``PlaceExternalId.raw_data`` and pass it through the extractor to derive
-    canonical fields.
+    Kept for ``GOOGLE_PLACES_USE_NEW=false`` rollback / regional mirrors.
+    Response shape: ``{"status": "OK", "result": {...}}``.
     """
-    effective_key = api_key or settings.GOOGLE_MAPS_API_KEY
-    if not effective_key:
-        raise GoogleAPIError(
-            "GOOGLE_MAPS_API_KEY is not configured; Place Details ingest is unavailable."
-        )
-
-    effective_url = url or settings.GOOGLE_PLACES_DETAILS_URL
-
     params = {
         "place_id": place_id,
         "fields": fields,
-        "key": effective_key,
+        "key": api_key,
     }
 
     try:
-        resp = httpx.get(effective_url, params=params, timeout=timeout_s)
+        resp = httpx.get(url, params=params, timeout=timeout_s)
         resp.raise_for_status()
     except httpx.HTTPError as exc:
         raise GoogleAPIError(f"Google Places HTTP error: {exc}") from exc
@@ -180,7 +190,6 @@ def fetch_place_details_google(
 
     status = payload.get("status")
     if status == "NOT_FOUND" or status == "ZERO_RESULTS":
-        # Let the caller decide whether this is a 404 or a soft miss.
         raise NotFoundError(
             "GOOGLE_PLACE_NOT_FOUND",
             f"Google Places returned {status} for place_id {place_id!r}",
@@ -193,6 +202,117 @@ def fetch_place_details_google(
         )
 
     return payload
+
+
+def _fetch_place_details_new(
+    place_id: str,
+    *,
+    api_key: str,
+    base_url: str,
+    field_mask: str,
+    timeout_s: float,
+) -> dict[str, Any]:
+    """Places API New: ``places.googleapis.com/v1/places/{id}``.
+
+    Different conventions from legacy:
+      * GET on a per-place URL (``{base}/{place_id}``) instead of a query
+        param.
+      * API key goes in the ``X-Goog-Api-Key`` header.
+      * Field mask goes in the ``X-Goog-FieldMask`` header (no envelope
+        — the response root IS the place result).
+      * Errors come back as standard HTTP statuses with a JSON
+        ``{"error": {...}}`` body; there's no ``status: "ZERO_RESULTS"``
+        soft-miss anymore. 404 → NotFoundError, anything else 4xx/5xx →
+        GoogleAPIError.
+
+    Returns the raw New-API result dict. The extractor handles both
+    legacy + new shapes natively, so callers don't need to branch.
+    """
+    # Per-place URL. The base config doesn't end with a slash, so add one.
+    url = f"{base_url.rstrip('/')}/{place_id}"
+    headers = {
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": field_mask,
+    }
+
+    try:
+        resp = httpx.get(url, headers=headers, timeout=timeout_s)
+    except httpx.HTTPError as exc:
+        raise GoogleAPIError(f"Google Places (New) HTTP error: {exc}") from exc
+
+    if resp.status_code == 404:
+        raise NotFoundError(
+            "GOOGLE_PLACE_NOT_FOUND",
+            f"Google Places (New) returned 404 for place_id {place_id!r}",
+        )
+    if resp.status_code >= 400:
+        # Surface Google's error message verbatim in the exception body —
+        # makes debugging "why is ingest failing in prod" much faster.
+        try:
+            err_body = resp.json()
+        except ValueError:
+            err_body = resp.text
+        raise GoogleAPIError(
+            f"Google Places (New) returned HTTP {resp.status_code}: {err_body}"
+        )
+
+    return resp.json()
+
+
+def fetch_place_details_google(
+    place_id: str,
+    *,
+    api_key: str | None = None,
+    url: str | None = None,
+    fields: str = _DEFAULT_FIELDS,
+    timeout_s: float = 10.0,
+) -> dict[str, Any]:
+    """Fetch a Google Place Details payload synchronously.
+
+    Dispatches between the legacy ``/maps/api/place/details`` endpoint and
+    the New API (``places.googleapis.com/v1/places/{id}``) based on
+    ``settings.GOOGLE_PLACES_USE_NEW``. New is the default — it surfaces
+    ``primaryType`` which the cuisine extractor relies on to auto-tag
+    places on ingest.
+
+    Returns the raw JSON response. Callers persist the full response to
+    ``PlaceExternalId.raw_data`` and run it through the extractor — which
+    is shape-agnostic between legacy and New, so the caller doesn't
+    branch.
+    """
+    effective_key = api_key or settings.GOOGLE_MAPS_API_KEY
+    if not effective_key:
+        raise GoogleAPIError(
+            "GOOGLE_MAPS_API_KEY is not configured; Place Details ingest is unavailable."
+        )
+
+    if settings.GOOGLE_PLACES_USE_NEW:
+        # ``url`` is the legacy override; for tests that explicitly pass
+        # a URL we honor it (against the legacy endpoint). Otherwise use
+        # the New API base from settings.
+        if url is not None:
+            return _fetch_place_details_legacy(
+                place_id,
+                api_key=effective_key,
+                url=url,
+                fields=fields,
+                timeout_s=timeout_s,
+            )
+        return _fetch_place_details_new(
+            place_id,
+            api_key=effective_key,
+            base_url=settings.GOOGLE_PLACES_DETAILS_NEW_URL,
+            field_mask=_DEFAULT_FIELDS_NEW,
+            timeout_s=timeout_s,
+        )
+
+    return _fetch_place_details_legacy(
+        place_id,
+        api_key=effective_key,
+        url=url or settings.GOOGLE_PLACES_DETAILS_URL,
+        fields=fields,
+        timeout_s=timeout_s,
+    )
 
 
 class ReverseGeocodeFetcher(Protocol):

@@ -87,8 +87,23 @@ export type RequestOptions = Omit<RequestInit, "body"> & {
    * doing so breaks the browser's auto-boundary).
    */
   formData?: FormData;
-  /** Query string params; undefined values are dropped. */
-  searchParams?: Record<string, string | number | boolean | undefined | null>;
+  /**
+   * Query string params; undefined / null values are dropped.
+   *
+   * Array values are emitted as repeated keys (``?cuisine=A&cuisine=B``)
+   * which is what FastAPI's ``Query(default=None)`` with a ``list[T]``
+   * type expects. ``url.searchParams.append`` is the right primitive
+   * here — ``set`` would clobber prior entries for the same key.
+   */
+  searchParams?: Record<
+    string,
+    | string
+    | number
+    | boolean
+    | ReadonlyArray<string | number | boolean>
+    | undefined
+    | null
+  >;
 };
 
 function buildUrl(path: string, searchParams?: RequestOptions["searchParams"]) {
@@ -99,7 +114,16 @@ function buildUrl(path: string, searchParams?: RequestOptions["searchParams"]) {
   if (searchParams) {
     for (const [key, value] of Object.entries(searchParams)) {
       if (value === undefined || value === null) continue;
-      url.searchParams.set(key, String(value));
+      if (Array.isArray(value)) {
+        // Repeated-key encoding: ``?cuisine=A&cuisine=B``. Empty
+        // arrays drop the param entirely (no ``?cuisine=`` noise).
+        for (const entry of value) {
+          if (entry === undefined || entry === null) continue;
+          url.searchParams.append(key, String(entry));
+        }
+      } else {
+        url.searchParams.set(key, String(value));
+      }
     }
   }
   return url.toString();

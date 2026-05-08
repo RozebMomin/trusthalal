@@ -20,6 +20,167 @@ import { apiFetch } from "./client";
 // Mirrors UserRole on the server. Hand-typed until codegen runs.
 export type UserRole = "ADMIN" | "VERIFIER" | "OWNER" | "CONSUMER";
 
+/**
+ * Curated cuisine taxonomy. Mirrors the ``Cuisine`` enum on the API
+ * (``api/app/modules/places/enums.py``). Owners pick from this list
+ * on the claim editor; the consumer site filters on it. New entries
+ * MUST be added in lock-step with the API enum, otherwise the PATCH
+ * 422s on the unknown value.
+ */
+export type Cuisine =
+  | "PAKISTANI"
+  | "INDIAN"
+  | "BANGLADESHI"
+  | "SRI_LANKAN"
+  | "NEPALI"
+  | "LEBANESE"
+  | "TURKISH"
+  | "YEMENI"
+  | "SYRIAN"
+  | "PALESTINIAN"
+  | "IRAQI"
+  | "PERSIAN"
+  | "EGYPTIAN"
+  | "MOROCCAN"
+  | "TUNISIAN"
+  | "ALGERIAN"
+  | "SOMALI"
+  | "ETHIOPIAN"
+  | "ERITREAN"
+  | "AFGHAN"
+  | "UZBEK"
+  | "INDONESIAN"
+  | "MALAYSIAN"
+  | "FILIPINO"
+  | "THAI"
+  | "CHINESE"
+  | "KOREAN"
+  | "JAPANESE"
+  | "MEDITERRANEAN"
+  | "GREEK"
+  | "ITALIAN"
+  | "SPANISH"
+  | "AMERICAN"
+  | "MEXICAN"
+  | "CARIBBEAN"
+  | "SOUL_FOOD"
+  | "BURGERS"
+  | "PIZZA"
+  | "BBQ"
+  | "STEAKHOUSE"
+  | "SEAFOOD"
+  | "BREAKFAST"
+  | "BAKERY"
+  | "DESSERTS"
+  | "CAFE";
+
+/**
+ * Display labels for the curated cuisine taxonomy. Lives in the
+ * owner portal because the API stays neutral about how a surface
+ * chooses to render the value (see the docstring on ``Cuisine``
+ * server-side). Consumer + admin maintain their own copy if they
+ * want different copy.
+ */
+export const CUISINE_LABELS: Readonly<Record<Cuisine, string>> = {
+  PAKISTANI: "Pakistani",
+  INDIAN: "Indian",
+  BANGLADESHI: "Bangladeshi",
+  SRI_LANKAN: "Sri Lankan",
+  NEPALI: "Nepali",
+  LEBANESE: "Lebanese",
+  TURKISH: "Turkish",
+  YEMENI: "Yemeni",
+  SYRIAN: "Syrian",
+  PALESTINIAN: "Palestinian",
+  IRAQI: "Iraqi",
+  PERSIAN: "Persian",
+  EGYPTIAN: "Egyptian",
+  MOROCCAN: "Moroccan",
+  TUNISIAN: "Tunisian",
+  ALGERIAN: "Algerian",
+  SOMALI: "Somali",
+  ETHIOPIAN: "Ethiopian",
+  ERITREAN: "Eritrean",
+  AFGHAN: "Afghan",
+  UZBEK: "Uzbek",
+  INDONESIAN: "Indonesian",
+  MALAYSIAN: "Malaysian",
+  FILIPINO: "Filipino",
+  THAI: "Thai",
+  CHINESE: "Chinese",
+  KOREAN: "Korean",
+  JAPANESE: "Japanese",
+  MEDITERRANEAN: "Mediterranean",
+  GREEK: "Greek",
+  ITALIAN: "Italian",
+  SPANISH: "Spanish",
+  AMERICAN: "American",
+  MEXICAN: "Mexican",
+  CARIBBEAN: "Caribbean",
+  SOUL_FOOD: "Soul food",
+  BURGERS: "Burgers",
+  PIZZA: "Pizza",
+  BBQ: "BBQ",
+  STEAKHOUSE: "Steakhouse",
+  SEAFOOD: "Seafood",
+  BREAKFAST: "Breakfast",
+  BAKERY: "Bakery",
+  DESSERTS: "Desserts",
+  CAFE: "Café",
+};
+
+/**
+ * Insertion order is the display order in the picker. Keep it grouped
+ * by region so the multi-select reads naturally top-to-bottom.
+ */
+export const CUISINE_OPTIONS: ReadonlyArray<Cuisine> = [
+  "PAKISTANI",
+  "INDIAN",
+  "BANGLADESHI",
+  "SRI_LANKAN",
+  "NEPALI",
+  "LEBANESE",
+  "TURKISH",
+  "YEMENI",
+  "SYRIAN",
+  "PALESTINIAN",
+  "IRAQI",
+  "PERSIAN",
+  "EGYPTIAN",
+  "MOROCCAN",
+  "TUNISIAN",
+  "ALGERIAN",
+  "SOMALI",
+  "ETHIOPIAN",
+  "ERITREAN",
+  "AFGHAN",
+  "UZBEK",
+  "INDONESIAN",
+  "MALAYSIAN",
+  "FILIPINO",
+  "THAI",
+  "CHINESE",
+  "KOREAN",
+  "JAPANESE",
+  "MEDITERRANEAN",
+  "GREEK",
+  "ITALIAN",
+  "SPANISH",
+  "AMERICAN",
+  "MEXICAN",
+  "CARIBBEAN",
+  "SOUL_FOOD",
+  "BURGERS",
+  "PIZZA",
+  "BBQ",
+  "STEAKHOUSE",
+  "SEAFOOD",
+  "BREAKFAST",
+  "BAKERY",
+  "DESSERTS",
+  "CAFE",
+];
+
 /** Mirrors OwnershipRequestStatus on the server. */
 export type OwnershipRequestStatus =
   | "SUBMITTED"
@@ -723,6 +884,17 @@ export type MyHalalClaimPlaceSummary = {
   city: string | null;
   region: string | null;
   country_code: string | null;
+  /** Curated cuisine tags. Empty array = untagged. Surfaced here
+   *  (rather than via a second GET /places/{id}) so the claim editor
+   *  can prefill its cuisine multi-select from the same payload it
+   *  already fetches. */
+  cuisine_types: Cuisine[];
+};
+
+/** Body for ``PATCH /me/places/{place_id}``. Replaces the cuisine
+ *  set in full (no partial-update semantics — pass [] to clear). */
+export type MyOwnedPlacePatch = {
+  cuisine_types: Cuisine[];
 };
 
 /** Org fields embedded inside MyHalalClaimRead. */
@@ -817,6 +989,37 @@ export function useMyHalalClaim(id: string | null | undefined) {
     queryFn: () => apiFetch<MyHalalClaimRead>(`/me/halal-claims/${id}`),
     enabled: typeof id === "string" && id.length > 0,
     staleTime: 15 * 1000,
+  });
+}
+
+/**
+ * PATCH /me/places/{place_id} — owner-side edit of place metadata.
+ *
+ * Today the only patchable field is ``cuisine_types``. Server enforces
+ * ownership via ``assert_can_manage_place`` (active OWNER_ADMIN /
+ * MANAGER on an active org with an active PlaceOwner row for this
+ * place) — see ``api/app/modules/organizations/deps.py``. 403s on
+ * miss; 404s when the place is soft-deleted.
+ *
+ * On success we invalidate the claim caches that embed this place
+ * (the cuisine_types live in MyHalalClaimPlaceSummary, which gets
+ * refetched). Plus the my-owned-places list, since the picker also
+ * surfaces basic place metadata.
+ */
+export function usePatchMyOwnedPlace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { placeId: string; patch: MyOwnedPlacePatch }) =>
+      apiFetch<unknown>(`/me/places/${args.placeId}`, {
+        method: "PATCH",
+        json: args.patch,
+      }),
+    onSuccess: () => {
+      // Claim caches embed cuisine_types via MyHalalClaimPlaceSummary,
+      // so the editor's cuisine picker stays in sync after a save.
+      void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
+      void qc.invalidateQueries({ queryKey: qk.myOwnedPlaces() });
+    },
   });
 }
 

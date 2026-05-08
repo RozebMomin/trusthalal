@@ -139,6 +139,11 @@ def ingest_google_place(
         lat=fields.lat,
         lng=fields.lng,
         geom=WKTElement(f"POINT({fields.lng} {fields.lat})", srid=4326),
+        # Auto-tag cuisines from Google's primaryType / types vocabulary.
+        # Empty list when Google didn't pick a type we map; owner can
+        # override later from the claim editor. Stored as the StrEnum
+        # values (str subclass) so the TEXT[] column round-trips cleanly.
+        cuisine_types=[c.value for c in fields.cuisine_types],
     )
     db.add(place)
     db.flush()  # need place.id for the external row + event
@@ -331,6 +336,14 @@ def link_google_place_to_existing(
                 setattr(place, column, incoming)
                 fields_updated.append(column)
 
+    # cuisine_types is non-nullable list — "unset" is an empty array.
+    # Mirror resync semantics: only set when the place currently has no
+    # cuisines, so an owner-tagged place doesn't get retroactively
+    # overwritten on link.
+    if not place.cuisine_types and fields.cuisine_types:
+        place.cuisine_types = [c.value for c in fields.cuisine_types]
+        fields_updated.append("cuisine_types")
+
     # canonical_source only gets stamped when it's currently unset. Same
     # "don't clobber" principle: if a previous admin marked this as (say)
     # YELP, linking to Google shouldn't silently change the source of
@@ -449,6 +462,15 @@ def resync_google_place(
             if incoming is not None:
                 setattr(place, column, incoming)
                 fields_updated.append(column)
+
+    # cuisine_types is multi-valued and non-nullable — "no value" is an
+    # empty list, not NULL. Backfill only when the current list is empty
+    # so an owner who tagged the place from the claim editor doesn't get
+    # their tags clobbered on resync. Same "additive only" rule as the
+    # scalar columns above.
+    if not place.cuisine_types and fields.cuisine_types:
+        place.cuisine_types = [c.value for c in fields.cuisine_types]
+        fields_updated.append("cuisine_types")
 
     if place.canonical_source is None:
         place.canonical_source = ExternalIdProvider.GOOGLE

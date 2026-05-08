@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, String, Text, UniqueConstraint, func, Boolean, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from geoalchemy2 import Geometry
@@ -41,6 +41,21 @@ class Place(Base):
             validate_strings=True,
         ),
         nullable=True,
+    )
+
+    # Curated cuisine tags surfaced on the consumer search filter and
+    # owner-edited from /my-halal-claims/[id]. Stored as ``TEXT[]``
+    # rather than a Postgres ENUM type so adding a new ``Cuisine``
+    # variant in code doesn't require a migration. Pydantic validates
+    # values against the ``Cuisine`` enum on the way in/out.
+    #
+    # Server default ``ARRAY[]::text[]`` so existing rows backfill to
+    # an empty list rather than NULL — every read path can rely on a
+    # list shape and skip the None check.
+    cuisine_types: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        server_default=text("ARRAY[]::text[]"),
     )
 
     lat: Mapped[float] = mapped_column(Float, nullable=False)

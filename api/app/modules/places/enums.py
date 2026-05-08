@@ -6,6 +6,104 @@ class ExternalIdProvider(StrEnum):
     APPLE = "APPLE"
 
 
+class Cuisine(StrEnum):
+    """Curated cuisine taxonomy for the consumer search surface.
+
+    Tagged on a Place via ``Place.cuisine_types`` (multi-valued).
+    Owners pick from this list when they edit their place; the
+    consumer side filters on the same enum so labels stay consistent
+    across both surfaces.
+
+    Assignment posture (in order of precedence):
+      1. Owner-driven — the owner picks from this list on the
+         halal-claim editor surface. Owner choices win.
+      2. Auto-detected on ingest — the Google Places (New) integration
+         maps Google's ``primaryType`` (e.g. ``pakistani_restaurant``)
+         to one of these values. Only fires when the place doesn't
+         already have an owner-set list.
+
+    Values are upper-snake-case strings so they round-trip on the
+    wire without escaping. Display labels live in the UI layer (each
+    app builds its own short label / description map next to its
+    cuisine picker) — keeping labels out of the API means the
+    consumer can rephrase ("Persian" → "Persian / Iranian") without
+    a backend change.
+
+    Stored in Postgres as ``TEXT[]`` (not a Postgres ENUM type) so
+    appending a new value here is a code-only change. Tagged places
+    aren't affected; the new value is just available going forward.
+    Removing or renaming a value IS a breaking change — places already
+    tagged with the old value would fail Pydantic validation on the
+    way out. Don't reorder either: equality on the wire doesn't care
+    but downstream sort or display logic might.
+    """
+
+    # South Asian
+    PAKISTANI = "PAKISTANI"
+    INDIAN = "INDIAN"
+    BANGLADESHI = "BANGLADESHI"
+    SRI_LANKAN = "SRI_LANKAN"
+    NEPALI = "NEPALI"
+
+    # Middle Eastern
+    LEBANESE = "LEBANESE"
+    TURKISH = "TURKISH"
+    YEMENI = "YEMENI"
+    SYRIAN = "SYRIAN"
+    PALESTINIAN = "PALESTINIAN"
+    IRAQI = "IRAQI"
+    PERSIAN = "PERSIAN"
+    EGYPTIAN = "EGYPTIAN"
+
+    # North African
+    MOROCCAN = "MOROCCAN"
+    TUNISIAN = "TUNISIAN"
+    ALGERIAN = "ALGERIAN"
+
+    # East African
+    SOMALI = "SOMALI"
+    ETHIOPIAN = "ETHIOPIAN"
+    ERITREAN = "ERITREAN"
+
+    # Central Asian
+    AFGHAN = "AFGHAN"
+    UZBEK = "UZBEK"
+
+    # Southeast Asian
+    INDONESIAN = "INDONESIAN"
+    MALAYSIAN = "MALAYSIAN"
+    FILIPINO = "FILIPINO"
+    THAI = "THAI"
+
+    # East Asian
+    CHINESE = "CHINESE"
+    KOREAN = "KOREAN"
+    JAPANESE = "JAPANESE"
+
+    # European
+    MEDITERRANEAN = "MEDITERRANEAN"
+    GREEK = "GREEK"
+    ITALIAN = "ITALIAN"
+    SPANISH = "SPANISH"
+
+    # Americas
+    AMERICAN = "AMERICAN"
+    MEXICAN = "MEXICAN"
+    CARIBBEAN = "CARIBBEAN"
+    SOUL_FOOD = "SOUL_FOOD"
+
+    # Format / generic
+    BURGERS = "BURGERS"
+    PIZZA = "PIZZA"
+    BBQ = "BBQ"
+    STEAKHOUSE = "STEAKHOUSE"
+    SEAFOOD = "SEAFOOD"
+    BREAKFAST = "BREAKFAST"
+    BAKERY = "BAKERY"
+    DESSERTS = "DESSERTS"
+    CAFE = "CAFE"
+
+
 class PlaceEventType(StrEnum):
     CREATED = "CREATED"
     EDITED = "EDITED"

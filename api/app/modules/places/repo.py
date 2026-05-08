@@ -20,7 +20,7 @@ from app.modules.organizations.models import (
     OrganizationMember,
     PlaceOwner,
 )
-from app.modules.places.enums import PlaceEventType
+from app.modules.places.enums import Cuisine, PlaceEventType
 from app.modules.places.models import Place, PlaceEvent
 
 
@@ -221,6 +221,25 @@ def log_place_event(
     )
     
 
+def _apply_cuisine_filter(
+    stmt: Select, cuisines: Sequence[Cuisine]
+) -> Select:
+    """Restrict the result to places tagged with ANY of the requested
+    cuisines (overlap, not subset).
+
+    Uses Postgres array overlap (``&&``) — index-friendly via the GIN
+    on ``places.cuisine_types``. Empty input returns ``stmt``
+    unchanged: callers shouldn't have to short-circuit themselves.
+    Cuisine values are coerced to plain strings so the resulting SQL
+    array literal is ``ARRAY['PAKISTANI', 'INDIAN']::text[]`` —
+    matching the column type ``TEXT[]``.
+    """
+    if not cuisines:
+        return stmt
+    values = [c.value for c in cuisines]
+    return stmt.where(Place.cuisine_types.op("&&")(values))
+
+
 def search_by_text(
     db: Session,
     *,
@@ -228,6 +247,7 @@ def search_by_text(
     limit: int,
     offset: int,
     halal_filters: HalalSearchFilters | None = None,
+    cuisines: Sequence[Cuisine] = (),
 ) -> list[tuple[Place, HalalProfile | None]]:
     """ILIKE substring search on name + address + city for the public
     catalog.
@@ -280,6 +300,7 @@ def search_by_text(
             (HalalProfile.place_id == Place.id)
             & (HalalProfile.revoked_at.is_(None)),
         )
+    stmt = _apply_cuisine_filter(stmt, cuisines)
     stmt = stmt.order_by(Place.name.asc()).limit(limit).offset(offset)
     return [(p, hp) for p, hp in db.execute(stmt).all()]
 
@@ -343,6 +364,7 @@ def search_nearby(
     limit: int,
     offset: int,
     halal_filters: HalalSearchFilters | None = None,
+    cuisines: Sequence[Cuisine] = (),
 ) -> list[tuple[Place, HalalProfile | None]]:
     """Geo-radius search via PostGIS ST_DWithin, with optional halal
     filters layered on the same INNER JOIN pattern as text search.
@@ -373,5 +395,6 @@ def search_nearby(
             (HalalProfile.place_id == Place.id)
             & (HalalProfile.revoked_at.is_(None)),
         )
+    stmt = _apply_cuisine_filter(stmt, cuisines)
     stmt = stmt.limit(limit).offset(offset)
     return [(p, hp) for p, hp in db.execute(stmt).all()]

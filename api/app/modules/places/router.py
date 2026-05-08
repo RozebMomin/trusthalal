@@ -15,6 +15,7 @@ from app.modules.halal_profiles.enums import (
     SlaughterMethod,
     ValidationTier,
 )
+from app.modules.places.enums import Cuisine
 from app.modules.halal_profiles.repo import get_public_halal_profile
 from app.modules.halal_profiles.schemas import HalalProfileRead
 from app.modules.places.integrations.google import (
@@ -37,14 +38,19 @@ from app.modules.places.schemas import (
     GoogleAutocompletePrediction,
     HalalProfileEmbed,
     OwnedPlaceRead,
+    OwnedPlaceUpdate,
     PlaceCreate,
     PlaceDetail,
     PlaceRead,
     PlaceSearchResult,
     ReverseGeocodeResult,
 )
+from app.modules.places.models import Place, PlaceEvent
+from app.modules.places.enums import PlaceEventType
+from app.modules.organizations.deps import assert_can_manage_place
 from app.core.auth import CurrentUser, get_current_user
 from app.modules.users.enums import UserRole
+from sqlalchemy import select
 
 router = APIRouter(prefix="/places", tags=["places"])
 
@@ -88,6 +94,110 @@ def list_my_owned_places(
         )
         for place, org, has_profile in rows
     ]
+
+
+@me_places_router.patch(
+    "/places/{place_id}",
+    response_model=PlaceDetail,
+    summary="Owner edit of place metadata (cuisine tags)",
+    description=(
+        "Owner-scoped place update. Currently accepts only "
+        "``cuisine_types`` — the curated cuisine tags surfaced on "
+        "consumer search rows. Authorization mirrors the halal-claim "
+        "submission rule: the caller must be an active "
+        "OWNER_ADMIN/MANAGER on an organization that has an active "
+        "PlaceOwner row for this place. Admins are also allowed via "
+        "the same dependency.\n\n"
+        "Identity columns (name, address, lat/lng, city, country) "
+        "deliberately stay admin-only — those are the canonical "
+        "source-of-truth fields populated by Google ingest, and "
+        "owners shouldn't be able to drift them. Cuisine tags are "
+        "purely descriptive metadata, so it's safe to let the "
+        "operator who knows the venue best edit them."
+    ),
+)
+def patch_owned_place(
+    place_id: UUID,
+    body: OwnedPlaceUpdate,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> PlaceDetail:
+    # Ownership gate first — assert_can_manage_place 403s on miss.
+    # Admins fall through this check for parity with the halal-claim
+    # write paths.
+    assert_can_manage_place(db, user, place_id)
+
+    place = db.execute(
+        select(Place).where(Place.id == place_id)
+    ).scalar_one_or_none()
+    if place is None or place.is_deleted:
+        # Surfacing 404 (not 403) when the place is gone is the same
+        # contract the public GET /places/{id} uses for soft-deleted
+        # rows; keeps the owner UI's error handling simple.
+        raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
+
+    # Today the only patchable field is cuisine_types. Pydantic has
+    # already validated each entry against the Cuisine enum; we only
+    # have to dedupe + serialize to the StrEnum's string value (the
+    # column is TEXT[]).
+    seen: set[Cuisine] = set()
+    deduped: list[Cuisine] = []
+    for c in body.cuisine_types:
+        if c in seen:
+            continue
+        seen.add(c)
+        deduped.append(c)
+    place.cuisine_types = [c.value for c in deduped]
+
+    # EDITED audit row — keeps cuisine changes visible in the place
+    # event timeline alongside admin edits and Google resyncs. Message
+    # text mirrors the convention used by link/resync ("Set cuisines:
+    # ..." vs "Cleared cuisine tags") so the timeline reads cleanly.
+    if deduped:
+        message = "Owner set cuisines: " + ", ".join(c.value for c in deduped)
+    else:
+        message = "Owner cleared cuisine tags"
+    db.add(
+        PlaceEvent(
+            place_id=place.id,
+            event_type=PlaceEventType.EDITED.value,
+            actor_user_id=user.id,
+            message=message,
+        )
+    )
+
+    db.add(place)
+    db.commit()
+    db.refresh(place)
+
+    # Build the same PlaceDetail shape GET /places/{id} emits so the
+    # owner-portal mutation hook can invalidate the public cache and
+    # get back a consistent snapshot. The embedded halal_profile read
+    # is the same single fetch the public endpoint uses.
+    profile = get_public_halal_profile(db, place_id=place.id)
+    halal_embed = (
+        HalalProfileEmbed.model_validate(profile, from_attributes=True)
+        if profile is not None
+        else None
+    )
+    return PlaceDetail.model_validate(
+        {
+            "id": place.id,
+            "name": place.name,
+            "address": place.address,
+            "lat": place.lat,
+            "lng": place.lng,
+            "is_deleted": place.is_deleted,
+            "city": place.city,
+            "region": place.region,
+            "country_code": place.country_code,
+            "postal_code": place.postal_code,
+            "timezone": place.timezone,
+            "cuisine_types": list(place.cuisine_types or []),
+            "updated_at": place.updated_at,
+            "halal_profile": halal_embed,
+        }
+    )
 
 
 @router.post(
@@ -341,6 +451,10 @@ def get_place_by_id(
             "country_code": place.country_code,
             "postal_code": place.postal_code,
             "timezone": place.timezone,
+            # Curated cuisine tags. Cast through list() because the
+            # column may come back as a tuple/array depending on the
+            # SQLAlchemy dialect on the connection.
+            "cuisine_types": list(place.cuisine_types or []),
             "updated_at": place.updated_at,
             "halal_profile": halal_embed,
         }
@@ -444,6 +558,19 @@ def search_places(
     has_certification: bool | None = Query(default=None),
     no_pork: bool | None = Query(default=None),
     no_alcohol_served: bool | None = Query(default=None),
+    # Multi-value: ?cuisine=PAKISTANI&cuisine=INDIAN. Result is the
+    # union — places matching ANY of the requested cuisines (overlap),
+    # not the intersection. That matches how users think about cuisine
+    # filters ("show me Pakistani OR Indian, not Pakistani-AND-Indian
+    # fusion places").
+    cuisine: list[Cuisine] | None = Query(
+        default=None,
+        description=(
+            "Multi-value cuisine filter. Results match any of the "
+            "passed cuisines (overlap). Pass the param multiple times "
+            "to broaden the match. Empty / missing = no cuisine filter."
+        ),
+    ),
     db: Session = Depends(get_db),
 ) -> list[PlaceSearchResult]:
     """Browse the public places catalog.
@@ -483,6 +610,7 @@ def search_places(
         no_alcohol_served=no_alcohol_served,
     )
 
+    cuisines = tuple(cuisine or ())
     if has_text:
         rows = search_by_text(
             db,
@@ -490,6 +618,7 @@ def search_places(
             limit=limit,
             offset=offset,
             halal_filters=halal_filters,
+            cuisines=cuisines,
         )
     elif has_geo:
         rows = search_nearby(
@@ -500,6 +629,7 @@ def search_places(
             limit=limit,
             offset=offset,
             halal_filters=halal_filters,
+            cuisines=cuisines,
         )
     else:
         raise BadRequestError(
@@ -523,6 +653,7 @@ def search_places(
                 "city": place.city,
                 "region": place.region,
                 "country_code": place.country_code,
+                "cuisine_types": list(place.cuisine_types or []),
                 "halal_profile": (
                     HalalProfileEmbed.model_validate(profile)
                     if profile is not None

@@ -39,6 +39,7 @@ import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type AlcoholPolicy,
+  type Cuisine,
   type HalalClaimAttachmentRead,
   type HalalClaimAttachmentType,
   type HalalQuestionnaireDraft,
@@ -47,10 +48,13 @@ import {
   type MenuPosture,
   type MyHalalClaimRead,
   type SlaughterMethod,
+  CUISINE_LABELS,
+  CUISINE_OPTIONS,
   HALAL_CLAIM_EDITABLE_STATUSES,
   useMyHalalClaim,
   useMyHalalClaimEvents,
   usePatchMyHalalClaim,
+  usePatchMyOwnedPlace,
   useDeleteMyHalalClaim,
   useSubmitMyHalalClaim,
   useUploadMyHalalClaimAttachment,
@@ -247,11 +251,146 @@ function ClaimDetailBody({ claim }: { claim: MyHalalClaimRead }) {
         )}
       </header>
 
+      {claim.place && <CuisineSection place={claim.place} />}
       <QuestionnaireSection claim={claim} editable={isEditable} />
       <AttachmentsSection claim={claim} editable={isEditable} />
       {isEditable && <SubmitSection claim={claim} />}
       <ActivitySection claimId={claim.id} />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Cuisine multi-select — owner-side place metadata edit
+// ---------------------------------------------------------------------------
+//
+// PATCH /me/places/{id} only accepts cuisine_types today. The picker
+// is intentionally always-editable (not gated by claim status) — these
+// are place metadata, not claim metadata, so editing them after the
+// claim is approved is fine. Selected pills toggle on click; "Save"
+// posts the full set; "Cancel" reverts to the server snapshot.
+//
+// Stays a flat pill grid (no search box / chunked panel) because the
+// 45-entry list fits in two compact rows on desktop and stacks
+// cleanly on mobile. If the taxonomy grows past ~60 entries this
+// pattern stops paying for itself and the picker should switch to a
+// search-with-popover.
+function CuisineSection({
+  place,
+}: {
+  place: NonNullable<MyHalalClaimRead["place"]>;
+}) {
+  const initial = React.useMemo<Cuisine[]>(
+    () => (place.cuisine_types ?? []) as Cuisine[],
+    [place.cuisine_types],
+  );
+  const [selected, setSelected] = React.useState<Cuisine[]>(initial);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Resync local state when the server snapshot changes (e.g. after
+  // an admin resync that backfilled cuisines, or after another
+  // browser tab saved). Without this the picker would keep showing
+  // stale user-edited state forever.
+  React.useEffect(() => {
+    setSelected(initial);
+  }, [initial]);
+
+  const patch = usePatchMyOwnedPlace();
+
+  const dirty = React.useMemo(() => {
+    if (selected.length !== initial.length) return true;
+    const a = new Set(initial);
+    return selected.some((c) => !a.has(c));
+  }, [selected, initial]);
+
+  function toggle(c: Cuisine) {
+    setError(null);
+    setSelected((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
+  }
+
+  async function onSave() {
+    setError(null);
+    try {
+      await patch.mutateAsync({
+        placeId: place.id,
+        patch: { cuisine_types: selected },
+      });
+    } catch (err) {
+      const { description } = friendlyApiError(err, {
+        defaultTitle: "Couldn't save cuisine tags",
+      });
+      setError(description);
+    }
+  }
+
+  function onCancel() {
+    setSelected(initial);
+    setError(null);
+  }
+
+  return (
+    <section className="space-y-4 rounded-md border bg-card p-5">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold">Cuisine tags</h2>
+        <p className="text-sm text-muted-foreground">
+          Pick the cuisines this place serves. Diners filter restaurants
+          by cuisine on the consumer site, so accurate tags help the
+          right people find you.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {CUISINE_OPTIONS.map((c) => {
+          const isOn = selected.includes(c);
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => toggle(c)}
+              aria-pressed={isOn}
+              className={
+                isOn
+                  ? "rounded-full border border-primary bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors"
+                  : "rounded-full border border-input bg-background px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              }
+            >
+              {CUISINE_LABELS[c]}
+            </button>
+          );
+        })}
+      </div>
+
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          onClick={onSave}
+          disabled={!dirty || patch.isPending}
+        >
+          {patch.isPending ? "Saving…" : "Save cuisines"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={!dirty || patch.isPending}
+        >
+          Cancel
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          {selected.length === 0
+            ? "No cuisines selected"
+            : `${selected.length} selected`}
+        </p>
+      </div>
+    </section>
   );
 }
 

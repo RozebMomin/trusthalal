@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
 
+from app.modules.places.enums import Cuisine
+
 
 class PlaceCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -29,6 +31,12 @@ class PlaceRead(BaseModel):
     region: str | None = None
     country_code: str | None = None
     postal_code: str | None = None
+    # Curated cuisine tags. Owner-edited from the halal-claim editor;
+    # auto-populated on Google Places New ingest where ``primaryType``
+    # maps cleanly. Empty list = untagged (the consumer surface
+    # renders these places fine, they just don't match cuisine
+    # filters).
+    cuisine_types: list[Cuisine] = Field(default_factory=list)
 
 class PlaceNearby(BaseModel):
     distance_m: float
@@ -45,6 +53,10 @@ class PlaceSearchResult(BaseModel):
     city: str | None = None
     region: str | None = None
     country_code: str | None = None
+    # Curated cuisine tags surfaced on consumer search rows so the
+    # result card can render cuisine chips alongside the halal
+    # badges. Empty list = no cuisines tagged yet.
+    cuisine_types: list[Cuisine] = Field(default_factory=list)
 
     # Embedded halal profile so consumer-site search results can render
     # validation tier + menu posture badges without an N+1 fetch per
@@ -105,6 +117,8 @@ class PlaceDetail(BaseModel):
     country_code: str | None = None
     postal_code: str | None = None
     timezone: str | None = None
+    # Curated cuisine tags. See PlaceSearchResult.cuisine_types.
+    cuisine_types: list[Cuisine] = Field(default_factory=list)
     # We intentionally skip a ``created_at`` field: the CREATED row on
     # ``place_events`` carries ingest time + actor, so a top-level
     # created_at would duplicate that with strictly less information.
@@ -163,6 +177,35 @@ class HalalProfileEmbed(BaseModel):
 # Resolve the forward reference to HalalProfileEmbed declared above.
 PlaceDetail.model_rebuild()
 PlaceSearchResult.model_rebuild()
+
+
+class OwnedPlaceUpdate(BaseModel):
+    """PATCH body for ``PATCH /me/places/{place_id}``.
+
+    Today the only patchable field is ``cuisine_types`` — the curated
+    cuisine tags surfaced on consumer search rows. Identity columns
+    (name / address / lat / lng / city / country) stay admin-only,
+    since those are the canonical address record populated by Google
+    ingest. We intentionally use a non-Optional list (rather than a
+    PATCH-style ``cuisine_types | None`` partial) — submitting the
+    payload always replaces the full set, including with ``[]`` to
+    clear all tags. Simpler model, no merge ambiguity.
+
+    Empty list is allowed. Duplicates in the input are tolerated and
+    deduped server-side. Each entry must be a member of the curated
+    ``Cuisine`` enum; unknown values 422 with FastAPI's standard
+    validation error.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    cuisine_types: list[Cuisine] = Field(
+        default_factory=list,
+        description=(
+            "Replace the place's full cuisine tag set. Pass [] to "
+            "clear. Duplicates are deduped."
+        ),
+    )
 
 
 class OwnedPlaceRead(BaseModel):

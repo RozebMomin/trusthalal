@@ -309,6 +309,11 @@ class MyHalalClaimPlaceSummary(BaseModel):
     place name + address line without a second fetch. Stays slim
     so the wire shape doesn't carry geom/timezone/etc the UI
     doesn't need.
+
+    ``cuisine_types`` is included so the claim editor's cuisine
+    multi-select can prefill from the same payload it already
+    fetches — no separate GET /places/{id} round-trip just to seed
+    the picker.
     """
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
@@ -319,6 +324,7 @@ class MyHalalClaimPlaceSummary(BaseModel):
     city: Optional[str] = None
     region: Optional[str] = None
     country_code: Optional[str] = None
+    cuisine_types: list[str] = Field(default_factory=list)
 
 
 class MyHalalClaimOrgSummary(BaseModel):
