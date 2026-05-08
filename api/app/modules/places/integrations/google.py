@@ -107,10 +107,21 @@ _GOOGLE_TYPE_TO_CUISINE: dict[str, Cuisine] = {
     "mexican_restaurant": Cuisine.MEXICAN,
     "barbecue_restaurant": Cuisine.BBQ,
     "hamburger_restaurant": Cuisine.BURGERS,
-    "fast_food_restaurant": Cuisine.BURGERS,  # closest curated bucket
+    # NOTE: ``fast_food_restaurant`` is intentionally NOT mapped here.
+    # Google attaches it to anything fast-casual regardless of actual
+    # cuisine — halal sandwich shops, wing joints, and delis routinely
+    # pick it up alongside their real category. Mapping it to BURGERS
+    # was the original v1 behavior; it produced incorrect tags often
+    # enough to roll back. The more specific Google types
+    # (``hamburger_restaurant``, ``sandwich_shop``,
+    # ``chicken_wings_restaurant``, etc.) cover the actual cases.
     "steak_house": Cuisine.STEAKHOUSE,
     "seafood_restaurant": Cuisine.SEAFOOD,
     # Format / generic
+    "sandwich_shop": Cuisine.SANDWICHES,
+    "deli": Cuisine.DELI,
+    "chicken_wings_restaurant": Cuisine.WINGS,
+    "hot_dog_restaurant": Cuisine.HOT_DOGS,
     "bakery": Cuisine.BAKERY,
     "bagel_shop": Cuisine.BAKERY,
     "cafe": Cuisine.CAFE,

@@ -69,6 +69,10 @@ export type Cuisine =
   | "BBQ"
   | "STEAKHOUSE"
   | "SEAFOOD"
+  | "SANDWICHES"
+  | "DELI"
+  | "WINGS"
+  | "HOT_DOGS"
   | "BREAKFAST"
   | "BAKERY"
   | "DESSERTS"
@@ -123,6 +127,10 @@ export const CUISINE_LABELS: Readonly<Record<Cuisine, string>> = {
   BBQ: "BBQ",
   STEAKHOUSE: "Steakhouse",
   SEAFOOD: "Seafood",
+  SANDWICHES: "Sandwiches",
+  DELI: "Deli",
+  WINGS: "Wings",
+  HOT_DOGS: "Hot dogs",
   BREAKFAST: "Breakfast",
   BAKERY: "Bakery",
   DESSERTS: "Desserts",
@@ -175,6 +183,10 @@ export const CUISINE_OPTIONS: ReadonlyArray<Cuisine> = [
   "BBQ",
   "STEAKHOUSE",
   "SEAFOOD",
+  "SANDWICHES",
+  "DELI",
+  "WINGS",
+  "HOT_DOGS",
   "BREAKFAST",
   "BAKERY",
   "DESSERTS",
