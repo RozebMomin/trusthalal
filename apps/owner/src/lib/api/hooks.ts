@@ -293,6 +293,34 @@ export type PlaceSearchResult = {
   country_code: string | null;
 };
 
+/**
+ * GET /places/{id} response — the full public place detail. Used by
+ * the owner-portal /my-places/[id] surface so cuisines + photos can
+ * render alongside the canonical address fields without an extra
+ * round-trip. Mirrors ``PlaceDetail`` server-side.
+ *
+ * Hand-typed for now; replace with codegen on the next pass.
+ */
+export type PlaceDetail = {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  is_deleted: boolean;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+  postal_code: string | null;
+  timezone: string | null;
+  cuisine_types: Cuisine[];
+  updated_at: string | null;
+  /** Owner + consumer uploaded photos, hero-first then newest-first. */
+  photos: PlacePhotoRead[];
+  /** URL of the photo with is_hero=true, or null when no hero set. */
+  hero_photo_url: string | null;
+};
+
 /** Slim shape returned by GET /places/google/autocomplete. */
 export type GoogleAutocompletePrediction = {
   google_place_id: string;
@@ -410,6 +438,9 @@ const qk = {
   placesSearch: (q: string) => ["places", "search", q] as const,
   placesGoogleAutocomplete: (q: string) =>
     ["places", "google", "autocomplete", q] as const,
+  placePhotos: (placeId: string) =>
+    ["places", placeId, "photos"] as const,
+  placeDetail: (placeId: string) => ["places", placeId, "detail"] as const,
 } as const;
 
 /**
@@ -909,6 +940,48 @@ export type MyOwnedPlacePatch = {
   cuisine_types: Cuisine[];
 };
 
+/**
+ * Source attribution for an uploaded place photo. Drives the
+ * "Owner" / "Customer" badge on the gallery and the hero-eligibility
+ * gate (only OWNER source photos are auto-considered for hero, but
+ * an owner can promote any photo on their place via PATCH).
+ */
+export type PlacePhotoSource = "OWNER" | "CONSUMER";
+
+/**
+ * Photo row as it lands on the consumer-facing place gallery and
+ * the owner editor's photos section. Mirrors ``PlacePhotoRead``
+ * server-side. ``url`` is the public Supabase Storage URL — render
+ * directly in an ``<img>``, no signing.
+ */
+export type PlacePhotoRead = {
+  id: string;
+  place_id: string;
+  url: string;
+  source: PlacePhotoSource;
+  width_px: number | null;
+  height_px: number | null;
+  caption: string | null;
+  is_hero: boolean;
+  uploaded_by_display_name: string | null;
+  created_at: string;
+};
+
+/**
+ * PATCH body for ``/places/{place_id}/photos/{photo_id}``. Two
+ * independently optional fields. Server enforces the auth tiers
+ * (hero → owner-only, caption → uploader-or-owner).
+ *
+ * Keep both fields ``| null`` rather than ``| undefined`` so the
+ * type round-trips through JSON serialization without losing the
+ * "explicitly clear caption" intent (sending null clears, sending
+ * undefined / omitting leaves unchanged).
+ */
+export type PlacePhotoPatch = {
+  is_hero?: boolean | null;
+  caption?: string | null;
+};
+
 /** Org fields embedded inside MyHalalClaimRead. */
 export type MyHalalClaimOrgSummary = {
   id: string;
@@ -1026,14 +1099,141 @@ export function usePatchMyOwnedPlace() {
         method: "PATCH",
         json: args.patch,
       }),
-    onSuccess: () => {
+    onSuccess: (_data, args) => {
       // Claim caches embed cuisine_types via MyHalalClaimPlaceSummary,
       // so the editor's cuisine picker stays in sync after a save.
       void qc.invalidateQueries({ queryKey: qk.myHalalClaims() });
       void qc.invalidateQueries({ queryKey: qk.myOwnedPlaces() });
+      // /my-places/[id] now reads cuisines from PlaceDetail so its
+      // cache needs to refresh too.
+      void qc.invalidateQueries({ queryKey: qk.placeDetail(args.placeId) });
     },
   });
 }
+
+// ---- Place photos ---------------------------------------------------------
+//
+// Public + auth'd surface for the place_photos table. The owner UI on
+// /my-halal-claims/[id] uses these to render the gallery section + drive
+// upload / hero / delete flows. Same hooks back the future consumer
+// gallery in PR B.
+
+/**
+ * GET /places/{place_id} — public place detail.
+ *
+ * Powers the /my-places/[id] surface in the owner portal. Public
+ * endpoint so no special auth gate; the page itself enforces "you
+ * own this place" by 404'ing the route in the UI when the place_id
+ * isn't in the caller's owned list.
+ */
+export function usePlaceDetail(placeId: string | null | undefined) {
+  return useQuery<PlaceDetail>({
+    queryKey: qk.placeDetail(placeId ?? "__nil__"),
+    queryFn: () => apiFetch<PlaceDetail>(`/places/${placeId}`),
+    enabled: typeof placeId === "string" && placeId.length > 0,
+    staleTime: 30 * 1000,
+  });
+}
+
+/** GET /places/{place_id}/photos — public list, hero-first. */
+export function usePlacePhotos(placeId: string | null | undefined) {
+  return useQuery<PlacePhotoRead[]>({
+    queryKey: qk.placePhotos(placeId ?? "__nil__"),
+    queryFn: () =>
+      apiFetch<PlacePhotoRead[]>(`/places/${placeId}/photos`),
+    enabled: typeof placeId === "string" && placeId.length > 0,
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * POST /places/{place_id}/photos — upload a single photo.
+ *
+ * Multipart body. Server derives source from the caller's
+ * relationship to the place (active OWNER_ADMIN/MANAGER → OWNER,
+ * else CONSUMER). On success invalidates the place's photo list
+ * cache so the gallery picks up the new row. We don't optimistically
+ * insert — the server may reject (SafeSearch, cap, content type)
+ * and an optimistic UI would have to roll back, which is more
+ * complexity than alpha needs.
+ *
+ * Surface the SafeSearch reject distinctly: it ships as a 422 with
+ * code ``PLACE_PHOTO_INAPPROPRIATE_CONTENT``. The owner UI maps
+ * that to a friendly "this photo doesn't meet our content
+ * guidelines" toast, separate from the generic "upload failed"
+ * path.
+ */
+export function useUploadPlacePhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { placeId: string; file: File }) => {
+      const fd = new FormData();
+      fd.append("file", args.file);
+      return apiFetch<PlacePhotoRead>(
+        `/places/${args.placeId}/photos`,
+        { method: "POST", formData: fd },
+      );
+    },
+    onSuccess: (_data, args) => {
+      void qc.invalidateQueries({ queryKey: qk.placePhotos(args.placeId) });
+      // PlaceDetail embeds the gallery + hero, so detail caches that
+      // surface this place become stale. Invalidating the broad
+      // ["places"] prefix is too aggressive; we don't have a per-
+      // place detail cache key in the owner app yet. Future PR B
+      // (consumer gallery) will add ``placeDetail`` to qk and we
+      // can target it here.
+    },
+  });
+}
+
+/**
+ * PATCH /places/{place_id}/photos/{photo_id} — set hero or edit
+ * caption. Server enforces the auth tiers (hero → owner-only,
+ * caption → uploader-or-owner).
+ */
+export function usePatchPlacePhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      placeId: string;
+      photoId: string;
+      patch: PlacePhotoPatch;
+    }) =>
+      apiFetch<PlacePhotoRead>(
+        `/places/${args.placeId}/photos/${args.photoId}`,
+        { method: "PATCH", json: args.patch },
+      ),
+    onSuccess: (_data, args) => {
+      void qc.invalidateQueries({ queryKey: qk.placePhotos(args.placeId) });
+      // The hero photo lives on PlaceDetail.hero_photo_url, so the
+      // detail cache for this place needs to refresh too.
+      void qc.invalidateQueries({ queryKey: qk.placeDetail(args.placeId) });
+    },
+  });
+}
+
+/**
+ * DELETE /places/{place_id}/photos/{photo_id} — soft delete.
+ * Server enforces auth (uploader-or-owner-or-admin). Returns 204
+ * on success.
+ */
+export function useDeletePlacePhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { placeId: string; photoId: string }) =>
+      apiFetch<void>(
+        `/places/${args.placeId}/photos/${args.photoId}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: (_data, args) => {
+      void qc.invalidateQueries({ queryKey: qk.placePhotos(args.placeId) });
+      // The hero photo lives on PlaceDetail.hero_photo_url, so the
+      // detail cache for this place needs to refresh too.
+      void qc.invalidateQueries({ queryKey: qk.placeDetail(args.placeId) });
+    },
+  });
+}
+
 
 /**
  * Audit timeline for a single claim. Powers the 'Activity' section

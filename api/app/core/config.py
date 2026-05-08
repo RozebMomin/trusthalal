@@ -128,6 +128,14 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
     SUPABASE_STORAGE_BUCKET: str = "evidence"
 
+    # Public-readable bucket for owner + consumer uploaded place
+    # photos. Configured public in the Supabase dashboard so the
+    # consumer site can render images via the bucket's public URL
+    # without signing every request — search-result thumbnails would
+    # defeat any CDN cache otherwise. The service-role key still
+    # gates writes; only this server can put bytes in.
+    SUPABASE_PHOTOS_BUCKET: str = "place-photos"
+
     # ------------------------------------------------------------------
     # Pydantic settings config
     # ------------------------------------------------------------------

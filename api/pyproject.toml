@@ -1,6 +1,6 @@
 [project]
 name = "trusthalal-api"
-version = "0.2.0"
+version = "0.4.0"
 description = "The Official API of the TrustHalal"
 authors = [
     {name = "Rozeb Momin",email = "rozebm@gmail.com"}
@@ -20,7 +20,16 @@ dependencies = [
     "argon2-cffi (>=23.1.0,<24.0.0)",
     "python-multipart (>=0.0.20,<0.1.0)",
     "slowapi (>=0.1.9,<0.2.0)",
-    "sentry-sdk[fastapi] (>=2.18.0,<3.0.0)"
+    "sentry-sdk[fastapi] (>=2.18.0,<3.0.0)",
+    # Image processing for the place-photos pipeline. ``Pillow`` does
+    # the EXIF strip + dimension extraction + (when needed) format
+    # conversion. ``pillow-heif`` registers the HEIC opener so iPhone
+    # uploads round-trip through Pillow without a separate codec
+    # dance. ``google-cloud-vision`` is the SafeSearch client used to
+    # block explicit content before bytes ever reach the bucket.
+    "pillow (>=11.0.0,<12.0.0)",
+    "pillow-heif (>=0.18.0,<1.0.0)",
+    "google-cloud-vision (>=3.8.0,<4.0.0)"
 ]
 
 [tool.poetry]

@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
 
-from app.modules.places.enums import Cuisine
+from app.modules.places.enums import Cuisine, PlacePhotoSource
 
 
 class PlaceCreate(BaseModel):
@@ -57,6 +57,13 @@ class PlaceSearchResult(BaseModel):
     # result card can render cuisine chips alongside the halal
     # badges. Empty list = no cuisines tagged yet.
     cuisine_types: list[Cuisine] = Field(default_factory=list)
+
+    # Hero photo URL for the search-result thumbnail. Null when no
+    # owner has marked a photo as hero (or when no photos exist
+    # yet). Search list responses deliberately don't carry the full
+    # photos array — that'd bloat the payload for every result row;
+    # the detail page is where the gallery lives.
+    hero_photo_url: str | None = None
 
     # Embedded halal profile so consumer-site search results can render
     # validation tier + menu posture badges without an N+1 fetch per
@@ -124,6 +131,16 @@ class PlaceDetail(BaseModel):
     # created_at would duplicate that with strictly less information.
     updated_at: datetime | None = None
 
+    # Place photo gallery — owner + consumer uploads. Hero photo
+    # comes first (sorted server-side via the
+    # ``PlacePhoto.is_hero.desc()`` order on the relationship),
+    # followed by the rest in newest-first order. Empty list when
+    # no photos have been uploaded. ``hero_photo_url`` is the
+    # convenience shortcut used by surfaces that only need the
+    # cover image (search-result cards). Null when no hero is set.
+    photos: list["PlacePhotoRead"] = Field(default_factory=list)
+    hero_photo_url: str | None = None
+
     # Embedded halal profile (Phase 4 of the halal-trust v2 rebuild).
     # Null when:
     #   * The place has no approved halal claim yet, OR
@@ -172,6 +189,81 @@ class HalalProfileEmbed(BaseModel):
     expires_at: datetime | None
     revoked_at: datetime | None
     updated_at: datetime
+
+
+class PlacePhotoRead(BaseModel):
+    """Owner- or consumer-uploaded photo as it lands on the
+    consumer-facing place detail.
+
+    ``url`` is the public Supabase Storage URL — the bucket is
+    configured public-readable so the consumer can ``<img>`` it
+    directly without a signing round-trip. Server fills this in
+    by combining the storage path with the bucket's public URL
+    template.
+
+    ``uploaded_by_display_name`` is included so the gallery can
+    render a "by Khan Halal" credit under each photo without an
+    extra fetch. Null when the uploading user has been deleted
+    (FK ON DELETE SET NULL leaves the photo intact, which is the
+    right call — the photo's about the place, not the person).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    place_id: UUID
+    url: str
+    source: PlacePhotoSource
+    width_px: int | None = None
+    height_px: int | None = None
+    caption: str | None = None
+    is_hero: bool = False
+    uploaded_by_display_name: str | None = None
+    created_at: datetime
+
+
+class PlacePhotoUpdate(BaseModel):
+    """PATCH body for ``PATCH /places/{place_id}/photos/{photo_id}``.
+
+    Two independently-optional fields:
+
+      * ``is_hero`` — owner-only mutation. Setting to true marks
+        this photo the hero and atomically clears any previous
+        hero on the same place (server enforces via DB partial
+        unique index). Setting to false unmarks; the place ends
+        up with no hero unless another is set.
+      * ``caption`` — uploader-or-owner can edit. Pass an empty
+        string to clear; pass ``null`` (or omit) to leave
+        unchanged. Pydantic ``Field(default=...)`` with a sentinel
+        gives us the omit-vs-null distinction.
+
+    Owner attempting to set ``is_hero`` on a CONSUMER-source photo
+    is allowed — owners curate the gallery; consumer photos can
+    be promoted to hero if the owner thinks they're great. The
+    "OWNER source" restriction would prevent the use case of the
+    owner saying "this customer photo is the best shot of the
+    dining room, make it the hero."
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    is_hero: bool | None = Field(
+        default=None,
+        description=(
+            "Mark or unmark this photo as the place's hero. Only "
+            "owners (or admins) can change this; consumer callers "
+            "get a 403."
+        ),
+    )
+    caption: str | None = Field(
+        default=None,
+        max_length=500,
+        description=(
+            "Free-text caption. Empty string clears the existing "
+            "caption; null / omitted leaves it unchanged. Max 500 "
+            "chars."
+        ),
+    )
 
 
 # Resolve the forward reference to HalalProfileEmbed declared above.
