@@ -15,6 +15,7 @@ from app.modules.halal_profiles.enums import (
     SlaughterMethod,
     ValidationTier,
 )
+from app.modules.places.enums import Cuisine
 from app.modules.halal_profiles.repo import get_public_halal_profile
 from app.modules.halal_profiles.schemas import HalalProfileRead
 from app.modules.places.integrations.google import (
@@ -444,6 +445,19 @@ def search_places(
     has_certification: bool | None = Query(default=None),
     no_pork: bool | None = Query(default=None),
     no_alcohol_served: bool | None = Query(default=None),
+    # Multi-value: ?cuisine=PAKISTANI&cuisine=INDIAN. Result is the
+    # union — places matching ANY of the requested cuisines (overlap),
+    # not the intersection. That matches how users think about cuisine
+    # filters ("show me Pakistani OR Indian, not Pakistani-AND-Indian
+    # fusion places").
+    cuisine: list[Cuisine] | None = Query(
+        default=None,
+        description=(
+            "Multi-value cuisine filter. Results match any of the "
+            "passed cuisines (overlap). Pass the param multiple times "
+            "to broaden the match. Empty / missing = no cuisine filter."
+        ),
+    ),
     db: Session = Depends(get_db),
 ) -> list[PlaceSearchResult]:
     """Browse the public places catalog.
@@ -483,6 +497,7 @@ def search_places(
         no_alcohol_served=no_alcohol_served,
     )
 
+    cuisines = tuple(cuisine or ())
     if has_text:
         rows = search_by_text(
             db,
@@ -490,6 +505,7 @@ def search_places(
             limit=limit,
             offset=offset,
             halal_filters=halal_filters,
+            cuisines=cuisines,
         )
     elif has_geo:
         rows = search_nearby(
@@ -500,6 +516,7 @@ def search_places(
             limit=limit,
             offset=offset,
             halal_filters=halal_filters,
+            cuisines=cuisines,
         )
     else:
         raise BadRequestError(
@@ -523,6 +540,7 @@ def search_places(
                 "city": place.city,
                 "region": place.region,
                 "country_code": place.country_code,
+                "cuisine_types": list(place.cuisine_types or []),
                 "halal_profile": (
                     HalalProfileEmbed.model_validate(profile)
                     if profile is not None

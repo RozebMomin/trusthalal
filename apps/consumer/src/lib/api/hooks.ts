@@ -109,6 +109,71 @@ export type SlaughterMethod = "ZABIHAH" | "MACHINE" | "NOT_SERVED";
 export type DisputeState = "NONE" | "DISPUTED" | "RECONCILING";
 
 /**
+ * Curated cuisine taxonomy. Mirrors the ``Cuisine`` enum on the API.
+ * Surfaced on every place via ``cuisine_types`` (multi-valued) and
+ * filterable via the multi-value ``cuisine`` query param on
+ * GET /places. Display labels live in the UI layer (per-app cuisine
+ * picker carries its own short-label map) so the API stays neutral
+ * about how each surface chooses to render the value.
+ */
+export type Cuisine =
+  // South Asian
+  | "PAKISTANI"
+  | "INDIAN"
+  | "BANGLADESHI"
+  | "SRI_LANKAN"
+  | "NEPALI"
+  // Middle Eastern
+  | "LEBANESE"
+  | "TURKISH"
+  | "YEMENI"
+  | "SYRIAN"
+  | "PALESTINIAN"
+  | "IRAQI"
+  | "PERSIAN"
+  | "EGYPTIAN"
+  // North African
+  | "MOROCCAN"
+  | "TUNISIAN"
+  | "ALGERIAN"
+  // East African
+  | "SOMALI"
+  | "ETHIOPIAN"
+  | "ERITREAN"
+  // Central Asian
+  | "AFGHAN"
+  | "UZBEK"
+  // Southeast Asian
+  | "INDONESIAN"
+  | "MALAYSIAN"
+  | "FILIPINO"
+  | "THAI"
+  // East Asian
+  | "CHINESE"
+  | "KOREAN"
+  | "JAPANESE"
+  // European
+  | "MEDITERRANEAN"
+  | "GREEK"
+  | "ITALIAN"
+  | "SPANISH"
+  // Americas
+  | "AMERICAN"
+  | "MEXICAN"
+  | "CARIBBEAN"
+  | "SOUL_FOOD"
+  // Format / generic
+  | "BURGERS"
+  | "PIZZA"
+  | "BBQ"
+  | "STEAKHOUSE"
+  | "SEAFOOD"
+  | "BREAKFAST"
+  | "BAKERY"
+  | "DESSERTS"
+  | "CAFE";
+
+/**
  * Embedded halal profile as it lands inside a search result or place
  * detail. Mirrors ``HalalProfileEmbed`` server-side. Null when the
  * place has no approved claim or the profile was revoked.
@@ -146,6 +211,10 @@ export type PlaceSearchResult = {
   city: string | null;
   region: string | null;
   country_code: string | null;
+  /** Curated cuisine tags. Empty array = untagged (the place still
+   * appears in unfiltered searches; only drops out when the consumer
+   * is filtering on cuisine and this place doesn't match). */
+  cuisine_types: Cuisine[];
   /** Embedded halal profile — null when the place has no approved
    * claim or the profile was revoked. The search result row renders
    * a "no halal profile yet" affordance in that case. */
@@ -169,6 +238,8 @@ export type PlaceDetail = {
   country_code: string | null;
   postal_code: string | null;
   timezone: string | null;
+  /** Curated cuisine tags. See PlaceSearchResult.cuisine_types. */
+  cuisine_types: Cuisine[];
   updated_at: string | null;
   halal_profile: HalalProfileEmbed | null;
 };
@@ -242,6 +313,9 @@ export type SearchPlacesParams = {
   has_certification?: boolean;
   no_pork?: boolean;
   no_alcohol_served?: boolean;
+  /** Multi-value cuisine filter. Server returns places matching ANY
+   *  of the cuisines (overlap). Empty / missing = no cuisine filter. */
+  cuisines?: Cuisine[];
 };
 
 // ---------------------------------------------------------------------------
@@ -405,6 +479,10 @@ export function useSearchPlaces(params: SearchPlacesParams) {
           has_certification: params.has_certification,
           no_pork: params.no_pork,
           no_alcohol_served: params.no_alcohol_served,
+          // Multi-value cuisine filter — encoded as repeated keys
+          // (``?cuisine=PAKISTANI&cuisine=INDIAN``) by the array-aware
+          // buildUrl in client.ts. Empty array drops the param.
+          cuisine: params.cuisines,
         },
       }),
     enabled,

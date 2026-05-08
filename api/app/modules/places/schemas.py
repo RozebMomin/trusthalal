@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
 
+from app.modules.places.enums import Cuisine
+
 
 class PlaceCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -29,6 +31,12 @@ class PlaceRead(BaseModel):
     region: str | None = None
     country_code: str | None = None
     postal_code: str | None = None
+    # Curated cuisine tags. Owner-edited from the halal-claim editor;
+    # auto-populated on Google Places New ingest where ``primaryType``
+    # maps cleanly. Empty list = untagged (the consumer surface
+    # renders these places fine, they just don't match cuisine
+    # filters).
+    cuisine_types: list[Cuisine] = Field(default_factory=list)
 
 class PlaceNearby(BaseModel):
     distance_m: float
@@ -45,6 +53,10 @@ class PlaceSearchResult(BaseModel):
     city: str | None = None
     region: str | None = None
     country_code: str | None = None
+    # Curated cuisine tags surfaced on consumer search rows so the
+    # result card can render cuisine chips alongside the halal
+    # badges. Empty list = no cuisines tagged yet.
+    cuisine_types: list[Cuisine] = Field(default_factory=list)
 
     # Embedded halal profile so consumer-site search results can render
     # validation tier + menu posture badges without an N+1 fetch per
@@ -105,6 +117,8 @@ class PlaceDetail(BaseModel):
     country_code: str | None = None
     postal_code: str | None = None
     timezone: str | None = None
+    # Curated cuisine tags. See PlaceSearchResult.cuisine_types.
+    cuisine_types: list[Cuisine] = Field(default_factory=list)
     # We intentionally skip a ``created_at`` field: the CREATED row on
     # ``place_events`` carries ingest time + actor, so a top-level
     # created_at would duplicate that with strictly less information.
