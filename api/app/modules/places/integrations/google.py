@@ -17,8 +17,10 @@ structured data to derive our canonical fields.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Iterable
+
+from app.modules.places.enums import Cuisine
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +45,10 @@ class CanonicalPlaceFields:
     All fields are optional so that a partial payload still yields a valid
     object — callers are responsible for enforcing presence of fields they
     consider required (e.g. ``name``, ``lat``, ``lng``).
+
+    ``cuisine_types`` is a list (possibly empty) rather than ``None`` because
+    the underlying column is also non-null with an empty default — the
+    ingest path always has a concrete value to write.
     """
 
     name: str | None
@@ -54,6 +60,102 @@ class CanonicalPlaceFields:
     country_code: str | None
     postal_code: str | None
     timezone: str | None
+    # Curated cuisines derived from Google's ``primaryType`` (Places API
+    # New) or the legacy ``types`` array. Empty list = no Google type
+    # mapped to a known cuisine — the place still ingests fine, just
+    # without auto-tags. See ``_GOOGLE_TYPE_TO_CUISINE`` below.
+    cuisine_types: list[Cuisine] = field(default_factory=list)
+
+
+# Map Google Place types (from the New API ``primaryType`` and the legacy
+# ``types`` array) to our curated ``Cuisine`` enum. Google's type vocabulary
+# (Table A in their docs) covers the obvious "X_restaurant" cases — anything
+# Google doesn't expose with that level of granularity (Pakistani, Yemeni,
+# Somali, etc.) stays auto-untagged and waits for an owner to set it
+# manually from the claim editor. That's an explicit choice: better to
+# under-tag than to mis-tag with a too-broad cuisine.
+#
+# A single Google place can carry multiple matching types (e.g. a Greek
+# restaurant might surface ``["greek_restaurant", "mediterranean_restaurant",
+# "restaurant"]``); we extract every matching cuisine and dedupe — the
+# column is multi-valued precisely so we don't have to pick a winner.
+_GOOGLE_TYPE_TO_CUISINE: dict[str, Cuisine] = {
+    # South / Central Asian — Google has limited coverage here, but
+    # ``afghani_restaurant`` and ``indian_restaurant`` exist in Table A.
+    "afghani_restaurant": Cuisine.AFGHAN,
+    "indian_restaurant": Cuisine.INDIAN,
+    # East Asian
+    "chinese_restaurant": Cuisine.CHINESE,
+    "japanese_restaurant": Cuisine.JAPANESE,
+    "korean_restaurant": Cuisine.KOREAN,
+    "ramen_restaurant": Cuisine.JAPANESE,
+    "sushi_restaurant": Cuisine.JAPANESE,
+    # Southeast Asian
+    "indonesian_restaurant": Cuisine.INDONESIAN,
+    "thai_restaurant": Cuisine.THAI,
+    # Middle Eastern
+    "lebanese_restaurant": Cuisine.LEBANESE,
+    "turkish_restaurant": Cuisine.TURKISH,
+    # Mediterranean / European
+    "mediterranean_restaurant": Cuisine.MEDITERRANEAN,
+    "greek_restaurant": Cuisine.GREEK,
+    "italian_restaurant": Cuisine.ITALIAN,
+    "spanish_restaurant": Cuisine.SPANISH,
+    "pizza_restaurant": Cuisine.PIZZA,
+    # Americas
+    "american_restaurant": Cuisine.AMERICAN,
+    "mexican_restaurant": Cuisine.MEXICAN,
+    "barbecue_restaurant": Cuisine.BBQ,
+    "hamburger_restaurant": Cuisine.BURGERS,
+    "fast_food_restaurant": Cuisine.BURGERS,  # closest curated bucket
+    "steak_house": Cuisine.STEAKHOUSE,
+    "seafood_restaurant": Cuisine.SEAFOOD,
+    # Format / generic
+    "bakery": Cuisine.BAKERY,
+    "bagel_shop": Cuisine.BAKERY,
+    "cafe": Cuisine.CAFE,
+    "cafeteria": Cuisine.CAFE,
+    "coffee_shop": Cuisine.CAFE,
+    "tea_house": Cuisine.CAFE,
+    "breakfast_restaurant": Cuisine.BREAKFAST,
+    "brunch_restaurant": Cuisine.BREAKFAST,
+    "diner": Cuisine.AMERICAN,
+    "dessert_restaurant": Cuisine.DESSERTS,
+    "dessert_shop": Cuisine.DESSERTS,
+    "ice_cream_shop": Cuisine.DESSERTS,
+    "donut_shop": Cuisine.DESSERTS,
+    "confectionery": Cuisine.DESSERTS,
+}
+
+
+def _extract_cuisines(root: dict[str, Any]) -> list[Cuisine]:
+    """Pull cuisine tags from Google's primaryType + types vocabulary.
+
+    New API: ``primaryType`` is a single string (most specific category
+    Google picked). ``types`` is a parallel list with the broader bucket.
+    Legacy API: only ``types`` is populated (an array). We read both and
+    dedupe so a single payload can yield multiple cuisines (e.g. a Greek
+    place tagged greek + mediterranean).
+    """
+    candidates: list[str] = []
+    primary = root.get("primaryType")
+    if isinstance(primary, str) and primary:
+        candidates.append(primary)
+    raw_types = root.get("types")
+    if isinstance(raw_types, list):
+        for t in raw_types:
+            if isinstance(t, str) and t:
+                candidates.append(t)
+
+    out: list[Cuisine] = []
+    seen: set[Cuisine] = set()
+    for raw in candidates:
+        cuisine = _GOOGLE_TYPE_TO_CUISINE.get(raw)
+        if cuisine is None or cuisine in seen:
+            continue
+        seen.add(cuisine)
+        out.append(cuisine)
+    return out
 
 
 # Countries where Google populates ``postal_town`` instead of ``locality``
@@ -247,6 +349,7 @@ def extract_from_google_place(payload: dict[str, Any]) -> CanonicalPlaceFields:
         country_code=country_code,
         postal_code=postal_code if isinstance(postal_code, str) else None,
         timezone=_extract_timezone(root),
+        cuisine_types=_extract_cuisines(root),
     )
 
 

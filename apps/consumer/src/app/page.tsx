@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import {
+  type Cuisine,
   type MenuPosture,
   type PlaceSearchResult,
   type SearchPlacesParams,
@@ -45,6 +46,57 @@ import {
   useReverseGeocode,
   useSearchPlaces,
 } from "@/lib/api/hooks";
+
+// Set of valid cuisine values used to validate URL query params.
+// Anything outside this set gets dropped on parse so a stale link
+// doesn't pin the user on a tag the API will 422 on.
+const VALID_CUISINES: ReadonlySet<string> = new Set<Cuisine>([
+  "PAKISTANI",
+  "INDIAN",
+  "BANGLADESHI",
+  "SRI_LANKAN",
+  "NEPALI",
+  "LEBANESE",
+  "TURKISH",
+  "YEMENI",
+  "SYRIAN",
+  "PALESTINIAN",
+  "IRAQI",
+  "PERSIAN",
+  "EGYPTIAN",
+  "MOROCCAN",
+  "TUNISIAN",
+  "ALGERIAN",
+  "SOMALI",
+  "ETHIOPIAN",
+  "ERITREAN",
+  "AFGHAN",
+  "UZBEK",
+  "INDONESIAN",
+  "MALAYSIAN",
+  "FILIPINO",
+  "THAI",
+  "CHINESE",
+  "KOREAN",
+  "JAPANESE",
+  "MEDITERRANEAN",
+  "GREEK",
+  "ITALIAN",
+  "SPANISH",
+  "AMERICAN",
+  "MEXICAN",
+  "CARIBBEAN",
+  "SOUL_FOOD",
+  "BURGERS",
+  "PIZZA",
+  "BBQ",
+  "STEAKHOUSE",
+  "SEAFOOD",
+  "BREAKFAST",
+  "BAKERY",
+  "DESSERTS",
+  "CAFE",
+] satisfies Cuisine[]);
 import { useMyPreferences } from "@/lib/api/preferences";
 import { haversineDistanceMeters } from "@/lib/geo";
 
@@ -475,6 +527,15 @@ function parseSearchParams(p: URLSearchParams | null): SearchPlacesParams {
   if (p.get("no_pork") === "true") out.no_pork = true;
   if (p.get("no_alcohol_served") === "true") out.no_alcohol_served = true;
   if (p.get("has_certification") === "true") out.has_certification = true;
+  // Multi-value cuisine filter — repeated keys (?cuisine=A&cuisine=B).
+  // Drop unknown values rather than 422ing the user's first request.
+  const rawCuisines = p.getAll("cuisine");
+  if (rawCuisines.length > 0) {
+    const filtered = rawCuisines.filter((c): c is Cuisine =>
+      VALID_CUISINES.has(c),
+    );
+    if (filtered.length > 0) out.cuisines = filtered;
+  }
   // Geo trio: only commit if all three round-trip cleanly. Partial
   // coords would 400 on the API and a stale lat without lng makes
   // for a confusing back-button restoration.
@@ -501,6 +562,11 @@ function stringifySearchParams(params: SearchPlacesParams): string {
     u.set("no_alcohol_served", "true");
   if (params.has_certification === true)
     u.set("has_certification", "true");
+  // Cuisines as repeated keys (?cuisine=A&cuisine=B). Empty / missing
+  // drops the param entirely so an empty filter doesn't bloat the URL.
+  if (params.cuisines && params.cuisines.length > 0) {
+    for (const c of params.cuisines) u.append("cuisine", c);
+  }
   // Geo trio — same all-or-nothing posture as the parser. Truncate
   // lat/lng to 5 decimals (~1.1m precision, far below the 1-mile
   // smallest radius) so the URL stays short and shareable.

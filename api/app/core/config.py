@@ -84,9 +84,21 @@ class Settings(BaseSettings):
     # separate, domain-restricted key.
     GOOGLE_MAPS_API_KEY: str | None = None
     # Allow swapping endpoint for tests / regional mirrors.
+    # Legacy Place Details endpoint — kept for any env still on
+    # `GOOGLE_PLACES_USE_NEW=false`. The new endpoint below is the
+    # default going forward; legacy stays addressable for rollback.
     GOOGLE_PLACES_DETAILS_URL: str = (
         "https://maps.googleapis.com/maps/api/place/details/json"
     )
+    # Places API New — per-place URL is templated with the place ID:
+    # ``{base}/{place_id}``. Field mask is sent via X-Goog-FieldMask
+    # header by the fetcher. See:
+    # https://developers.google.com/maps/documentation/places/web-service/place-details
+    GOOGLE_PLACES_DETAILS_NEW_URL: str = "https://places.googleapis.com/v1/places"
+    # Toggle while we burn in the New API in production. Defaults to
+    # the new endpoint; flip to false in env to fall back to legacy
+    # without a redeploy if the new path misbehaves.
+    GOOGLE_PLACES_USE_NEW: bool = True
     # Autocomplete endpoint for the owner-portal claim flow's "search
     # Google" fallback. Hit server-side via a thin proxy so the browser
     # key never needs to be exposed on the owner origin.

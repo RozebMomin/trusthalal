@@ -179,6 +179,35 @@ PlaceDetail.model_rebuild()
 PlaceSearchResult.model_rebuild()
 
 
+class OwnedPlaceUpdate(BaseModel):
+    """PATCH body for ``PATCH /me/places/{place_id}``.
+
+    Today the only patchable field is ``cuisine_types`` — the curated
+    cuisine tags surfaced on consumer search rows. Identity columns
+    (name / address / lat / lng / city / country) stay admin-only,
+    since those are the canonical address record populated by Google
+    ingest. We intentionally use a non-Optional list (rather than a
+    PATCH-style ``cuisine_types | None`` partial) — submitting the
+    payload always replaces the full set, including with ``[]`` to
+    clear all tags. Simpler model, no merge ambiguity.
+
+    Empty list is allowed. Duplicates in the input are tolerated and
+    deduped server-side. Each entry must be a member of the curated
+    ``Cuisine`` enum; unknown values 422 with FastAPI's standard
+    validation error.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    cuisine_types: list[Cuisine] = Field(
+        default_factory=list,
+        description=(
+            "Replace the place's full cuisine tag set. Pass [] to "
+            "clear. Duplicates are deduped."
+        ),
+    )
+
+
 class OwnedPlaceRead(BaseModel):
     """A place the calling user can submit halal information for.
 

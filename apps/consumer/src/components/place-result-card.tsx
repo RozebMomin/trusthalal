@@ -23,8 +23,67 @@ import {
   HalalProfileBadges,
   HalalProfileMissingBadge,
 } from "@/components/halal-badges";
-import type { PlaceSearchResult } from "@/lib/api/hooks";
+import type { Cuisine, PlaceSearchResult } from "@/lib/api/hooks";
 import { formatDistanceMiles } from "@/lib/geo";
+
+// Compact display labels for cuisine chips on the result card. Same
+// keys as the picker's CUISINE_LABELS (kept as separate copies because
+// the search-filters component owns its own version and we don't want
+// either file to import from the other for what is, fundamentally,
+// per-surface display copy).
+const CARD_CUISINE_LABELS: Readonly<Record<Cuisine, string>> = {
+  PAKISTANI: "Pakistani",
+  INDIAN: "Indian",
+  BANGLADESHI: "Bangladeshi",
+  SRI_LANKAN: "Sri Lankan",
+  NEPALI: "Nepali",
+  LEBANESE: "Lebanese",
+  TURKISH: "Turkish",
+  YEMENI: "Yemeni",
+  SYRIAN: "Syrian",
+  PALESTINIAN: "Palestinian",
+  IRAQI: "Iraqi",
+  PERSIAN: "Persian",
+  EGYPTIAN: "Egyptian",
+  MOROCCAN: "Moroccan",
+  TUNISIAN: "Tunisian",
+  ALGERIAN: "Algerian",
+  SOMALI: "Somali",
+  ETHIOPIAN: "Ethiopian",
+  ERITREAN: "Eritrean",
+  AFGHAN: "Afghan",
+  UZBEK: "Uzbek",
+  INDONESIAN: "Indonesian",
+  MALAYSIAN: "Malaysian",
+  FILIPINO: "Filipino",
+  THAI: "Thai",
+  CHINESE: "Chinese",
+  KOREAN: "Korean",
+  JAPANESE: "Japanese",
+  MEDITERRANEAN: "Mediterranean",
+  GREEK: "Greek",
+  ITALIAN: "Italian",
+  SPANISH: "Spanish",
+  AMERICAN: "American",
+  MEXICAN: "Mexican",
+  CARIBBEAN: "Caribbean",
+  SOUL_FOOD: "Soul food",
+  BURGERS: "Burgers",
+  PIZZA: "Pizza",
+  BBQ: "BBQ",
+  STEAKHOUSE: "Steakhouse",
+  SEAFOOD: "Seafood",
+  BREAKFAST: "Breakfast",
+  BAKERY: "Bakery",
+  DESSERTS: "Desserts",
+  CAFE: "Café",
+};
+
+// Cap the number of cuisine chips rendered on a result row so a place
+// tagged with five cuisines doesn't blow out the card width on a
+// phone. Anything past the cap collapses to "+N" — the user can see
+// the full list on the place detail page.
+const MAX_CUISINE_CHIPS = 3;
 
 export function PlaceResultCard({
   place,
@@ -59,14 +118,43 @@ export function PlaceResultCard({
             </span>
           )}
         </div>
-        <div className="mt-3">
+        <div className="mt-3 space-y-2">
           {place.halal_profile ? (
             <HalalProfileBadges profile={place.halal_profile} />
           ) : (
             <HalalProfileMissingBadge />
           )}
+          <CuisineChips cuisines={place.cuisine_types} />
         </div>
       </Link>
     </li>
+  );
+}
+
+/**
+ * Render up to MAX_CUISINE_CHIPS cuisine pills inline on the result
+ * card; show "+N" for any overflow so the row width stays bounded
+ * on a phone. Empty list → render nothing (no empty space).
+ */
+function CuisineChips({ cuisines }: { cuisines: ReadonlyArray<Cuisine> }) {
+  if (!cuisines || cuisines.length === 0) return null;
+  const visible = cuisines.slice(0, MAX_CUISINE_CHIPS);
+  const overflow = cuisines.length - visible.length;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {visible.map((c) => (
+        <span
+          key={c}
+          className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+        >
+          {CARD_CUISINE_LABELS[c]}
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          +{overflow}
+        </span>
+      )}
+    </div>
   );
 }

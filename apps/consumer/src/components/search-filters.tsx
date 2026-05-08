@@ -32,11 +32,148 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import type {
+  Cuisine,
   MenuPosture,
   SearchPlacesParams,
   ValidationTier,
 } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
+
+/**
+ * Display labels for the curated cuisine taxonomy. Lives here in the
+ * consumer surface (rather than on the API) because the API stays
+ * neutral about how each app renders the value — the owner portal
+ * has its own copy with the same keys, and either surface can pick
+ * different display copy without coordinating with the backend.
+ *
+ * Insertion order is the picker's display order. The taxonomy is
+ * grouped by region in the union type itself, but visually the
+ * consumer-side picker leads with the most-searched cuisines (see
+ * ``TOP_CUISINES`` below) and tucks the long tail behind a "More"
+ * disclosure.
+ */
+const CUISINE_LABELS: Readonly<Record<Cuisine, string>> = {
+  PAKISTANI: "Pakistani",
+  INDIAN: "Indian",
+  BANGLADESHI: "Bangladeshi",
+  SRI_LANKAN: "Sri Lankan",
+  NEPALI: "Nepali",
+  LEBANESE: "Lebanese",
+  TURKISH: "Turkish",
+  YEMENI: "Yemeni",
+  SYRIAN: "Syrian",
+  PALESTINIAN: "Palestinian",
+  IRAQI: "Iraqi",
+  PERSIAN: "Persian",
+  EGYPTIAN: "Egyptian",
+  MOROCCAN: "Moroccan",
+  TUNISIAN: "Tunisian",
+  ALGERIAN: "Algerian",
+  SOMALI: "Somali",
+  ETHIOPIAN: "Ethiopian",
+  ERITREAN: "Eritrean",
+  AFGHAN: "Afghan",
+  UZBEK: "Uzbek",
+  INDONESIAN: "Indonesian",
+  MALAYSIAN: "Malaysian",
+  FILIPINO: "Filipino",
+  THAI: "Thai",
+  CHINESE: "Chinese",
+  KOREAN: "Korean",
+  JAPANESE: "Japanese",
+  MEDITERRANEAN: "Mediterranean",
+  GREEK: "Greek",
+  ITALIAN: "Italian",
+  SPANISH: "Spanish",
+  AMERICAN: "American",
+  MEXICAN: "Mexican",
+  CARIBBEAN: "Caribbean",
+  SOUL_FOOD: "Soul food",
+  BURGERS: "Burgers",
+  PIZZA: "Pizza",
+  BBQ: "BBQ",
+  STEAKHOUSE: "Steakhouse",
+  SEAFOOD: "Seafood",
+  BREAKFAST: "Breakfast",
+  BAKERY: "Bakery",
+  DESSERTS: "Desserts",
+  CAFE: "Café",
+};
+
+/**
+ * The first row shown collapsed — the cuisines we expect to drive
+ * the most filtering volume in the v1 markets (US/UK/CA halal
+ * scenes). The rest hide behind "More" so the search surface stays
+ * scannable on a phone. Re-tune as we get real telemetry; for now
+ * this is the eight most-searched cuisines among our seed corpus.
+ *
+ * Anything in this list is also rendered when "More" is expanded —
+ * we don't dedupe — so the user never has to remember whether
+ * "Pakistani" was in the visible set or hidden.
+ */
+const TOP_CUISINES: ReadonlyArray<Cuisine> = [
+  "PAKISTANI",
+  "INDIAN",
+  "MEDITERRANEAN",
+  "LEBANESE",
+  "TURKISH",
+  "YEMENI",
+  "AFGHAN",
+  "AMERICAN",
+];
+
+/**
+ * The full ordered list, used when "More" is expanded. Grouping by
+ * region matches the taxonomy in the union type — easier to scan
+ * top-to-bottom than alphabetical for a multi-cultural menu of 45.
+ */
+const ALL_CUISINES: ReadonlyArray<Cuisine> = [
+  "PAKISTANI",
+  "INDIAN",
+  "BANGLADESHI",
+  "SRI_LANKAN",
+  "NEPALI",
+  "LEBANESE",
+  "TURKISH",
+  "YEMENI",
+  "SYRIAN",
+  "PALESTINIAN",
+  "IRAQI",
+  "PERSIAN",
+  "EGYPTIAN",
+  "MOROCCAN",
+  "TUNISIAN",
+  "ALGERIAN",
+  "SOMALI",
+  "ETHIOPIAN",
+  "ERITREAN",
+  "AFGHAN",
+  "UZBEK",
+  "INDONESIAN",
+  "MALAYSIAN",
+  "FILIPINO",
+  "THAI",
+  "CHINESE",
+  "KOREAN",
+  "JAPANESE",
+  "MEDITERRANEAN",
+  "GREEK",
+  "ITALIAN",
+  "SPANISH",
+  "AMERICAN",
+  "MEXICAN",
+  "CARIBBEAN",
+  "SOUL_FOOD",
+  "BURGERS",
+  "PIZZA",
+  "BBQ",
+  "STEAKHOUSE",
+  "SEAFOOD",
+  "BREAKFAST",
+  "BAKERY",
+  "DESSERTS",
+  "CAFE",
+];
 
 const VALIDATION_TIER_OPTIONS: ReadonlyArray<{
   value: ValidationTier;
@@ -171,6 +308,8 @@ export function SearchFilters({
         })}
       </FilterRow>
 
+      <CuisineFilterRow filters={filters} update={update} />
+
       <FilterRow label="Other preferences">
         <FilterPill
           active={filters.no_pork === true}
@@ -272,6 +411,10 @@ function countActiveFilters(f: SearchPlacesParams): number {
   if (f.no_pork === true) count++;
   if (f.no_alcohol_served === true) count++;
   if (f.has_certification === true) count++;
+  // Each picked cuisine counts toward the badge so a user with three
+  // cuisines + "no pork" sees "4" — matches the behavior they'd
+  // expect from a typical search-refinement count.
+  if (f.cuisines && f.cuisines.length > 0) count += f.cuisines.length;
   return count;
 }
 
@@ -284,4 +427,81 @@ function clearFilters(f: SearchPlacesParams): SearchPlacesParams {
     limit: f.limit,
     offset: f.offset,
   };
+}
+
+/**
+ * Cuisine multi-select. Top 8 cuisines render as a flat pill row;
+ * the long tail tucks behind a "More cuisines" disclosure. Keeping
+ * the disclosure inline (rather than launching a modal) preserves
+ * the "everything one tap away" pattern the rest of the filter
+ * panel uses.
+ *
+ * Selecting a cuisine that's currently picked removes it from the
+ * URL state. Picking a cuisine for the first time appends it. The
+ * search payload's ``cuisines`` is preserved as an unordered set —
+ * empty array drops the param entirely (no ``?cuisine=`` noise).
+ */
+function CuisineFilterRow({
+  filters,
+  update,
+}: {
+  filters: SearchPlacesParams;
+  update: (patch: Partial<SearchPlacesParams>) => void;
+}) {
+  const [showAll, setShowAll] = React.useState(false);
+  const selected = React.useMemo<ReadonlyArray<Cuisine>>(
+    () => (filters.cuisines ?? []) as Cuisine[],
+    [filters.cuisines],
+  );
+
+  // If a user already picked a cuisine that's NOT in the Top 8, surface
+  // the long tail by default so the selection is visible without making
+  // them hunt for it in the collapsed view.
+  const hasOffTopSelection = React.useMemo(
+    () => selected.some((c) => !TOP_CUISINES.includes(c)),
+    [selected],
+  );
+  const visibleCuisines = showAll || hasOffTopSelection ? ALL_CUISINES : TOP_CUISINES;
+
+  function toggle(c: Cuisine) {
+    const next = selected.includes(c)
+      ? selected.filter((x) => x !== c)
+      : [...selected, c];
+    update({ cuisines: next.length === 0 ? undefined : next });
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Cuisine
+          {selected.length > 0 && (
+            <span className="ml-1 normal-case tracking-normal text-muted-foreground">
+              ({selected.length} selected)
+            </span>
+          )}
+        </p>
+        {!hasOffTopSelection && (
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            {showAll ? "Show less" : "More cuisines"}
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {visibleCuisines.map((c) => (
+          <FilterPill
+            key={c}
+            active={selected.includes(c)}
+            onClick={() => toggle(c)}
+          >
+            {CUISINE_LABELS[c]}
+          </FilterPill>
+        ))}
+      </div>
+    </div>
+  );
 }
