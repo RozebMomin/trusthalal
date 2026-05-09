@@ -80,6 +80,18 @@ from app.core.storage import (
     get_certificates_storage_client,
     get_storage_client,
 )
+
+# Pull in every SQLAlchemy model class so the mapper registry is
+# fully populated before the first query runs. Without this,
+# string-based relationships on tangentially-related models (e.g.,
+# ``OrganizationMember.user = relationship("User")``) can't resolve
+# at configure time and raise
+# ``InvalidRequestError: ... failed to locate a name ('User')``
+# the moment SQLAlchemy walks the ORM graph. The aggregator's the
+# canonical "import everything" entry point — same trick the FastAPI
+# app uses on startup via ``app.db.base``.
+import app.db.models  # noqa: F401
+
 from app.modules.halal_claims.models import HalalClaim
 from app.modules.halal_profiles.models import HalalProfile
 
