@@ -32,6 +32,7 @@ import * as React from "react";
 
 import { Input } from "@/components/ui/input";
 import { type ForwardGeocodeMatch, useForwardGeocode } from "@/lib/api/hooks";
+import { searchLocalCities } from "@/lib/cities";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -84,6 +85,25 @@ export type LocationPickerDialogProps = {
   onUseCurrentLocation?: () => void;
 };
 
+// Bumped from the original 220 ms after a round of foodie/tester
+// feedback: typing "chicago" was firing 5–6 Google calls (one per
+// pause-between-keystrokes), and Google doesn't need that level of
+// liveness for a city picker. 500 ms still feels responsive but
+// collapses fast typing into a single trailing call.
+const DEBOUNCE_MS = 500;
+
+// Minimum characters before we even consider hitting the network.
+// Local prefix-search kicks in earlier (at 1 char) so the visitor
+// gets instant feedback for "ch" → Chicago / Charlotte / ... but
+// the Google fallback waits for something more specific.
+const REMOTE_LOOKUP_MIN_CHARS = 3;
+
+// Skip the Google fallback entirely when local search already gave
+// the visitor at least this many results — most queries land here
+// (95%+ in practice for the curated city list) which keeps the
+// Google call count near zero in steady state.
+const LOCAL_RESULTS_SUFFICIENT_THRESHOLD = 3;
+
 export function LocationPickerDialog({
   open,
   onOpenChange,
@@ -93,8 +113,25 @@ export function LocationPickerDialog({
   onUseCurrentLocation,
 }: LocationPickerDialogProps) {
   const [query, setQuery] = React.useState("");
-  const debounced = useDebounced(query.trim(), 220);
-  const geo = useForwardGeocode(debounced);
+  const debounced = useDebounced(query.trim(), DEBOUNCE_MS);
+
+  // Local prefix-search runs synchronously on every keystroke.
+  // ``React.useMemo`` keeps the result reference stable when the
+  // input hasn't actually changed (e.g., a re-render driven by an
+  // unrelated parent update).
+  const localMatches = React.useMemo(
+    () => searchLocalCities(query),
+    [query],
+  );
+
+  // Only fall through to Google when local search didn't produce
+  // enough confidence in the answer. The hook's ``enabled`` arg
+  // gates the network call; cached responses still resolve from
+  // TanStack Query if the user types a query they tried earlier.
+  const needsRemoteLookup =
+    debounced.length >= REMOTE_LOOKUP_MIN_CHARS &&
+    localMatches.length < LOCAL_RESULTS_SUFFICIENT_THRESHOLD;
+  const geo = useForwardGeocode(needsRemoteLookup ? debounced : "");
 
   // Reset the query whenever the dialog re-opens so a stale string
   // from a previous open doesn't auto-search this time.
@@ -223,11 +260,15 @@ export function LocationPickerDialog({
                   autoFocus
                 />
               </div>
-              <ForwardGeocodeResults
-                query={debounced}
-                results={geo.data?.matches ?? []}
-                isLoading={geo.isLoading && debounced.length >= 3}
-                isError={geo.isError}
+              <CombinedResults
+                query={query.trim()}
+                debouncedQuery={debounced}
+                localMatches={localMatches}
+                remoteMatches={geo.data?.matches ?? []}
+                remoteIsLoading={
+                  needsRemoteLookup && geo.isFetching
+                }
+                remoteIsError={needsRemoteLookup && geo.isError}
                 onPick={(m) => onPick({ lat: m.lat, lng: m.lng })}
               />
             </div>
@@ -239,66 +280,143 @@ export function LocationPickerDialog({
 }
 
 // ---------------------------------------------------------------------------
-// Forward-geocode results panel — same five states the inline version
-// had before the extraction.
+// Combined-results panel — local prefix-match results render
+// instantly; remote (Google) results merge in when the longer
+// debounce fires AND the local list wasn't enough on its own.
+//
+// Error UX nuance: a remote-only error while we already have local
+// matches is silently swallowed — no point telling the visitor
+// "Couldn't look up that city" when they can already see Chicago in
+// the list. Errors only surface when local search has no matches
+// either.
 // ---------------------------------------------------------------------------
 
-function ForwardGeocodeResults({
+function CombinedResults({
   query,
-  results,
-  isLoading,
-  isError,
+  debouncedQuery,
+  localMatches,
+  remoteMatches,
+  remoteIsLoading,
+  remoteIsError,
   onPick,
 }: {
+  /** Raw (un-debounced) trimmed query — used for the "keep typing"
+   *  copy so the visitor sees instant feedback. */
   query: string;
-  results: ForwardGeocodeMatch[];
-  isLoading: boolean;
-  isError: boolean;
+  /** Debounced query — used to gate the network call. */
+  debouncedQuery: string;
+  localMatches: ForwardGeocodeMatch[];
+  remoteMatches: ForwardGeocodeMatch[];
+  /** Remote query is in flight AND we asked for it (i.e., local
+   *  matches weren't enough). The dialog suppresses the loading
+   *  indicator when local already has the answer. */
+  remoteIsLoading: boolean;
+  /** Remote query errored AND we needed it. Local-sufficient
+   *  queries never set this. */
+  remoteIsError: boolean;
   onPick: (m: ForwardGeocodeMatch) => void;
 }) {
+  // Merge local + remote, deduping on coords. Local matches lead
+  // (they're cheaper, instant, and curated). Pre-dedupe the remote
+  // list so a Google result that happens to coincide with a static
+  // entry doesn't show twice — useful for popular metros that
+  // exist in both.
+  const merged = mergeMatches(localMatches, remoteMatches);
+
   if (query.length === 0) return null;
-  if (query.length < 3) {
+
+  // Local matches AND nothing in flight → just render them.
+  // Remote in flight → render local plus a soft "more results
+  // loading" hint underneath.
+  if (merged.length > 0) {
+    return (
+      <div className="space-y-2">
+        <ul className="divide-y rounded-md border bg-card">
+          {merged.map((r) => (
+            <li key={`${r.lat}-${r.lng}`}>
+              <button
+                type="button"
+                onClick={() => onPick(r)}
+                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-accent"
+              >
+                <span className="truncate">{r.label}</span>
+                <span className="shrink-0 text-xs text-primary">
+                  Pick
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {remoteIsLoading && (
+          <p className="text-xs text-muted-foreground">
+            Looking for more matches…
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // No local matches yet — pre-debounce / very short query.
+  if (debouncedQuery.length < 3) {
     return (
       <p className="text-xs text-muted-foreground">
         Keep typing — at least 3 characters.
       </p>
     );
   }
-  if (isLoading) {
+
+  // Remote query is searching the long tail.
+  if (remoteIsLoading) {
     return (
       <p className="text-xs text-muted-foreground">Searching…</p>
     );
   }
-  if (isError) {
-    return (
-      <p className="text-xs text-destructive">
-        Couldn&rsquo;t look up that city. Try again in a moment.
-      </p>
-    );
-  }
-  if (results.length === 0) {
+
+  // Remote errored AND local had nothing — soft message that
+  // doesn't blame the network. Same UX as "no matches" because
+  // from the visitor's POV the result is identical.
+  if (remoteIsError) {
     return (
       <p className="text-xs text-muted-foreground">
-        No matches. Try a different spelling.
+        No matches. Try a different spelling, or use the popular
+        list above.
       </p>
     );
   }
+
   return (
-    <ul className="divide-y rounded-md border bg-card">
-      {results.map((r) => (
-        <li key={`${r.lat}-${r.lng}`}>
-          <button
-            type="button"
-            onClick={() => onPick(r)}
-            className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-accent"
-          >
-            <span className="truncate">{r.label}</span>
-            <span className="shrink-0 text-xs text-primary">Pick</span>
-          </button>
-        </li>
-      ))}
-    </ul>
+    <p className="text-xs text-muted-foreground">
+      No matches. Try a different spelling.
+    </p>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Coordinate-rounded dedupe — two matches at the same lat/lng (within
+// ~100m) are treated as the same city even if the labels differ.
+// ---------------------------------------------------------------------------
+
+function mergeMatches(
+  primary: ReadonlyArray<ForwardGeocodeMatch>,
+  secondary: ReadonlyArray<ForwardGeocodeMatch>,
+): ForwardGeocodeMatch[] {
+  const seen = new Set<string>();
+  const key = (m: ForwardGeocodeMatch) =>
+    `${m.lat.toFixed(3)}:${m.lng.toFixed(3)}`;
+  const out: ForwardGeocodeMatch[] = [];
+  for (const m of primary) {
+    const k = key(m);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(m);
+  }
+  for (const m of secondary) {
+    const k = key(m);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(m);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
