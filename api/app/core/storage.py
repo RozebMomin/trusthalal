@@ -192,23 +192,34 @@ class SupabaseStorageClient:
     def download_bytes(self, path: str) -> bytes:
         """Read object bytes back out of the bucket.
 
-        Supabase exposes ``GET /storage/v1/object/{bucket}/{path}`` for
-        service-role reads even on private buckets — same auth headers
-        as upload. Used by the profile-derivation service when copying
-        an approved cert from the private evidence bucket into the
-        public-readable certs bucket. Not exposed to end users; the
-        download path is server-to-server only.
+        Two Supabase paths could in principle do this:
 
-        Returns the raw bytes. Raises ``StorageError`` on transport or
-        non-2xx response so the caller can decide whether to fall back
-        gracefully (cert copy is best-effort).
+          * ``GET /storage/v1/object/{bucket}/{path}`` with the
+            service-role Bearer header — returns 400 in practice on
+            private buckets (the response body talks about
+            authentication policy mismatches even when service-role
+            bypasses RLS at the row level).
+          * Mint a signed URL via ``POST /storage/v1/object/sign/...``
+            and then GET that URL (the token in the URL is the auth).
+            Same code path the admin evidence viewer already uses;
+            proven against both private and public buckets.
+
+        We take the second route. The 60-second TTL is plenty for a
+        single GET inside the same request — short-lived enough that
+        leaking the URL in logs is low-risk.
+
+        Used by the profile-derivation service when copying an
+        approved cert from the private evidence bucket into the
+        public-readable certs bucket. Server-to-server only;
+        ``download_bytes`` is never exposed to end users.
+
+        Returns the raw bytes. Raises ``StorageError`` on transport
+        or non-2xx response so the caller can decide whether to fall
+        back gracefully (cert copy is best-effort).
         """
+        signed = self.signed_url(path, expires_in_seconds=60)
         try:
-            resp = httpx.get(
-                self._api_url("", path),
-                headers=self._auth_headers(),
-                timeout=self.timeout_s,
-            )
+            resp = httpx.get(signed, timeout=self.timeout_s)
             resp.raise_for_status()
             return resp.content
         except httpx.HTTPError as exc:
