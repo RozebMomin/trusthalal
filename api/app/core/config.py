@@ -136,6 +136,14 @@ class Settings(BaseSettings):
     # gates writes; only this server can put bytes in.
     SUPABASE_PHOTOS_BUCKET: str = "place-photos"
 
+    # Public-readable bucket for halal certificate documents that are
+    # surfaced on the consumer place-detail page. Same posture as the
+    # place-photos bucket (public read, service-role write); separate
+    # bucket so the access policy and content moderation story stay
+    # bucket-scoped rather than path-scoped. Profile derivation copies
+    # the latest HALAL_CERTIFICATE attachment here on approval.
+    SUPABASE_CERTS_BUCKET: str = "halal-certificates"
+
     # ------------------------------------------------------------------
     # Pydantic settings config
     # ------------------------------------------------------------------

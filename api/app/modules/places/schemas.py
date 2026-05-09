@@ -215,6 +215,12 @@ class HalalProfileEmbed(BaseModel):
     has_certification: bool
     certifying_body_name: str | None
     certificate_expires_at: datetime | None
+    # Direct link to the halal certificate document (None when no
+    # cert is on file or the copy step failed during approval). See
+    # the rationale on ``HalalProfileRead.certificate_url``.
+    certificate_url: str | None = None
+    # MIME type of the cert; drives consumer-side viewer choice.
+    certificate_content_type: str | None = None
     caveats: str | None
     dispute_state: str
     last_verified_at: datetime

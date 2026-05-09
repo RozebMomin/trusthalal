@@ -2741,8 +2741,18 @@ export interface components {
             beef_slaughter: string;
             /** Caveats */
             caveats: string | null;
+            /**
+             * Certificate Content Type
+             * @default null
+             */
+            certificate_content_type: string | null;
             /** Certificate Expires At */
             certificate_expires_at: string | null;
+            /**
+             * Certificate Url
+             * @default null
+             */
+            certificate_url: string | null;
             /** Certifying Body Name */
             certifying_body_name: string | null;
             /** Chicken Slaughter */
@@ -2804,8 +2814,18 @@ export interface components {
             beef_slaughter: components["schemas"]["SlaughterMethod"];
             /** Caveats */
             caveats: string | null;
+            /**
+             * Certificate Content Type
+             * @default null
+             */
+            certificate_content_type: string | null;
             /** Certificate Expires At */
             certificate_expires_at: string | null;
+            /**
+             * Certificate Url
+             * @default null
+             */
+            certificate_url: string | null;
             /** Certifying Body Name */
             certifying_body_name: string | null;
             chicken_slaughter: components["schemas"]["SlaughterMethod"];

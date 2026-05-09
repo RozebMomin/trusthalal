@@ -1321,6 +1321,18 @@
             ],
             "title": "Caveats"
           },
+          "certificate_content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Certificate Content Type"
+          },
           "certificate_expires_at": {
             "anyOf": [
               {
@@ -1332,6 +1344,18 @@
               }
             ],
             "title": "Certificate Expires At"
+          },
+          "certificate_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Certificate Url"
           },
           "certifying_body_name": {
             "anyOf": [
@@ -1476,6 +1500,18 @@
             ],
             "title": "Caveats"
           },
+          "certificate_content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Certificate Content Type"
+          },
           "certificate_expires_at": {
             "anyOf": [
               {
@@ -1487,6 +1523,18 @@
               }
             ],
             "title": "Certificate Expires At"
+          },
+          "certificate_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Certificate Url"
           },
           "certifying_body_name": {
             "anyOf": [

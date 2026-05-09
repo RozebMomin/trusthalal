@@ -73,6 +73,8 @@ class StorageClient(Protocol):
         content_type: str,
     ) -> None: ...
 
+    def download_bytes(self, path: str) -> bytes: ...
+
     def signed_url(self, path: str, *, expires_in_seconds: int) -> str: ...
 
     def public_url(self, path: str) -> str: ...
@@ -187,6 +189,33 @@ class SupabaseStorageClient:
             return signed_url_path
         return f"{self.base_url.rstrip('/')}/storage/v1{signed_url_path}"
 
+    def download_bytes(self, path: str) -> bytes:
+        """Read object bytes back out of the bucket.
+
+        Supabase exposes ``GET /storage/v1/object/{bucket}/{path}`` for
+        service-role reads even on private buckets — same auth headers
+        as upload. Used by the profile-derivation service when copying
+        an approved cert from the private evidence bucket into the
+        public-readable certs bucket. Not exposed to end users; the
+        download path is server-to-server only.
+
+        Returns the raw bytes. Raises ``StorageError`` on transport or
+        non-2xx response so the caller can decide whether to fall back
+        gracefully (cert copy is best-effort).
+        """
+        try:
+            resp = httpx.get(
+                self._api_url("", path),
+                headers=self._auth_headers(),
+                timeout=self.timeout_s,
+            )
+            resp.raise_for_status()
+            return resp.content
+        except httpx.HTTPError as exc:
+            raise StorageError(
+                f"Object storage download failed: {exc}"
+            ) from exc
+
     def delete_object(self, path: str) -> None:
         try:
             resp = httpx.delete(
@@ -225,13 +254,14 @@ class SupabaseStorageClient:
 # Cache the clients across requests — httpx itself isn't being held open
 # (each call is a new short-lived connection), but the dataclass + key
 # materialization is cheap-but-not-free, and there's no value in
-# rebuilding it per request. Two singletons because the evidence and
-# place-photos buckets have different access posture (private vs
-# public) and we want callers to grab the one that matches their use
-# case via the FastAPI dependency layer rather than passing a bucket
-# string around at every call site.
+# rebuilding it per request. One singleton per bucket because each has
+# its own access posture (private evidence bucket, public place-photos
+# bucket, public halal-certificates bucket) and callers grab the one
+# that matches their use case via the FastAPI dependency layer rather
+# than passing a bucket string around at every call site.
 _storage_client_singleton: StorageClient | None = None
 _photos_storage_client_singleton: StorageClient | None = None
+_certificates_storage_client_singleton: StorageClient | None = None
 
 
 def get_storage_client() -> StorageClient:
@@ -309,3 +339,69 @@ def get_photos_storage_client() -> StorageClient:
         bucket=bucket,
     )
     return _photos_storage_client_singleton
+
+
+def get_certificates_storage_client() -> StorageClient:
+    """FastAPI dependency. Returns a configured StorageClient bound
+    to the public ``halal-certificates`` bucket.
+
+    Same factory pattern as ``get_photos_storage_client``. Profile
+    derivation uses this client to publish a copy of the approved
+    HALAL_CERTIFICATE attachment so the consumer site can render the
+    cert directly from a stable public URL.
+
+    Note: like the photos bucket, the certs bucket must be configured
+    public-readable in the Supabase dashboard. Service-role writes are
+    gated by this server alone — owners never write here directly.
+    """
+    global _certificates_storage_client_singleton
+
+    if _certificates_storage_client_singleton is not None:
+        return _certificates_storage_client_singleton
+
+    base_url = settings.SUPABASE_URL
+    service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
+    bucket = settings.SUPABASE_CERTS_BUCKET
+
+    if not (base_url and service_role_key and bucket):
+        raise StorageError(
+            "Halal-certificates storage is not configured "
+            "(SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / "
+            "SUPABASE_CERTS_BUCKET). Set these in the environment."
+        )
+
+    _certificates_storage_client_singleton = SupabaseStorageClient(
+        base_url=base_url,
+        service_role_key=service_role_key,
+        bucket=bucket,
+    )
+    return _certificates_storage_client_singleton
+
+
+def get_storage_client_optional() -> StorageClient | None:
+    """Soft variant of ``get_storage_client``.
+
+    Returns ``None`` when the evidence bucket isn't configured rather
+    than raising. Used by call sites where storage access is best-
+    effort polish (e.g. the halal-claim approve route's optional cert
+    publish step) and a missing config shouldn't take down the whole
+    request.
+    """
+    try:
+        return get_storage_client()
+    except StorageError:
+        return None
+
+
+def get_certificates_storage_client_optional() -> StorageClient | None:
+    """Soft variant of ``get_certificates_storage_client``.
+
+    Returns ``None`` when the certs bucket isn't configured. Same
+    posture as ``get_storage_client_optional`` — the approve route
+    treats cert publishing as best-effort, so a missing config
+    silently skips the publish step rather than 500ing the request.
+    """
+    try:
+        return get_certificates_storage_client()
+    except StorageError:
+        return None

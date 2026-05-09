@@ -36,6 +36,7 @@ import {
   ChefHat,
   ChevronRight,
   CircleAlert,
+  ExternalLink,
   Info,
   ShieldCheck,
   Wine,
@@ -439,7 +440,7 @@ function CertificateDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Halal certification</DialogTitle>
           <DialogDescription>
@@ -462,20 +463,115 @@ function CertificateDialog({
           </Row>
         </dl>
 
-        {/* The actual certificate document isn't on the public embed
-            yet — backend slice TODO. The placeholder reserves the
-            visual real estate so we don't have to redesign the dialog
-            once the URL is wired in. */}
-        <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">
-            Certificate document
-          </p>
-          <p className="mt-1">
-            Viewing the certificate file directly is coming soon.
-          </p>
-        </div>
+        <CertificateViewer profile={profile} />
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Render the cert document itself when we have one. Branches on the
+ * MIME type the API stored alongside the URL:
+ *
+ *   * ``image/*``        → inline <img> (works for jpg / png / heic
+ *                          once the upload pipeline supports it).
+ *   * ``application/pdf`` → embedded <iframe> so the consumer can
+ *                          flip pages without leaving the dialog.
+ *                          The browser's native PDF viewer carries
+ *                          a download button if needed.
+ *   * anything else      → "Open certificate" link that lets the
+ *                          browser handle the unknown type natively.
+ *
+ * When the URL is null (cert not yet copied to the public bucket —
+ * approval failed, profile predates the cert-publish backend slice,
+ * etc.) the visitor still sees the metadata above; the viewer falls
+ * back to a small "viewer coming soon" callout so the dialog feels
+ * complete instead of empty.
+ */
+function CertificateViewer({
+  profile,
+}: {
+  profile: HalalProfileEmbed;
+}) {
+  const url = profile.certificate_url;
+  const ct = profile.certificate_content_type ?? "";
+
+  if (!url) {
+    return (
+      <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-xs text-muted-foreground">
+        <p className="font-medium text-foreground">
+          Certificate document
+        </p>
+        <p className="mt-1">
+          The certificate file isn&rsquo;t available to view yet.
+          Trust Halal staff can request a fresh copy from the owner.
+        </p>
+      </div>
+    );
+  }
+
+  if (ct.startsWith("image/")) {
+    return (
+      <div className="space-y-2">
+        <div className="overflow-hidden rounded-lg border bg-muted/20">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt="Halal certificate"
+            loading="eager"
+            decoding="async"
+            className="block h-auto w-full"
+          />
+        </div>
+        <CertificateOpenLink url={url} />
+      </div>
+    );
+  }
+
+  if (ct === "application/pdf") {
+    return (
+      <div className="space-y-2">
+        <div className="overflow-hidden rounded-lg border bg-muted/20">
+          <iframe
+            src={url}
+            title="Halal certificate"
+            // 16:11ish keeps a typical letter-size cert page legible
+            // inside the dialog without dominating the viewport.
+            className="h-[420px] w-full"
+          />
+        </div>
+        <CertificateOpenLink url={url} />
+      </div>
+    );
+  }
+
+  // Unknown MIME — render a clean call-to-action that lets the
+  // browser handle the file natively.
+  return <CertificateOpenLink url={url} prominent />;
+}
+
+function CertificateOpenLink({
+  url,
+  prominent = false,
+}: {
+  url: string;
+  prominent?: boolean;
+}) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-medium",
+        prominent
+          ? "rounded-md border bg-background px-3 py-2 text-sm shadow-sm hover:bg-accent"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+      Open certificate in a new tab
+    </a>
   );
 }
 
