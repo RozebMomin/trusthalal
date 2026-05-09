@@ -14,6 +14,22 @@ const config: Config = {
       screens: { "2xl": "1400px" },
     },
     extend: {
+      fontFamily: {
+        // ``--font-inter`` is set by next/font in app/layout.tsx so
+        // every ``font-sans`` utility (Tailwind's default) picks
+        // up Inter without a per-component class. Falls through to
+        // a system stack if the variable isn't set yet.
+        sans: [
+          "var(--font-inter)",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif",
+        ],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

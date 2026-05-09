@@ -2,22 +2,24 @@
  * Apex hero block shown above the search surface.
  *
  * Two jobs: announce the brand, and explain the value prop in one
- * sentence. We deliberately keep it short — a tall hero on a search
- * site delays the user from typing, which is the only thing they're
- * here to do. The "verified by" line doubles as the trust marker
- * that reassures a first-time visitor before they scroll into
- * results.
+ * sentence. Aesthetic-pass refresh:
  *
- * The header collapses (smaller type, no description) once the user
- * has an active query, so subsequent searches don't waste viewport
- * on the marketing block.
+ *   * Larger display type (44px on desktop, 32px on mobile) so the
+ *     name reads as a brand statement, not a header.
+ *   * Tighter copy. "Verified halal, no guesswork." is the new
+ *     tagline-on-the-page — concrete, no jargon. Followed by a
+ *     short subhead that explains what makes us different
+ *     ("verified" not "listed").
+ *   * The compact form (post-search) trims to a single line so
+ *     results stay above the fold.
+ *
+ * The marketing-y "claim your listing" line moved off the home
+ * surface — it lives on the AppShell footer / a future CTA strip.
+ * Owners aren't the audience here; diners are.
  */
-
-import Link from "next/link";
 
 import {
   BRAND_NAME,
-  BRAND_TAGLINE,
   TRUST_HALAL_URL,
 } from "@/lib/branding";
 
@@ -30,11 +32,11 @@ type Props = {
 export function SiteHero({ compact = false }: Props) {
   if (compact) {
     return (
-      <header className="space-y-1 pt-2">
-        <h1 className="text-2xl font-bold tracking-tight">
+      <header className="flex items-baseline justify-between gap-3 pt-2">
+        <h1 className="text-xl font-semibold tracking-tight">
           {BRAND_NAME}
         </h1>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[11px] text-muted-foreground">
           Powered by{" "}
           <a
             href={TRUST_HALAL_URL}
@@ -50,36 +52,16 @@ export function SiteHero({ compact = false }: Props) {
   }
 
   return (
-    <header className="space-y-3 pt-1 sm:pt-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">
-          {BRAND_NAME}
-        </h1>
-        <p className="text-sm text-muted-foreground sm:text-lg">
-          {BRAND_TAGLINE}
-        </p>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Every listing is backed by{" "}
-        <a
-          href={TRUST_HALAL_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-foreground underline-offset-2 hover:underline"
-        >
-          Trust Halal
-        </a>
-        : you see the validation tier, menu posture, slaughter method,
-        and any open consumer disputes — not just a yes/no badge.
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Own a restaurant?{" "}
-        <Link
-          href="https://owner.trusthalal.org"
-          className="underline-offset-2 hover:underline"
-        >
-          Claim your listing →
-        </Link>
+    <header className="space-y-3 pt-2 sm:pt-8">
+      <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
+        Verified halal,
+        <br className="sm:hidden" />{" "}
+        <span className="text-primary">no guesswork.</span>
+      </h1>
+      <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
+        Find restaurants where the halal claim has been confirmed —
+        with the slaughter method, certificate, and any open disputes
+        all visible up front.
       </p>
     </header>
   );

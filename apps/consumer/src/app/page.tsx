@@ -33,6 +33,8 @@ import { NearMeButton } from "@/components/near-me-button";
 import { PlaceResultCard } from "@/components/place-result-card";
 import { SearchFilters } from "@/components/search-filters";
 import { SiteHero } from "@/components/site-hero";
+import { Search, Sparkles, X } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
@@ -356,17 +358,14 @@ function HomePageInner() {
   }, [search.data, nearMeActive, distanceSort]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-7">
       <SiteHero compact={hasActiveSearch} />
 
       <div className="space-y-3">
-        <Input
-          type="search"
-          autoFocus
-          placeholder="e.g. Khan Halal Grill"
+        <SearchBox
           value={rawQuery}
-          onChange={(e) => setRawQuery(e.target.value)}
-          aria-label="Search restaurants"
+          onChange={setRawQuery}
+          onClear={() => setRawQuery("")}
         />
         <NearMeButton
           active={nearMeActive}
@@ -461,22 +460,99 @@ function HomePageInner() {
 // State components
 // ---------------------------------------------------------------------------
 
+/**
+ * Search input — refreshed for the aesthetic pass.
+ *
+ * Tall single-input row with a leading magnifying-glass icon and a
+ * trailing clear (×) button when there's text. The visual weight
+ * has been bumped from the default ``Input`` height (h-10) to h-12
+ * so the search bar reads as the primary action on the page,
+ * matching how Resy / Beli / Airbnb anchor their search surfaces.
+ *
+ * Focus state lifts the border to primary + adds a soft ring so
+ * keyboard users get a clear indication of where they are. The
+ * background stays card-color (not muted) to feel like a deliberate
+ * input field rather than a recessed slot.
+ */
+function SearchBox({
+  value,
+  onChange,
+  onClear,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="relative">
+      <Search
+        aria-hidden
+        className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+      />
+      <input
+        type="search"
+        autoFocus
+        placeholder="Search restaurants by name…"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Search restaurants"
+        className="block h-12 w-full rounded-full border border-input bg-card pl-11 pr-11 text-base text-foreground shadow-sm transition placeholder:text-muted-foreground/80 hover:border-foreground/30 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Clear search"
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PromptState() {
   return (
-    <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-      Type a name or neighborhood to start searching, or tap{" "}
-      <span className="font-medium text-foreground">Near me</span> to find
-      verified halal restaurants around you.
-    </p>
+    <div className="rounded-2xl border bg-card px-6 py-10 text-center shadow-sm">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Sparkles className="h-6 w-6" aria-hidden />
+      </div>
+      <h2 className="mt-4 text-lg font-semibold tracking-tight">
+        Find halal you can trust
+      </h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+        Type a restaurant name above, or tap{" "}
+        <span className="font-medium text-foreground">Near me</span> to
+        discover verified halal spots around you.
+      </p>
+    </div>
   );
 }
 
 function LoadingState() {
+  // Skeletons mirror the new result-card shape so the layout doesn't
+  // jump on first paint. Photo column on desktop, banner on mobile;
+  // content stack on the right with rough lines for name + meta.
   return (
     <ul className="space-y-3">
       {Array.from({ length: 4 }).map((_, i) => (
         <li key={i}>
-          <Skeleton className="h-24 w-full" />
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <div className="flex flex-col sm:flex-row">
+              <Skeleton className="h-44 w-full shrink-0 sm:h-40 sm:w-40 sm:rounded-none" />
+              <div className="flex flex-1 flex-col gap-2 p-4 sm:p-5">
+                <Skeleton className="h-5 w-2/3" />
+                <Skeleton className="h-3 w-1/3" />
+                <div className="flex gap-1.5">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-4 w-14" />
+                </div>
+                <Skeleton className="mt-auto h-3 w-1/2" />
+              </div>
+            </div>
+          </div>
         </li>
       ))}
     </ul>
@@ -485,10 +561,15 @@ function LoadingState() {
 
 function NoResultsState({ mode }: { mode: "text" | "geo" }) {
   return (
-    <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-      {mode === "geo"
-        ? "No verified halal restaurants found inside this radius. Try a wider radius, or loosen filters."
-        : "No restaurants matched your search. Try loosening filters or a different name."}
+    <div className="rounded-2xl border bg-card px-6 py-10 text-center shadow-sm">
+      <h2 className="text-lg font-semibold tracking-tight">
+        Nothing matched
+      </h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+        {mode === "geo"
+          ? "No halal restaurants found in this radius. Try widening the search area or removing a filter."
+          : "No restaurants matched that name. Try a different spelling, or remove a filter."}
+      </p>
     </div>
   );
 }
@@ -497,7 +578,7 @@ function ErrorState({ error }: { error: Error }) {
   const isApi = error instanceof ApiError;
   const friendly =
     error.message === "Failed to fetch"
-      ? "Couldn't reach the Trust Halal API. Check your connection and try again."
+      ? "We couldn't reach Trust Halal. Check your connection and try again."
       : isApi && error.status === 429
         ? "Too many searches in a short window. Wait a moment and try again."
         : isApi
@@ -507,9 +588,9 @@ function ErrorState({ error }: { error: Error }) {
   return (
     <div
       role="alert"
-      className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
+      className="rounded-2xl border border-destructive/40 bg-destructive/5 px-6 py-5 text-sm text-destructive"
     >
-      <p className="font-medium">Search failed</p>
+      <p className="font-semibold">Search failed</p>
       <p className="mt-1">{friendly}</p>
     </div>
   );

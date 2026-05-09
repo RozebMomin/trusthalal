@@ -13,10 +13,19 @@
  * grays' warm undertone. Lightness chosen for ~4.6:1 contrast
  * against white --primary-foreground (passes WCAG AA).
  *
- * Other tokens stay neutral. Only --primary, --ring, and dark-mode
- * equivalents change. Keeping the rest of the palette neutral makes
- * the olive a deliberate accent on buttons + active states rather
- * than a colorwash.
+ * Aesthetic refresh additions:
+ *
+ *   * --accent-warm = amber `35 90% 55%`. Used by the halal-display
+ *     helper for the ``trusted`` tone (cert-on-file pills) and as
+ *     the accent for a few secondary CTAs. Not the primary brand
+ *     color — kept narrow so the olive still owns the trust voice.
+ *   * --surface-1 / --surface-2 = subtle warm-gray layers behind
+ *     cards on the home surface. Replaces what would otherwise be
+ *     pure-white-on-white visual flatness.
+ *
+ * Other tokens stay neutral. Keeping the rest of the palette neutral
+ * makes the olive a deliberate accent on buttons + active states
+ * rather than a colorwash.
  */
 @layer base {
   :root {
@@ -51,7 +60,22 @@
        speak the same visual language. */
     --ring: 88 35% 38%;
 
-    --radius: 0.5rem;
+    /* Warm amber accent. Used by the halal-display helper's
+       ``trusted`` tone and a few secondary affordances. Saturated
+       enough to feel intentional, not so loud it competes with the
+       olive primary for attention. */
+    --accent-warm: 35 90% 55%;
+    --accent-warm-foreground: 28 60% 14%;
+
+    /* Subtle warm-gray surface layers behind cards. ``surface-1`` is
+       the page background tint; ``surface-2`` is what cards sit on
+       when we want extra visual depth. Both kept very subtle —
+       under 1% saturation — so the warmth reads as "premium
+       neutral" rather than colored. */
+    --surface-1: 30 20% 98.5%;
+    --surface-2: 30 14% 96%;
+
+    --radius: 0.625rem;
   }
 
   .dark {
