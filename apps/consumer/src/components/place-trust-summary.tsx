@@ -33,11 +33,13 @@ import {
   AlertTriangle,
   BadgeCheck,
   CalendarClock,
+  ChefHat,
   ChevronRight,
   CircleAlert,
   Info,
   ShieldCheck,
   Wine,
+  WineOff,
 } from "lucide-react";
 import * as React from "react";
 
@@ -136,18 +138,18 @@ export function PlaceTrustSummary({
         <DisputeBanner state={profile.dispute_state} />
       )}
 
+      <KitchenAndPantry profile={profile} />
+
+      {profile.has_certification && (
+        <CertificationRow profile={profile} />
+      )}
+
       {!profile.seafood_only && <SlaughterGrid profile={profile} />}
 
       {profile.seafood_only && (
         <p className="text-sm text-muted-foreground">
           Seafood-only kitchen — no land meat or poultry served.
         </p>
-      )}
-
-      <PorkAndAlcohol profile={profile} />
-
-      {profile.has_certification && (
-        <CertificationRow profile={profile} />
       )}
 
       {profile.caveats && <Caveats text={profile.caveats} />}
@@ -180,13 +182,13 @@ export function PlaceNoTrustSummary() {
 }
 
 // ---------------------------------------------------------------------------
-// Headline: tier + posture combined into one statement. The bordered
-// callout's tone is driven by the validation tier so the visual carries
-// trust ranking without a second badge to parse.
+// Headline: validation tier with a one-line description. Menu posture
+// used to ride along here ("Verified halal · Fully halal kitchen") but
+// it's now its own line in ``KitchenAndPantry`` below — keeping the
+// headline focused on the trust source alone reads cleaner.
 // ---------------------------------------------------------------------------
 function Headline({ profile }: { profile: HalalProfileEmbed }) {
   const tier = TIER_HEADLINE[profile.validation_tier];
-  const posture = MENU_POSTURE_HEADLINE[profile.menu_posture];
   const description = TIER_DESCRIPTION[profile.validation_tier];
 
   return (
@@ -198,10 +200,7 @@ function Headline({ profile }: { profile: HalalProfileEmbed }) {
     >
       <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
       <div className="min-w-0 space-y-0.5">
-        <p className="text-base font-semibold leading-snug">
-          {tier}
-          <span className="font-normal opacity-80"> · {posture}</span>
-        </p>
+        <p className="text-base font-semibold leading-snug">{tier}</p>
         <p className="text-sm leading-snug opacity-90">{description}</p>
       </div>
     </div>
@@ -274,11 +273,41 @@ function SlaughterGrid({ profile }: { profile: HalalProfileEmbed }) {
 }
 
 // ---------------------------------------------------------------------------
-// Pork + alcohol — two compact lines. Tight by design: each is a single
-// sentence the consumer either takes as a green light or doesn't.
+// Kitchen + pantry summary — the menu-posture line followed by the
+// pork and alcohol lines. Three to four compact rows, each a single
+// sentence the consumer can scan as a yes/no signal.
+//
+// Menu posture leads here (used to be a clause on the headline) so the
+// "what kind of halal kitchen is this?" question gets answered before
+// the line-item details below.
 // ---------------------------------------------------------------------------
-function PorkAndAlcohol({ profile }: { profile: HalalProfileEmbed }) {
+
+// Tone classes for the menu-posture icon. FULLY_HALAL and the strict
+// SEPARATE_KITCHENS variant earn a green check; the looser postures
+// stay neutral; SHARED_KITCHEN gets an amber tint to telegraph the
+// cross-contamination caveat.
+const MENU_POSTURE_TONE: Record<MenuPosture, string> = {
+  FULLY_HALAL: "text-emerald-600 dark:text-emerald-400",
+  MIXED_SEPARATE_KITCHENS: "text-emerald-600 dark:text-emerald-400",
+  HALAL_OPTIONS_ADVERTISED: "text-foreground/80",
+  HALAL_UPON_REQUEST: "text-foreground/80",
+  MIXED_SHARED_KITCHEN: "text-amber-600 dark:text-amber-400",
+};
+
+function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
   const lines: Array<{ icon: React.ReactNode; text: string }> = [
+    {
+      icon: (
+        <ChefHat
+          className={cn(
+            "h-5 w-5 shrink-0",
+            MENU_POSTURE_TONE[profile.menu_posture],
+          )}
+          aria-hidden
+        />
+      ),
+      text: MENU_POSTURE_HEADLINE[profile.menu_posture],
+    },
     {
       icon: (
         <span
@@ -296,17 +325,22 @@ function PorkAndAlcohol({ profile }: { profile: HalalProfileEmbed }) {
       text: profile.has_pork ? "Pork is served" : "No pork on the menu",
     },
     {
-      icon: (
-        <Wine
-          className={cn(
-            "h-5 w-5 shrink-0",
-            profile.alcohol_policy === "NONE"
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-amber-600 dark:text-amber-400",
-          )}
-          aria-hidden
-        />
-      ),
+      // ``WineOff`` is a wine glass with a strikethrough — reads as
+      // "no alcohol" at a glance. Plain ``Wine`` keeps the served
+      // states recognizable as a wine glass (the glass is the carrier
+      // signal — strike vs. not is the polarity bit).
+      icon:
+        profile.alcohol_policy === "NONE" ? (
+          <WineOff
+            className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400"
+            aria-hidden
+          />
+        ) : (
+          <Wine
+            className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
+            aria-hidden
+          />
+        ),
       text: ALCOHOL_POLICY_LINE[profile.alcohol_policy],
     },
   ];
