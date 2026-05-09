@@ -387,3 +387,79 @@ def fetch_reverse_geocode_google(
         )
 
     return payload
+
+
+class ForwardGeocodeFetcher(Protocol):
+    """Callable that maps a free-text place query (e.g. ``"Atlanta GA"``)
+    to a Google Geocoding payload of matching candidates.
+
+    Same swappable-dependency posture as the other fetchers so the
+    consumer "Pick a city" dialog can be tested without real Google
+    quota.
+    """
+
+    def __call__(self, query: str) -> dict[str, Any]: ...
+
+
+def fetch_forward_geocode_google(
+    query: str,
+    *,
+    api_key: str | None = None,
+    url: str | None = None,
+    timeout_s: float = 10.0,
+) -> dict[str, Any]:
+    """Forward-geocode a free-text place query to a Google Geocoding
+    payload of matching candidates.
+
+    Used by the consumer "Pick a city" fallback when geolocation is
+    denied or unsupported. Returns the full JSON response so the
+    caller can pick the best result and parse address_components via
+    the existing extractor.
+
+    Status handling mirrors ``fetch_reverse_geocode_google``:
+      * ``OK`` → return payload
+      * ``ZERO_RESULTS`` → return payload as-is. The caller renders
+        an empty-state ("Couldn't find that place") rather than
+        throwing.
+      * Anything else → raise ``GoogleAPIError``.
+
+    Empty / whitespace queries short-circuit to a ZERO_RESULTS-shaped
+    payload so we don't burn a billed Google call on a no-op input.
+    """
+    trimmed = (query or "").strip()
+    if not trimmed:
+        return {"status": "ZERO_RESULTS", "results": []}
+
+    effective_key = api_key or settings.GOOGLE_MAPS_API_KEY
+    if not effective_key:
+        raise GoogleAPIError(
+            "GOOGLE_MAPS_API_KEY is not configured; forward geocoding is unavailable."
+        )
+
+    effective_url = url or settings.GOOGLE_GEOCODE_URL
+
+    params = {
+        "address": trimmed,
+        "key": effective_key,
+    }
+
+    try:
+        resp = httpx.get(effective_url, params=params, timeout=timeout_s)
+        resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise GoogleAPIError(
+            f"Google Forward Geocoding HTTP error: {exc}"
+        ) from exc
+
+    payload = resp.json()
+    status = payload.get("status")
+
+    if status == "ZERO_RESULTS":
+        return payload
+    if status != "OK":
+        raise GoogleAPIError(
+            f"Google Forward Geocoding returned status={status!r}: "
+            f"{payload.get('error_message') or '(no error_message)'}"
+        )
+
+    return payload

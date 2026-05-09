@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 
 import { AppShell } from "@/components/app-shell";
 import {
@@ -9,6 +10,27 @@ import {
 
 import { Providers } from "./providers";
 import "./globals.css";
+
+/**
+ * Inter is the workhorse of modern utility apps — wide weight range,
+ * small-text optical adjustments, and the only thing that beats a
+ * good system stack on consistency across iOS / Android / Windows.
+ * Loading via next/font/google so Next can inline + self-host at
+ * build time (no FOUT, no per-render network call to Google Fonts).
+ *
+ * ``display: 'swap'`` lets the system font render first, then swap
+ * once Inter loads — keeps Lighthouse happy and the first paint
+ * legible even on a cold load.
+ *
+ * Variable font axis is exposed via the ``--font-inter`` custom
+ * property so Tailwind's ``font-sans`` (which references this
+ * variable) picks it up everywhere without a per-component class.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 /**
  * Metadata defaults for every consumer page.
@@ -74,8 +96,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
-      <body className="h-full bg-background text-foreground antialiased">
+    <html lang="en" className={`h-full ${inter.variable}`}>
+      <body className="h-full bg-background font-sans text-foreground antialiased">
         <Providers>
           {/*
             AppShell is the consumer-friendly version of the admin /

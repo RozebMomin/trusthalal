@@ -23,6 +23,7 @@ from app.modules.places.integrations.google import (
 )
 from app.modules.places.integrations.google_client import (
     GoogleAPIError,
+    fetch_forward_geocode_google,
     fetch_place_autocomplete_google,
     fetch_reverse_geocode_google,
 )
@@ -39,6 +40,8 @@ from app.modules.places.schemas import (
     HalalProfileEmbed,
     OwnedPlaceRead,
     OwnedPlaceUpdate,
+    ForwardGeocodeMatch,
+    ForwardGeocodeResults,
     PlaceCreate,
     PlaceDetail,
     PlaceRead,
@@ -411,6 +414,131 @@ def google_reverse_geocode(
         city=city,
         region=region,
         country_code=country_code,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Forward-geocode proxy — backs the consumer "Pick a city" dialog
+# that fires when geolocation is denied / unsupported / unavailable.
+# ---------------------------------------------------------------------------
+
+# Cache key is the lowercased trimmed query so "Atlanta", "atlanta",
+# and "  Atlanta  " collapse to one billed Google call. Same in-memory
+# pattern as reverse-geocode — restarts drop the cache, traffic
+# patterns reseed it within minutes for popular cities.
+@_lru_cache(maxsize=10_000)
+def _cached_forward_geocode_payload(query_norm: str) -> tuple:
+    """Cached wrapper. Returns a tuple of ``(label, lat, lng, city,
+    region, country_code)`` rows so the cache value is hashable. The
+    router unpacks it back into the response shape.
+    """
+    payload = fetch_forward_geocode_google(query_norm)
+    results = payload.get("results") or []
+    out: list[tuple[str, float, float, str | None, str | None, str | None]] = []
+    for r in results:
+        loc = (r.get("geometry") or {}).get("location") or {}
+        lat = loc.get("lat")
+        lng = loc.get("lng")
+        if lat is None or lng is None:
+            continue
+        # Reuse the existing locality extractor — we want the same
+        # structured (city, region, country_code) the reverse-geocode
+        # path produces, so the consumer search URL stays consistent
+        # whether the user came in via near-me or pick-a-city.
+        locality = extract_locality_from_geocode({"results": [r]})
+        label = (
+            r.get("formatted_address")
+            or _compose_label(locality.city, locality.region, locality.country_code)
+            or "Unnamed location"
+        )
+        out.append(
+            (
+                label,
+                float(lat),
+                float(lng),
+                locality.city,
+                locality.region,
+                locality.country_code,
+            )
+        )
+    # Cap at 5 — the consumer dialog renders a small list, not a
+    # results page, and Google's first 5 candidates are almost
+    # always the right shape for a city query.
+    return tuple(out[:5])
+
+
+def _compose_label(
+    city: str | None, region: str | None, country_code: str | None
+) -> str | None:
+    """Fallback label builder when Google didn't ship a
+    formatted_address. Returns "City, REGION" when both are present,
+    "City" alone when region's missing, etc."""
+    parts = [p for p in (city, region, country_code) if p]
+    return ", ".join(parts) if parts else None
+
+
+@router.get(
+    "/google/forward-geocode",
+    response_model=ForwardGeocodeResults,
+    summary="Google Geocoding forward-lookup proxy",
+    description=(
+        "Server-side proxy to the Google Geocoding API for free-text "
+        "place queries. Backs the consumer 'Pick a city' dialog that "
+        "fires when the browser denies / can't fulfill geolocation. "
+        "Returns up to 5 candidate matches with resolved lat/lng + a "
+        "human-readable label so the dialog can render a one-tap "
+        "disambiguation list. Same key-hygiene posture as "
+        "reverse-geocode and autocomplete: GOOGLE_MAPS_API_KEY is "
+        "never exposed to the browser. Empty / no-result queries "
+        "return an empty matches array (200 OK, not 404). Rate-"
+        "limited per-IP to bound Google quota cost."
+    ),
+)
+@limiter.limit("60/minute", key_func=ip_key)
+@limiter.limit("600/hour", key_func=ip_key)
+def google_forward_geocode(
+    request: Request,
+    q: str = Query(..., min_length=1, max_length=200),
+    db: Session = Depends(get_db),
+) -> ForwardGeocodeResults:
+    """Forward-geocode a free-text city / place query.
+
+    Public on purpose: Pick-a-city is anonymous-friendly and the
+    response only contains publicly-knowable map metadata. Cache key
+    is the lowercased trimmed query so "Atlanta", "atlanta", and
+    "Atlanta GA" each get their own (cheap) cache slot but two
+    identical queries collapse.
+    """
+    del db  # kept for signature symmetry; see autocomplete handler
+
+    query_norm = q.strip().lower()
+    if not query_norm:
+        return ForwardGeocodeResults(matches=[])
+
+    try:
+        rows = _cached_forward_geocode_payload(query_norm)
+    except GoogleAPIError as exc:
+        # Same posture as reverse-geocode: hide Google's verbose error
+        # text and let the client render a soft empty state. The
+        # dialog's UX should be "we couldn't find that, try again",
+        # not "the system is down".
+        raise BadRequestError(
+            "GOOGLE_FORWARD_GEOCODE_UNAVAILABLE",
+            f"Google Forward Geocoding is currently unavailable: {exc}",
+        )
+
+    return ForwardGeocodeResults(
+        matches=[
+            ForwardGeocodeMatch(
+                label=label,
+                lat=lat,
+                lng=lng,
+                city=city,
+                region=region,
+                country_code=country_code,
+            )
+            for (label, lat, lng, city, region, country_code) in rows
+        ]
     )
 
 

@@ -75,6 +75,25 @@ def count_active_photos_for_place(db: Session, *, place_id: UUID) -> int:
     return int(db.execute(stmt).scalar_one() or 0)
 
 
+def has_active_hero_for_place(db: Session, *, place_id: UUID) -> bool:
+    """Cheap existence check for the auto-hero promotion path.
+
+    Used by the upload endpoint to decide whether the freshly-
+    uploaded photo should be auto-marked as hero. Checks for ANY
+    non-deleted photo on this place with ``is_hero = true``. The
+    partial unique index ``ix_place_photos_one_hero_per_place``
+    backs the query, so it's an index-only lookup even at scale.
+    """
+    stmt = (
+        select(PlacePhoto.id)
+        .where(PlacePhoto.place_id == place_id)
+        .where(PlacePhoto.deleted_at.is_(None))
+        .where(PlacePhoto.is_hero.is_(True))
+        .limit(1)
+    )
+    return db.execute(stmt).scalar_one_or_none() is not None
+
+
 def clear_hero_for_place(db: Session, *, place_id: UUID) -> None:
     """Atomically unmark the current hero (if any) for a place.
 
