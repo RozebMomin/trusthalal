@@ -28,6 +28,7 @@
 
 import { ChevronLeft, Flag, MapPin } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { FavoriteToggle } from "@/components/favorite-toggle";
@@ -124,10 +125,39 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
     ACTIVE_DISPUTE_STATUSES.includes(d.status),
   );
 
+  const router = useRouter();
+
+  /**
+   * Back-link handler. The link's static ``href="/"`` is the
+   * fallback for users who arrived via deep-link / fresh tab — but
+   * for the common case (search → result-card click → detail),
+   * we want to restore the search page WITH all the user's filters
+   * + query intact, not blow them away with a fresh "/".
+   *
+   * ``router.back()`` walks the browser history one step, which
+   * naturally restores the search URL (q, lat/lng/radius, cuisine
+   * chips, etc. all live in the URL on the search page). The
+   * ``window.history.length > 1`` guard is the "is there anywhere
+   * to go back to?" check — true when the user navigated within
+   * the SPA, false on a fresh tab where the detail page is the
+   * only entry. We let the Link's default navigation to ``/``
+   * carry that case.
+   */
+  function handleBackClick(e: React.MouseEvent) {
+    if (
+      typeof window !== "undefined" &&
+      window.history.length > 1
+    ) {
+      e.preventDefault();
+      router.back();
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <Link
         href="/"
+        onClick={handleBackClick}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="h-4 w-4" /> Back to search
