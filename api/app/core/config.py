@@ -145,6 +145,25 @@ class Settings(BaseSettings):
     SUPABASE_CERTS_BUCKET: str = "halal-certificates"
 
     # ------------------------------------------------------------------
+    # Mapbox — alternative geocoder
+    # ------------------------------------------------------------------
+    # Mapbox's free tier is 100k geocoding requests/month vs Google's
+    # ~40k under the $200/month credit. When this token is present,
+    # the forward / reverse geocode routes prefer Mapbox; Google is
+    # used only as a fallback when Mapbox isn't configured. Google
+    # Places (autocomplete, ingest details) keep using their own key
+    # — different products, different free tiers, no reason to
+    # migrate both at once.
+    #
+    # Get a token: https://account.mapbox.com/access-tokens
+    # Server-side usage doesn't need URL restrictions; the token
+    # only ever sees daylight on the API server.
+    MAPBOX_ACCESS_TOKEN: str | None = None
+    MAPBOX_GEOCODE_BASE_URL: str = (
+        "https://api.mapbox.com/search/geocode/v6"
+    )
+
+    # ------------------------------------------------------------------
     # Pydantic settings config
     # ------------------------------------------------------------------
     model_config = SettingsConfigDict(

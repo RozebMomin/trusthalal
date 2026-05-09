@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, require_roles
+from app.core.config import settings
 from app.core.exceptions import BadRequestError, NotFoundError
 from app.core.rate_limit import ip_key, limiter
 from app.db.deps import get_db
@@ -26,6 +27,11 @@ from app.modules.places.integrations.google_client import (
     fetch_forward_geocode_google,
     fetch_place_autocomplete_google,
     fetch_reverse_geocode_google,
+)
+from app.modules.places.integrations.mapbox import (
+    MapboxAPIError,
+    fetch_forward_geocode_mapbox,
+    fetch_reverse_geocode_mapbox,
 )
 from app.modules.places.repo import (
     HalalSearchFilters,
@@ -337,7 +343,20 @@ def _cached_reverse_geocode_locality(
 ) -> tuple[str | None, str | None, str | None]:
     """Cached wrapper. Key is (rounded lat, rounded lng); value is the
     triple of (city, region, country_code). Exceptions are not cached
-    — a transient Google outage shouldn't poison the cache."""
+    — a transient outage shouldn't poison the cache.
+
+    Provider preference mirrors the forward-geocode path: Mapbox
+    when its token is configured, Google otherwise.
+    """
+    if settings.MAPBOX_ACCESS_TOKEN:
+        try:
+            locality = fetch_reverse_geocode_mapbox(lat_3dp, lng_3dp)
+        except MapboxAPIError as exc:
+            # Same translation as the forward path so the route's
+            # exception handler can stay provider-agnostic.
+            raise GoogleAPIError(str(exc)) from exc
+        return (locality.city, locality.region, locality.country_code)
+
     payload = fetch_reverse_geocode_google(lat_3dp, lng_3dp)
     locality = extract_locality_from_geocode(payload)
     return (locality.city, locality.region, locality.country_code)
@@ -423,15 +442,32 @@ def google_reverse_geocode(
 # ---------------------------------------------------------------------------
 
 # Cache key is the lowercased trimmed query so "Atlanta", "atlanta",
-# and "  Atlanta  " collapse to one billed Google call. Same in-memory
+# and "  Atlanta  " collapse to one billed call. Same in-memory
 # pattern as reverse-geocode — restarts drop the cache, traffic
 # patterns reseed it within minutes for popular cities.
+#
+# Provider preference: Mapbox if its access token is configured
+# (better free tier, doesn't share quota with Places), Google
+# otherwise so existing deployments keep working unchanged. Both
+# providers normalize down to the same ``(label, lat, lng, city,
+# region, country_code)`` row shape so callers don't branch.
 @_lru_cache(maxsize=10_000)
 def _cached_forward_geocode_payload(query_norm: str) -> tuple:
     """Cached wrapper. Returns a tuple of ``(label, lat, lng, city,
-    region, country_code)`` rows so the cache value is hashable. The
-    router unpacks it back into the response shape.
+    region, country_code)`` rows so the cache value is hashable.
     """
+    if settings.MAPBOX_ACCESS_TOKEN:
+        # Mapbox path returns the cache rows directly — already
+        # normalized to the tuple shape we cache. Translate Mapbox
+        # errors into the same ``GoogleAPIError`` the router catches
+        # so the response code path doesn't have to branch on
+        # provider.
+        try:
+            rows = fetch_forward_geocode_mapbox(query_norm)
+        except MapboxAPIError as exc:
+            raise GoogleAPIError(str(exc)) from exc
+        return tuple(rows[:5])
+
     payload = fetch_forward_geocode_google(query_norm)
     results = payload.get("results") or []
     out: list[tuple[str, float, float, str | None, str | None, str | None]] = []
@@ -462,8 +498,8 @@ def _cached_forward_geocode_payload(query_norm: str) -> tuple:
             )
         )
     # Cap at 5 — the consumer dialog renders a small list, not a
-    # results page, and Google's first 5 candidates are almost
-    # always the right shape for a city query.
+    # results page, and 5 candidates are almost always the right
+    # shape for a city query.
     return tuple(out[:5])
 
 
