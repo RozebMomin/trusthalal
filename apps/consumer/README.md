@@ -131,8 +131,13 @@ src/
     active-filters-bar.tsx   Removable chips above results
     place-result-card.tsx    Result row with hero photo + halal pill +
                              facts strip + cuisine + distance
-    halal-badges.tsx         Sub-components used by the place detail page
-    halal-profile-detail.tsx Full halal profile rendering on /places/[id]
+    place-hero.tsx           Full-bleed hero banner on /places/[id]
+                             (photo + name + cuisine chips + trust pill)
+    place-trust-summary.tsx  "What we know about halal here" card on
+                             the place detail page (replaces the older
+                             multi-panel HalalProfileDetail)
+    place-photo-gallery.tsx  Thumbnail grid + lightbox for the rest of
+                             the place's photos
     file-dispute-dialog.tsx  Auth-gated dispute filing
     near-me-button.tsx       Active-state geolocation pill + radius chips
     preference-match-banner.tsx, version-tag.tsx

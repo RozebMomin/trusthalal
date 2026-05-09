@@ -1,35 +1,42 @@
 "use client";
 
 /**
- * Client view for /places/[id].
+ * Client view for /places/[id] — refreshed for the aesthetic pass.
  *
- * Renders a place's name, address, full halal profile (when one
- * exists), and the caller's existing dispute history for this place.
- * Anchored by the search results list — clicking any row from the
- * home page lands here.
+ * Renders, top to bottom:
  *
- * Auth posture:
- *   * Anonymous visitors see the full read surface (it's public).
- *     The "Report an issue" trigger swaps to a "Sign in to report"
- *     link.
- *   * Signed-in CONSUMERs see the full file-a-dispute dialog.
- *   * Signed-in OWNER / ADMIN / VERIFIER see the read surface but
- *     not the consumer dispute UI — those audiences have their own
- *     surfaces for managing disputes (admin panel, owner portal).
- *     The AppShell already shows them a "this isn't your portal"
- *     pointer; we don't repeat it here.
+ *   1. Back-to-search link.
+ *   2. Hero banner — full-bleed photo with overlayed name, cuisine
+ *      chips, and primary halal trust pill (``PlaceHero``).
+ *   3. Address strip (with MapPin icon) right under the hero so the
+ *      "where" is one glance away from the "what".
+ *   4. Preference-match banner — when the visitor has saved filters
+ *      and this place hits them.
+ *   5. Trust summary card — ``PlaceTrustSummary`` consolidates what
+ *      used to be seven separate panels into one scannable block.
+ *      Falls back to ``PlaceNoTrustSummary`` when the place hasn't
+ *      been claimed yet.
+ *   6. Photo gallery — thumbnail grid + lightbox for any photo
+ *      beyond the hero.
+ *   7. Dispute section — auth-gated CTA + the visitor's existing
+ *      reports for this place.
  *
- * Wrapped by a server component (page.tsx) which provides
- * generateMetadata + JSON-LD structured data; the placeId is passed
- * down explicitly so this view doesn't depend on `useParams`.
+ * Wrapped by a server component (page.tsx) that provides
+ * generateMetadata + JSON-LD; the placeId is passed down explicitly
+ * so this view doesn't depend on ``useParams``.
  */
 
 import { ChevronLeft, Flag, MapPin } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
-import { HalalProfileDetail } from "@/components/halal-profile-detail";
 import { FileDisputeDialog } from "@/components/file-dispute-dialog";
+import { PlaceHero } from "@/components/place-hero";
+import { PlacePhotoGallery } from "@/components/place-photo-gallery";
+import {
+  PlaceNoTrustSummary,
+  PlaceTrustSummary,
+} from "@/components/place-trust-summary";
 import { PreferenceMatchBanner } from "@/components/preference-match-banner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +45,7 @@ import {
   type ConsumerDisputeReporter,
   type DisputeStatus,
   type DisputedAttribute,
+  type PlaceDetail,
   useCurrentUser,
   useMyDisputes,
   usePlaceDetail,
@@ -116,7 +124,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-5">
       <Link
         href="/"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -130,15 +138,22 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
 
       {place.data && (
         <>
-          <PlaceHeader place={place.data} />
+          <PlaceHero place={place.data} />
+
+          <PlaceAddressLine place={place.data} />
 
           <PreferenceMatchBanner result={matchResult} />
 
           {place.data.halal_profile ? (
-            <HalalProfileDetail profile={place.data.halal_profile} />
+            <PlaceTrustSummary profile={place.data.halal_profile} />
           ) : (
-            <NoHalalProfileNotice />
+            <PlaceNoTrustSummary />
           )}
+
+          <PlacePhotoGallery
+            photos={place.data.photos}
+            placeName={place.data.name}
+          />
 
           <DisputeSection
             placeId={placeId}
@@ -165,53 +180,20 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
 // Sub-sections
 // ---------------------------------------------------------------------------
 
-function PlaceHeader({
-  place,
-}: {
-  place: NonNullable<ReturnType<typeof usePlaceDetail>["data"]>;
-}) {
+function PlaceAddressLine({ place }: { place: PlaceDetail }) {
   const addressParts = [
     place.address,
     [place.city, place.region].filter(Boolean).join(", "),
     place.country_code,
   ].filter(Boolean);
 
-  return (
-    <header className="space-y-2 pt-2">
-      {place.is_deleted && (
-        <p
-          role="status"
-          className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
-        >
-          This restaurant has been removed from the directory. The
-          page is preserved so existing links don&apos;t 404.
-        </p>
-      )}
-      <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">
-        {place.name}
-      </h1>
-      {addressParts.length > 0 && (
-        <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
-          <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <span className="break-words">{addressParts.join(" · ")}</span>
-        </p>
-      )}
-    </header>
-  );
-}
+  if (addressParts.length === 0) return null;
 
-function NoHalalProfileNotice() {
   return (
-    <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-      <p className="font-medium text-foreground">
-        No halal profile yet.
-      </p>
-      <p className="mt-1">
-        This restaurant hasn&apos;t been verified by Trust Halal. If
-        you own or know this place, ask the owner to submit a halal
-        claim through the owner portal.
-      </p>
-    </div>
+    <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+      <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+      <span className="break-words">{addressParts.join(" · ")}</span>
+    </p>
   );
 }
 
@@ -238,10 +220,10 @@ function DisputeSection({
   const wrongAudience = me !== null && !isConsumer;
 
   return (
-    <section className="space-y-3 rounded-lg border bg-card p-4">
+    <section className="space-y-3 rounded-xl border bg-card p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-base font-semibold">
+          <h2 className="text-base font-semibold tracking-tight">
             Spot something wrong?
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -327,14 +309,11 @@ function DisputeSection({
 
 function PlaceLoading() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2 pt-2">
-        <Skeleton className="h-9 w-2/3" />
-        <Skeleton className="h-4 w-1/2" />
-      </div>
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-32 w-full" />
-      <Skeleton className="h-40 w-full" />
+    <div className="space-y-5">
+      <Skeleton className="aspect-[16/9] w-full rounded-xl sm:aspect-[5/2]" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-32 w-full rounded-xl" />
+      <Skeleton className="h-40 w-full rounded-xl" />
     </div>
   );
 }
