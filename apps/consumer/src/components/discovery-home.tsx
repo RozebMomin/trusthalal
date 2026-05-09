@@ -13,8 +13,14 @@
  *   2. **Big "Find halal near me" CTA** — primary discovery action.
  *      Tap → request browser geolocation. On success, fires
  *      ``onLaunchNearMe(coords)``. On denial / unsupported, opens
- *      the Pick-a-city dialog.
- *   3. **Cuisine discovery grid** — 8 cards (gradient background +
+ *      the location picker dialog with a fallback subtitle.
+ *   3. **"Search a different city" secondary affordance** — opens
+ *      the same location picker dialog WITHOUT first asking for
+ *      geolocation. This is the proactive entry point: a visitor
+ *      who's planning a trip ("halal in Atlanta this weekend")
+ *      doesn't have to deny their browser geo prompt to pick a
+ *      different spot.
+ *   4. **Cuisine discovery grid** — 8 cards (gradient background +
  *      flag emoji + name). Tap → same near-me request flow but
  *      with that cuisine pre-applied to the resulting search URL.
  *
@@ -23,23 +29,18 @@
  * prioritizes those. Name-search is the secondary surface (rolled
  * into a small toggle).
  *
- * The Pick-a-city dialog handles the geolocation-denied fallback:
- * preset chips for major US metros + a search input that hits the
- * forward-geocode endpoint for anything else.
+ * The location picker dialog handles three flows in one place:
+ * preset metro chips, free-form forward-geocode search, and
+ * (when the dialog is opened proactively) an inline "Use my
+ * current location" entry that re-routes to the geolocate path.
  */
 
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { LocateFixed, Search, X } from "lucide-react";
+import { LocateFixed, MapPin, Search } from "lucide-react";
 import * as React from "react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DEFAULT_NEAR_ME_RADIUS_METERS } from "@/components/near-me-button";
-import {
-  type Cuisine,
-  type ForwardGeocodeMatch,
-  useForwardGeocode,
-} from "@/lib/api/hooks";
+import { LocationPickerDialog } from "@/components/location-picker-dialog";
+import { type Cuisine } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -111,29 +112,6 @@ const TOP_CUISINES: ReadonlyArray<{
 ];
 
 // ---------------------------------------------------------------------------
-// Preset metro chips for the Pick-a-city fallback. Hand-picked top
-// halal-density US metros so the most-likely fallback case is a
-// single-tap shortcut rather than a typing exercise. The free-form
-// search box covers anywhere else.
-// ---------------------------------------------------------------------------
-
-const PRESET_CITIES: ReadonlyArray<{
-  label: string;
-  lat: number;
-  lng: number;
-  city: string;
-  region: string;
-  country_code: string;
-}> = [
-  { label: "New York, NY", lat: 40.7128, lng: -74.006, city: "New York", region: "NY", country_code: "US" },
-  { label: "Chicago, IL", lat: 41.8781, lng: -87.6298, city: "Chicago", region: "IL", country_code: "US" },
-  { label: "Houston, TX", lat: 29.7604, lng: -95.3698, city: "Houston", region: "TX", country_code: "US" },
-  { label: "Atlanta, GA", lat: 33.7490, lng: -84.3880, city: "Atlanta", region: "GA", country_code: "US" },
-  { label: "Detroit, MI", lat: 42.3314, lng: -83.0458, city: "Detroit", region: "MI", country_code: "US" },
-  { label: "Los Angeles, CA", lat: 34.0522, lng: -118.2437, city: "Los Angeles", region: "CA", country_code: "US" },
-];
-
-// ---------------------------------------------------------------------------
 // Public types — what the page passes in.
 // ---------------------------------------------------------------------------
 
@@ -151,20 +129,29 @@ type Props = {
    *  through ``nameSearchSlot``. */
   nameSearchSlot: React.ReactNode;
   /** Called when the user successfully picks coordinates (from
-   *  geolocation success OR a Pick-a-city selection). Optionally
+   *  geolocation success OR a location-picker selection). Optionally
    *  carries a cuisine to pre-apply. The page is responsible for
    *  pushing all of this into the URL. */
   onLaunchNearMe: (opts: LaunchNearMeOpts) => void;
 };
 
+// Picker mode. Drives subtle copy + behavior differences in the
+// shared dialog so the same component handles both the "fallback
+// from a denied geolocation prompt" case and the "I want to search
+// somewhere else on purpose" case.
+type PickerMode = "fallback" | "proactive" | null;
+
 export function DiscoveryHome({
   nameSearchSlot,
   onLaunchNearMe,
 }: Props) {
-  // Pick-a-city dialog state. ``pendingCuisine`` carries the cuisine
-  // the user selected from a card before geolocation failed, so the
-  // city pick re-applies it without the user having to remember.
-  const [cityDialogOpen, setCityDialogOpen] = React.useState(false);
+  // Picker dialog state. ``mode`` is null when closed; otherwise it
+  // tells the dialog what subtitle to render and whether to surface
+  // the "Use my current location" inline entry.
+  const [pickerMode, setPickerMode] = React.useState<PickerMode>(null);
+  // ``pendingCuisine`` carries the cuisine the user selected from a
+  // card before geolocation failed, so the city pick re-applies it
+  // without the user having to remember.
   const [pendingCuisine, setPendingCuisine] = React.useState<Cuisine | null>(null);
 
   // Name-search disclosure — collapsed by default so the discovery
@@ -174,8 +161,9 @@ export function DiscoveryHome({
 
   /** Try to geolocate the browser. On success, immediately launch
    *  near-me with the resolved coords + the optional cuisine. On
-   *  any failure (denied / unsupported / timeout) open the city
-   *  dialog and stash the cuisine so it survives the city pick. */
+   *  any failure (denied / unsupported / timeout) open the picker
+   *  in fallback mode and stash the cuisine so it survives the
+   *  city pick. */
   const tryGeolocate = React.useCallback(
     (cuisine?: Cuisine) => {
       if (
@@ -183,7 +171,7 @@ export function DiscoveryHome({
         !("geolocation" in navigator)
       ) {
         setPendingCuisine(cuisine ?? null);
-        setCityDialogOpen(true);
+        setPickerMode("fallback");
         return;
       }
       navigator.geolocation.getCurrentPosition(
@@ -197,7 +185,7 @@ export function DiscoveryHome({
         },
         () => {
           setPendingCuisine(cuisine ?? null);
-          setCityDialogOpen(true);
+          setPickerMode("fallback");
         },
         { timeout: 10000, maximumAge: 5 * 60 * 1000 },
       );
@@ -205,17 +193,22 @@ export function DiscoveryHome({
     [onLaunchNearMe],
   );
 
-  function handleCityPick(match: {
-    lat: number;
-    lng: number;
-  }) {
+  /** Open the location picker proactively (NO geolocation prompt
+   *  first). This is the "search a different city" entry — the
+   *  visitor wants to skip past their current location entirely. */
+  function openProactivePicker() {
+    setPendingCuisine(null);
+    setPickerMode("proactive");
+  }
+
+  function handlePick(match: { lat: number; lng: number }) {
     onLaunchNearMe({
       lat: match.lat,
       lng: match.lng,
       radius: DEFAULT_NEAR_ME_RADIUS_METERS,
       cuisine: pendingCuisine ?? undefined,
     });
-    setCityDialogOpen(false);
+    setPickerMode(null);
     setPendingCuisine(null);
   }
 
@@ -256,8 +249,30 @@ export function DiscoveryHome({
         )}
       </div>
 
-      {/* Big near-me CTA. */}
-      <NearMeCTA onClick={() => tryGeolocate()} />
+      {/* Big near-me CTA + secondary "Search a different city". The
+          two are stacked rather than side-by-side so each gets its
+          own line of explanatory copy on small screens. */}
+      <div className="space-y-2">
+        <NearMeCTA onClick={() => tryGeolocate()} />
+        <button
+          type="button"
+          onClick={openProactivePicker}
+          className={cn(
+            "group inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition",
+            "hover:text-foreground",
+            "focus:outline-none focus-visible:underline",
+          )}
+        >
+          <MapPin className="h-3.5 w-3.5" aria-hidden />
+          Or search a different city
+          <span
+            aria-hidden
+            className="text-muted-foreground/60 transition group-hover:translate-x-0.5"
+          >
+            →
+          </span>
+        </button>
+      </div>
 
       {/* Cuisine discovery grid. */}
       <section className="space-y-3">
@@ -277,22 +292,51 @@ export function DiscoveryHome({
         </div>
       </section>
 
-      <PickCityDialog
-        open={cityDialogOpen}
+      <LocationPickerDialog
+        open={pickerMode !== null}
         onOpenChange={(next) => {
-          setCityDialogOpen(next);
-          if (!next) setPendingCuisine(null);
+          if (!next) {
+            setPickerMode(null);
+            setPendingCuisine(null);
+          }
         }}
-        pendingCuisineLabel={
-          pendingCuisine
-            ? TOP_CUISINES.find((c) => c.value === pendingCuisine)?.label ??
-              null
-            : null
+        title={
+          pickerMode === "proactive"
+            ? "Search a different city"
+            : "Pick a location"
         }
-        onPick={handleCityPick}
+        description={
+          pickerMode === "proactive"
+            ? pendingCuisineLabel(pendingCuisine)
+              ? `Show me ${pendingCuisineLabel(pendingCuisine)} spots there.`
+              : "We'll search for halal spots there instead of around you."
+            : pendingCuisineLabel(pendingCuisine)
+              ? `We'll show ${pendingCuisineLabel(pendingCuisine)} spots there.`
+              : "We couldn't get your location. Pick a city to search."
+        }
+        // The "Use my current location" inline option only makes
+        // sense in proactive mode — in fallback mode the dialog is
+        // already a consequence of the geolocation prompt failing,
+        // so re-offering it would just send the visitor back through
+        // the same denial they already gave.
+        onUseCurrentLocation={
+          pickerMode === "proactive"
+            ? () => {
+                const cuisine = pendingCuisine ?? undefined;
+                setPickerMode(null);
+                tryGeolocate(cuisine);
+              }
+            : undefined
+        }
+        onPick={handlePick}
       />
     </div>
   );
+}
+
+function pendingCuisineLabel(value: Cuisine | null): string | null {
+  if (value === null) return null;
+  return TOP_CUISINES.find((c) => c.value === value)?.label ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -382,210 +426,3 @@ function CuisineCard({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Pick-a-city dialog — geolocation-denied fallback. Preset chips
-// for major metros + a free-form search input that hits the
-// forward-geocode endpoint for everywhere else.
-// ---------------------------------------------------------------------------
-
-function PickCityDialog({
-  open,
-  onOpenChange,
-  pendingCuisineLabel,
-  onPick,
-}: {
-  open: boolean;
-  onOpenChange: (next: boolean) => void;
-  /** Display label of the cuisine the user picked before geolocation
-   *  failed (if any). Used in the dialog copy so the user understands
-   *  the city pick will preserve their cuisine intent. */
-  pendingCuisineLabel: string | null;
-  onPick: (match: { lat: number; lng: number }) => void;
-}) {
-  const [query, setQuery] = React.useState("");
-  const debounced = useDebounced(query.trim(), 220);
-  const geo = useForwardGeocode(debounced);
-
-  // Reset query whenever dialog re-opens so a stale query from a
-  // previous denial doesn't auto-search this time.
-  React.useEffect(() => {
-    if (!open) setQuery("");
-  }, [open]);
-
-  return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay
-          className={cn(
-            "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-          )}
-        />
-        <DialogPrimitive.Content
-          aria-describedby={undefined}
-          className={cn(
-            // Bottom sheet on mobile.
-            "fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border-t bg-background shadow-2xl",
-            "pb-[env(safe-area-inset-bottom)]",
-            // Centered modal on desktop.
-            "sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2",
-            "sm:w-full sm:max-w-md sm:max-h-[85dvh]",
-            "sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border sm:pb-0",
-            // Animations.
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
-            "sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95",
-          )}
-        >
-          <div className="flex justify-center pt-2 sm:hidden">
-            <span
-              aria-hidden
-              className="h-1.5 w-10 rounded-full bg-muted-foreground/30"
-            />
-          </div>
-
-          <div className="flex items-start justify-between gap-3 border-b px-5 py-3 sm:py-4">
-            <div className="space-y-0.5">
-              <DialogPrimitive.Title className="text-lg font-semibold tracking-tight">
-                Pick a city
-              </DialogPrimitive.Title>
-              <p className="text-xs text-muted-foreground">
-                {pendingCuisineLabel
-                  ? `We'll show ${pendingCuisineLabel} spots there.`
-                  : "We couldn't get your location. Pick a city to search."}
-              </p>
-            </div>
-            <DialogPrimitive.Close
-              aria-label="Close"
-              className="rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </DialogPrimitive.Close>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-5 py-4">
-            {/* Preset chips — single-tap for the most likely cases. */}
-            <div className="space-y-2">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Popular
-              </h3>
-              <div className="flex flex-wrap gap-1.5">
-                {PRESET_CITIES.map((c) => (
-                  <button
-                    key={c.label}
-                    type="button"
-                    onClick={() => onPick({ lat: c.lat, lng: c.lng })}
-                    className="rounded-full border border-input bg-background px-3 py-1.5 text-xs font-medium transition hover:border-foreground/40 hover:bg-accent"
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Free-form search → forward-geocode lookup. */}
-            <div className="mt-5 space-y-2">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Search any city
-              </h3>
-              <div className="relative">
-                <Search
-                  aria-hidden
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  type="search"
-                  placeholder="Atlanta, GA"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="pl-9"
-                  autoFocus
-                />
-              </div>
-              <ForwardGeocodeResults
-                query={debounced}
-                results={geo.data?.matches ?? []}
-                isLoading={geo.isLoading && debounced.length >= 3}
-                isError={geo.isError}
-                onPick={(m) => onPick({ lat: m.lat, lng: m.lng })}
-              />
-            </div>
-          </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
-  );
-}
-
-function ForwardGeocodeResults({
-  query,
-  results,
-  isLoading,
-  isError,
-  onPick,
-}: {
-  query: string;
-  results: ForwardGeocodeMatch[];
-  isLoading: boolean;
-  isError: boolean;
-  onPick: (m: ForwardGeocodeMatch) => void;
-}) {
-  if (query.length === 0) return null;
-  if (query.length < 3) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        Keep typing — at least 3 characters.
-      </p>
-    );
-  }
-  if (isLoading) {
-    return (
-      <p className="text-xs text-muted-foreground">Searching…</p>
-    );
-  }
-  if (isError) {
-    return (
-      <p className="text-xs text-destructive">
-        Couldn&rsquo;t look up that city. Try again in a moment.
-      </p>
-    );
-  }
-  if (results.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        No matches. Try a different spelling.
-      </p>
-    );
-  }
-  return (
-    <ul className="divide-y rounded-md border bg-card">
-      {results.map((r) => (
-        <li key={`${r.lat}-${r.lng}`}>
-          <button
-            type="button"
-            onClick={() => onPick(r)}
-            className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-accent"
-          >
-            <span className="truncate">{r.label}</span>
-            <span className="shrink-0 text-xs text-primary">Pick</span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tiny inline debounce hook so the dialog doesn't fire a Google call
-// on every keystroke.
-// ---------------------------------------------------------------------------
-
-function useDebounced<T>(value: T, ms: number): T {
-  const [debounced, setDebounced] = React.useState(value);
-  React.useEffect(() => {
-    const t = window.setTimeout(() => setDebounced(value), ms);
-    return () => window.clearTimeout(t);
-  }, [value, ms]);
-  return debounced;
-}

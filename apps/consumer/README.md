@@ -123,8 +123,14 @@ src/
     ui/                      shadcn/ui primitives (Dialog, Button, Input, …)
     app-shell.tsx            Public-friendly chrome (no role gate)
     site-hero.tsx            Apex tagline + brand mark
-    discovery-home.tsx       Cold-state surface — Near-Me CTA, cuisine
-                             cards, Pick-a-City fallback dialog
+    discovery-home.tsx       Cold-state surface — Near-Me CTA, "Search
+                             a different city" secondary entry, cuisine
+                             cards
+    location-picker-dialog.tsx  Shared "Pick a location" sheet (preset
+                                metro chips + free-form forward-geocode
+                                + optional "Use my current location"
+                                inline entry). Used by discovery-home
+                                AND the active near-me pill.
     cuisine-rail.tsx         Top-8 inline cuisine rail (search-active)
     filters-sheet.tsx        Bottom sheet / popover for full filter set,
                              plus the FiltersTrigger button

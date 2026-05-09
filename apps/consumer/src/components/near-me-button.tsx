@@ -11,7 +11,10 @@
  *      error copy under the button rather than thrown.
  *
  *   2. **Active** — render a status pill ("Searching 5 mi around you")
- *      plus a radius chip row plus a "Clear" affordance. Tapping a
+ *      plus a radius chip row plus a "Clear" affordance. Tapping the
+ *      city label (or the new "Change" button) opens the location
+ *      picker so the visitor can swap from "around me" to "around
+ *      Atlanta" without leaving the search results. Tapping a
  *      different radius re-fires search with the new value but reuses
  *      the cached coords (no second geolocation prompt).
  *
@@ -23,9 +26,10 @@
  * future surface that wants near-me support.
  */
 
-import { LocateFixed, X } from "lucide-react";
+import { LocateFixed, MapPin, X } from "lucide-react";
 import * as React from "react";
 
+import { LocationPickerDialog } from "@/components/location-picker-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -56,8 +60,9 @@ type Props = {
    *  resolves this via `useReverseGeocode` so the network state
    *  lives next to the rest of the page's data fetching. */
   cityLabel?: string | null;
-  /** Called when the user successfully grants geolocation OR adjusts
-   *  the radius while already active. */
+  /** Called when the user successfully grants geolocation, picks
+   *  a different city via the location picker, OR adjusts the
+   *  radius while already active. */
   onActivate: (next: GeoCoords & { radius: number }) => void;
   /** Called when the user clears near-me. */
   onClear: () => void;
@@ -71,6 +76,12 @@ export function NearMeButton({
 }: Props) {
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
+
+  // Location picker state lives in this component — same dialog the
+  // home page uses, but the active-state surface owns its own open/
+  // close lifecycle so the parent doesn't have to thread props for
+  // both.
+  const [pickerOpen, setPickerOpen] = React.useState(false);
 
   const requestLocation = React.useCallback(() => {
     setError(null);
@@ -115,6 +126,18 @@ export function NearMeButton({
     );
   }, [active?.radius, onActivate]);
 
+  /** Picker → re-activate at the new coords, preserving the
+   *  current radius. Closes the dialog after the parent has been
+   *  told about the new center. */
+  function handlePickerPick(match: { lat: number; lng: number }) {
+    onActivate({
+      lat: match.lat,
+      lng: match.lng,
+      radius: active?.radius ?? DEFAULT_NEAR_ME_RADIUS_METERS,
+    });
+    setPickerOpen(false);
+  }
+
   if (active) {
     const radiusLabel =
       RADIUS_OPTIONS_METERS.find((o) => o.meters === active.radius)?.label ??
@@ -128,11 +151,22 @@ export function NearMeButton({
           />
           <span className="flex-1 text-foreground">
             Searching {radiusLabel} around{" "}
-            {cityLabel ? (
-              <span className="font-medium">{cityLabel}</span>
-            ) : (
-              "you"
-            )}
+            {/* The location label itself is a button — taps the
+                picker so a visitor can swap from "around me" to
+                "around Atlanta" without going back to the home
+                page. Underlines on hover so the affordance is
+                discoverable without dominating the pill. */}
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className={cn(
+                "font-medium text-primary underline-offset-2",
+                "hover:underline focus:outline-none focus-visible:underline",
+              )}
+              aria-label="Change search location"
+            >
+              {cityLabel ?? "you"}
+            </button>
           </span>
           <button
             type="button"
@@ -147,7 +181,7 @@ export function NearMeButton({
             Clear
           </button>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {RADIUS_OPTIONS_METERS.map((opt) => {
             const isActive = active.radius === opt.meters;
             return (
@@ -173,28 +207,83 @@ export function NearMeButton({
               </button>
             );
           })}
+          {/* Explicit "Change location" button alongside the radius
+              chips. Redundant with the underlined city label above
+              — kept on purpose because taps on a small inline link
+              are easy to miss on mobile, and a discrete chip gives
+              keyboard / accessibility users a clearer hit target. */}
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border border-dashed border-input bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition",
+              "hover:border-foreground/40 hover:text-foreground",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            )}
+          >
+            <MapPin className="h-3 w-3" aria-hidden />
+            Change
+          </button>
         </div>
+
+        <LocationPickerDialog
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          title="Change search location"
+          description="Swap from your current location to anywhere else."
+          onUseCurrentLocation={() => {
+            setPickerOpen(false);
+            requestLocation();
+          }}
+          onPick={handlePickerPick}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={requestLocation}
-        disabled={pending}
-        className="w-full justify-center gap-2 sm:w-auto"
-      >
-        <LocateFixed className="h-4 w-4" aria-hidden />
-        {pending ? "Locating you…" : "Near me"}
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={requestLocation}
+          disabled={pending}
+          className="justify-center gap-2"
+        >
+          <LocateFixed className="h-4 w-4" aria-hidden />
+          {pending ? "Locating you…" : "Near me"}
+        </Button>
+        {/* Inactive state also offers the picker — same pattern as
+            the cold-state home: the visitor can pick a location
+            without ever asking the browser for geo permission. */}
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setPickerOpen(true)}
+          className="justify-center gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <MapPin className="h-4 w-4" aria-hidden />
+          Pick a location
+        </Button>
+      </div>
       {error && (
         <p className="text-xs text-destructive" role="alert">
           {error}
         </p>
       )}
+
+      <LocationPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        title="Pick a location"
+        description="Search any city, neighborhood, or address."
+        onUseCurrentLocation={() => {
+          setPickerOpen(false);
+          requestLocation();
+        }}
+        onPick={handlePickerPick}
+      />
     </div>
   );
 }
