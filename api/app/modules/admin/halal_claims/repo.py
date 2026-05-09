@@ -32,6 +32,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError
+from app.core.storage import StorageClient
 from app.modules.admin.halal_claims.schemas import (
     HalalClaimApprove,
     HalalClaimReject,
@@ -208,6 +209,8 @@ def admin_approve_halal_claim(
     claim_id: UUID,
     actor_user_id: UUID,
     payload: HalalClaimApprove,
+    evidence_storage: Optional[StorageClient] = None,
+    certs_storage: Optional[StorageClient] = None,
 ) -> HalalClaim:
     """Approve a claim and run profile derivation.
 
@@ -220,11 +223,15 @@ def admin_approve_halal_claim(
          * marks any prior source_claim as SUPERSEDED
          * writes a CREATED or UPDATED HalalProfileEvent
          * resets dispute_state to NONE
+         * (when storage clients are wired) copies the latest
+           HALAL_CERTIFICATE attachment to the public certs bucket
+           and stores the resulting URL on the profile.
       5. Commit.
 
     If derivation fails (e.g. stored questionnaire is somehow
     incomplete), the BadRequestError propagates and the whole
-    transaction rolls back — claim stays in its prior state.
+    transaction rolls back — claim stays in its prior state. The
+    cert-publishing step is best-effort and never bubbles up.
     """
     claim = admin_get_halal_claim(db, claim_id)
 
@@ -314,6 +321,8 @@ def admin_approve_halal_claim(
         validation_tier=payload.validation_tier,
         expires_at=payload.expires_at_override,
         certificate_expires_at=payload.certificate_expires_at,
+        evidence_storage=evidence_storage,
+        certs_storage=certs_storage,
     )
     # Sync claim.expires_at with what the profile actually got — the
     # service applies the default 90-day TTL (or clamps an override

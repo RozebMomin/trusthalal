@@ -30,6 +30,7 @@ What this module owns
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import quote as urlquote
@@ -46,6 +47,27 @@ class StorageError(Exception):
     upload route, etc.) can render a single clean failure mode
     instead of branching on transport-vs-application errors.
     """
+
+
+def _extract_supabase_detail(response: httpx.Response) -> str:
+    """Best-effort pull of Supabase's error payload into a string.
+
+    Supabase Storage returns a JSON body shaped like
+    ``{"statusCode": "400", "error": "InvalidRequest", "message": "Object not found"}``
+    on 4xx responses. We surface the ``message`` field when present
+    so error messages tell ops which side is at fault (path typo vs.
+    missing object vs. unauthorized) instead of just "400 Bad Request".
+
+    Falls back to the raw text when the body isn't JSON, and to a
+    generic placeholder when even that fails — never propagates a
+    decoding exception over the original network error.
+    """
+    try:
+        body = response.json()
+    except (ValueError, json.JSONDecodeError):
+        return (response.text or "<empty body>").strip()
+    msg = body.get("message") or body.get("error") or ""
+    return str(msg).strip() or repr(body)
 
 
 class StorageClient(Protocol):
@@ -72,6 +94,8 @@ class StorageClient(Protocol):
         *,
         content_type: str,
     ) -> None: ...
+
+    def download_bytes(self, path: str) -> bytes: ...
 
     def signed_url(self, path: str, *, expires_in_seconds: int) -> str: ...
 
@@ -170,6 +194,19 @@ class SupabaseStorageClient:
             )
             resp.raise_for_status()
             payload = resp.json()
+        except httpx.HTTPStatusError as exc:
+            # Surface Supabase's response body — the bare httpx
+            # message ("400 Bad Request") doesn't tell ops whether
+            # the path is wrong, the object's missing, or the
+            # service-role key is unauthorized for this bucket.
+            # Supabase typically returns
+            # ``{"statusCode":"400","error":"InvalidRequest","message":"..."}``.
+            detail = _extract_supabase_detail(exc.response)
+            raise StorageError(
+                f"Object storage signed URL request failed: "
+                f"{exc.response.status_code} {detail} "
+                f"(bucket={self.bucket}, path={path})"
+            ) from exc
         except httpx.HTTPError as exc:
             raise StorageError(
                 f"Object storage signed URL request failed: {exc}"
@@ -186,6 +223,44 @@ class SupabaseStorageClient:
         if signed_url_path.startswith("http"):
             return signed_url_path
         return f"{self.base_url.rstrip('/')}/storage/v1{signed_url_path}"
+
+    def download_bytes(self, path: str) -> bytes:
+        """Read object bytes back out of the bucket.
+
+        Two Supabase paths could in principle do this:
+
+          * ``GET /storage/v1/object/{bucket}/{path}`` with the
+            service-role Bearer header — returns 400 in practice on
+            private buckets (the response body talks about
+            authentication policy mismatches even when service-role
+            bypasses RLS at the row level).
+          * Mint a signed URL via ``POST /storage/v1/object/sign/...``
+            and then GET that URL (the token in the URL is the auth).
+            Same code path the admin evidence viewer already uses;
+            proven against both private and public buckets.
+
+        We take the second route. The 60-second TTL is plenty for a
+        single GET inside the same request — short-lived enough that
+        leaking the URL in logs is low-risk.
+
+        Used by the profile-derivation service when copying an
+        approved cert from the private evidence bucket into the
+        public-readable certs bucket. Server-to-server only;
+        ``download_bytes`` is never exposed to end users.
+
+        Returns the raw bytes. Raises ``StorageError`` on transport
+        or non-2xx response so the caller can decide whether to fall
+        back gracefully (cert copy is best-effort).
+        """
+        signed = self.signed_url(path, expires_in_seconds=60)
+        try:
+            resp = httpx.get(signed, timeout=self.timeout_s)
+            resp.raise_for_status()
+            return resp.content
+        except httpx.HTTPError as exc:
+            raise StorageError(
+                f"Object storage download failed: {exc}"
+            ) from exc
 
     def delete_object(self, path: str) -> None:
         try:
@@ -225,13 +300,14 @@ class SupabaseStorageClient:
 # Cache the clients across requests — httpx itself isn't being held open
 # (each call is a new short-lived connection), but the dataclass + key
 # materialization is cheap-but-not-free, and there's no value in
-# rebuilding it per request. Two singletons because the evidence and
-# place-photos buckets have different access posture (private vs
-# public) and we want callers to grab the one that matches their use
-# case via the FastAPI dependency layer rather than passing a bucket
-# string around at every call site.
+# rebuilding it per request. One singleton per bucket because each has
+# its own access posture (private evidence bucket, public place-photos
+# bucket, public halal-certificates bucket) and callers grab the one
+# that matches their use case via the FastAPI dependency layer rather
+# than passing a bucket string around at every call site.
 _storage_client_singleton: StorageClient | None = None
 _photos_storage_client_singleton: StorageClient | None = None
+_certificates_storage_client_singleton: StorageClient | None = None
 
 
 def get_storage_client() -> StorageClient:
@@ -309,3 +385,69 @@ def get_photos_storage_client() -> StorageClient:
         bucket=bucket,
     )
     return _photos_storage_client_singleton
+
+
+def get_certificates_storage_client() -> StorageClient:
+    """FastAPI dependency. Returns a configured StorageClient bound
+    to the public ``halal-certificates`` bucket.
+
+    Same factory pattern as ``get_photos_storage_client``. Profile
+    derivation uses this client to publish a copy of the approved
+    HALAL_CERTIFICATE attachment so the consumer site can render the
+    cert directly from a stable public URL.
+
+    Note: like the photos bucket, the certs bucket must be configured
+    public-readable in the Supabase dashboard. Service-role writes are
+    gated by this server alone — owners never write here directly.
+    """
+    global _certificates_storage_client_singleton
+
+    if _certificates_storage_client_singleton is not None:
+        return _certificates_storage_client_singleton
+
+    base_url = settings.SUPABASE_URL
+    service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
+    bucket = settings.SUPABASE_CERTS_BUCKET
+
+    if not (base_url and service_role_key and bucket):
+        raise StorageError(
+            "Halal-certificates storage is not configured "
+            "(SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / "
+            "SUPABASE_CERTS_BUCKET). Set these in the environment."
+        )
+
+    _certificates_storage_client_singleton = SupabaseStorageClient(
+        base_url=base_url,
+        service_role_key=service_role_key,
+        bucket=bucket,
+    )
+    return _certificates_storage_client_singleton
+
+
+def get_storage_client_optional() -> StorageClient | None:
+    """Soft variant of ``get_storage_client``.
+
+    Returns ``None`` when the evidence bucket isn't configured rather
+    than raising. Used by call sites where storage access is best-
+    effort polish (e.g. the halal-claim approve route's optional cert
+    publish step) and a missing config shouldn't take down the whole
+    request.
+    """
+    try:
+        return get_storage_client()
+    except StorageError:
+        return None
+
+
+def get_certificates_storage_client_optional() -> StorageClient | None:
+    """Soft variant of ``get_certificates_storage_client``.
+
+    Returns ``None`` when the certs bucket isn't configured. Same
+    posture as ``get_storage_client_optional`` — the approve route
+    treats cert publishing as best-effort, so a missing config
+    silently skips the publish step rather than 500ing the request.
+    """
+    try:
+        return get_certificates_storage_client()
+    except StorageError:
+        return None

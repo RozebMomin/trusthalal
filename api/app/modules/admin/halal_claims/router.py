@@ -32,7 +32,13 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, require_roles
 from app.core.exceptions import BadRequestError, NotFoundError
-from app.core.storage import StorageClient, StorageError, get_storage_client
+from app.core.storage import (
+    StorageClient,
+    StorageError,
+    get_certificates_storage_client_optional,
+    get_storage_client,
+    get_storage_client_optional,
+)
 from app.db.deps import get_db
 from app.modules.admin.halal_claims.repo import (
     admin_approve_halal_claim,
@@ -153,6 +159,12 @@ def approve_claim_admin(
     payload: HalalClaimApprove,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+    evidence_storage: StorageClient | None = Depends(
+        get_storage_client_optional
+    ),
+    certs_storage: StorageClient | None = Depends(
+        get_certificates_storage_client_optional
+    ),
 ) -> HalalClaimAdminRead:
     """Approve a PENDING_REVIEW or NEEDS_MORE_INFO claim.
 
@@ -166,12 +178,20 @@ def approve_claim_admin(
     ``expires_at_override`` shortens the default 90-day TTL (the
     derivation service clamps any override past 90 days back to
     the cap — company policy).
+
+    The two storage clients are passed through so the derivation
+    service can copy the latest HALAL_CERTIFICATE attachment from
+    the private evidence bucket into the public certs bucket on
+    approval. The copy is best-effort — failure is logged but the
+    approval still commits with ``certificate_url=NULL``.
     """
     claim = admin_approve_halal_claim(
         db,
         claim_id=claim_id,
         actor_user_id=user.id,
         payload=payload,
+        evidence_storage=evidence_storage,
+        certs_storage=certs_storage,
     )
     return HalalClaimAdminRead.model_validate(claim)
 

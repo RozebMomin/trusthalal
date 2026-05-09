@@ -26,7 +26,12 @@ from io import BytesIO
 import pytest
 from sqlalchemy import select
 
-from app.core.storage import get_storage_client
+from app.core.storage import (
+    get_certificates_storage_client,
+    get_certificates_storage_client_optional,
+    get_storage_client,
+    get_storage_client_optional,
+)
 from app.modules.halal_claims.enums import HalalClaimStatus
 from app.modules.halal_claims.models import HalalClaim
 from app.modules.halal_profiles.enums import (
@@ -40,35 +45,90 @@ from app.modules.halal_profiles.enums import (
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
 
 
-# Storage fake — same shape as the other admin attachment suites.
+# Storage fake — same shape as the other admin attachment suites,
+# extended with ``download_bytes`` + ``public_url`` so the
+# evidence→certs bucket copy that runs at approval time has a fully
+# in-memory backend to drive against.
 class _FakeStorageClient:
-    bucket = "evidence-test"
-
-    def __init__(self) -> None:
+    def __init__(self, bucket: str = "evidence-test") -> None:
+        self.bucket = bucket
         self.uploaded: dict[str, tuple[bytes, str]] = {}
         self.signed_urls: list[tuple[str, int]] = []
+        self.deleted: list[str] = []
 
     def upload_bytes(self, path: str, data: bytes, *, content_type: str) -> None:
         self.uploaded[path] = (data, content_type)
+
+    def download_bytes(self, path: str) -> bytes:
+        if path not in self.uploaded:
+            raise KeyError(path)
+        return self.uploaded[path][0]
 
     def signed_url(self, path: str, *, expires_in_seconds: int) -> str:
         self.signed_urls.append((path, expires_in_seconds))
         return f"https://fake-storage.local/{self.bucket}/{path}?token=stub"
 
-    def delete_object(self, path: str) -> None:  # pragma: no cover
-        pass
+    def public_url(self, path: str) -> str:
+        return f"https://fake-storage.local/{self.bucket}/public/{path}"
+
+    def delete_object(self, path: str) -> None:
+        self.deleted.append(path)
+        self.uploaded.pop(path, None)
 
 
 @pytest.fixture
 def fake_storage():
+    """Fake StorageClient bound to the private evidence bucket.
+
+    Both the strict and the optional resolvers are overridden so the
+    fake is returned regardless of which dep the call site uses (the
+    upload route uses ``get_storage_client``; the approve route uses
+    the optional variant for graceful degradation when storage isn't
+    configured in production).
+    """
     from app.main import app as fastapi_app
 
     fake = _FakeStorageClient()
     fastapi_app.dependency_overrides[get_storage_client] = lambda: fake
+    fastapi_app.dependency_overrides[
+        get_storage_client_optional
+    ] = lambda: fake
     try:
         yield fake
     finally:
         fastapi_app.dependency_overrides.pop(get_storage_client, None)
+        fastapi_app.dependency_overrides.pop(
+            get_storage_client_optional, None
+        )
+
+
+@pytest.fixture
+def fake_certs_storage():
+    """Fake StorageClient bound to the public certs bucket.
+
+    The approve route resolves both the evidence client AND the certs
+    client; tests that hit /approve need both fixtures wired so the
+    cert copy step has an in-memory destination. Returning the fake
+    object lets the test assert what got uploaded.
+    """
+    from app.main import app as fastapi_app
+
+    fake = _FakeStorageClient(bucket="halal-certificates-test")
+    fastapi_app.dependency_overrides[
+        get_certificates_storage_client
+    ] = lambda: fake
+    fastapi_app.dependency_overrides[
+        get_certificates_storage_client_optional
+    ] = lambda: fake
+    try:
+        yield fake
+    finally:
+        fastapi_app.dependency_overrides.pop(
+            get_certificates_storage_client, None
+        )
+        fastapi_app.dependency_overrides.pop(
+            get_certificates_storage_client_optional, None
+        )
 
 
 # Lifted from test_owner_halal_claims so submitting a complete
@@ -251,6 +311,113 @@ def test_approve_creates_profile_first_time(api, factories, db_session):
     assert profile.dispute_state == HalalProfileDisputeState.NONE.value
     assert profile.expires_at is not None
     assert profile.revoked_at is None
+
+
+def test_approve_publishes_certificate_to_public_bucket(
+    api, factories, db_session, fake_storage, fake_certs_storage
+):
+    """When the claim has a HALAL_CERTIFICATE attachment AND both
+    storage clients are wired, approval copies the cert bytes to the
+    public certs bucket and stores the resulting URL +
+    content_type on the profile.
+
+    Both storage fakes are required: the owner-portal upload goes to
+    the evidence (private) bucket fake; the approve route reads from
+    that same fake (via download_bytes) and writes to the certs
+    (public) bucket fake.
+    """
+    admin, _, place, _, claim_id = _submit_pending_claim(
+        api, factories, db_session, with_certificate=True
+    )
+
+    # Sanity: the cert lives in the evidence-bucket fake before
+    # approval. ``_submit_pending_claim`` uploaded one HALAL_CERTIFICATE
+    # under ``halal-claims/<claim_id>/<uuid>.pdf``.
+    cert_paths = [
+        p for p in fake_storage.uploaded if p.startswith(f"halal-claims/{claim_id}/")
+    ]
+    assert len(cert_paths) == 1
+    assert fake_certs_storage.uploaded == {}
+
+    resp = api.as_user(admin).post(
+        f"/admin/halal-claims/{claim_id}/approve",
+        json={
+            "validation_tier": "TRUST_HALAL_VERIFIED",
+            "decision_note": "IFANCA cert verified.",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+
+    # Profile carries the public URL + content type.
+    assert profile.certificate_url is not None
+    assert profile.certificate_url.startswith(
+        "https://fake-storage.local/halal-certificates-test/public/"
+    )
+    assert profile.certificate_content_type == "application/pdf"
+
+    # The cert ends up in the public bucket at a path keyed by the
+    # profile id, with the original ``.pdf`` extension.
+    expected_path = f"{profile.id}.pdf"
+    assert expected_path in fake_certs_storage.uploaded
+    body, ct = fake_certs_storage.uploaded[expected_path]
+    assert body == b"%PDF-1.4 fake cert"
+    assert ct == "application/pdf"
+
+
+def test_approve_without_storage_wired_skips_cert_publish(
+    api, factories, db_session
+):
+    """When the optional storage clients resolve to None (no fake +
+    no env config in tests), the cert-publishing step is skipped
+    cleanly: profile is created, ``certificate_url`` is None, the
+    rest of the cert-derived fields still populate from the
+    attachment metadata.
+
+    Defends the best-effort posture — a transient bucket outage on
+    approval shouldn't 500 the request or stall the workflow.
+    """
+    # The test env has SUPABASE_URL set in .env, so the optional
+    # resolver returns a real client. Override both to None so the
+    # publish step short-circuits without ever hitting the network.
+    from app.main import app as fastapi_app
+
+    fastapi_app.dependency_overrides[get_storage_client_optional] = lambda: None
+    fastapi_app.dependency_overrides[
+        get_certificates_storage_client_optional
+    ] = lambda: None
+    try:
+        admin, _, place, _, claim_id = _submit_pending_claim(
+            api, factories, db_session, with_certificate=True
+        )
+
+        resp = api.as_user(admin).post(
+            f"/admin/halal-claims/{claim_id}/approve",
+            json={
+                "validation_tier": "CERTIFICATE_ON_FILE",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+
+        profile = db_session.execute(
+            select(HalalProfile).where(HalalProfile.place_id == place.id)
+        ).scalar_one()
+        assert profile.has_certification is True
+        assert profile.certifying_body_name == "IFANCA"
+        # No URL — copy was skipped, but the rest of the approval
+        # landed cleanly.
+        assert profile.certificate_url is None
+        assert profile.certificate_content_type is None
+    finally:
+        fastapi_app.dependency_overrides.pop(
+            get_storage_client_optional, None
+        )
+        fastapi_app.dependency_overrides.pop(
+            get_certificates_storage_client_optional, None
+        )
 
 
 def test_approve_rolls_up_multiple_products_to_least_strict_method(

@@ -22,6 +22,8 @@ created/updated, AND the audit event lands, or none of it does.
 """
 from __future__ import annotations
 
+import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
@@ -31,12 +33,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BadRequestError
+from app.core.storage import StorageClient, StorageError
 from app.modules.halal_claims.enums import (
     HalalClaimAttachmentType,
     HalalClaimEventType,
     HalalClaimStatus,
 )
-from app.modules.halal_claims.models import HalalClaim
+from app.modules.halal_claims.models import HalalClaim, HalalClaimAttachment
 from app.modules.halal_claims.repo import log_halal_claim_event
 from app.modules.halal_claims.schemas import HalalQuestionnaireResponse
 from app.modules.places.enums import PlaceEventType
@@ -51,6 +54,8 @@ from app.modules.halal_profiles.enums import (
     ValidationTier,
 )
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
+
+logger = logging.getLogger(__name__)
 
 
 # Profile lifetime — both the default AND a hard cap on admin
@@ -163,6 +168,117 @@ def _certification_from_claim(
     return True, None
 
 
+def _latest_cert_attachment(
+    claim: HalalClaim,
+) -> Optional[HalalClaimAttachment]:
+    """Most-recent HALAL_CERTIFICATE attachment, or None.
+
+    Companion to ``_certification_from_claim`` — that helper picks
+    the certifying body name from the latest attachment with
+    ``issuing_authority`` filled in; this one returns the actual
+    attachment row so the bytes can be copied. The two can pick
+    different attachments when the most recent cert lacks an
+    issuing_authority (we'd want to copy the freshest file even if
+    its metadata is incomplete).
+    """
+    cert_attachments = [
+        a
+        for a in claim.attachments
+        if a.document_type == HalalClaimAttachmentType.HALAL_CERTIFICATE.value
+    ]
+    if not cert_attachments:
+        return None
+    cert_attachments.sort(key=lambda a: a.uploaded_at, reverse=True)
+    return cert_attachments[0]
+
+
+def _copy_cert_to_public_bucket(
+    *,
+    profile_id: UUID,
+    attachment: HalalClaimAttachment,
+    evidence_storage: StorageClient,
+    certs_storage: StorageClient,
+) -> tuple[Optional[str], Optional[str]]:
+    """Copy a halal-cert attachment from the private evidence bucket
+    into the public certs bucket and return ``(url, content_type)``.
+
+    Best-effort: any storage failure is logged and the function
+    returns ``(None, None)`` so profile derivation can proceed
+    without a cert URL. The cert URL is consumer-facing polish, not
+    part of the trust-validation contract — the approval should not
+    fail because the cert copy hit a transient bucket error.
+
+    Path layout: ``<profile_id>.<ext>`` at the bucket root. Keying
+    by profile id (not attachment id) means a renewal approval
+    rewrites the same path with the new cert; old URLs naturally
+    redirect to the latest published version. Extension comes from
+    the original filename so the public URL ends with the right
+    suffix (helps content-type sniffers / right-click "open in new
+    tab").
+    """
+    # Pull the original extension from the upload metadata. Empty
+    # string is fine — the public URL will just lack a suffix; the
+    # content_type column carries the truth for the renderer.
+    _, ext = os.path.splitext(attachment.original_filename)
+    ext = ext.lower()
+    new_path = f"{profile_id}{ext}"
+
+    try:
+        body = evidence_storage.download_bytes(attachment.storage_path)
+    except StorageError as exc:
+        # Bubble the underlying Supabase detail up via the logger
+        # (live approve path) AND attach it to a return-tuple
+        # marker that the backfill script picks up so ops can see
+        # WHY a row was skipped without tailing logs. Most common
+        # causes: the source bucket file was deleted, the path the
+        # row was migrated from doesn't exist in the current
+        # project, or the service-role key lacks read access.
+        logger.warning(
+            "halal-cert download failed; skipping public copy: %s",
+            exc,
+            extra={
+                "claim_id": str(attachment.claim_id),
+                "attachment_id": str(attachment.id),
+                "evidence_path": attachment.storage_path,
+            },
+            exc_info=True,
+        )
+        return None, None
+
+    try:
+        certs_storage.upload_bytes(
+            new_path,
+            body,
+            content_type=attachment.content_type,
+        )
+    except StorageError:
+        # Most likely cause is a path collision (same profile id,
+        # the bucket already has a previous cert for this profile).
+        # Retry with upsert semantics by deleting the existing object
+        # first, then re-uploading. Keeps the public path stable so
+        # cached URLs continue to resolve.
+        try:
+            certs_storage.delete_object(new_path)
+            certs_storage.upload_bytes(
+                new_path,
+                body,
+                content_type=attachment.content_type,
+            )
+        except StorageError:
+            logger.warning(
+                "halal-cert upload failed; skipping public copy",
+                extra={
+                    "profile_id": str(profile_id),
+                    "certs_path": new_path,
+                },
+                exc_info=True,
+            )
+            return None, None
+
+    public_url = certs_storage.public_url(new_path)
+    return public_url, attachment.content_type
+
+
 def _profile_fields_from_questionnaire(
     questionnaire: HalalQuestionnaireResponse,
     *,
@@ -172,6 +288,8 @@ def _profile_fields_from_questionnaire(
     expires_at: datetime,
     certificate_expires_at: Optional[datetime],
     source_claim_id: UUID,
+    certificate_url: Optional[str] = None,
+    certificate_content_type: Optional[str] = None,
 ) -> dict:
     """Map a strict questionnaire + admin's tier choice → profile
     column values. Pure function; no DB.
@@ -179,6 +297,10 @@ def _profile_fields_from_questionnaire(
     ``has_certification`` and ``certifying_body_name`` are derived
     from the claim's attachments rather than the questionnaire
     response — see ``_certification_from_claim`` for the rationale.
+    ``certificate_url`` / ``certificate_content_type`` come from
+    a separate copy step in ``derive_profile_from_approved_claim``;
+    both default to None for the no-cert and best-effort-failed
+    cases.
     """
     has_cert, cert_body = _certification_from_claim(claim)
     products = questionnaire.meat_products or []
@@ -201,6 +323,8 @@ def _profile_fields_from_questionnaire(
         "has_certification": has_cert,
         "certifying_body_name": cert_body,
         "certificate_expires_at": certificate_expires_at,
+        "certificate_url": certificate_url,
+        "certificate_content_type": certificate_content_type,
         "caveats": questionnaire.caveats,
         # Always reset dispute state on a fresh approval. A claim
         # approval supersedes any prior dispute against the place;
@@ -223,6 +347,8 @@ def derive_profile_from_approved_claim(
     validation_tier: ValidationTier,
     expires_at: Optional[datetime] = None,
     certificate_expires_at: Optional[datetime] = None,
+    evidence_storage: Optional[StorageClient] = None,
+    certs_storage: Optional[StorageClient] = None,
 ) -> tuple[HalalProfile, HalalProfileEventType]:
     """Create-or-update the place's HalalProfile from an approved
     claim. Caller is responsible for the surrounding transaction.
@@ -235,6 +361,15 @@ def derive_profile_from_approved_claim(
     On supersession: the previous source_claim (if any) is marked
     SUPERSEDED so the queue stops surfacing it as the "current"
     approved claim for this place.
+
+    ``evidence_storage`` + ``certs_storage`` are optional injection
+    points. When both are provided AND the claim has a
+    HALAL_CERTIFICATE attachment, the cert bytes are copied from the
+    private evidence bucket to the public certs bucket and the
+    resulting URL is stored on the profile. Either omitted (or no
+    cert attachment) leaves ``certificate_url`` NULL on the profile.
+    The copy step is best-effort — its failure is logged but does
+    not bubble up.
     """
     questionnaire = _coerce_questionnaire(claim)
 
@@ -253,7 +388,9 @@ def derive_profile_from_approved_claim(
     ).scalar_one_or_none()
 
     if existing_profile is None:
-        # First-time profile creation.
+        # First-time profile creation. Insert with NULL cert URL
+        # first; we don't have a profile id until after flush, and
+        # the public bucket path is keyed by profile id.
         profile = HalalProfile(
             place_id=claim.place_id,
             **_profile_fields_from_questionnaire(
@@ -270,6 +407,19 @@ def derive_profile_from_approved_claim(
         # Flush so the profile gets its id for the event row's FK.
         db.flush()
         db.refresh(profile)
+
+        # Now we have profile.id — copy the cert if both storage
+        # clients are wired and there's a HALAL_CERTIFICATE on file.
+        cert_url, cert_ct = _maybe_publish_cert(
+            profile_id=profile.id,
+            claim=claim,
+            evidence_storage=evidence_storage,
+            certs_storage=certs_storage,
+        )
+        if cert_url is not None:
+            profile.certificate_url = cert_url
+            profile.certificate_content_type = cert_ct
+            db.add(profile)
 
         event = HalalProfileEvent(
             profile_id=profile.id,
@@ -322,6 +472,18 @@ def derive_profile_from_approved_claim(
                 ),
             )
 
+    # Re-publish the cert to the public bucket using the EXISTING
+    # profile's id as the path key. Stable path means the consumer's
+    # cached cert URL keeps resolving across renewals — this rewrites
+    # the same object instead of creating a new one. Cert is omitted
+    # (URL stays as-is) when storage clients aren't wired.
+    cert_url, cert_ct = _maybe_publish_cert(
+        profile_id=existing_profile.id,
+        claim=claim,
+        evidence_storage=evidence_storage,
+        certs_storage=certs_storage,
+    )
+
     new_fields = _profile_fields_from_questionnaire(
         questionnaire,
         claim=claim,
@@ -330,6 +492,15 @@ def derive_profile_from_approved_claim(
         expires_at=final_expires_at,
         certificate_expires_at=certificate_expires_at,
         source_claim_id=claim.id,
+        # Preserve the existing URL when the copy step didn't run /
+        # didn't produce a result — a transient bucket failure on a
+        # renewal shouldn't blank out a previously-published cert.
+        certificate_url=cert_url
+        if cert_url is not None
+        else existing_profile.certificate_url,
+        certificate_content_type=cert_ct
+        if cert_ct is not None
+        else existing_profile.certificate_content_type,
     )
     diff_summary = _diff_summary(existing_profile, new_fields)
     for key, value in new_fields.items():
@@ -350,6 +521,34 @@ def derive_profile_from_approved_claim(
     return existing_profile, HalalProfileEventType.UPDATED
 
 
+def _maybe_publish_cert(
+    *,
+    profile_id: UUID,
+    claim: HalalClaim,
+    evidence_storage: Optional[StorageClient],
+    certs_storage: Optional[StorageClient],
+) -> tuple[Optional[str], Optional[str]]:
+    """Resolve the published cert URL + content type for a claim, or
+    ``(None, None)`` when there's nothing to publish.
+
+    Wraps the bucket-to-bucket copy with the "skip cleanly when
+    storage isn't wired" guard so the call site stays a one-liner.
+    Both clients must be present AND the claim must have a
+    HALAL_CERTIFICATE attachment for the copy to actually run.
+    """
+    if evidence_storage is None or certs_storage is None:
+        return None, None
+    attachment = _latest_cert_attachment(claim)
+    if attachment is None:
+        return None, None
+    return _copy_cert_to_public_bucket(
+        profile_id=profile_id,
+        attachment=attachment,
+        evidence_storage=evidence_storage,
+        certs_storage=certs_storage,
+    )
+
+
 def _diff_summary(profile: HalalProfile, new_fields: dict) -> str:
     """Build a 'field: old → new' summary for the audit event.
 
@@ -362,6 +561,13 @@ def _diff_summary(profile: HalalProfile, new_fields: dict) -> str:
         "last_verified_at",
         "expires_at",
         "revoked_at",
+        # Cert URL changes on every successful republish (path keys
+        # by profile id stay stable, but the URL string itself can
+        # vary across environments / Supabase URL changes). Skipping
+        # keeps the diff readable; the cert presence/absence is
+        # already captured by has_certification.
+        "certificate_url",
+        "certificate_content_type",
     }
     parts: list[str] = []
     for key, new_val in new_fields.items():

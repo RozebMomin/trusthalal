@@ -186,6 +186,23 @@ class HalalProfile(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    # Public URL to the halal certificate document. Populated on
+    # approval by copying the latest HALAL_CERTIFICATE attachment from
+    # the private ``evidence`` bucket into the public-readable
+    # ``halal-certificates`` bucket. NULL when the place has no cert
+    # on file or the copy step failed (best-effort — approval still
+    # succeeds with a NULL URL).
+    certificate_url: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )
+    # MIME type of the cert document (image/jpeg, image/png,
+    # application/pdf, etc.). Drives consumer-side viewer choice
+    # without re-fetching the file just to sniff. Mirrors the
+    # ``content_type`` of the source ``HalalClaimAttachment``.
+    certificate_content_type: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True
+    )
+
     # --- caveats + dispute state ----------------------------------------
     caveats: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 

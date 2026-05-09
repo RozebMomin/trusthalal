@@ -55,6 +55,14 @@ class HalalProfileRead(BaseModel):
     has_certification: bool
     certifying_body_name: Optional[str]
     certificate_expires_at: Optional[datetime]
+    # Public URL of the halal certificate document (None when no cert
+    # is on file or the copy step failed). Stable per source claim:
+    # path is keyed by the profile id so a renewal approval rewrites
+    # the same path with the new cert.
+    certificate_url: Optional[str] = None
+    # MIME type drives the consumer-side viewer choice (img / iframe /
+    # download link). None when ``certificate_url`` is None.
+    certificate_content_type: Optional[str] = None
 
     # --- caveats + freshness ------------------------------------------
     caveats: Optional[str]

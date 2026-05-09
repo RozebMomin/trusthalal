@@ -198,6 +198,17 @@ export type HalalProfileEmbed = {
   has_certification: boolean;
   certifying_body_name: string | null;
   certificate_expires_at: string | null;
+  /** Public URL of the halal certificate document. Populated by the
+   * profile-derivation service when the latest HALAL_CERTIFICATE
+   * attachment is copied to the public certs bucket on approval.
+   * Null when no cert is on file or the copy step failed (best-
+   * effort — approval still commits with a null URL). */
+  certificate_url: string | null;
+  /** MIME type of the cert (image/jpeg, image/png, application/pdf,
+   * etc.). Drives consumer-side viewer choice — image/* renders in
+   * an <img>, application/pdf in an <iframe>, anything else falls
+   * back to a download link. Null when ``certificate_url`` is null. */
+  certificate_content_type: string | null;
   caveats: string | null;
   dispute_state: DisputeState;
   last_verified_at: string;
