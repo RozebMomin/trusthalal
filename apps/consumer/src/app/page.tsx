@@ -30,8 +30,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { NearMeButton } from "@/components/near-me-button";
+import { ActiveFiltersBar } from "@/components/active-filters-bar";
+import { CuisineRail } from "@/components/cuisine-rail";
+import {
+  countActiveFilters,
+  FiltersSheet,
+  FiltersTrigger,
+} from "@/components/filters-sheet";
 import { PlaceResultCard } from "@/components/place-result-card";
-import { SearchFilters } from "@/components/search-filters";
 import { SiteHero } from "@/components/site-hero";
 import { Search, Sparkles, X } from "lucide-react";
 
@@ -357,8 +363,14 @@ function HomePageInner() {
     return withDistance;
   }, [search.data, nearMeActive, distanceSort]);
 
+  // Filter sheet open/close state. Lives here (not in the URL) — a
+  // shareable link with ``?filters_open=true`` would be confusing
+  // and the sheet is a pure UI concern, not search context.
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const activeFilterCount = countActiveFilters(effectiveFilters);
+
   return (
-    <div className="mx-auto max-w-3xl space-y-7">
+    <div className="mx-auto max-w-3xl space-y-6">
       <SiteHero compact={hasActiveSearch} />
 
       <div className="space-y-3">
@@ -367,15 +379,22 @@ function HomePageInner() {
           onChange={setRawQuery}
           onClear={() => setRawQuery("")}
         />
-        <NearMeButton
-          active={nearMeActive}
-          cityLabel={cityLabel}
-          onActivate={activateNearMe}
-          onClear={clearNearMe}
-        />
-        <SearchFilters
+        <div className="flex flex-wrap items-center gap-2">
+          <NearMeButton
+            active={nearMeActive}
+            cityLabel={cityLabel}
+            onActivate={activateNearMe}
+            onClear={clearNearMe}
+          />
+          <FiltersTrigger
+            count={activeFilterCount}
+            onClick={() => setFiltersOpen(true)}
+          />
+        </div>
+        <CuisineRail
           filters={effectiveFilters}
           onChange={setFilters}
+          onOpenAll={() => setFiltersOpen(true)}
         />
         {isUsingSavedPrefs && (
           <p className="text-xs text-muted-foreground">
@@ -390,6 +409,27 @@ function HomePageInner() {
           </p>
         )}
       </div>
+
+      <FiltersSheet
+        open={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        filters={effectiveFilters}
+        onChange={setFilters}
+      />
+
+      {/* Active filters bar — only when an actual search is running
+          AND filters are set. The cuisine rail above already shows
+          which TOP cuisines are toggled; this bar surfaces every
+          other active axis (validation, posture, prefs) plus
+          off-rail cuisines as removable chips. Hidden when no
+          filters are active so the empty / prompt state isn't
+          padded with a stray strip. */}
+      {hasActiveSearch && activeFilterCount > 0 && (
+        <ActiveFiltersBar
+          filters={effectiveFilters}
+          onChange={setFilters}
+        />
+      )}
 
       {!hasActiveSearch && <PromptState />}
 
