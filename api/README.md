@@ -208,7 +208,11 @@ app/
                            requests, verifiers)
 alembic/                   migrations (one file per shipped capability)
 scripts/                   seed_dev, issue_invite, export_openapi,
-                           reset_db, db_ping
+                           reset_db, db_ping,
+                           backfill_certificate_urls (one-off — copies
+                           cert files from the private evidence bucket
+                           into the public certs bucket for approvals
+                           that predate the cert-publish slice)
 ```
 
 Each domain module follows the same shape: `models.py`, `schemas.py`,
