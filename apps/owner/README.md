@@ -16,9 +16,11 @@ posture (session cookie on `api.trusthalal.org`).
 - **TypeScript** strict mode
 - **Tailwind CSS** + **shadcn/ui** primitives
 - **TanStack Query** for fetching / mutation / cache
-- **openapi-typescript** for typed API client (codegen lands when
-  the first owner-scoped endpoint exists; until then the few hooks
-  we have are hand-typed and will be replaced).
+- **openapi-typescript** wired but the owner-portal types are still
+  largely hand-typed in `src/lib/api/hooks.ts`. Codegen scaffolding
+  is set up via `npm run codegen`; a future pass will swap each
+  hand-typed shape for `components["schemas"][...]` once the
+  schemas stabilize.
 
 ## Prerequisites
 
@@ -77,31 +79,52 @@ keeps the two surfaces from blending into each other.
 ```
 src/
   app/
-    layout.tsx            Root layout (AppShell + Providers)
-    providers.tsx         QueryClient provider
-    page.tsx              Owner dashboard landing
-    login/                Public sign-in
-    globals.css
+    layout.tsx              Root layout (AppShell + Providers)
+    providers.tsx           QueryClient provider
+    page.tsx                Owner home (places overview)
+    login/  signup/         Public auth surfaces
+    claim/                  "Claim a place" intake flow (Google
+                            autocomplete + ingest fallback)
+    my-claims/              Ownership-request lifecycle list
+                            (legacy URL — surfaced by the home + the
+                            "see all claims" link on /my-places)
+    my-places/              Owned place management
+      [id]/                 Place detail: cuisine tags, photos
+                            (upload + hero), halal claims for this
+                            place
+    my-halal-claims/        Halal-only surface — questionnaire,
+                            evidence attachments, submit-for-review
+      new/                  Single + batch claim creation
+      [id]/                 Halal claim editor + activity timeline
+    my-organizations/       Org self-service: create, edit, attach
+                            verification documents, submit
   components/
-    ui/                   shadcn/ui primitives
-    app-shell.tsx         Client-side auth + role gate, header chrome
+    ui/                     shadcn/ui primitives
+    app-shell.tsx           Auth + role gate, header chrome,
+                            mobile bottom-tab bar
+    halal-claim-status-badge.tsx, halal-claim-timeline.tsx,
+    google-place-autocomplete.tsx, certifying-authority-select.tsx
   lib/
-    config.ts             Env-driven runtime config
-    utils.ts              shadcn cn() helper
+    config.ts               Env-driven runtime config
+    utils.ts                shadcn cn() helper
     api/
-      client.ts           apiFetch (credentials: include, typed errors)
-      hooks.ts            TanStack Query hooks
-      friendly-errors.ts  ApiError → toast copy with per-code overrides
+      client.ts             apiFetch (credentials: include, typed errors)
+      hooks.ts              TanStack Query hooks (mostly hand-typed)
+      friendly-errors.ts    ApiError → toast copy with per-code overrides
 ```
 
-## Why no sidebar?
+## Mobile-first nav
 
-Customers expect a topbar. Staff tools expect a sidebar. The owner
-portal has a slim header with the brand mark and a sign-out button;
-the admin panel has a left rail with module navigation. Both
-patterns are deliberate, not laziness — owners don't need to
-navigate between many internal modules; they're focused on their
-restaurants and claims.
+Desktop gets a top bar with three primary destinations: Halal
+claims, Places, Organizations. Mobile gets a fixed bottom tab bar
+with the same three (claims / places / orgs) plus iOS safe-area
+inset handling so the bar floats above the home indicator. The
+single nav surface scales from phone to desktop without a separate
+mobile drawer.
+
+The classic admin-panel left rail is intentionally absent here —
+owners don't navigate between many internal modules; they're
+focused on their restaurants and claims.
 
 ## Deployment
 

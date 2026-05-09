@@ -6,7 +6,7 @@ them. The goal is to be the data authority that consumer-facing sites,
 mobile apps, and partner integrations license, rather than another
 walled-garden directory.
 
-This monorepo contains the three pieces that make up the current stack.
+This monorepo contains the four pieces that make up the current stack.
 
 ## Layout
 
@@ -15,11 +15,10 @@ trusthalal/
 ├── api/                  # FastAPI + PostgreSQL (PostGIS) + Alembic
 ├── apps/
 │   ├── admin/            # Next.js 14 admin panel (internal staff)
-│   └── owner/            # Next.js 14 owner portal (restaurant owners)
+│   ├── owner/            # Next.js 14 owner portal (restaurant owners)
+│   └── consumer/         # Next.js 14 consumer site (HalalScout @ halalfoodnearme.com)
 └── README.md
 ```
-
-A separate consumer-facing site (`halalfoodnearme.com`) is out-of-tree.
 
 ## Quickstart
 
@@ -49,6 +48,12 @@ cd ../owner
 npm install
 cp .env.local.example .env.local
 npm run dev                                # → http://localhost:3002
+
+# 5. (optional) In a fourth shell, start the consumer site
+cd ../consumer
+npm install
+cp .env.local.example .env.local
+npm run dev                                # → http://localhost:3003
 ```
 
 The seed script provisions users but does not set passwords. To get
@@ -68,9 +73,10 @@ password, then sign in normally at `/login`.
 ## Production topology
 
 ```
-api.trusthalal.org        ← Trust Halal API   (api/, Render + Supabase)
-admin.trusthalal.org      ← Admin panel       (apps/admin, Vercel)
-owner.trusthalal.org      ← Owner portal      (apps/owner, Vercel)
+api.trusthalal.org        ← Trust Halal API     (api/, Render + Supabase)
+admin.trusthalal.org      ← Admin panel         (apps/admin, Vercel)
+owner.trusthalal.org      ← Owner portal        (apps/owner, Vercel)
+halalfoodnearme.com       ← Consumer site       (apps/consumer, Vercel)
 ```
 
 Hosting:
@@ -78,20 +84,29 @@ Hosting:
 - **API** runs on Render (free tier) with a pre-deploy hook for
   `alembic upgrade head`. Postgres + PostGIS is hosted on Supabase
   (Session pooler for IPv4 compatibility with Render).
-- **Admin and owner** are separate Vercel projects, each pinned to its
-  own root directory (`apps/admin` and `apps/owner`).
-- **DNS** is on Cloudflare in DNS-only mode (proxy off) so SSL
-  passes through to Vercel and Render.
+- **Storage** for owner-uploaded place photos and evidence files
+  lives in two Supabase Storage buckets: `evidence` (private,
+  service-role gated) and `place-photos` (public-readable so
+  consumer cards can render hero images without per-request
+  signing).
+- **Admin / owner / consumer** are separate Vercel projects, each
+  pinned to its own root directory (`apps/admin`, `apps/owner`,
+  `apps/consumer`).
+- **DNS** is on Cloudflare in DNS-only mode (proxy off) for the
+  staff / owner subdomains; the consumer apex
+  `halalfoodnearme.com` points at Vercel via the registrar.
 
 Auth is a single session cookie on the API origin
-(`api.trusthalal.org`, HttpOnly, SameSite=Lax). Both frontends
+(`api.trusthalal.org`, HttpOnly, SameSite=Lax). All three frontends
 attach it on cross-origin requests with `credentials: "include"`;
-the API's CORS middleware allow-lists both panels via the
-`CORS_ORIGINS` env var (currently `admin.trusthalal.org` and
-`owner.trusthalal.org`, plus `*.vercel.app` aliases for previews) and
-runs with `allow_credentials=True`. Each app gates access by role
+the API's CORS middleware allow-lists every panel via the
+`CORS_ORIGINS` env var (currently `admin.trusthalal.org`,
+`owner.trusthalal.org`, `halalfoodnearme.com`, `www.halalfoodnearme.org`,
+plus `*.vercel.app` aliases for previews) and runs with
+`allow_credentials=True`. Each app gates access by role
 independently — admin allows ADMIN + VERIFIER, owner allows OWNER
-only.
+only, consumer is open to anonymous browsing and admits any role
+for the auth-required surfaces (file a dispute, save preferences).
 
 ### Branching
 
@@ -104,8 +119,9 @@ on Vercel for quick review.
 ## Per-app docs
 
 - [api/README.md](api/README.md) — FastAPI setup, migrations, auth, testing.
-- [apps/admin/README.md](apps/admin/README.md) — admin panel setup, codegen, dev auth.
-- [apps/owner/README.md](apps/owner/README.md) — owner portal setup, codegen, dev auth.
+- [apps/admin/README.md](apps/admin/README.md) — admin panel setup, codegen, role gating.
+- [apps/owner/README.md](apps/owner/README.md) — owner portal setup, codegen, claim flow.
+- [apps/consumer/README.md](apps/consumer/README.md) — consumer site setup, brand, SEO + Vercel deploy.
 
 ## License
 
