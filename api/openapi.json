@@ -165,6 +165,20 @@
         "title": "Body_upload_organization_attachment_me_organizations__organization_id__attachments_post",
         "type": "object"
       },
+      "Body_upload_place_photo_places__place_id__photos_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_place_photo_places__place_id__photos_post",
+        "type": "object"
+      },
       "Body_upload_verification_visit_attachment_me_verification_visits__visit_id__attachments_post": {
         "properties": {
           "file": {
@@ -568,6 +582,62 @@
         "title": "ConsumerPreferencesUpdate",
         "type": "object"
       },
+      "Cuisine": {
+        "description": "Curated cuisine taxonomy for the consumer search surface.\n\nTagged on a Place via ``Place.cuisine_types`` (multi-valued).\nOwners pick from this list when they edit their place; the\nconsumer side filters on the same enum so labels stay consistent\nacross both surfaces.\n\nAssignment posture (in order of precedence):\n  1. Owner-driven \u2014 the owner picks from this list on the\n     halal-claim editor surface. Owner choices win.\n  2. Auto-detected on ingest \u2014 the Google Places (New) integration\n     maps Google's ``primaryType`` (e.g. ``pakistani_restaurant``)\n     to one of these values. Only fires when the place doesn't\n     already have an owner-set list.\n\nValues are upper-snake-case strings so they round-trip on the\nwire without escaping. Display labels live in the UI layer (each\napp builds its own short label / description map next to its\ncuisine picker) \u2014 keeping labels out of the API means the\nconsumer can rephrase (\"Persian\" \u2192 \"Persian / Iranian\") without\na backend change.\n\nStored in Postgres as ``TEXT[]`` (not a Postgres ENUM type) so\nappending a new value here is a code-only change. Tagged places\naren't affected; the new value is just available going forward.\nRemoving or renaming a value IS a breaking change \u2014 places already\ntagged with the old value would fail Pydantic validation on the\nway out. Don't reorder either: equality on the wire doesn't care\nbut downstream sort or display logic might.",
+        "enum": [
+          "PAKISTANI",
+          "INDIAN",
+          "BANGLADESHI",
+          "SRI_LANKAN",
+          "NEPALI",
+          "LEBANESE",
+          "TURKISH",
+          "YEMENI",
+          "SYRIAN",
+          "PALESTINIAN",
+          "IRAQI",
+          "PERSIAN",
+          "EGYPTIAN",
+          "MOROCCAN",
+          "TUNISIAN",
+          "ALGERIAN",
+          "SOMALI",
+          "ETHIOPIAN",
+          "ERITREAN",
+          "AFGHAN",
+          "UZBEK",
+          "INDONESIAN",
+          "MALAYSIAN",
+          "FILIPINO",
+          "THAI",
+          "CHINESE",
+          "KOREAN",
+          "JAPANESE",
+          "MEDITERRANEAN",
+          "GREEK",
+          "ITALIAN",
+          "SPANISH",
+          "AMERICAN",
+          "MEXICAN",
+          "CARIBBEAN",
+          "SOUL_FOOD",
+          "BURGERS",
+          "PIZZA",
+          "BBQ",
+          "STEAKHOUSE",
+          "SEAFOOD",
+          "SANDWICHES",
+          "DELI",
+          "WINGS",
+          "HOT_DOGS",
+          "BREAKFAST",
+          "BAKERY",
+          "DESSERTS",
+          "CAFE"
+        ],
+        "title": "Cuisine",
+        "type": "string"
+      },
       "DisputeRequestReconciliation": {
         "additionalProperties": false,
         "description": "Payload for ``POST /admin/disputes/{id}/request-owner-reconciliation``.\n\nUsed when a dispute is plausible enough to ask the owner to\nfile a RECONCILIATION halal_claim instead of admin resolving\ndirectly. ``admin_decision_note`` is staff-only context.",
@@ -696,6 +766,96 @@
         ],
         "title": "ExternalIdProvider",
         "type": "string"
+      },
+      "FavoriteRead": {
+        "description": "One row on the consumer favorites list.\n\nThe ``place`` payload is the same ``PlaceSearchResult`` shape used\nby the public search list \u2014 kept identical on purpose so the\nconsumer site reuses ``PlaceResultCard`` without a second\ntransformation step. ``saved_at`` lets the listing sort newest-\nfirst and powers any future \"you saved this 3 days ago\"\naffordance.",
+        "properties": {
+          "place": {
+            "$ref": "#/components/schemas/PlaceSearchResult"
+          },
+          "saved_at": {
+            "format": "date-time",
+            "title": "Saved At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "saved_at",
+          "place"
+        ],
+        "title": "FavoriteRead",
+        "type": "object"
+      },
+      "ForwardGeocodeMatch": {
+        "description": "One result row from the consumer \"Pick a city\" forward-geocode\nproxy. The consumer dialog renders a small list of these so the\nuser can disambiguate (\"Springfield, IL\" vs \"Springfield, MA\") on\na single tap.\n\n``label`` is the human-readable string ready for display\n(typically \"City, REGION\" or Google's full formatted_address).\n``lat`` / ``lng`` are the resolved coordinates the consumer site\npushes into the URL to drive the near-me search. ``city`` /\n``region`` / ``country_code`` mirror the structured-address\nfields used elsewhere on the site.",
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lng": {
+            "title": "Lng",
+            "type": "number"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          }
+        },
+        "required": [
+          "label",
+          "lat",
+          "lng"
+        ],
+        "title": "ForwardGeocodeMatch",
+        "type": "object"
+      },
+      "ForwardGeocodeResults": {
+        "description": "Wrapper around ``list[ForwardGeocodeMatch]`` so the consumer\nforward-geocode endpoint can grow extra metadata (e.g. an\n``attribution`` field, a \"did you mean\" suggestion) without\nbreaking the wire shape.",
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/ForwardGeocodeMatch"
+            },
+            "title": "Matches",
+            "type": "array"
+          }
+        },
+        "title": "ForwardGeocodeResults",
+        "type": "object"
       },
       "GoogleAutocompletePrediction": {
         "description": "Slim shape returned by the owner-portal Google Autocomplete proxy.\n\nWe deliberately collapse Google's verbose response (which includes\nstructured_formatting, types, terms, matched_substrings, etc.) into\njust what the claim flow needs: an opaque place_id to send back on\nsubmit, plus a single human-readable description to render in the\nlist. Anything else can come from the Place Details ingest later\nwhen the owner actually picks one and submits.",
@@ -995,14 +1155,13 @@
             ],
             "title": "Internal Notes"
           },
-          "validation_tier": {
-            "$ref": "#/components/schemas/ValidationTier"
-          },
           "override_acknowledged": {
             "default": false,
-            "description": "Acknowledgement flag for approving outside the standard PENDING_REVIEW \u2192 APPROVED flow. Required (along with a non-empty decision_note) when the claim is in DRAFT, NEEDS_MORE_INFO, REJECTED, or REVOKED. Server returns HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE if missing.",
             "title": "Override Acknowledged",
             "type": "boolean"
+          },
+          "validation_tier": {
+            "$ref": "#/components/schemas/ValidationTier"
           }
         },
         "required": [
@@ -1330,7 +1489,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Certificate Content Type"
           },
           "certificate_expires_at": {
@@ -1354,7 +1512,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Certificate Url"
           },
           "certifying_body_name": {
@@ -1509,7 +1666,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Certificate Content Type"
           },
           "certificate_expires_at": {
@@ -1533,7 +1689,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Certificate Url"
           },
           "certifying_body_name": {
@@ -1719,6 +1874,13 @@
             ],
             "title": "Has Pork"
           },
+          "meat_products": {
+            "items": {
+              "$ref": "#/components/schemas/MeatProductSourcing"
+            },
+            "title": "Meat Products",
+            "type": "array"
+          },
           "menu_posture": {
             "anyOf": [
               {
@@ -1745,15 +1907,6 @@
               }
             ],
             "title": "Seafood Only"
-          },
-          "meat_products": {
-            "default": [],
-            "description": "One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected \u2014 different products often have different suppliers / certs.",
-            "items": {
-              "$ref": "#/components/schemas/MeatProductSourcing"
-            },
-            "title": "Meat Products",
-            "type": "array"
           }
         },
         "title": "HalalQuestionnaireDraft",
@@ -1806,7 +1959,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "description": "True if the restaurant or supplier holds a halal certificate from a recognized authority. NULL means the owner didn't declare either way.",
             "title": "Has Certification"
           },
@@ -1814,6 +1966,14 @@
             "description": "True if pork or pork products are on the menu.",
             "title": "Has Pork",
             "type": "boolean"
+          },
+          "meat_products": {
+            "description": "One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected \u2014 different products often have different suppliers / certs.",
+            "items": {
+              "$ref": "#/components/schemas/MeatProductSourcing"
+            },
+            "title": "Meat Products",
+            "type": "array"
           },
           "menu_posture": {
             "$ref": "#/components/schemas/MenuPosture"
@@ -1827,18 +1987,9 @@
           },
           "seafood_only": {
             "default": false,
-            "description": "True if the kitchen serves no land-meat at all. Mutually exclusive with the per-meat fields above (admin can flag).",
+            "description": "True if the kitchen serves no land-meat at all. When True, ``meat_products`` is expected to be empty.",
             "title": "Seafood Only",
             "type": "boolean"
-          },
-          "meat_products": {
-            "default": [],
-            "description": "One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected \u2014 different products often have different suppliers / certs.",
-            "items": {
-              "$ref": "#/components/schemas/MeatProductSourcing"
-            },
-            "title": "Meat Products",
-            "type": "array"
           }
         },
         "required": [
@@ -1897,7 +2048,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "description": "True if the restaurant or supplier holds a halal certificate from a recognized authority. NULL means the owner didn't declare either way.",
             "title": "Has Certification"
           },
@@ -1905,6 +2055,14 @@
             "description": "True if pork or pork products are on the menu.",
             "title": "Has Pork",
             "type": "boolean"
+          },
+          "meat_products": {
+            "description": "One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected \u2014 different products often have different suppliers / certs.",
+            "items": {
+              "$ref": "#/components/schemas/MeatProductSourcing"
+            },
+            "title": "Meat Products",
+            "type": "array"
           },
           "menu_posture": {
             "$ref": "#/components/schemas/MenuPosture"
@@ -1918,18 +2076,9 @@
           },
           "seafood_only": {
             "default": false,
-            "description": "True if the kitchen serves no land-meat at all. Mutually exclusive with the per-meat fields above (admin can flag).",
+            "description": "True if the kitchen serves no land-meat at all. When True, ``meat_products`` is expected to be empty.",
             "title": "Seafood Only",
             "type": "boolean"
-          },
-          "meat_products": {
-            "default": [],
-            "description": "One entry per product the kitchen serves (beef bacon, ground beef, chicken nuggets, etc.). Multiple entries per meat type are allowed and expected \u2014 different products often have different suppliers / certs.",
-            "items": {
-              "$ref": "#/components/schemas/MeatProductSourcing"
-            },
-            "title": "Meat Products",
-            "type": "array"
           }
         },
         "required": [
@@ -2070,6 +2219,114 @@
         ],
         "title": "MeResponse",
         "type": "object"
+      },
+      "MeatProductSourcing": {
+        "additionalProperties": false,
+        "description": "One specific product the restaurant serves, with its own\nsupplier and (optionally) cert.\n\nRestaurants typically sell multiple products per meat \u2014\n'beef bacon' and 'ground beef' might come from different\nsuppliers, each with their own halal certificate (or none).\nThe owner adds one entry per product so the audit trail\ncaptures the real-world fragmentation.\n\nThe ``slaughter_method`` rolls up to the place's\n``HalalProfile.<meat>_slaughter`` column at admin-approval\ntime. Multiple products under the same meat type collapse to\nthe LEAST conservative method (i.e. if any beef product is\nMACHINE-slaughtered, the place's beef column lands MACHINE,\neven if some other beef products are ZABIHAH). The full\nper-product breakdown stays on the questionnaire JSON for\nconsumer-facing transparency on the place detail page.",
+        "properties": {
+          "certificate_number": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional cert / batch number for traceability.",
+            "title": "Certificate Number"
+          },
+          "certifying_authority": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the body that certified this product (IFANCA, HMA, the supplier's own cert, etc.). Optional \u2014 many products are supplier-attested without a third-party cert.",
+            "title": "Certifying Authority"
+          },
+          "meat_type": {
+            "$ref": "#/components/schemas/MeatType",
+            "description": "Which meat this product is. Drives the per-meat profile column rollup at approval time."
+          },
+          "product_name": {
+            "description": "Free-text product label \u2014 'Beef bacon', 'Ground beef', 'Chicken nuggets'. Surfaces verbatim on the place detail.",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Product Name",
+            "type": "string"
+          },
+          "slaughter_method": {
+            "$ref": "#/components/schemas/SlaughterMethod",
+            "description": "ZABIHAH / MACHINE / NOT_SERVED. NOT_SERVED is unusual on a per-product entry (an entry exists because the product is served) but kept for symmetry."
+          },
+          "supplier_city": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Supplier's city. Optional.",
+            "title": "Supplier City"
+          },
+          "supplier_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Supplier the restaurant sources this product from.",
+            "title": "Supplier Name"
+          },
+          "supplier_state": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Supplier's state / province / region. Free text rather than an enum so non-US suppliers fit cleanly.",
+            "title": "Supplier State"
+          }
+        },
+        "required": [
+          "meat_type",
+          "product_name",
+          "slaughter_method"
+        ],
+        "title": "MeatProductSourcing",
+        "type": "object"
+      },
+      "MeatType": {
+        "description": "Meat categories the questionnaire tracks per-product.\n\nThe owner used to answer one ``MeatSourcing`` per fixed slot\n(chicken / beef / lamb / goat). Restaurants in practice sell\nmultiple products per meat \u2014 beef bacon, beef hot dogs, ground\nbeef, each potentially sourced differently \u2014 so the\nquestionnaire now carries a list of ``MeatProductSourcing``\nkeyed on this enum.\n\nClosed enum (not free text) because the consumer-search filters\nand ``HalalProfile`` per-meat slaughter columns rely on a known\nvocabulary. Adding a new value is a one-line change here, and\na follow-up if the new type needs its own profile column for\nfiltering. ``OTHER`` is the safety valve \u2014 line items still\ncarry their detail (name, supplier, slaughter), they just\ndon't roll up to a profile column.",
+        "enum": [
+          "CHICKEN",
+          "BEEF",
+          "LAMB",
+          "GOAT",
+          "TURKEY",
+          "DUCK",
+          "FISH",
+          "OTHER"
+        ],
+        "title": "MeatType",
+        "type": "string"
       },
       "MemberAdminCreate": {
         "properties": {
@@ -2228,7 +2485,7 @@
       },
       "MyHalalClaimPlaceSummary": {
         "additionalProperties": false,
-        "description": "Embedded place fields on the owner-side claim read shape.\n\nSurfaces enough context for the list page to render a real\nplace name + address line without a second fetch. Stays slim\nso the wire shape doesn't carry geom/timezone/etc the UI\ndoesn't need.",
+        "description": "Embedded place fields on the owner-side claim read shape.\n\nSurfaces enough context for the list page to render a real\nplace name + address line without a second fetch. Stays slim\nso the wire shape doesn't carry geom/timezone/etc the UI\ndoesn't need.\n\n``cuisine_types`` is included so the claim editor's cuisine\nmulti-select can prefill from the same payload it already\nfetches \u2014 no separate GET /places/{id} round-trip just to seed\nthe picker.",
         "properties": {
           "address": {
             "anyOf": [
@@ -2262,6 +2519,13 @@
               }
             ],
             "title": "Country Code"
+          },
+          "cuisine_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cuisine Types",
+            "type": "array"
           },
           "id": {
             "format": "uuid",
@@ -2895,6 +3159,17 @@
             "title": "Created At",
             "type": "string"
           },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -2932,18 +3207,6 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
-          },
-          "decision_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Decision Note"
           }
         },
         "required": [
@@ -3755,21 +4018,18 @@
       },
       "OrganizationVerifyAdmin": {
         "additionalProperties": false,
-        "description": "POST /admin/organizations/{id}/verify body.\n\n``note`` is optional \u2014 admins can record a brief context if\nthey want (\"verified via SOS lookup\") but mostly the act of\nverifying is enough.",
+        "description": "POST /admin/organizations/{id}/verify body.\n\n``note`` is required (mirrors the reject side's ``reason``) so\nevery decision lands in the audit trail with a documented\nbasis. The admin UI ships a checklist of preset verification\nchecks (entity name matches, in good standing, articles\nverified, recent annual report on file) plus an Other\nfree-text fallback; the composed string lands here.\n\nSame ``min_length=3`` floor as reject \u2014 keeps a stray \"ok\"\nor single-character fat-finger from clearing the bar.",
         "properties": {
           "note": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Note",
+            "type": "string"
           }
         },
+        "required": [
+          "note"
+        ],
         "title": "OrganizationVerifyAdmin",
         "type": "object"
       },
@@ -3840,6 +4100,22 @@
           "organization_name"
         ],
         "title": "OwnedPlaceRead",
+        "type": "object"
+      },
+      "OwnedPlaceUpdate": {
+        "additionalProperties": false,
+        "description": "PATCH body for ``PATCH /me/places/{place_id}``.\n\nToday the only patchable field is ``cuisine_types`` \u2014 the curated\ncuisine tags surfaced on consumer search rows. Identity columns\n(name / address / lat / lng / city / country) stay admin-only,\nsince those are the canonical address record populated by Google\ningest. We intentionally use a non-Optional list (rather than a\nPATCH-style ``cuisine_types | None`` partial) \u2014 submitting the\npayload always replaces the full set, including with ``[]`` to\nclear all tags. Simpler model, no merge ambiguity.\n\nEmpty list is allowed. Duplicates in the input are tolerated and\ndeduped server-side. Each entry must be a member of the curated\n``Cuisine`` enum; unknown values 422 with FastAPI's standard\nvalidation error.",
+        "properties": {
+          "cuisine_types": {
+            "description": "Replace the place's full cuisine tag set. Pass [] to clear. Duplicates are deduped.",
+            "items": {
+              "$ref": "#/components/schemas/Cuisine"
+            },
+            "title": "Cuisine Types",
+            "type": "array"
+          }
+        },
+        "title": "OwnedPlaceUpdate",
         "type": "object"
       },
       "OwnershipRequestAdminCreate": {
@@ -3920,6 +4196,17 @@
             "title": "Created At",
             "type": "string"
           },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -3986,18 +4273,6 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
-          },
-          "decision_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Decision Note"
           }
         },
         "required": [
@@ -4151,6 +4426,17 @@
             "title": "Created At",
             "type": "string"
           },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -4192,18 +4478,6 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
-          },
-          "decision_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Decision Note"
           }
         },
         "required": [
@@ -4221,6 +4495,7 @@
         "type": "object"
       },
       "OwnershipRequestEvidence": {
+        "description": "POST /admin/ownership-requests/{id}/request-evidence body.\n\n``note`` is required (min_length=3, mirrors reject + verify) so\nthe owner has actionable guidance on what to upload next. Without\nit, NEEDS_EVIDENCE is a dead-end status \u2014 the owner sees the\nstate change but no instructions, and admin staff just bounce\nthe claim around without driving it to a decision.",
         "properties": {
           "note": {
             "maxLength": 2000,
@@ -4229,12 +4504,11 @@
             "type": "string"
           }
         },
-        "title": "OwnershipRequestEvidence",
-        "type": "object",
         "required": [
           "note"
         ],
-        "description": "POST /admin/ownership-requests/{id}/request-evidence body.\n\n``note`` is required (min_length=3, mirrors reject + verify) so the owner has actionable guidance on what to upload next. Without it, NEEDS_EVIDENCE is a dead-end status \u2014 the owner sees the state change but no instructions, and admin staff just bounce the claim around without driving it to a decision."
+        "title": "OwnershipRequestEvidence",
+        "type": "object"
       },
       "OwnershipRequestRead": {
         "properties": {
@@ -4250,6 +4524,17 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
           },
           "id": {
             "format": "uuid",
@@ -4292,18 +4577,6 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
-          },
-          "decision_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Decision Note"
           }
         },
         "required": [
@@ -4664,6 +4937,13 @@
             ],
             "title": "Country Code"
           },
+          "cuisine_types": {
+            "items": {
+              "$ref": "#/components/schemas/Cuisine"
+            },
+            "title": "Cuisine Types",
+            "type": "array"
+          },
           "halal_profile": {
             "anyOf": [
               {
@@ -4673,6 +4953,17 @@
                 "type": "null"
               }
             ]
+          },
+          "hero_photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hero Photo Url"
           },
           "id": {
             "format": "uuid",
@@ -4694,6 +4985,13 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PlacePhotoRead"
+            },
+            "title": "Photos",
+            "type": "array"
           },
           "postal_code": {
             "anyOf": [
@@ -5037,6 +5335,133 @@
         "title": "PlaceOwnerRevokeRequest",
         "type": "object"
       },
+      "PlacePhotoRead": {
+        "description": "Owner- or consumer-uploaded photo as it lands on the\nconsumer-facing place detail.\n\n``url`` is the public Supabase Storage URL \u2014 the bucket is\nconfigured public-readable so the consumer can ``<img>`` it\ndirectly without a signing round-trip. Server fills this in\nby combining the storage path with the bucket's public URL\ntemplate.\n\n``uploaded_by_display_name`` is included so the gallery can\nrender a \"by Khan Halal\" credit under each photo without an\nextra fetch. Null when the uploading user has been deleted\n(FK ON DELETE SET NULL leaves the photo intact, which is the\nright call \u2014 the photo's about the place, not the person).",
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "height_px": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Px"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_hero": {
+            "default": false,
+            "title": "Is Hero",
+            "type": "boolean"
+          },
+          "place_id": {
+            "format": "uuid",
+            "title": "Place Id",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PlacePhotoSource"
+          },
+          "uploaded_by_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded By Display Name"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width_px": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width Px"
+          }
+        },
+        "required": [
+          "id",
+          "place_id",
+          "url",
+          "source",
+          "created_at"
+        ],
+        "title": "PlacePhotoRead",
+        "type": "object"
+      },
+      "PlacePhotoSource": {
+        "description": "Who uploaded a place photo.\n\nDrives both authority (only OWNER photos can be hero) and\nconsumer-visible badging on the place detail page. Stored as a\nplain TEXT column on ``place_photos.source`` so adding a\nVERIFIER variant later is a code-only change.",
+        "enum": [
+          "OWNER",
+          "CONSUMER"
+        ],
+        "title": "PlacePhotoSource",
+        "type": "string"
+      },
+      "PlacePhotoUpdate": {
+        "additionalProperties": false,
+        "description": "PATCH body for ``PATCH /places/{place_id}/photos/{photo_id}``.\n\nTwo independently-optional fields:\n\n  * ``is_hero`` \u2014 owner-only mutation. Setting to true marks\n    this photo the hero and atomically clears any previous\n    hero on the same place (server enforces via DB partial\n    unique index). Setting to false unmarks; the place ends\n    up with no hero unless another is set.\n  * ``caption`` \u2014 uploader-or-owner can edit. Pass an empty\n    string to clear; pass ``null`` (or omit) to leave\n    unchanged. Pydantic ``Field(default=...)`` with a sentinel\n    gives us the omit-vs-null distinction.\n\nOwner attempting to set ``is_hero`` on a CONSUMER-source photo\nis allowed \u2014 owners curate the gallery; consumer photos can\nbe promoted to hero if the owner thinks they're great. The\n\"OWNER source\" restriction would prevent the use case of the\nowner saying \"this customer photo is the best shot of the\ndining room, make it the hero.\"",
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free-text caption. Empty string clears the existing caption; null / omitted leaves it unchanged. Max 500 chars.",
+            "title": "Caption"
+          },
+          "is_hero": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mark or unmark this photo as the place's hero. Only owners (or admins) can change this; consumer callers get a 403.",
+            "title": "Is Hero"
+          }
+        },
+        "title": "PlacePhotoUpdate",
+        "type": "object"
+      },
       "PlaceRead": {
         "properties": {
           "address": {
@@ -5071,6 +5496,13 @@
               }
             ],
             "title": "Country Code"
+          },
+          "cuisine_types": {
+            "items": {
+              "$ref": "#/components/schemas/Cuisine"
+            },
+            "title": "Cuisine Types",
+            "type": "array"
           },
           "id": {
             "format": "uuid",
@@ -5199,6 +5631,13 @@
             ],
             "title": "Country Code"
           },
+          "cuisine_types": {
+            "items": {
+              "$ref": "#/components/schemas/Cuisine"
+            },
+            "title": "Cuisine Types",
+            "type": "array"
+          },
           "halal_profile": {
             "anyOf": [
               {
@@ -5208,6 +5647,17 @@
                 "type": "null"
               }
             ]
+          },
+          "hero_photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hero Photo Url"
           },
           "id": {
             "format": "uuid",
@@ -5268,6 +5718,46 @@
           }
         },
         "title": "PlaceUnlinkExternalRequest",
+        "type": "object"
+      },
+      "ReverseGeocodeResult": {
+        "description": "City-ish summary returned by the consumer \"near me\" reverse-\ngeocode proxy.\n\nPowers the active-state pill on the search surface (\"Searching X\nmi around Snellville\"). All three fields are optional because\nGoogle can return a result with a country but no locality (rural\ncoordinates, oceans, etc.) and the consumer surface degrades\ngracefully \u2014 the pill falls back to \"around you\" when ``city`` is\nnull. Region is the short code (e.g. \"GA\") so the pill can read\n\"Snellville, GA\" without taking too much horizontal space on a\nphone.",
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          }
+        },
+        "title": "ReverseGeocodeResult",
         "type": "object"
       },
       "SetPasswordRequest": {
@@ -6379,113 +6869,6 @@
         ],
         "title": "_AdminAttachmentSignedUrl",
         "type": "object"
-      },
-      "MeatType": {
-        "description": "Meat categories the questionnaire tracks per-product. OTHER is the safety valve for entries that don't roll up to a per-meat HalalProfile column.",
-        "enum": [
-          "CHICKEN",
-          "BEEF",
-          "LAMB",
-          "GOAT",
-          "TURKEY",
-          "DUCK",
-          "FISH",
-          "OTHER"
-        ],
-        "title": "MeatType",
-        "type": "string"
-      },
-      "MeatProductSourcing": {
-        "additionalProperties": false,
-        "description": "One specific product the restaurant serves, with its own supplier and (optionally) cert.",
-        "properties": {
-          "meat_type": {
-            "$ref": "#/components/schemas/MeatType"
-          },
-          "product_name": {
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Product Name",
-            "type": "string"
-          },
-          "slaughter_method": {
-            "$ref": "#/components/schemas/SlaughterMethod"
-          },
-          "supplier_name": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Supplier Name"
-          },
-          "certifying_authority": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Certifying Authority"
-          },
-          "certificate_number": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Certificate Number"
-          },
-          "supplier_city": {
-            "anyOf": [
-              {
-                "maxLength": 120,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Supplier's city. Optional.",
-            "title": "Supplier City"
-          },
-          "supplier_state": {
-            "anyOf": [
-              {
-                "maxLength": 120,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Supplier's state / province / region. Free text rather than an enum so non-US suppliers fit cleanly.",
-            "title": "Supplier State"
-          }
-        },
-        "required": [
-          "meat_type",
-          "product_name",
-          "slaughter_method"
-        ],
-        "title": "MeatProductSourcing",
-        "type": "object"
       }
     }
   },
@@ -6501,7 +6884,7 @@
     },
     "summary": "Backend for the Trust Halal halal-restaurant verification platform.",
     "title": "TrustHalal API",
-    "version": "0.1.0"
+    "version": "0.6.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -13099,6 +13482,228 @@
         ]
       }
     },
+    "/me/favorites": {
+      "get": {
+        "description": "Newest-first list of places the consumer has favorited. Each row carries the full ``PlaceSearchResult`` shape so the frontend can reuse the same card component the search page renders. Soft-deleted places are filtered out \u2014 the favorite row stays in the DB so an admin restore brings the place back to the list transparently.",
+        "operationId": "list_my_favorites_me_favorites_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteRead"
+                  },
+                  "title": "Response List My Favorites Me Favorites Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List the caller's saved places",
+        "tags": [
+          "consumer-favorites"
+        ]
+      }
+    },
+    "/me/favorites/{place_id}": {
+      "delete": {
+        "description": "Idempotent on the wire posture but 404s when the place wasn't favorited so the frontend can distinguish a real remove from a stale double-tap.",
+        "operationId": "remove_my_favorite_me_favorites__place_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Place removed from favorites."
+          },
+          "404": {
+            "description": "Place wasn't favorited."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove a place from the caller's favorites",
+        "tags": [
+          "consumer-favorites"
+        ]
+      },
+      "post": {
+        "description": "Idempotent. Returns 201 with the new row on first save, 200 with the existing row when the place was already favorited. 404 when the place doesn't exist or has been hard-deleted.",
+        "operationId": "add_my_favorite_me_favorites__place_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteRead"
+                }
+              }
+            },
+            "description": "Place was already favorited."
+          },
+          "201": {
+            "description": "Place newly added to favorites."
+          },
+          "404": {
+            "description": "Place not found."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save a place to the caller's favorites",
+        "tags": [
+          "consumer-favorites"
+        ]
+      }
+    },
     "/me/halal-claims": {
       "get": {
         "description": "Newest-first list of every halal claim the signed-in user has submitted across all the orgs they belong to. Powers the owner portal's Halal claims page.",
@@ -13347,6 +13952,73 @@
       }
     },
     "/me/halal-claims/{claim_id}": {
+      "delete": {
+        "description": "Delete a halal claim that the caller owns AND is still in DRAFT. Cascades to attached files (DB rows + storage blobs). Conflict 409 (`HALAL_CLAIM_NOT_DELETABLE`) for any non-DRAFT status \u2014 submitted claims are part of the audit trail and stay around. Admin's REJECT / REVOKE flows cover the 'we don't want this anymore' cases for those.",
+        "operationId": "delete_my_halal_claim_me_halal_claims__claim_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "claim_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Claim Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard a DRAFT claim",
+        "tags": [
+          "halal-claims"
+        ]
+      },
       "get": {
         "description": "Returns the full claim with embedded place + org summaries and the attachment metadata list. 404 on unknown id; 403 if the id exists but belongs to another user.",
         "operationId": "get_my_halal_claim_me_halal_claims__claim_id__get",
@@ -13504,41 +14176,6 @@
         "tags": [
           "halal-claims"
         ]
-      },
-      "delete": {
-        "tags": [
-          "halal-claims"
-        ],
-        "summary": "Discard a DRAFT claim",
-        "description": "Delete a halal claim that the caller owns AND is still in DRAFT. Cascades to attached files (DB rows + storage blobs). Conflict 409 (`HALAL_CLAIM_NOT_DELETABLE`) for any non-DRAFT status \u2014 submitted claims are part of the audit trail and stay around. Admin's REJECT / REVOKE flows cover the 'we don't want this anymore' cases for those.",
-        "operationId": "delete_my_halal_claim_me_halal_claims__claim_id__delete",
-        "parameters": [
-          {
-            "name": "claim_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string",
-              "title": "Claim Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/me/halal-claims/{claim_id}/attachments": {
@@ -14892,6 +15529,168 @@
         ]
       }
     },
+    "/me/ownership-requests/{request_id}/resubmit": {
+      "post": {
+        "description": "Owner-driven flow for the bounce-back loop: admin moves a claim to NEEDS_EVIDENCE with a guidance note, owner uploads additional attachments via `POST /me/ownership-requests/{id}/attachments`, then calls this endpoint to flip the status back to UNDER_REVIEW so the admin queue picks it up again. Returns 409 `OWNERSHIP_REQUEST_NOT_RESUBMITTABLE` if the claim isn't in NEEDS_EVIDENCE.",
+        "operationId": "resubmit_my_ownership_request_me_ownership_requests__request_id__resubmit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyOwnershipRequestRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resubmit a NEEDS_EVIDENCE claim for review",
+        "tags": [
+          "ownership-requests"
+        ]
+      }
+    },
+    "/me/places/{place_id}": {
+      "patch": {
+        "description": "Owner-scoped place update. Currently accepts only ``cuisine_types`` \u2014 the curated cuisine tags surfaced on consumer search rows. Authorization mirrors the halal-claim submission rule: the caller must be an active OWNER_ADMIN/MANAGER on an organization that has an active PlaceOwner row for this place. Admins are also allowed via the same dependency.\n\nIdentity columns (name, address, lat/lng, city, country) deliberately stay admin-only \u2014 those are the canonical source-of-truth fields populated by Google ingest, and owners shouldn't be able to drift them. Cuisine tags are purely descriptive metadata, so it's safe to let the operator who knows the venue best edit them.",
+        "operationId": "patch_owned_place_me_places__place_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnedPlaceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Owner edit of place metadata (cuisine tags)",
+        "tags": [
+          "Places"
+        ]
+      }
+    },
     "/me/preferences": {
       "get": {
         "description": "Returns an all-null payload when the user hasn't saved any preferences yet \u2014 the frontend renders the same form in both states. ``updated_at`` is null in the empty case.",
@@ -16078,6 +16877,27 @@
               ],
               "title": "No Alcohol Served"
             }
+          },
+          {
+            "description": "Multi-value cuisine filter. Results match any of the passed cuisines (overlap). Pass the param multiple times to broaden the match. Empty / missing = no cuisine filter.",
+            "in": "query",
+            "name": "cuisine",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/Cuisine"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Multi-value cuisine filter. Results match any of the passed cuisines (overlap). Pass the param multiple times to broaden the match. Empty / missing = no cuisine filter.",
+              "title": "Cuisine"
+            }
           }
         ],
         "responses": {
@@ -16230,6 +17050,107 @@
           }
         },
         "summary": "Google Places Autocomplete proxy",
+        "tags": [
+          "places"
+        ]
+      }
+    },
+    "/places/google/forward-geocode": {
+      "get": {
+        "description": "Server-side proxy to the Google Geocoding API for free-text place queries. Backs the consumer 'Pick a city' dialog that fires when the browser denies / can't fulfill geolocation. Returns up to 5 candidate matches with resolved lat/lng + a human-readable label so the dialog can render a one-tap disambiguation list. Same key-hygiene posture as reverse-geocode and autocomplete: GOOGLE_MAPS_API_KEY is never exposed to the browser. Empty / no-result queries return an empty matches array (200 OK, not 404). Rate-limited per-IP to bound Google quota cost.",
+        "operationId": "google_forward_geocode_places_google_forward_geocode_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForwardGeocodeResults"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Geocoding forward-lookup proxy",
+        "tags": [
+          "places"
+        ]
+      }
+    },
+    "/places/google/reverse-geocode": {
+      "get": {
+        "description": "Server-side proxy to the Google Geocoding API. Given a lat/lng, returns the resolved city / region (short code) / country code for the consumer 'near me' surface \u2014 the active pill renders 'Searching X mi around Snellville' rather than the generic 'around you'. Same key-hygiene posture as the autocomplete proxy: GOOGLE_MAPS_API_KEY is never exposed to the browser. Coordinates are rounded to 3 decimals (~110m grid) before lookup so two users in the same neighborhood collapse to a single billed call. Rate-limited per-IP (60/min, 600/hour). All three response fields are optional; rural / ocean coordinates can return a 200 OK with `city` null and the consumer pill falls back accordingly.",
+        "operationId": "google_reverse_geocode_places_google_reverse_geocode_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lat",
+            "required": true,
+            "schema": {
+              "maximum": 90,
+              "minimum": -90,
+              "title": "Lat",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lng",
+            "required": true,
+            "schema": {
+              "maximum": 180,
+              "minimum": -180,
+              "title": "Lng",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReverseGeocodeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Geocoding reverse-lookup proxy",
         "tags": [
           "places"
         ]
@@ -16495,6 +17416,311 @@
         ]
       }
     },
+    "/places/{place_id}/photos": {
+      "get": {
+        "description": "Public read of all non-deleted photos for a place. Hero-first, then newest-first. The place detail page uses this to render the gallery; the search-result card uses the embedded ``hero_photo_url`` on PlaceSearchResult instead, since cards only need the cover image.",
+        "operationId": "list_place_photos_places__place_id__photos_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlacePhotoRead"
+                  },
+                  "title": "Response List Place Photos Places  Place Id  Photos Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List photos for a place",
+        "tags": [
+          "place-photos"
+        ]
+      },
+      "post": {
+        "description": "Multipart upload for owner or consumer photos of a place. Auth required. Source is derived from the caller's relationship to the place: active OWNER_ADMIN/MANAGER on the owning org \u2192 OWNER, anyone else \u2192 CONSUMER. Pipeline runs HEIC\u2192JPEG conversion, EXIF strip, dimension extract, and Cloud Vision SafeSearch BEFORE bytes hit the bucket. Returns 422 on SafeSearch reject, 415 on bad MIME, 413 on size, 409 on per-place cap (50 photos).",
+        "operationId": "upload_place_photo_places__place_id__photos_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_place_photo_places__place_id__photos_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlacePhotoRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload a place photo",
+        "tags": [
+          "place-photos"
+        ]
+      }
+    },
+    "/places/{place_id}/photos/{photo_id}": {
+      "delete": {
+        "description": "Tiered authorization: admin can delete anything; the place's owner can delete any photo on their place; the uploader can delete their own. Soft delete leaves bytes in the bucket for admin restore.",
+        "operationId": "delete_place_photo_places__place_id__photos__photo_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "photo_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Photo Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Soft-delete a place photo",
+        "tags": [
+          "place-photos"
+        ]
+      },
+      "patch": {
+        "description": "Two independently optional fields. ``is_hero`` is owner-only (admins also pass): setting true atomically clears the previous hero on the same place. ``caption`` is editable by the uploader OR an owner of the place.",
+        "operationId": "patch_place_photo_places__place_id__photos__photo_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "photo_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Photo Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlacePhotoUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlacePhotoRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit a place photo (set hero / caption)",
+        "tags": [
+          "place-photos"
+        ]
+      }
+    },
     "/verifier-applications": {
       "post": {
         "description": "Open a verifier application. Anonymous-OK: applicants may submit before creating an account, so the form captures applicant_email + applicant_name independently of any session. When a session is present, the applicant's user_id is recorded for admin context. Rate-limited (5/hour per user-or-IP) to keep noise out of the admin queue.",
@@ -16569,50 +17795,6 @@
         "tags": [
           "verifier-applications"
         ]
-      }
-    },
-    "/me/ownership-requests/{request_id}/resubmit": {
-      "post": {
-        "tags": [
-          "ownership-requests"
-        ],
-        "summary": "Resubmit a NEEDS_EVIDENCE claim for review",
-        "description": "Owner-driven flow for the bounce-back loop: admin moves a claim to NEEDS_EVIDENCE with a guidance note, owner uploads additional attachments via `POST /me/ownership-requests/{id}/attachments`, then calls this endpoint to flip the status back to UNDER_REVIEW so the admin queue picks it up again. Returns 409 `OWNERSHIP_REQUEST_NOT_RESUBMITTABLE` if the claim isn't in NEEDS_EVIDENCE.",
-        "operationId": "resubmit_my_ownership_request_me_ownership_requests__request_id__resubmit_post",
-        "parameters": [
-          {
-            "name": "request_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string",
-              "title": "Request Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MyOwnershipRequestRead"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     }
   },
