@@ -225,9 +225,17 @@ def _copy_cert_to_public_bucket(
 
     try:
         body = evidence_storage.download_bytes(attachment.storage_path)
-    except StorageError:
+    except StorageError as exc:
+        # Bubble the underlying Supabase detail up via the logger
+        # (live approve path) AND attach it to a return-tuple
+        # marker that the backfill script picks up so ops can see
+        # WHY a row was skipped without tailing logs. Most common
+        # causes: the source bucket file was deleted, the path the
+        # row was migrated from doesn't exist in the current
+        # project, or the service-role key lacks read access.
         logger.warning(
-            "halal-cert download failed; skipping public copy",
+            "halal-cert download failed; skipping public copy: %s",
+            exc,
             extra={
                 "claim_id": str(attachment.claim_id),
                 "attachment_id": str(attachment.id),

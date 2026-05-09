@@ -30,6 +30,7 @@ What this module owns
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import quote as urlquote
@@ -46,6 +47,27 @@ class StorageError(Exception):
     upload route, etc.) can render a single clean failure mode
     instead of branching on transport-vs-application errors.
     """
+
+
+def _extract_supabase_detail(response: httpx.Response) -> str:
+    """Best-effort pull of Supabase's error payload into a string.
+
+    Supabase Storage returns a JSON body shaped like
+    ``{"statusCode": "400", "error": "InvalidRequest", "message": "Object not found"}``
+    on 4xx responses. We surface the ``message`` field when present
+    so error messages tell ops which side is at fault (path typo vs.
+    missing object vs. unauthorized) instead of just "400 Bad Request".
+
+    Falls back to the raw text when the body isn't JSON, and to a
+    generic placeholder when even that fails — never propagates a
+    decoding exception over the original network error.
+    """
+    try:
+        body = response.json()
+    except (ValueError, json.JSONDecodeError):
+        return (response.text or "<empty body>").strip()
+    msg = body.get("message") or body.get("error") or ""
+    return str(msg).strip() or repr(body)
 
 
 class StorageClient(Protocol):
@@ -172,6 +194,19 @@ class SupabaseStorageClient:
             )
             resp.raise_for_status()
             payload = resp.json()
+        except httpx.HTTPStatusError as exc:
+            # Surface Supabase's response body — the bare httpx
+            # message ("400 Bad Request") doesn't tell ops whether
+            # the path is wrong, the object's missing, or the
+            # service-role key is unauthorized for this bucket.
+            # Supabase typically returns
+            # ``{"statusCode":"400","error":"InvalidRequest","message":"..."}``.
+            detail = _extract_supabase_detail(exc.response)
+            raise StorageError(
+                f"Object storage signed URL request failed: "
+                f"{exc.response.status_code} {detail} "
+                f"(bucket={self.bucket}, path={path})"
+            ) from exc
         except httpx.HTTPError as exc:
             raise StorageError(
                 f"Object storage signed URL request failed: {exc}"

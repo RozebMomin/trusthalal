@@ -220,10 +220,17 @@ def main() -> int:
                 continue
 
             if args.dry_run:
+                # Print the source path so ops can copy-paste it
+                # into the Supabase dashboard's Storage > evidence
+                # browser to confirm the file is actually there
+                # before flipping off --dry-run. Catches the case
+                # where the DB row points at a path that was
+                # cleaned up (or never landed) in the bucket.
                 print(
                     f"  · {profile.id}: would publish "
                     f"{attachment.original_filename} "
-                    f"({attachment.content_type})"
+                    f"({attachment.content_type}) "
+                    f"from evidence://{attachment.storage_path}"
                 )
                 continue
 
