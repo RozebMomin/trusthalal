@@ -55,20 +55,13 @@ export function PlacePhotoGallery({
   photos: PlacePhotoRead[];
   placeName: string;
 }) {
-  // Hooks first — the early-return for "no extra photos" comes after
-  // the state declaration so React's rules-of-hooks invariant holds.
+  // Hooks first — the empty-state branch comes after the state
+  // declaration so React's rules-of-hooks invariant holds.
   const [openIndex, setOpenIndex] = React.useState<number | null>(null);
 
-  // Render nothing when there's at most a single photo. The hero
-  // takes care of the only-photo-present case visually; a one-tile
-  // gallery would feel like a layout glitch.
-  if (photos.length <= 1) {
-    return null;
-  }
-
   // The hero is already shown above; the gallery's "first" tile is
-  // the second photo in the photos array. We still let the lightbox
-  // scroll back to the hero so the visitor can see the full set.
+  // the second photo in the photos array. Lightbox indexes still span
+  // the full set so a visitor can scroll back to the hero.
   const heroLessPhotos = photos.slice(1);
   const visible = heroLessPhotos.slice(0, MAX_VISIBLE_THUMBNAILS);
   const hiddenCount = heroLessPhotos.length - visible.length;
@@ -88,12 +81,28 @@ export function PlacePhotoGallery({
             aria-hidden
           />
           Photos
-          <span className="text-sm font-normal text-muted-foreground">
-            ({photos.length})
-          </span>
+          {photos.length > 0 && (
+            <span className="text-sm font-normal text-muted-foreground">
+              ({photos.length})
+            </span>
+          )}
         </h2>
       </header>
 
+      {/* Empty state — visible whenever the only photo is the hero (or
+          there are no photos at all). The visible "Photos" header
+          still renders so the page rhythm doesn't collapse, and the
+          empty state advertises the owner-portal upload path. */}
+      {heroLessPhotos.length === 0 && (
+        <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          {photos.length === 0
+            ? "No photos yet."
+            : "Only the hero photo is on file so far."}{" "}
+          Owners can add more from the owner portal.
+        </div>
+      )}
+
+      {heroLessPhotos.length > 0 && (
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {visible.map((photo, idx) => {
           const isLastVisible =
@@ -145,6 +154,7 @@ export function PlacePhotoGallery({
           );
         })}
       </ul>
+      )}
 
       {openIndex !== null && (
         <Lightbox
