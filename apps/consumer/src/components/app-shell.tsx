@@ -134,6 +134,16 @@ function PortalHeader({
           {!pending && me === null && (
             <>
               <nav className="flex items-center gap-4">
+                {/* Saved places shows for anonymous too so the
+                    feature is discoverable. The page itself renders
+                    a "sign in to save" pitch when the visitor lands
+                    without auth — no role-based rendering needed. */}
+                <Link
+                  href="/favorites"
+                  className="hidden text-sm hover:underline sm:inline"
+                >
+                  Saved
+                </Link>
                 {/* Anonymous visitors get the prefs link too — local
                     storage backs the page, and they'll learn the
                     feature exists. */}
@@ -168,17 +178,26 @@ function PortalHeader({
                 >
                   {me.display_name || me.email || "Signed in"}
                 </span>
-                {/* Preferences link only shown to consumers — owner /
-                    admin / verifier roles don't have a consumer-search
-                    surface, so saved-search defaults are meaningless
-                    to them. */}
+                {/* Saved + Preferences links only shown to consumers
+                    — owner / admin / verifier roles don't have a
+                    personal favorites or saved-search surface, so
+                    these would dead-end on a "this isn't your
+                    portal" page. */}
                 {me.role === "CONSUMER" && (
-                  <Link
-                    href="/preferences"
-                    className="text-sm hover:underline"
-                  >
-                    Preferences
-                  </Link>
+                  <>
+                    <Link
+                      href="/favorites"
+                      className="text-sm hover:underline"
+                    >
+                      Saved
+                    </Link>
+                    <Link
+                      href="/preferences"
+                      className="text-sm hover:underline"
+                    >
+                      Preferences
+                    </Link>
+                  </>
                 )}
               </nav>
               <HeaderDivider />
@@ -286,6 +305,9 @@ function SiteFooter() {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+          <Link href="/favorites" className="hover:underline">
+            Saved
+          </Link>
           <Link href="/preferences" className="hover:underline">
             Preferences
           </Link>
