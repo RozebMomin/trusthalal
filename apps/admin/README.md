@@ -77,9 +77,10 @@ Role gating is centralized in `src/lib/auth/panel-access.ts`. Today:
 - **ADMIN** — full panel
 - **VERIFIER** — `/halal-claims` review queue plus
   `/ownership-requests` for cross-referencing the underlying
-  ownership claim while reviewing a halal claim. Verifiers land on
-  `/halal-claims` after sign-in. Phase 8 of the halal-trust v2
-  rebuild adds verifier-specific moderation surfaces.
+  ownership claim while reviewing a halal claim, plus `/disputes`
+  for consumer-filed dispute review and `/verifiers` for the
+  applicant + visit moderation surfaces. Verifiers land on
+  `/halal-claims` after sign-in.
 - **OWNER** / **CONSUMER** — no panel access; render a friendly
   dead-end page with a sign-out button. Owners use the dedicated
   owner portal (`apps/owner/`).

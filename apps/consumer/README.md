@@ -21,18 +21,32 @@ preferences or file a dispute.
 - **openapi-typescript** for typed API client generated from
   FastAPI's OpenAPI schema (committed into `src/lib/api/schema.d.ts`)
 
-## Phase 9 plan
+## What ships on this surface
 
-The consumer site lands across four feature branches:
+The consumer site is a discovery + trust surface, not a destination
+catalog. Three top-level capabilities:
 
-1. **Phase 9a (this app's foundation)** — scaffold + auth + AppShell.
-   You're reading the README that lives on that branch.
-2. **Phase 9b** — search surface (text + halal filters + results).
-   Hits the public `/places` endpoint with the filters Phase 4 wired.
-3. **Phase 9c** — place detail page with halal profile rendering,
-   dispute badge, and the consumer-side file-a-dispute flow.
-4. **Phase 9d** — saved consumer preferences (minimum validation
-   tier, slaughter method, alcohol policy, etc.).
+1. **Discovery-first home** — big "Find halal near me" CTA + a
+   cuisine card grid (Top 8 cuisines as one-tap shortcuts) + a
+   collapsed name-search input for the rare known-place lookup.
+   On a tap that requires location, the browser is asked once. If
+   the user denies, a "Pick a city" sheet appears with preset
+   metro chips + a free-form search backed by the API's
+   forward-geocode proxy.
+2. **Search results** — refreshed result cards with a hero photo,
+   a single derived halal trust pill ("Verified halal", "Halal
+   options", "No halal info yet"), and a compact strip of true-only
+   facts (Zabihah, Cert, Pork-free, etc.). Filters tuck into a
+   bottom sheet (popover on desktop); active filters surface as
+   removable chips above the list.
+3. **Place detail + dispute filing** — the place page renders the
+   full halal profile, the photo gallery, and a "File a dispute"
+   button that gates on auth.
+
+Authenticated extras: saved consumer preferences (`/preferences`)
+seed default filters across sessions. Auth itself is anonymous-
+optional — the AppShell branches on signed-in state without
+gating page render.
 
 ## Prerequisites
 
@@ -93,24 +107,53 @@ admin panel's staff list.
 
 ```
 src/
-  app/                     App Router routes
-    layout.tsx             Root layout (AppShell + Providers)
-    providers.tsx          QueryClient provider
-    page.tsx               Home (Phase 9b replaces the stub with search)
-    login/                 Public sign-in
-    signup/                Public sign-up (role=CONSUMER hard-coded)
+  app/                       App Router routes
+    layout.tsx               Root layout (Inter via next/font, AppShell,
+                             Providers, OG metadata defaults)
+    providers.tsx            QueryClient provider
+    page.tsx                 Home — branches between DiscoveryHome
+                             (cold) and the search-active layout
+    places/[id]/             Place detail (server-rendered metadata
+                             + JSON-LD + halal profile + photo gallery)
+    preferences/             Saved consumer preferences (auth required)
+    login/  signup/          Public auth surfaces (role=CONSUMER on signup)
+    sitemap.ts, robots.ts    SEO entry points
+    globals.css              Olive/sage tokens, amber accent, surface tints
   components/
-    ui/                    shadcn/ui primitives
-    app-shell.tsx          Public-friendly chrome (no role gate)
-    version-tag.tsx        Tiny build-SHA chip
+    ui/                      shadcn/ui primitives (Dialog, Button, Input, …)
+    app-shell.tsx            Public-friendly chrome (no role gate)
+    site-hero.tsx            Apex tagline + brand mark
+    discovery-home.tsx       Cold-state surface — Near-Me CTA, cuisine
+                             cards, Pick-a-City fallback dialog
+    cuisine-rail.tsx         Top-8 inline cuisine rail (search-active)
+    filters-sheet.tsx        Bottom sheet / popover for full filter set,
+                             plus the FiltersTrigger button
+    active-filters-bar.tsx   Removable chips above results
+    place-result-card.tsx    Result row with hero photo + halal pill +
+                             facts strip + cuisine + distance
+    halal-badges.tsx         Sub-components used by the place detail page
+    halal-profile-detail.tsx Full halal profile rendering on /places/[id]
+    file-dispute-dialog.tsx  Auth-gated dispute filing
+    near-me-button.tsx       Active-state geolocation pill + radius chips
+    preference-match-banner.tsx, version-tag.tsx
   lib/
-    config.ts              Env-driven runtime config
-    utils.ts               shadcn cn() helper
+    config.ts                Env-driven runtime config
+    utils.ts                 shadcn cn() helper
+    branding.ts              Single source of truth for BRAND_NAME / SITE_URL
+    geo.ts                   Distance + miles formatting helpers
+    halal-display.ts         Pure functions: profile → primary pill
+                             ("Verified halal", "No halal info yet", …)
+                             + facts list (Zabihah, Cert, Pork-free, …)
+    server-fetch.ts          Server-side fetch for SSR metadata
+    preferences/             Consumer preferences merge logic (URL > server >
+                             local-storage cascade)
     api/
-      client.ts            apiFetch (credentials: include, typed errors)
-      hooks.ts             TanStack Query hooks per resource
-      schema.d.ts          Generated types (do not edit)
-      friendly-errors.ts   ApiError → toast copy with per-code overrides
+      client.ts              apiFetch (credentials: include, typed errors,
+                             repeated-key array support for ?cuisine=...)
+      hooks.ts               TanStack Query hooks per resource
+      preferences.ts         Preferences hook (signed-in vs anonymous)
+      schema.d.ts            Generated types from openapi-typescript
+      friendly-errors.ts     ApiError → toast copy with per-code overrides
 ```
 
 ## Contract sync
