@@ -113,6 +113,7 @@ const VALID_CUISINES: ReadonlySet<string> = new Set<Cuisine>([
   "DESSERTS",
   "CAFE",
 ] satisfies Cuisine[]);
+import { capturePostHog } from "@/lib/analytics";
 import { useMyPreferences } from "@/lib/api/preferences";
 import { haversineDistanceMeters } from "@/lib/geo";
 
@@ -336,6 +337,45 @@ function HomePageInner() {
   // so saved defaults narrow results without the user re-typing
   // them every visit.
   const search = useSearchPlaces(effectiveFilters);
+
+  // Analytics — fire a ``search_executed`` event whenever a search
+  // resolves. Keyed off the JSON-stringified filter shape so a
+  // single user typing "chicago" → "chicago il" gets two events
+  // (the second supersedes the first as a refinement signal). We
+  // gate on ``search.data`` being defined so we never fire a
+  // half-loaded event, and on having ANY active search criteria
+  // so the cold home doesn't spam pageviews-as-searches.
+  //
+  // The hash is extracted to a variable so the exhaustive-deps lint
+  // can statically check the dependency array.
+  const filtersHash = React.useMemo(
+    () => JSON.stringify(effectiveFilters),
+    [effectiveFilters],
+  );
+  React.useEffect(() => {
+    if (!search.data) return;
+    const hasText = Boolean(effectiveFilters.q && effectiveFilters.q.length > 0);
+    const hasGeo =
+      effectiveFilters.lat !== undefined &&
+      effectiveFilters.lng !== undefined;
+    if (!hasText && !hasGeo) return;
+    capturePostHog("search_executed", {
+      mode: hasGeo ? (hasText ? "text+geo" : "geo") : "text",
+      q: effectiveFilters.q ?? null,
+      cuisines: effectiveFilters.cuisines ?? [],
+      has_min_validation_tier: Boolean(effectiveFilters.min_validation_tier),
+      has_min_menu_posture: Boolean(effectiveFilters.min_menu_posture),
+      no_pork: effectiveFilters.no_pork === true,
+      no_alcohol_served: effectiveFilters.no_alcohol_served === true,
+      has_certification_filter: effectiveFilters.has_certification === true,
+      radius_meters: effectiveFilters.radius ?? null,
+      result_count: search.data.length,
+    });
+    // ``effectiveFilters`` is captured by ``filtersHash``; including
+    // both would re-fire on every render even when the JSON's the
+    // same. The hash is the load-bearing dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersHash, search.data]);
 
   const hasQuery = Boolean(filtersFromUrl.q && filtersFromUrl.q.length > 0);
   // Search runs whenever EITHER text or geo is set. The hero +
