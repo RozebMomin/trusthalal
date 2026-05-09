@@ -69,6 +69,7 @@ from app.modules.places.photos.repo import (
     clear_hero_for_place,
     count_active_photos_for_place,
     get_photo,
+    has_active_hero_for_place,
     list_active_photos_for_place,
     soft_delete_photo,
 )
@@ -317,6 +318,16 @@ def upload_place_photo(
             ),
         )
 
+    # Auto-promote the first photo on a place to hero. Without this,
+    # the typical owner flow ("upload one photo and call it done")
+    # leaves the place with photos in its gallery but ``hero_photo_url
+    # = null`` on the search-result card — which renders the gradient
+    # placeholder despite the place HAVING a photo. Promotion only
+    # happens when there's no existing hero, so an owner who has
+    # already curated their hero doesn't get clobbered by a new
+    # upload from a consumer.
+    auto_hero = not has_active_hero_for_place(db, place_id=place.id)
+
     photo = PlacePhoto(
         id=photo_id,
         place_id=place.id,
@@ -327,6 +338,7 @@ def upload_place_photo(
         size_bytes=len(processed.bytes_),
         width_px=processed.width_px,
         height_px=processed.height_px,
+        is_hero=auto_hero,
     )
     db.add(photo)
     db.commit()
