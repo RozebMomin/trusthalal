@@ -31,6 +31,7 @@ import { Navigation } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
+import { FavoriteToggle } from "@/components/favorite-toggle";
 import type { Cuisine, PlaceSearchResult } from "@/lib/api/hooks";
 import { formatDistanceMiles } from "@/lib/geo";
 import {
@@ -128,10 +129,18 @@ export function PlaceResultCard({
         )}
       >
         <div className="flex flex-col sm:flex-row">
-          <PlaceResultPhoto
-            src={place.hero_photo_url}
-            alt={place.name}
-          />
+          {/* Photo column — wraps the actual image so the heart
+              overlay can sit in its top-right corner without
+              colliding with the trust pill in the content area. */}
+          <div className="relative shrink-0">
+            <PlaceResultPhoto
+              src={place.hero_photo_url}
+              alt={place.name}
+            />
+            <div className="absolute right-3 top-3">
+              <FavoriteToggle place={place} variant="overlay" />
+            </div>
+          </div>
 
           <div className="relative flex flex-1 flex-col gap-2 p-4 sm:p-5">
             <PrimaryPill signal={primary} />

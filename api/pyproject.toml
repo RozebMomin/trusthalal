@@ -1,6 +1,6 @@
 [project]
 name = "trusthalal-api"
-version = "0.7.0"
+version = "0.8.0"
 description = "The Official API of the TrustHalal"
 authors = [
     {name = "Rozeb Momin",email = "rozebm@gmail.com"}

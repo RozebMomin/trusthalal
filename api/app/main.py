@@ -66,6 +66,14 @@ from app.modules.consumer_preferences.router import (  # noqa: E402
     router as consumer_preferences_router,
 )
 
+# Phase 9e: signed-in consumers save places to come back to.
+# Mirrors the preferences shape (one router rooted at /me) but a
+# separate module — different cardinality (many rows per user vs.
+# one) and totally different reads.
+from app.modules.favorites.router import (  # noqa: E402
+    router as favorites_router,
+)
+
 # Halal v2 — Phase 8a/b: verifier system. Three routers ship from
 # the verifier module: the public application form (anonymous-OK),
 # the applicant-self surface for tracking + withdrawing, and the
@@ -416,6 +424,7 @@ app.include_router(halal_claims_router)
 app.include_router(place_disputes_router)
 app.include_router(me_disputes_router)
 app.include_router(consumer_preferences_router)
+app.include_router(favorites_router)
 app.include_router(public_verifier_applications_router)
 app.include_router(me_verifier_applications_router)
 app.include_router(me_verification_visits_router)

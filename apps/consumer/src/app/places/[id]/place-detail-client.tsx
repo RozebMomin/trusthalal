@@ -30,6 +30,7 @@ import { ChevronLeft, Flag, MapPin } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
+import { FavoriteToggle } from "@/components/favorite-toggle";
 import { FileDisputeDialog } from "@/components/file-dispute-dialog";
 import { PlaceHero } from "@/components/place-hero";
 import { PlacePhotoGallery } from "@/components/place-photo-gallery";
@@ -140,7 +141,29 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
         <>
           <PlaceHero place={place.data} />
 
-          <PlaceAddressLine place={place.data} />
+          {/* Address + quick actions row. Address sits left, the
+              save-to-favorites toggle sits right so the heart is
+              reachable without scrolling past the trust card.
+              Wraps gracefully on narrow widths. */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <PlaceAddressLine place={place.data} />
+            <FavoriteToggle
+              place={{
+                id: place.data.id,
+                name: place.data.name,
+                address: place.data.address,
+                lat: place.data.lat,
+                lng: place.data.lng,
+                city: place.data.city,
+                region: place.data.region,
+                country_code: place.data.country_code,
+                cuisine_types: place.data.cuisine_types,
+                hero_photo_url: place.data.hero_photo_url,
+                halal_profile: place.data.halal_profile,
+              }}
+              variant="inline"
+            />
+          </div>
 
           <PreferenceMatchBanner result={matchResult} />
 

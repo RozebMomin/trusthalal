@@ -378,6 +378,7 @@ export const qk = {
     ["places", "search", params] as const,
   placeDetail: (placeId: string) => ["places", "detail", placeId] as const,
   myDisputes: () => ["me", "disputes"] as const,
+  myFavorites: () => ["me", "favorites"] as const,
   reverseGeocode: (lat: number, lng: number) =>
     ["places", "reverse-geocode", lat, lng] as const,
   forwardGeocode: (q: string) =>
@@ -745,6 +746,143 @@ export function useUploadDisputeAttachment() {
         `/me/disputes/${disputeId}/attachments`,
         { method: "POST", formData: fd },
       );
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Favorites
+// ---------------------------------------------------------------------------
+
+/**
+ * One row on the consumer favorites list. Mirrors ``FavoriteRead``
+ * server-side. The embedded ``place`` is the same
+ * ``PlaceSearchResult`` shape the public search list uses so the
+ * /favorites page can drop straight into ``PlaceResultCard`` without
+ * a second transform.
+ */
+export type FavoriteRead = {
+  saved_at: string;
+  place: PlaceSearchResult;
+};
+
+/**
+ * GET /me/favorites — newest-first list of saved places.
+ *
+ * Disabled when the caller isn't signed in (the endpoint requires
+ * auth and would 401). Pass ``isAuthenticated`` from
+ * ``useCurrentUser`` to gate the fetch.
+ */
+export function useMyFavorites(opts: { enabled?: boolean } = {}) {
+  return useQuery<FavoriteRead[]>({
+    queryKey: qk.myFavorites(),
+    queryFn: () => apiFetch<FavoriteRead[]>("/me/favorites"),
+    enabled: opts.enabled !== false,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Convenience derived hook: is this place currently in the caller's
+ * favorites? Backed by the same /me/favorites query so toggling one
+ * heart re-renders every other heart instance for the same place
+ * without a per-row fetch.
+ *
+ * Returns ``null`` when favorites haven't loaded yet — the caller
+ * (the toggle button) shows a neutral state during the brief
+ * fetch window so we don't flicker between "filled" and "empty".
+ */
+export function useIsFavorited(
+  placeId: string,
+  opts: { enabled?: boolean } = {},
+): boolean | null {
+  const q = useMyFavorites({ enabled: opts.enabled });
+  if (!q.data) return null;
+  return q.data.some((row) => row.place.id === placeId);
+}
+
+/**
+ * POST /me/favorites/{place_id} — idempotent save.
+ *
+ * Optimistically flips the local TanStack cache: the heart toggles
+ * to "filled" before the network call completes so the consumer
+ * doesn't see a 200ms lag. On error we roll back to the previous
+ * cache snapshot via ``onError``.
+ *
+ * The server response body carries the freshly-saved row
+ * (with ``place`` embedded); we replace the optimistic placeholder
+ * with the authoritative copy on ``onSuccess``.
+ */
+export function useAddFavorite() {
+  const qc = useQueryClient();
+  return useMutation<
+    FavoriteRead,
+    ApiError,
+    { place: PlaceSearchResult }
+  >({
+    mutationFn: ({ place }) =>
+      apiFetch<FavoriteRead>(`/me/favorites/${place.id}`, {
+        method: "POST",
+      }),
+    onMutate: async ({ place }) => {
+      await qc.cancelQueries({ queryKey: qk.myFavorites() });
+      const previous = qc.getQueryData<FavoriteRead[]>(qk.myFavorites());
+      // If we already have a list cached, prepend an optimistic row.
+      // Otherwise leave cache alone — onSuccess will populate it.
+      if (previous) {
+        const already = previous.some((r) => r.place.id === place.id);
+        if (!already) {
+          qc.setQueryData<FavoriteRead[]>(qk.myFavorites(), [
+            { saved_at: new Date().toISOString(), place },
+            ...previous,
+          ]);
+        }
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      const snapshot = ctx as { previous?: FavoriteRead[] } | undefined;
+      if (snapshot?.previous) {
+        qc.setQueryData(qk.myFavorites(), snapshot.previous);
+      }
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: qk.myFavorites() });
+    },
+  });
+}
+
+/**
+ * DELETE /me/favorites/{place_id} — idempotent unsave.
+ *
+ * Same optimistic-update + rollback pattern as ``useAddFavorite``.
+ * Server returns 204 (no body) on success, so the mutation result
+ * type is ``void``.
+ */
+export function useRemoveFavorite() {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, { placeId: string }>({
+    mutationFn: ({ placeId }) =>
+      apiFetch<void>(`/me/favorites/${placeId}`, { method: "DELETE" }),
+    onMutate: async ({ placeId }) => {
+      await qc.cancelQueries({ queryKey: qk.myFavorites() });
+      const previous = qc.getQueryData<FavoriteRead[]>(qk.myFavorites());
+      if (previous) {
+        qc.setQueryData<FavoriteRead[]>(
+          qk.myFavorites(),
+          previous.filter((r) => r.place.id !== placeId),
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      const snapshot = ctx as { previous?: FavoriteRead[] } | undefined;
+      if (snapshot?.previous) {
+        qc.setQueryData(qk.myFavorites(), snapshot.previous);
+      }
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: qk.myFavorites() });
     },
   });
 }
