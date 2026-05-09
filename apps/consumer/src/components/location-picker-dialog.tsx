@@ -85,12 +85,18 @@ export type LocationPickerDialogProps = {
   onUseCurrentLocation?: () => void;
 };
 
-// Bumped from the original 220 ms after a round of foodie/tester
-// feedback: typing "chicago" was firing 5–6 Google calls (one per
-// pause-between-keystrokes), and Google doesn't need that level of
-// liveness for a city picker. 500 ms still feels responsive but
-// collapses fast typing into a single trailing call.
-const DEBOUNCE_MS = 500;
+// Bumped twice based on tester feedback. The original 220 ms was
+// "autocomplete-fast" but burned a Google call per natural pause —
+// even a fast typist generates 4-5 calls for "chicago". 500 ms cut
+// that to ~1, but slower typists still triggered intermediate
+// queries between keystrokes.
+//
+// 900 ms is the sweet spot we settled on: a deliberate "I'm done
+// typing" pause without feeling like the dialog is unresponsive.
+// Local prefix-search runs synchronously on every keystroke (see
+// ``localMatches`` below) so the visible feedback isn't gated on
+// this debounce — the remote-fallback call is what waits.
+const DEBOUNCE_MS = 900;
 
 // Minimum characters before we even consider hitting the network.
 // Local prefix-search kicks in earlier (at 1 char) so the visitor
