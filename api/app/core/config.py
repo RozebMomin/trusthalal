@@ -147,10 +147,20 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Pydantic settings config
     # ------------------------------------------------------------------
+    # ``extra="ignore"`` is a deliberate defensive default: env vars
+    # that don't bind to a declared field get silently dropped instead
+    # of failing the whole boot. The alternative (Pydantic v2's strict
+    # default of ``extra="forbid"``) makes the API crash at startup
+    # whenever a feature-branch env var lands ahead of the code change
+    # that consumes it — e.g., setting ``MAPBOX_ACCESS_TOKEN`` on Render
+    # before the Mapbox PR is merged would otherwise 500 every request
+    # until the var is removed. We'd rather have the var quietly ignored
+    # until the field exists; the merged code picks it up automatically.
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",
     )
 
 
