@@ -369,6 +369,8 @@ export const qk = {
   myDisputes: () => ["me", "disputes"] as const,
   reverseGeocode: (lat: number, lng: number) =>
     ["places", "reverse-geocode", lat, lng] as const,
+  forwardGeocode: (q: string) =>
+    ["places", "forward-geocode", q] as const,
 } as const;
 
 /**
@@ -382,6 +384,25 @@ export type ReverseGeocodeResult = {
   city: string | null;
   region: string | null;
   country_code: string | null;
+};
+
+/**
+ * One row in the consumer "Pick a city" disambiguation list. Mirrors
+ * ``ForwardGeocodeMatch`` server-side. ``label`` is the display
+ * string ("Atlanta, GA, USA"); the structured fields drive the
+ * downstream near-me query.
+ */
+export type ForwardGeocodeMatch = {
+  label: string;
+  lat: number;
+  lng: number;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+};
+
+export type ForwardGeocodeResults = {
+  matches: ForwardGeocodeMatch[];
 };
 
 // ---------------------------------------------------------------------------
@@ -578,6 +599,32 @@ export function useReverseGeocode(
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
     // The pill is decoration — failures are silent. The active pill
     // falls back to "around you" when this hook returns no data.
+    retry: false,
+  });
+}
+
+/**
+ * GET /places/google/forward-geocode — backs the consumer "Pick a
+ * city" dialog. Disabled until the user has typed something
+ * meaningful (3+ chars) so we don't burn a Google call on every
+ * keystroke. Empty / no-match queries return an empty
+ * matches[] — never an error.
+ *
+ * 5-minute staleTime because city geometry doesn't change; we want
+ * to keep typing-and-backspacing through the same query in the
+ * same dialog cheap.
+ */
+export function useForwardGeocode(query: string) {
+  const trimmed = query.trim();
+  const enabled = trimmed.length >= 3;
+  return useQuery<ForwardGeocodeResults>({
+    queryKey: qk.forwardGeocode(trimmed.toLowerCase()),
+    queryFn: () =>
+      apiFetch<ForwardGeocodeResults>("/places/google/forward-geocode", {
+        searchParams: { q: trimmed },
+      }),
+    enabled,
+    staleTime: 5 * 60 * 1000,
     retry: false,
   });
 }

@@ -33,13 +33,17 @@ import { NearMeButton } from "@/components/near-me-button";
 import { ActiveFiltersBar } from "@/components/active-filters-bar";
 import { CuisineRail } from "@/components/cuisine-rail";
 import {
+  DiscoveryHome,
+  type LaunchNearMeOpts,
+} from "@/components/discovery-home";
+import {
   countActiveFilters,
   FiltersSheet,
   FiltersTrigger,
 } from "@/components/filters-sheet";
 import { PlaceResultCard } from "@/components/place-result-card";
 import { SiteHero } from "@/components/site-hero";
-import { Search, Sparkles, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -301,6 +305,33 @@ function HomePageInner() {
     );
   }
 
+  /**
+   * Discovery-home launcher. Same flow as ``activateNearMe`` but
+   * accepts an optional ``cuisine`` so a cuisine-card tap on the
+   * cold-state home pre-applies the filter on the way into the
+   * search-active state. The page is the only owner of URL state,
+   * so DiscoveryHome stays presentation-only.
+   */
+  function launchNearMe(opts: LaunchNearMeOpts) {
+    setRawQuery("");
+    const cuisinesNext = opts.cuisine
+      ? Array.from(
+          new Set([...(filtersFromUrl.cuisines ?? []), opts.cuisine]),
+        )
+      : filtersFromUrl.cuisines;
+    router.replace(
+      `/?${stringifySearchParams({
+        ...filtersFromUrl,
+        q: undefined,
+        lat: opts.lat,
+        lng: opts.lng,
+        radius: opts.radius ?? filtersFromUrl.radius,
+        cuisines: cuisinesNext,
+      })}`,
+      { scroll: false },
+    );
+  }
+
   // Search uses the merged ``effectiveFilters`` — URL plus prefs —
   // so saved defaults narrow results without the user re-typing
   // them every visit.
@@ -369,16 +400,49 @@ function HomePageInner() {
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const activeFilterCount = countActiveFilters(effectiveFilters);
 
+  // Search-active surface needs the FiltersSheet always-mounted so
+  // its open/close animations work when the user reaches the active
+  // state and taps Filters. The discovery-home surface owns its own
+  // PickCityDialog, so the FiltersSheet here is purely the
+  // search-active filter surface.
+  const filtersSheetEl = (
+    <FiltersSheet
+      open={filtersOpen}
+      onOpenChange={setFiltersOpen}
+      filters={effectiveFilters}
+      onChange={setFilters}
+    />
+  );
+
+  // Reusable name-search input. The discovery-home renders this
+  // inside its "Looking for a specific place?" disclosure; the
+  // search-active surface renders it inline as the primary search
+  // affordance. Single source of truth, two surfaces.
+  const searchBoxEl = (
+    <SearchBox
+      value={rawQuery}
+      onChange={setRawQuery}
+      onClear={() => setRawQuery("")}
+    />
+  );
+
+  if (!hasActiveSearch) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <DiscoveryHome
+          nameSearchSlot={searchBoxEl}
+          onLaunchNearMe={launchNearMe}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <SiteHero compact={hasActiveSearch} />
+      <SiteHero compact />
 
       <div className="space-y-3">
-        <SearchBox
-          value={rawQuery}
-          onChange={setRawQuery}
-          onClear={() => setRawQuery("")}
-        />
+        {searchBoxEl}
         <div className="flex flex-wrap items-center gap-2">
           <NearMeButton
             active={nearMeActive}
@@ -410,28 +474,19 @@ function HomePageInner() {
         )}
       </div>
 
-      <FiltersSheet
-        open={filtersOpen}
-        onOpenChange={setFiltersOpen}
-        filters={effectiveFilters}
-        onChange={setFilters}
-      />
+      {filtersSheetEl}
 
       {/* Active filters bar — only when an actual search is running
           AND filters are set. The cuisine rail above already shows
           which TOP cuisines are toggled; this bar surfaces every
           other active axis (validation, posture, prefs) plus
-          off-rail cuisines as removable chips. Hidden when no
-          filters are active so the empty / prompt state isn't
-          padded with a stray strip. */}
-      {hasActiveSearch && activeFilterCount > 0 && (
+          off-rail cuisines as removable chips. */}
+      {activeFilterCount > 0 && (
         <ActiveFiltersBar
           filters={effectiveFilters}
           onChange={setFilters}
         />
       )}
-
-      {!hasActiveSearch && <PromptState />}
 
       {hasActiveSearch && search.isLoading && <LoadingState />}
 
@@ -548,24 +603,6 @@ function SearchBox({
           <X className="h-4 w-4" />
         </button>
       )}
-    </div>
-  );
-}
-
-function PromptState() {
-  return (
-    <div className="rounded-2xl border bg-card px-6 py-10 text-center shadow-sm">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Sparkles className="h-6 w-6" aria-hidden />
-      </div>
-      <h2 className="mt-4 text-lg font-semibold tracking-tight">
-        Find halal you can trust
-      </h2>
-      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-        Type a restaurant name above, or tap{" "}
-        <span className="font-medium text-foreground">Near me</span> to
-        discover verified halal spots around you.
-      </p>
     </div>
   );
 }

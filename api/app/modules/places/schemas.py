@@ -91,6 +91,38 @@ class GoogleAutocompletePrediction(BaseModel):
     secondary_text: str | None = None
 
 
+class ForwardGeocodeMatch(BaseModel):
+    """One result row from the consumer "Pick a city" forward-geocode
+    proxy. The consumer dialog renders a small list of these so the
+    user can disambiguate ("Springfield, IL" vs "Springfield, MA") on
+    a single tap.
+
+    ``label`` is the human-readable string ready for display
+    (typically "City, REGION" or Google's full formatted_address).
+    ``lat`` / ``lng`` are the resolved coordinates the consumer site
+    pushes into the URL to drive the near-me search. ``city`` /
+    ``region`` / ``country_code`` mirror the structured-address
+    fields used elsewhere on the site.
+    """
+
+    label: str
+    lat: float
+    lng: float
+    city: str | None = None
+    region: str | None = None
+    country_code: str | None = None
+
+
+class ForwardGeocodeResults(BaseModel):
+    """Wrapper around ``list[ForwardGeocodeMatch]`` so the consumer
+    forward-geocode endpoint can grow extra metadata (e.g. an
+    ``attribution`` field, a "did you mean" suggestion) without
+    breaking the wire shape.
+    """
+
+    matches: list[ForwardGeocodeMatch] = Field(default_factory=list)
+
+
 class ReverseGeocodeResult(BaseModel):
     """City-ish summary returned by the consumer "near me" reverse-
     geocode proxy.
