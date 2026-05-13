@@ -283,6 +283,7 @@ export function DiscoveryHome({
           {TOP_CUISINES.map((c) => (
             <CuisineCard
               key={c.value}
+              value={c.value}
               label={c.label}
               emoji={c.emoji}
               gradient={c.gradient}
@@ -387,20 +388,44 @@ function NearMeCTA({ onClick }: { onClick: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
-// Cuisine card — gradient background + flag emoji + name.
+// Cuisine card — tries a custom image first, falls back to
+// gradient + flag emoji when the image isn't available.
+//
+// Image convention: ``public/cuisines/<lowercase cuisine>.webp``. Drop
+// a file at that path and the card automatically picks it up — the
+// fallback gradient stays as the parent's background, so during the
+// brief load window OR when the image fails (404) the gradient + emoji
+// show through cleanly. No per-cuisine code change to roll out
+// images one at a time.
+//
+// Why image-with-onError instead of statically configuring which
+// cards have art: lets the operator add files cuisine-by-cuisine
+// without a code deploy. The trade-off is one failed-fetch per
+// cuisine-without-an-image per fresh page load, which is trivial.
 // ---------------------------------------------------------------------------
 
 function CuisineCard({
+  value,
   label,
   emoji,
   gradient,
   onClick,
 }: {
+  value: Cuisine;
   label: string;
   emoji: string;
   gradient: string;
   onClick: () => void;
 }) {
+  // Defaults to "image present" — the moment the browser confirms a
+  // 404 the onError handler flips this to false and the gradient +
+  // emoji are revealed. The parent ``<button>``'s gradient
+  // background is always rendered underneath, so even during the
+  // brief load window the card never flashes white.
+  const [imageFailed, setImageFailed] = React.useState(false);
+  const imageSrc = `/cuisines/${value.toLowerCase()}.webp`;
+  const showImage = !imageFailed;
+
   return (
     <button
       type="button"
@@ -413,13 +438,50 @@ function CuisineCard({
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       )}
     >
+      {showImage && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageSrc}
+            alt=""
+            onError={() => setImageFailed(true)}
+            // Above-the-fold on the cold home — eager so the LCP
+            // isn't gated on lazy-load heuristics.
+            loading="eager"
+            decoding="async"
+            className="absolute inset-0 h-full w-full object-cover transition group-hover:scale-105"
+          />
+          {/* Dark gradient overlay for label legibility on busy
+              photos. Bottom-up so the emoji area at the top stays
+              fully readable (the emoji itself is hidden when an
+              image is present, but the dark overlay also softens
+              any bright tops on the photo). */}
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"
+          />
+        </>
+      )}
+
+      {/* Emoji only shows on the gradient fallback. When an image
+          is present the photo itself carries the visual identity
+          so the emoji would just be noise on top. */}
+      {!showImage && (
+        <span
+          className="relative text-3xl leading-none drop-shadow-sm sm:text-4xl"
+          aria-hidden
+        >
+          {emoji}
+        </span>
+      )}
       <span
-        className="text-3xl leading-none drop-shadow-sm sm:text-4xl"
-        aria-hidden
+        className={cn(
+          "relative mt-auto text-base font-semibold tracking-tight sm:text-lg",
+          showImage
+            ? "text-white drop-shadow-md"
+            : "text-foreground",
+        )}
       >
-        {emoji}
-      </span>
-      <span className="mt-auto text-base font-semibold tracking-tight text-foreground sm:text-lg">
         {label}
       </span>
     </button>
