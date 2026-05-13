@@ -391,7 +391,7 @@ function NearMeCTA({ onClick }: { onClick: () => void }) {
 // Cuisine card — tries a custom image first, falls back to
 // gradient + flag emoji when the image isn't available.
 //
-// Image convention: ``public/cuisines/<lowercase cuisine>.jpg``. Drop
+// Image convention: ``public/cuisines/<lowercase cuisine>.webp``. Drop
 // a file at that path and the card automatically picks it up — the
 // fallback gradient stays as the parent's background, so during the
 // brief load window OR when the image fails (404) the gradient + emoji
@@ -423,7 +423,7 @@ function CuisineCard({
   // background is always rendered underneath, so even during the
   // brief load window the card never flashes white.
   const [imageFailed, setImageFailed] = React.useState(false);
-  const imageSrc = `/cuisines/${value.toLowerCase()}.jpg`;
+  const imageSrc = `/cuisines/${value.toLowerCase()}.webp`;
   const showImage = !imageFailed;
 
   return (
