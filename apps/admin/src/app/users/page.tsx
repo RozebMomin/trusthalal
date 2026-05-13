@@ -11,7 +11,6 @@
 import Link from "next/link";
 import * as React from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,6 +36,7 @@ import {
   useAdminUsers,
 } from "@/lib/api/hooks";
 
+import { AccountStateBadge } from "./_components/account-state-badge";
 import { InviteUserDialog } from "./_components/invite-user-dialog";
 import { RoleBadge } from "./_components/role-badge";
 
@@ -182,21 +182,26 @@ export default function UsersPage() {
 }
 
 function UserRow({ user }: { user: UserAdminRead }) {
+  // Row dim treatment now triggers on DEACTIVATED only — pending /
+  // expired invitees aren't "inactive accounts," they're "not yet
+  // onboarded," and dimming them would hide the rows that most need
+  // admin attention.
+  const dimmed = user.account_state === "DEACTIVATED";
   return (
     <TableRow
       className={
-        user.is_active
-          ? "hover:bg-accent/50"
-          : "bg-muted/30 text-muted-foreground hover:bg-accent/50"
+        dimmed
+          ? "bg-muted/30 text-muted-foreground hover:bg-accent/50"
+          : "hover:bg-accent/50"
       }
     >
       <TableCell className="font-medium">
         <Link
           href={`/users/${user.id}`}
           className={
-            user.is_active
-              ? "text-foreground hover:underline"
-              : "text-muted-foreground hover:underline"
+            dimmed
+              ? "text-muted-foreground hover:underline"
+              : "text-foreground hover:underline"
           }
         >
           {user.email}
@@ -211,15 +216,10 @@ function UserRow({ user }: { user: UserAdminRead }) {
         <RoleBadge role={user.role} />
       </TableCell>
       <TableCell>
-        {user.is_active ? (
-          <Badge variant="default" className="uppercase tracking-wide">
-            Active
-          </Badge>
-        ) : (
-          <Badge variant="destructive" className="uppercase tracking-wide">
-            Inactive
-          </Badge>
-        )}
+        <AccountStateBadge
+          state={user.account_state}
+          inviteExpiresAt={user.invite_expires_at}
+        />
       </TableCell>
       <TableCell>
         <code className="font-mono text-xs">{user.id.slice(0, 8)}…</code>

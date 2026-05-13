@@ -223,7 +223,7 @@ def test_admin_create_user_sends_invite_email(
     assert resp.status_code == 201, resp.text
     body = resp.json()
     assert "invite_url" in body
-    assert body["user"]["email"] == "newowner@example.com"
+    assert body["email"] == "newowner@example.com"
 
     # Exactly one email captured, carrying the right To + Subject +
     # the invite URL the response returned (so the admin's manual
