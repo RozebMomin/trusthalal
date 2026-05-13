@@ -1,0 +1,17 @@
+{# Base plain-text layout. Templates extend and override the
+   ``content`` block. The header / footer match the HTML version's
+   information density (wordmark + a tagline + the two domain links)
+   so a recipient who only sees the text version doesn't feel like
+   they got a stripped-down email.
+
+   Per-template context variables (same as the HTML base):
+     * ``preheader`` — not actually rendered here (text clients don't
+       use preheaders), but consistent context keeps the call sites
+       simple.
+#}Trust Halal
+
+{% block content %}{% endblock %}
+
+—
+Trust Halal — verified halal data for restaurants you can trust.
+https://halalfoodnearme.com  ·  https://trusthalal.org

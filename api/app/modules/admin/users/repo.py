@@ -8,12 +8,28 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+import logging
+
 from app.core.config import settings
+from app.core.email import EmailError, send_email
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.modules.admin.users.schemas import UserAdminCreate, UserAdminPatch
 from app.modules.auth.invite_repo import mint_invite
 from app.modules.users.enums import UserRole
 from app.modules.users.models import User
+
+
+logger = logging.getLogger(__name__)
+
+
+# Human-readable role copy for the invite email body. Falls back to
+# the enum value when a new role lands without a mapped string.
+_ROLE_LABELS: dict[UserRole, str] = {
+    UserRole.ADMIN: "Trust Halal admin",
+    UserRole.VERIFIER: "verifier",
+    UserRole.OWNER: "restaurant owner",
+    UserRole.CONSUMER: "consumer",
+}
 
 
 @dataclass(frozen=True)
@@ -91,10 +107,45 @@ def admin_create_user(
     db.refresh(user)
     db.refresh(invite_row)
 
+    invite_url = _build_invite_url(plaintext)
+
+    # Fire the invite email best-effort: a transactional-email
+    # outage shouldn't break the admin's "create user" workflow.
+    # The endpoint still returns the invite_url so the admin can
+    # copy + paste manually if the inbox didn't get it. Resend
+    # delivery failures land in the API logs (and Sentry) for
+    # operator follow-up.
+    try:
+        send_email(
+            to=user.email,
+            subject="Set up your Trust Halal account",
+            template="owner_invite_set_password",
+            context={
+                "preheader": (
+                    "Your single-use sign-in link is inside — expires in "
+                    f"{settings.INVITE_TOKEN_TTL_DAYS} day"
+                    f"{'' if settings.INVITE_TOKEN_TTL_DAYS == 1 else 's'}."
+                ),
+                "display_name": user.display_name or "",
+                "invite_url": invite_url,
+                "role_label": _ROLE_LABELS.get(
+                    UserRole(user.role), user.role.lower()
+                ),
+                "ttl_days": settings.INVITE_TOKEN_TTL_DAYS,
+            },
+        )
+    except EmailError as exc:
+        logger.warning(
+            "Invite email failed to send (admin can copy invite_url "
+            "from the response): %s",
+            exc,
+            extra={"user_id": str(user.id), "email": user.email},
+        )
+
     return CreatedUserWithInvite(
         user=user,
         invite_token=plaintext,
-        invite_url=_build_invite_url(plaintext),
+        invite_url=invite_url,
         invite_expires_at=invite_row.expires_at,
     )
 

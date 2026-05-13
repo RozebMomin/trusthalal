@@ -174,8 +174,14 @@ reviewable diffs.
 ```
 app/
   core/                    config, auth dep, logging, storage,
-                           rate-limiter, exception plumbing
+                           rate-limiter, email (Resend), exception
+                           plumbing
   db/                      session, base, aggregated model imports
+  emails/templates/        Jinja2 HTML + text templates for every
+                           transactional email (invite, claim
+                           decisions, dispute outcomes, ...) —
+                           shared ``_base`` layout + per-email
+                           content blocks
   modules/
     auth/                  /auth/login + /auth/logout + /auth/signup,
                            invite + set-password flow, /me
