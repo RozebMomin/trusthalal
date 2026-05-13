@@ -88,10 +88,14 @@ def test_create_my_organization_starts_at_draft_and_joins_creator(
 
     resp = api.as_user(owner).post(
         "/me/organizations",
+        # ``**VALID_ADDRESS`` carries its own ``contact_email`` default,
+        # so spreading it FIRST lets the explicit ``khan@example.com``
+        # below win — the previous order quietly clobbered it and the
+        # test failed under the assert below.
         json={
+            **VALID_ADDRESS,
             "name": "Khan Halal LLC",
             "contact_email": "khan@example.com",
-            **VALID_ADDRESS,
         },
     )
     assert resp.status_code == 201, resp.text
