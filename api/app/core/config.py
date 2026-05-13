@@ -164,6 +164,32 @@ class Settings(BaseSettings):
     )
 
     # ------------------------------------------------------------------
+    # Email — Resend
+    # ------------------------------------------------------------------
+    # Transactional email goes through Resend; ``trusthalal.org`` is
+    # the verified sender domain (chosen over halalfoodnearme.com so
+    # both audiences see the same trust-platform sender). Leave the
+    # API key blank in environments where you don't want emails to
+    # actually go out — the ``send_email`` helper silently no-ops
+    # rather than throwing, so feature work + tests stay green
+    # without a live Resend account.
+    #
+    # Get a key at https://resend.com/api-keys (scope to "Sending
+    # access" only; the full-access key shouldn't sit on a server
+    # process).
+    RESEND_API_KEY: str | None = None
+    # The ``From:`` header on every outbound transactional email.
+    # Pre-formatted as ``"Display Name <addr>"`` so the recipient's
+    # client renders a friendly sender name instead of just the
+    # mailbox. Override per-message via the ``from_email`` kwarg on
+    # ``send_email`` for one-off cases (e.g., admin-facing alerts).
+    RESEND_FROM_EMAIL: str = "Trust Halal <noreply@trusthalal.org>"
+    # Optional ``Reply-To:`` so recipients hitting reply land in a
+    # monitored mailbox instead of the no-reply void. Leave unset to
+    # omit the header entirely.
+    RESEND_REPLY_TO: str | None = None
+
+    # ------------------------------------------------------------------
     # Pydantic settings config
     # ------------------------------------------------------------------
     # ``extra="ignore"`` is a deliberate defensive default: env vars

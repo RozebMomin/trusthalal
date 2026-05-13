@@ -1,6 +1,6 @@
 [project]
 name = "trusthalal-api"
-version = "0.8.0"
+version = "0.9.0"
 description = "The Official API of the TrustHalal"
 authors = [
     {name = "Rozeb Momin",email = "rozebm@gmail.com"}
@@ -29,7 +29,15 @@ dependencies = [
     # block explicit content before bytes ever reach the bucket.
     "pillow (>=11.0.0,<12.0.0)",
     "pillow-heif (>=0.18.0,<1.0.0)",
-    "google-cloud-vision (>=3.8.0,<4.0.0)"
+    "google-cloud-vision (>=3.8.0,<4.0.0)",
+    # Transactional email (account invites, claim decisions, dispute
+    # outcomes, etc.). ``resend`` is the Resend Python SDK — thin
+    # wrapper around their HTTP API. ``jinja2`` renders the
+    # ``app/emails/templates/`` HTML + text bodies; usually pulled
+    # transitively via Starlette but pinned explicitly so a future
+    # upstream change doesn't drop it from the closure.
+    "resend (>=2.5.0,<3.0.0)",
+    "jinja2 (>=3.1.4,<4.0.0)"
 ]
 
 [tool.poetry]

@@ -1,0 +1,101 @@
+{# Base HTML layout — table-based for cross-client compatibility.
+
+   Every per-email template extends this and overrides the
+   ``content`` block. The visible structure is:
+
+     [ olive-tinted header bar with the "Trust Halal" wordmark ]
+     [ white body card with the message content                ]
+     [ muted footer with site link + copyright                 ]
+
+   Inline styles only on the elements that need them — most
+   modern email clients support <style> blocks now (2024+) but a
+   handful still strip them. Inline keeps the visual fidelity
+   guaranteed; the <style> block at the top is a progressive
+   enhancement for clients that respect it (better dark-mode
+   handling, hover states on the button).
+
+   Required context variables for every template that extends
+   this one:
+
+     * ``preheader`` — short summary text shown by inbox clients
+       between the subject and the body preview. Caller MUST set
+       this; an unset preheader leaks the first line of the body
+       which is usually awkward.
+#}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ subject_for_preview | default(preheader) }}</title>
+  <style>
+    /* Tiny hover-state polish for the CTA button. Clients that
+       strip <style> just don't get the hover; the inline color
+       stays. */
+    .th-button:hover {
+      background-color: #5a7332 !important;
+    }
+    @media (prefers-color-scheme: dark) {
+      .th-card { background-color: #1a1a1a !important; }
+      .th-card-text { color: #e6e6e6 !important; }
+      .th-muted { color: #999 !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #faf9f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; -webkit-text-size-adjust: 100%;">
+  {# Preheader — hidden text shown in inbox previews, prevents the
+     client from leaking footer copy or the first body line into the
+     summary slot. ``display:none`` keeps it out of the visible body. #}
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
+    {{ preheader }}
+  </div>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #faf9f6;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        {# Outer container — 600 px is the safe max width for email. #}
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%;">
+          {# Header — wordmark on an olive band. #}
+          <tr>
+            <td align="left" style="padding: 8px 4px 16px 4px;">
+              <a href="https://trusthalal.org" style="text-decoration: none; color: #6f8b3e; font-size: 18px; font-weight: 700; letter-spacing: -0.01em;">
+                Trust Halal
+              </a>
+            </td>
+          </tr>
+
+          {# Body card — white background, rounded corners, subtle
+             border. Caller writes Markdown-y prose inside the
+             ``content`` block; we don't try to template every UI
+             primitive (button, divider) — instead the per-email
+             template hand-writes them with inline styles matching
+             this card's typography. #}
+          <tr>
+            <td class="th-card" style="background-color: #ffffff; border: 1px solid #ececec; border-radius: 12px; padding: 32px 28px;">
+              <div class="th-card-text" style="font-size: 15px; line-height: 1.55; color: #1a1a1a;">
+                {% block content %}{% endblock %}
+              </div>
+            </td>
+          </tr>
+
+          {# Footer. ``site_url`` is auto-resolved from a Jinja global
+             registered in ``email.py`` (defaults to halalfoodnearme.com)
+             so each per-email template doesn't have to pass it
+             individually. #}
+          <tr>
+            <td align="center" style="padding: 24px 16px 8px 16px;">
+              <p class="th-muted" style="margin: 0 0 8px 0; font-size: 12px; line-height: 1.5; color: #888;">
+                Trust Halal — verified halal data for restaurants you can trust.
+              </p>
+              <p class="th-muted" style="margin: 0; font-size: 12px; line-height: 1.5; color: #888;">
+                <a href="https://halalfoodnearme.com" style="color: #888; text-decoration: underline;">halalfoodnearme.com</a>
+                &nbsp;·&nbsp;
+                <a href="https://trusthalal.org" style="color: #888; text-decoration: underline;">trusthalal.org</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
