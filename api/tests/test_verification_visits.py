@@ -115,7 +115,12 @@ COMPLETE_QUESTIONNAIRE = {
     "seafood_only": False,
     "has_certification": False,
     "certifying_body_name": None,
-    "certificate_expires_at": None,
+    # ``certificate_expires_at`` is intentionally NOT here — the
+    # questionnaire schema is ``extra="forbid"`` and only carries
+    # cert metadata via the per-product ``MeatProductSourcing`` rows,
+    # not at the top level. Cert validity dates live on the
+    # admin-side approve payload (``certificate_expires_at`` on the
+    # claim-approve schema), not on the owner's submission.
     "caveats": None,
 }
 

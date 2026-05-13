@@ -28,6 +28,7 @@ import {
   useAdminUser,
   useCurrentUser,
   usePatchUser,
+  useResendInvite,
   useUserOrganizations,
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -36,7 +37,9 @@ import {
   MemberRoleBadge,
   MemberStatusBadge,
 } from "../../organizations/_components/member-badges";
+import { AccountStateBadge } from "../_components/account-state-badge";
 import { EditUserDialog } from "../_components/edit-user-dialog";
+import { ResendInviteDialog } from "../_components/resend-invite-dialog";
 import { RoleBadge } from "../_components/role-badge";
 
 function formatTimestamp(iso: string): string {
@@ -71,6 +74,7 @@ export default function UserDetailPage() {
 
   const { data: user, isLoading, error } = useAdminUser(id);
   const [editOpen, setEditOpen] = React.useState(false);
+  const [resendOpen, setResendOpen] = React.useState(false);
 
   return (
     <div className="space-y-6">
@@ -87,13 +91,11 @@ export default function UserDetailPage() {
               {isLoading ? <Skeleton className="h-8 w-64" /> : user?.email}
             </h1>
             {user && <RoleBadge role={user.role} />}
-            {user && !user.is_active && (
-              <Badge
-                variant="destructive"
-                className="uppercase tracking-wide"
-              >
-                Inactive
-              </Badge>
+            {user && (
+              <AccountStateBadge
+                state={user.account_state}
+                inviteExpiresAt={user.invite_expires_at}
+              />
             )}
           </div>
           {user?.display_name && (
@@ -108,7 +110,13 @@ export default function UserDetailPage() {
             </p>
           )}
         </div>
-        {user && <UserActions user={user} onEdit={() => setEditOpen(true)} />}
+        {user && (
+          <UserActions
+            user={user}
+            onEdit={() => setEditOpen(true)}
+            onResendInvite={() => setResendOpen(true)}
+          />
+        )}
       </header>
 
       {error && <ErrorState error={error as Error} />}
@@ -121,17 +129,31 @@ export default function UserDetailPage() {
               <Field label="Role">
                 <RoleBadge role={user.role} />
               </Field>
-              <Field label="Status">
+              <Field label="Account state">
+                <div className="flex flex-wrap items-center gap-2">
+                  <AccountStateBadge
+                    state={user.account_state}
+                    inviteExpiresAt={user.invite_expires_at}
+                  />
+                  {user.account_state === "INVITE_PENDING" &&
+                    user.invite_expires_at && (
+                      <span className="text-xs text-muted-foreground">
+                        Invite expires {formatTimestamp(user.invite_expires_at)}
+                      </span>
+                    )}
+                </div>
+              </Field>
+              <Field label="Active">
                 {user.is_active ? (
                   <Badge variant="default" className="uppercase tracking-wide">
-                    Active
+                    Yes
                   </Badge>
                 ) : (
                   <Badge
                     variant="destructive"
                     className="uppercase tracking-wide"
                   >
-                    Inactive
+                    No
                   </Badge>
                 )}
               </Field>
@@ -153,6 +175,14 @@ export default function UserDetailPage() {
           onOpenChange={setEditOpen}
         />
       )}
+
+      {user && (
+        <ResendInviteDialog
+          user={user}
+          open={resendOpen}
+          onOpenChange={setResendOpen}
+        />
+      )}
     </div>
   );
 }
@@ -160,9 +190,11 @@ export default function UserDetailPage() {
 function UserActions({
   user,
   onEdit,
+  onResendInvite,
 }: {
   user: UserAdminRead;
   onEdit: () => void;
+  onResendInvite: () => void;
 }) {
   const { toast } = useToast();
   const { data: me } = useCurrentUser();
@@ -172,6 +204,14 @@ function UserActions({
   // hide the deactivate button when viewing yourself. The edit dialog
   // already hides the is_active checkbox in the same case.
   const isSelf = me?.id === user.id;
+
+  // Resend is only useful while the user is mid-onboarding. Hiding the
+  // button on ACTIVE / DEACTIVATED rows keeps the UI honest with the
+  // server-side 409 gates (USER_ALREADY_ONBOARDED, USER_INACTIVE) and
+  // saves the admin from clicking something that's about to error.
+  const canResendInvite =
+    user.account_state === "INVITE_PENDING" ||
+    user.account_state === "INVITE_EXPIRED";
 
   async function toggleActive() {
     try {
@@ -208,6 +248,19 @@ function UserActions({
       <Button size="sm" variant="outline" onClick={onEdit}>
         Edit
       </Button>
+      {canResendInvite && (
+        <Button
+          size="sm"
+          variant={
+            user.account_state === "INVITE_EXPIRED" ? "default" : "outline"
+          }
+          onClick={onResendInvite}
+        >
+          {user.account_state === "INVITE_EXPIRED"
+            ? "Resend invite"
+            : "Resend invite"}
+        </Button>
+      )}
       {!isSelf && (
         <Button
           size="sm"

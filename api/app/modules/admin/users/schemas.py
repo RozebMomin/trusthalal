@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.modules.users.enums import UserRole
+from app.modules.users.enums import UserAccountState, UserRole
 
 
 class UserAdminCreate(BaseModel):
@@ -28,8 +28,35 @@ class UserAdminRead(BaseModel):
     role: UserRole
     display_name: str | None
     is_active: bool
+    # Derived onboarding state — see ``UserAccountState`` for the
+    # state machine. ``is_active`` is kept on the response too for
+    # backward-compat with callers reading it directly, but new
+    # surfaces (admin user-list pill, "Resend invite" button gate)
+    # should branch on ``account_state`` since it captures the
+    # password-set vs invite-pending distinction ``is_active`` can't.
+    account_state: UserAccountState
+    # When the user's CURRENT pending invite expires. Non-null only
+    # when ``account_state == INVITE_PENDING``; surfaced so the
+    # admin UI can say "Invite expires in 3 days" without a second
+    # round-trip.
+    invite_expires_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class ResendInviteResponse(BaseModel):
+    """Response body for ``POST /admin/users/{id}/resend-invite``.
+
+    Same shape as the invite fields on ``UserAdminCreateResponse``
+    so the admin panel can reuse its "copy invite URL" UI for both
+    flows.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    invite_token: str
+    invite_url: str
+    invite_expires_at: datetime
 
 
 class UserAdminCreateResponse(BaseModel):

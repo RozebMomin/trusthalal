@@ -13,10 +13,14 @@ between schema and derivation is caught here.
 """
 from __future__ import annotations
 
+import uuid as _uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select
+
+from app.modules.halal_claims.enums import HalalClaimAttachmentType
+from app.modules.halal_claims.models import HalalClaimAttachment
 
 
 # Same complete-questionnaire fixture as the other halal test files.
@@ -53,10 +57,22 @@ def _seed_approved_place(
     questionnaire: dict | None = None,
     validation_tier: str = "CERTIFICATE_ON_FILE",
     place_kwargs: dict | None = None,
+    with_certificate: bool = False,
+    certifying_authority: str = "IFANCA",
 ):
     """End-to-end: create owner+org+place, owner submits, admin approves.
 
     Returns (place, org, claim_id, admin) for further assertions.
+
+    ``with_certificate=True`` inserts a HALAL_CERTIFICATE attachment
+    row directly via SQLAlchemy between the create and submit steps
+    so profile derivation lands ``has_certification=True``. We
+    bypass the HTTP upload route on purpose — that route requires a
+    storage client to be wired, and these tests focus on the search
+    surface, not the upload pipeline. The approve flow's cert-copy
+    step uses ``get_*_storage_client_optional`` and degrades
+    gracefully when storage isn't mocked, so the absence of real
+    bytes on disk doesn't break the approve call.
     """
     admin = factories.admin()
     owner = factories.owner()
@@ -75,6 +91,29 @@ def _seed_approved_place(
         },
     )
     claim_id = create_resp.json()["id"]
+
+    if with_certificate:
+        # Insert the attachment row directly — the HTTP upload route
+        # needs a fake storage fixture, which is overkill for tests
+        # that only care about the derived ``has_certification``
+        # signal. The storage_path is a plausible-looking sentinel
+        # so it satisfies the NOT NULL + UNIQUE constraints without
+        # any real bytes existing.
+        db_session.add(
+            HalalClaimAttachment(
+                claim_id=_uuid.UUID(claim_id),
+                document_type=HalalClaimAttachmentType.HALAL_CERTIFICATE.value,
+                issuing_authority=certifying_authority,
+                storage_path=(
+                    f"halal-claims/{claim_id}/cert-{_uuid.uuid4()}.pdf"
+                ),
+                original_filename="cert.pdf",
+                content_type="application/pdf",
+                size_bytes=128,
+            )
+        )
+        db_session.commit()
+
     api.as_user(owner).post(f"/me/halal-claims/{claim_id}/submit")
     api.as_user(admin).post(
         f"/admin/halal-claims/{claim_id}/approve",
@@ -264,15 +303,37 @@ def _seed_three_distinct_places(api, factories, db_session):
         db_session,
         validation_tier="TRUST_HALAL_VERIFIED",
         place_kwargs={"name": "AAAStrict Halal"},
+        # ``has_certification`` is derived from HALAL_CERTIFICATE
+        # attachments now, not the questionnaire's flag. Attach one
+        # so ``test_search_has_certification_filter`` actually has
+        # a positive case to match.
+        with_certificate=True,
     )
 
+    # Per-product meat sourcing replaced the old per-meat-slot shape
+    # in commit 0334946 — instead of ``chicken``/``beef`` keys nested
+    # under the questionnaire, the schema now takes a ``meat_products``
+    # list with one entry per product. Build the list fresh in each
+    # variant rather than spreading ``COMPLETE_FULLY_HALAL`` and
+    # patching, since the spread carries the strict ZABIHAH defaults
+    # forward and would mask whatever the variant wanted to test.
     loose_questionnaire = {
         **COMPLETE_FULLY_HALAL,
         "menu_posture": "MIXED_SHARED_KITCHEN",
         "has_pork": True,
         "alcohol_policy": "FULL_BAR",
-        "chicken": {"slaughter_method": "MACHINE"},
-        "beef": {"slaughter_method": "MACHINE"},
+        "meat_products": [
+            {
+                "meat_type": "CHICKEN",
+                "product_name": "Chicken",
+                "slaughter_method": "MACHINE",
+            },
+            {
+                "meat_type": "BEEF",
+                "product_name": "Beef",
+                "slaughter_method": "MACHINE",
+            },
+        ],
         "has_certification": False,
         "certifying_body_name": None,
     }
@@ -289,8 +350,18 @@ def _seed_three_distinct_places(api, factories, db_session):
         **COMPLETE_FULLY_HALAL,
         "menu_posture": "HALAL_OPTIONS_ADVERTISED",
         "alcohol_policy": "BEER_AND_WINE_ONLY",
-        "chicken": {"slaughter_method": "ZABIHAH"},
-        "beef": {"slaughter_method": "MACHINE"},
+        "meat_products": [
+            {
+                "meat_type": "CHICKEN",
+                "product_name": "Chicken",
+                "slaughter_method": "ZABIHAH",
+            },
+            {
+                "meat_type": "BEEF",
+                "product_name": "Beef",
+                "slaughter_method": "MACHINE",
+            },
+        ],
     }
     p_mid, _, _, _ = _seed_approved_place(
         api,
@@ -299,6 +370,11 @@ def _seed_three_distinct_places(api, factories, db_session):
         questionnaire=mid_questionnaire,
         validation_tier="CERTIFICATE_ON_FILE",
         place_kwargs={"name": "AAAMid Halal"},
+        # Mid place is CERTIFICATE_ON_FILE per the tier — also
+        # carry an attachment so the derived ``has_certification``
+        # column lands True (the search filter keys on the derived
+        # column, not the tier).
+        with_certificate=True,
     )
 
     return p_strict, p_loose, p_mid

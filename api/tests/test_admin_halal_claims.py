@@ -479,7 +479,7 @@ def test_approve_rolls_up_multiple_products_to_least_strict_method(
 
     api.as_user(admin).post(
         f"/admin/halal-claims/{claim_id}/approve",
-        json={"validation_tier": "OWNER_ATTESTED"},
+        json={"validation_tier": "SELF_ATTESTED"},
     )
 
     profile = db_session.execute(
@@ -505,7 +505,7 @@ def test_approve_without_certificate_attachment_sets_has_certification_false(
 
     resp = api.as_user(admin).post(
         f"/admin/halal-claims/{claim_id}/approve",
-        json={"validation_tier": "OWNER_ATTESTED"},
+        json={"validation_tier": "SELF_ATTESTED"},
     )
     assert resp.status_code == 200, resp.text
 
@@ -806,7 +806,7 @@ def test_approve_default_expiry_is_90_days(api, factories, db_session):
     before = datetime.now(timezone.utc)
     resp = api.as_user(admin).post(
         f"/admin/halal-claims/{claim_id}/approve",
-        json={"validation_tier": "OWNER_ATTESTED"},
+        json={"validation_tier": "SELF_ATTESTED"},
     )
     after = datetime.now(timezone.utc)
     assert resp.status_code == 200, resp.text

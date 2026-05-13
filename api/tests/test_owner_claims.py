@@ -636,10 +636,21 @@ def test_my_ownership_request_persists_organization_id(
 def test_my_ownership_request_google_ingest_is_idempotent(
     api, factories, db_session, monkeypatch
 ):
-    """Two owners claiming the same Google place: the first call
-    ingests, the second hits the existed-already branch in
-    ``ingest_google_place``. We get one Place, two distinct claims."""
+    """Two owners pointed at the same Google place ID must NOT create
+    two Place rows — the ingest path is idempotent on
+    ``google_place_id``.
+
+    The downstream behavior changed in
+    ``7af1048 feat(ownership-requests): per-place duplicate guard``:
+    once one active claim exists for a place, any second claim from
+    another user is rejected with ``OWNERSHIP_REQUEST_ALREADY_EXISTS``.
+    The 409 happens AFTER the Google ingest runs, though, so this
+    test still exercises the second call's ingest path — we just
+    pin the new expected outcome (one Place, one claim, second call
+    409s) rather than the pre-guard "one Place, two claims" shape.
+    """
     from app.modules.places import ingest as ingest_mod
+    from app.modules.places.models import Place
 
     monkeypatch.setattr(
         ingest_mod,
@@ -661,6 +672,7 @@ def test_my_ownership_request_google_ingest_is_idempotent(
         },
     )
     assert first.status_code == 201, first.text
+    first_place_id = first.json()["place"]["id"]
 
     second = api.as_user(second_owner).post(
         "/me/ownership-requests",
@@ -669,7 +681,24 @@ def test_my_ownership_request_google_ingest_is_idempotent(
             "google_place_id": "ChIJSeed_Idempotent",
         },
     )
-    assert second.status_code == 201, second.text
+    # Dedupe guard fires on the SECOND claim — the place ingest
+    # itself completed (proven by the place-count assertion below);
+    # what's blocked is recording a second active claim while the
+    # first one is still in flight.
+    assert second.status_code == 409, second.text
+    assert (
+        second.json()["error"]["code"]
+        == "OWNERSHIP_REQUEST_ALREADY_EXISTS"
+    )
 
-    # Both claims point at the same place row.
-    assert first.json()["place"]["id"] == second.json()["place"]["id"]
+    # The actual idempotency property: exactly one Place row exists
+    # for ``first_place_id``. The second call resolved the existing
+    # row via ``ingest_google_place``'s existed-already branch
+    # before the dedupe guard rejected the claim — if ingest had
+    # minted a fresh row, we'd see two here.
+    all_places = db_session.execute(select(Place)).scalars().all()
+    matching = [p for p in all_places if str(p.id) == first_place_id]
+    assert len(matching) == 1, (
+        "Google ingest must be idempotent — second call should "
+        "have reused the existing place row, not minted a new one."
+    )

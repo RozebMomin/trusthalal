@@ -115,10 +115,39 @@ components["schemas"]["PlaceOwnerRevokeRequest"];
 // were removed alongside the schema migration. Phase 3 adds the new
 // halal-claim types when the v2 router lands.
 
-export type UserAdminRead = components["schemas"]["UserAdminRead"];
+// ``account_state`` + ``invite_expires_at`` are layered on as a typed
+// intersection until the next codegen pass picks up the server-side
+// schema additions. Once ``make export-openapi && npm run codegen`` is
+// rerun against the slice that adds these fields, the intersection
+// becomes redundant but harmless.
+//
+// The server defines the same four-state machine in
+// ``app.modules.users.enums.UserAccountState``.
+export type UserAccountState =
+  | "ACTIVE"
+  | "DEACTIVATED"
+  | "INVITE_PENDING"
+  | "INVITE_EXPIRED";
+
+type _UserAccountStateExtras = {
+  account_state: UserAccountState;
+  invite_expires_at: string | null;
+};
+
+export type UserAdminRead =
+  components["schemas"]["UserAdminRead"] & _UserAccountStateExtras;
 export type UserAdminCreate = components["schemas"]["UserAdminCreate"];
 export type UserAdminPatch = components["schemas"]["UserAdminPatch"];
 export type UserRole = components["schemas"]["UserRole"];
+
+/** Response shape for POST /admin/users/{id}/resend-invite. Same
+ * three fields the create-user response surfaces, so the admin UI
+ * can reuse its "copy invite URL" widget for both paths. */
+export type ResendInviteResponse = {
+  invite_token: string;
+  invite_url: string;
+  invite_expires_at: string;
+};
 
 /**
  * Return shape of ``GET /me``. Not in the generated schema because that
@@ -1289,6 +1318,36 @@ export function usePatchUser() {
         method: "PATCH",
         json: args.payload,
       }),
+    onSuccess: () => {
+      void invalidateUsers(qc);
+    },
+  });
+}
+
+/**
+ * POST /admin/users/{id}/resend-invite — mint a fresh invite for a
+ * user who hasn't onboarded yet.
+ *
+ * Server gates:
+ *   * 404 USER_NOT_FOUND        — bad id
+ *   * 409 USER_ALREADY_ONBOARDED — password already set; use
+ *     password-reset instead
+ *   * 409 USER_INACTIVE         — user is deactivated; reactivate
+ *     first
+ *
+ * The response carries a fresh ``invite_token`` + ``invite_url`` so
+ * the admin can copy/share the link if the email didn't deliver.
+ * Invalidates the users cache so the row's pill flips from
+ * INVITE_EXPIRED → INVITE_PENDING immediately.
+ */
+export function useResendInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string }) =>
+      apiFetch<ResendInviteResponse>(
+        `/admin/users/${args.id}/resend-invite`,
+        { method: "POST" },
+      ),
     onSuccess: () => {
       void invalidateUsers(qc);
     },
