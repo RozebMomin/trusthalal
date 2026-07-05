@@ -30,9 +30,11 @@ export function VersionTag({ className }: { className?: string }) {
   const shortSha = sha ? sha.slice(0, 7) : null;
 
   const display = shortSha ? `v${version} · ${shortSha}` : `v${version}`;
+  // "consumer" — this file was originally copied from the owner
+  // portal; the tooltip said "owner vX.Y.Z" on the public site.
   const tooltip = shortSha
-    ? `owner v${version} (${sha})`
-    : `owner v${version}`;
+    ? `consumer v${version} (${sha})`
+    : `consumer v${version}`;
 
   return (
     <span

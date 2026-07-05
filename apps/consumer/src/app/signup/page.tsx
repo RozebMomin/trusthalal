@@ -16,7 +16,7 @@
  */
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -26,13 +26,30 @@ import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import { useSignup } from "@/lib/api/hooks";
 import { syncLocalToServerOnLogin } from "@/lib/api/preferences";
+import { BRAND_NAME } from "@/lib/branding";
+import { safeNextPath } from "@/lib/utils";
 
 // Mirrors the server's SignupRequest min_length=8.
 const PASSWORD_MIN_LENGTH = 8;
 
+/**
+ * `useSearchParams` (for ``?next=`` passthrough) needs a Suspense
+ * boundary above it during the production prerender pass.
+ */
 export default function SignupPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <SignupPageInner />
+    </React.Suspense>
+  );
+}
+
+function SignupPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const signup = useSignup();
+
+  const nextPath = safeNextPath(searchParams?.get("next") ?? null);
 
   const [displayName, setDisplayName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -84,9 +101,9 @@ export default function SignupPage() {
       // can retry from /preferences.
       await syncLocalToServerOnLogin();
       // Server auto-logs the new user in (sets the session cookie on
-      // the response). Route home; AppShell reads the new auth state
-      // on the next render.
-      router.push("/");
+      // the response). Route to wherever sent the user here (or
+      // home); AppShell reads the new auth state on the next render.
+      router.push(nextPath);
     } catch (err) {
       if (err instanceof ApiError && err.code === "EMAIL_TAKEN") {
         setErrorMsg(
@@ -116,7 +133,14 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
+      {/* Brand escape hatch — auth pages render without app chrome. */}
+      <Link
+        href="/"
+        className="mb-6 text-lg font-semibold tracking-tight transition hover:opacity-80"
+      >
+        {BRAND_NAME}
+      </Link>
       <form
         onSubmit={onSubmit}
         className="w-full max-w-sm space-y-6 rounded-md border bg-card p-8 shadow-sm"

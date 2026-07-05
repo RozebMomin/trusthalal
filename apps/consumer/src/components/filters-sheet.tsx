@@ -359,7 +359,10 @@ export function FiltersSheet({
           {/* Scrolling body */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
             <div className="space-y-6">
-              <FilterSection title="Halal verification">
+              <FilterSection
+                title="Halal verification"
+                hint="How strongly the halal claim is backed — pick the minimum proof you'll accept."
+              >
                 {VALIDATION_TIER_OPTIONS.map((opt) => {
                   const isSelected = filters.min_validation_tier === opt.value;
                   return (
@@ -403,7 +406,10 @@ export function FiltersSheet({
                 })}
               </FilterSection>
 
-              <FilterSection title="Menu posture">
+              <FilterSection
+                title="How halal is the menu?"
+                hint="From fully-halal kitchens down to halal-on-request — pick the minimum you'll accept."
+              >
                 {MENU_POSTURE_OPTIONS.map((opt) => {
                   const isSelected = filters.min_menu_posture === opt.value;
                   return (
@@ -463,8 +469,10 @@ export function FiltersSheet({
           {/* Sticky footer — single Done button. We apply changes
               immediately on every tap, so this is purely a "I'm finished
               browsing filters" confirmation, not a commit action.
-              Mobile-only: desktop user can click outside the modal. */}
-          <div className="border-t bg-background/80 px-5 py-3 backdrop-blur sm:hidden">
+              Rendered on desktop too: click-outside works, but an
+              explicit Done gives the modal a clear exit and matches
+              the mobile sheet's behavior. */}
+          <div className="border-t bg-background/80 px-5 py-3 backdrop-blur sm:rounded-b-2xl">
             <Button
               type="button"
               onClick={() => onOpenChange(false)}
@@ -485,16 +493,27 @@ export function FiltersSheet({
 
 function FilterSection({
   title,
+  hint,
   children,
 }: {
   title: string;
+  /** One-line plain-language explanation rendered under the title.
+   *  Pill ``title`` attributes only surface on hover — useless on
+   *  touch — so jargon-y sections (verification tiers, menu
+   *  coverage) explain themselves inline. */
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h3>
+      <div className="space-y-0.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {title}
+        </h3>
+        {hint && (
+          <p className="text-xs text-muted-foreground/80">{hint}</p>
+        )}
+      </div>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </section>
   );

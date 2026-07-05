@@ -97,6 +97,42 @@ def test_places_geo_search_still_works(api, factories):
     assert "In Range" in names
 
 
+def test_places_text_search_scoped_by_geo(api, factories):
+    """``q`` + the full geo trio combine: the text match is constrained
+    to the radius. Powers the consumer surface's "search by name near
+    me" — typing a name must not silently discard the location."""
+    factories.place(name="Kabab In Range", lat=40.7128, lng=-74.006)
+    factories.place(name="Kabab Far Away", lat=33.749, lng=-84.388)
+
+    resp = api.get(
+        "/places",
+        params={
+            "q": "kabab",
+            "lat": 40.7128,
+            "lng": -74.006,
+            "radius": 1000,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    names = [p["name"] for p in resp.json()]
+    assert names == ["Kabab In Range"]
+
+
+def test_places_text_search_ignores_partial_geo(api, factories):
+    """A partial geo trio (e.g. lat + lng without radius) doesn't
+    constrain the text search — same all-or-nothing posture as the
+    geo-only path."""
+    factories.place(name="Kabab Far Away", lat=33.749, lng=-84.388)
+
+    resp = api.get(
+        "/places",
+        params={"q": "kabab", "lat": 40.7128, "lng": -74.006},
+    )
+    assert resp.status_code == 200, resp.text
+    names = [p["name"] for p in resp.json()]
+    assert "Kabab Far Away" in names
+
+
 # ---------------------------------------------------------------------------
 # POST /me/ownership-requests
 # ---------------------------------------------------------------------------

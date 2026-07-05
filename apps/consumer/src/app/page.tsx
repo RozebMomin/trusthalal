@@ -10,9 +10,9 @@
  *     ``q`` into the URL.
  *   * **Geo** — clicking "Near me" prompts the browser for
  *     geolocation, then pushes ``lat`` + ``lng`` + ``radius`` into
- *     the URL. Server semantics: q wins over geo, so activating
- *     near-me clears any text query and typing in the search input
- *     clears any active geo coords.
+ *     the URL. Text and geo COMBINE: when both are set the API
+ *     constrains the name match to the active radius, so typing a
+ *     name never silently discards the user's location context.
  *
  * URL state: every input writes its value into the query string so
  * a search result is shareable and the back button restores the
@@ -37,6 +37,7 @@ import {
   type LaunchNearMeOpts,
 } from "@/components/discovery-home";
 import {
+  clearAllFilters,
   countActiveFilters,
   FiltersSheet,
   FiltersTrigger,
@@ -226,18 +227,15 @@ function HomePageInner() {
     setRawQuery(filtersFromUrl.q ?? "");
   }, [filtersFromUrl.q]);
 
-  // Push debounced text changes into the URL. When the user types,
-  // also drop any active "near me" coords — server semantics are that
-  // q wins over geo, so the UI mirrors that by clearing geo on the
-  // way out so the user isn't left with a misleading status pill.
+  // Push debounced text changes into the URL. Geo context is
+  // PRESERVED — the API constrains a text match to the active radius
+  // when both are set, so typing a name narrows within "around
+  // Atlanta" instead of silently resetting to a global search.
   React.useEffect(() => {
     if ((filtersFromUrl.q ?? "") === debouncedQuery) return;
     const next: SearchPlacesParams = {
       ...filtersFromUrl,
       q: debouncedQuery,
-      ...(debouncedQuery
-        ? { lat: undefined, lng: undefined, radius: undefined }
-        : {}),
     };
     router.replace(`/?${stringifySearchParams(next)}`, { scroll: false });
     // We intentionally don't depend on `router` — Next's router
@@ -277,15 +275,12 @@ function HomePageInner() {
     lng: number;
     radius: number;
   }) {
-    // Activating near-me takes over the search: clear the q text
-    // (server ignores geo when q is set, and a stale text query
-    // sitting in the input would be confusing) and push coords +
-    // radius to the URL.
-    setRawQuery("");
+    // Activating near-me layers onto the search: any typed name
+    // query is kept (the API combines q + geo into "search by name
+    // within the radius") and coords + radius go into the URL.
     router.replace(
       `/?${stringifySearchParams({
         ...filtersFromUrl,
-        q: undefined,
         lat: next.lat,
         lng: next.lng,
         radius: next.radius,
@@ -541,6 +536,21 @@ function HomePageInner() {
         search.data.length === 0 && (
           <NoResultsState
             mode={nearMeActive !== null ? "geo" : "text"}
+            onWiden={
+              nearMeActive !== null && nearMeActive.radius < 40234
+                ? () =>
+                    activateNearMe({
+                      lat: nearMeActive.lat,
+                      lng: nearMeActive.lng,
+                      radius: 40234,
+                    })
+                : undefined
+            }
+            onClearFilters={
+              activeFilterCount > 0
+                ? () => setFilters(clearAllFilters(effectiveFilters))
+                : undefined
+            }
           />
         )}
 
@@ -568,7 +578,7 @@ function HomePageInner() {
                     onChange={(e) =>
                       setDistanceSort(e.target.value as DistanceSort)
                     }
-                    className="flex h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="flex h-8 cursor-pointer appearance-none rounded-full border border-input bg-card px-3 pr-7 text-xs font-medium text-foreground shadow-sm transition [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] [background-position:right_0.6rem_center] [background-repeat:no-repeat] hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="closest">Closest first</option>
                     <option value="farthest">Farthest first</option>
@@ -631,7 +641,10 @@ function SearchBox({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Search restaurants"
-        className="block h-12 w-full rounded-full border border-input bg-card pl-11 pr-11 text-base text-foreground shadow-sm transition placeholder:text-muted-foreground/80 hover:border-foreground/30 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
+        // ``[&::-webkit-search-*]:hidden`` suppresses WebKit's native
+        // clear (×) control — we render our own, and two side-by-side
+        // clear icons read as a glitch.
+        className="block h-12 w-full rounded-full border border-input bg-card pl-11 pr-11 text-base text-foreground shadow-sm transition placeholder:text-muted-foreground/80 hover:border-foreground/30 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
       />
       {value && (
         <button
@@ -676,7 +689,17 @@ function LoadingState() {
   );
 }
 
-function NoResultsState({ mode }: { mode: "text" | "geo" }) {
+function NoResultsState({
+  mode,
+  onWiden,
+  onClearFilters,
+}: {
+  mode: "text" | "geo";
+  /** When set, renders a one-tap "Widen to 25 mi" recovery action. */
+  onWiden?: () => void;
+  /** When set, renders a one-tap "Remove filters" recovery action. */
+  onClearFilters?: () => void;
+}) {
   return (
     <div className="rounded-2xl border bg-card px-6 py-10 text-center shadow-sm">
       <h2 className="text-lg font-semibold tracking-tight">
@@ -684,9 +707,31 @@ function NoResultsState({ mode }: { mode: "text" | "geo" }) {
       </h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
         {mode === "geo"
-          ? "No halal restaurants found in this radius. Try widening the search area or removing a filter."
+          ? "No halal restaurants found in this area yet — coverage is growing city by city. Try widening the radius, changing the city above, or removing a filter."
           : "No restaurants matched that name. Try a different spelling, or remove a filter."}
       </p>
+      {(onWiden || onClearFilters) && (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          {onWiden && (
+            <button
+              type="button"
+              onClick={onWiden}
+              className="rounded-full border border-primary bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/10"
+            >
+              Widen to 25 mi
+            </button>
+          )}
+          {onClearFilters && (
+            <button
+              type="button"
+              onClick={onClearFilters}
+              className="rounded-full border border-input bg-background px-4 py-1.5 text-sm font-medium text-foreground transition hover:bg-accent"
+            >
+              Remove filters
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

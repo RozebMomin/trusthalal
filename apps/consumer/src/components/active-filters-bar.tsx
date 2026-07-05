@@ -27,6 +27,7 @@ import type {
   ValidationTier,
 } from "@/lib/api/hooks";
 import { clearAllFilters } from "@/components/filters-sheet";
+import { TOP_CUISINES } from "@/components/cuisine-rail";
 
 // Per-axis display labels. Kept in this file (rather than imported
 // from filters-sheet) because the chip copy may diverge — the bar
@@ -155,7 +156,13 @@ function buildChips(filters: SearchPlacesParams): Chip[] {
     });
   }
 
-  for (const cuisine of filters.cuisines ?? []) {
+  // On-rail cuisines are skipped: the CuisineRail above the results
+  // already shows them as highlighted (tap-to-remove) pills. Only
+  // off-rail picks — cuisines chosen from the full sheet that have
+  // no visible representation elsewhere — earn a chip here.
+  for (const cuisine of (filters.cuisines ?? []).filter(
+    (c) => !TOP_CUISINES.includes(c),
+  )) {
     chips.push({
       key: `cuisine:${cuisine}`,
       label: CUISINE_LABELS[cuisine] ?? cuisine,

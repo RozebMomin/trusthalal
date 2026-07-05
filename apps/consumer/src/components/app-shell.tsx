@@ -19,6 +19,7 @@
  * other apps do — the page's own layout handles the centered card.
  */
 
+import { Heart, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
@@ -31,6 +32,7 @@ import {
   TRUST_HALAL_URL,
 } from "@/lib/branding";
 import { useCurrentUser, useLogout } from "@/lib/api/hooks";
+import { safeNextPath } from "@/lib/utils";
 
 const PUBLIC_BARE_PATHS = new Set<string>(["/login", "/signup"]);
 
@@ -41,13 +43,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isBare = PUBLIC_BARE_PATHS.has(pathname);
 
   // If the visitor is already signed in and lands on /login or
-  // /signup, bounce them home — same behavior the owner portal has,
-  // and saves users from a confusing "I'm logged in why am I on a
-  // login form" moment.
+  // /signup, bounce them along — honoring any ``?next=`` the page
+  // carried (e.g. "sign in to save this place" deep links) so the
+  // bounce doesn't strand a just-authenticated user on the home
+  // page. window.location is read inside the effect (client-only)
+  // to avoid a useSearchParams Suspense requirement at the shell.
   React.useEffect(() => {
     if (isLoading) return;
     if (me && isBare) {
-      router.replace("/");
+      const next = safeNextPath(
+        new URLSearchParams(window.location.search).get("next"),
+      );
+      router.replace(next);
     }
   }, [me, isLoading, isBare, router]);
 
@@ -107,7 +114,11 @@ function PortalHeader({
     me !== null && me.role !== "CONSUMER";
 
   return (
-    <header className="border-b bg-card px-4 py-3 md:px-8">
+    // Sticky so search + nav stay reachable on long result lists.
+    // z-40 sits under the dialog/sheet layer (z-50) so modals still
+    // cover the header. The slight translucency + blur keeps content
+    // scrolling under it readable as chrome, not a hard wall.
+    <header className="sticky top-0 z-40 border-b bg-card/95 px-4 py-3 backdrop-blur md:px-8">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 md:gap-4">
         <Link
           href="/"
@@ -133,16 +144,26 @@ function PortalHeader({
 
           {!pending && me === null && (
             <>
-              <nav className="flex items-center gap-4">
+              <nav className="flex items-center gap-3 sm:gap-4">
                 {/* Saved places shows for anonymous too so the
                     feature is discoverable. The page itself renders
                     a "sign in to save" pitch when the visitor lands
-                    without auth — no role-based rendering needed. */}
+                    without auth — no role-based rendering needed.
+                    On mobile the text links collapse to icons rather
+                    than disappearing — footer-only access made the
+                    features effectively invisible on phones. */}
                 <Link
                   href="/favorites"
                   className="hidden text-sm hover:underline sm:inline"
                 >
                   Saved
+                </Link>
+                <Link
+                  href="/favorites"
+                  aria-label="Saved places"
+                  className="rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground sm:hidden"
+                >
+                  <Heart className="h-4 w-4" aria-hidden />
                 </Link>
                 {/* Anonymous visitors get the prefs link too — local
                     storage backs the page, and they'll learn the
@@ -152,6 +173,13 @@ function PortalHeader({
                   className="hidden text-sm hover:underline sm:inline"
                 >
                   Preferences
+                </Link>
+                <Link
+                  href="/preferences"
+                  aria-label="Search preferences"
+                  className="rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground sm:hidden"
+                >
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden />
                 </Link>
               </nav>
               <HeaderDivider className="hidden sm:block" />
@@ -212,7 +240,9 @@ function PortalHeader({
             </>
           )}
 
-          <VersionTag className="hidden sm:inline" />
+          {/* Build-version tag intentionally NOT rendered here —
+              it's internal metadata, and the footer already carries
+              it for anyone debugging a deploy. */}
         </div>
       </div>
     </header>

@@ -693,17 +693,18 @@ def get_place_halal_profile(
 @router.get(
     "",
     response_model=list[PlaceSearchResult],
-    summary="Search the public places catalog (text or geo)",
+    summary="Search the public places catalog (text and/or geo)",
     description=(
-        "Two search modes, mutually exclusive:\n\n"
+        "Two search modes, combinable:\n\n"
         "* **Text** — pass `q` (case-insensitive substring on name + "
         "address + city). Powers the owner portal's claim flow.\n"
         "* **Geo** — pass `lat` + `lng` + `radius` (meters). Powers "
         "the consumer site's 'halal places near me'.\n\n"
-        "If `q` is set, geo params are ignored. If neither is "
-        "populated, returns 400 (`PLACES_SEARCH_PARAMS_REQUIRED`) — "
-        "there's no meaningful 'list everything' on a public catalog "
-        "of this size."
+        "If both `q` and the geo trio are set, the text match is "
+        "constrained to the radius ('search by name near me'). If "
+        "neither is populated, returns 400 "
+        "(`PLACES_SEARCH_PARAMS_REQUIRED`) — there's no meaningful "
+        "'list everything' on a public catalog of this size."
     ),
 )
 def search_places(
@@ -759,8 +760,7 @@ def search_places(
 ) -> list[PlaceSearchResult]:
     """Browse the public places catalog.
 
-    Two search modes, mutually exclusive — pick one based on what the
-    caller has on hand:
+    Two search modes, combinable:
 
     * **Text** — pass ``q`` (case-insensitive substring on name +
       address + city). Used by the owner portal's claim flow when the
@@ -768,9 +768,10 @@ def search_places(
     * **Geo** — pass ``lat`` + ``lng`` + ``radius`` (meters). Used by
       the consumer site to render "halal places near me".
 
-    If ``q`` is set, geo params are ignored. If neither path is
-    populated, we 400 — there's no meaningful "list everything"
-    response on a public catalog of this size.
+    When both ``q`` and the full geo trio are provided, the text
+    match is constrained to the radius — "search by name near me".
+    If neither path is populated, we 400 — there's no meaningful
+    "list everything" response on a public catalog of this size.
 
     Halal preference filters are optional. When any filter is set
     the results are restricted to places with a non-revoked
@@ -803,6 +804,13 @@ def search_places(
             offset=offset,
             halal_filters=halal_filters,
             cuisines=cuisines,
+            # When the caller also has geo context, constrain the
+            # text match to the radius. All-or-nothing: partial geo
+            # is ignored the same way the geo-only path requires the
+            # full trio.
+            lat=lat if has_geo else None,
+            lng=lng if has_geo else None,
+            radius_m=radius if has_geo else None,
         )
     elif has_geo:
         rows = search_nearby(

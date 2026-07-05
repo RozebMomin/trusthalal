@@ -202,10 +202,16 @@ function PlaceResultPhoto({
       className={cn(
         "shrink-0 bg-gradient-to-br from-primary/10 via-muted to-amber-100/40",
         "flex items-center justify-center",
-        "h-44 w-full sm:h-40 sm:w-40",
+        // Much more compact than the photo variant: most of the
+        // catalog has no photo yet, and a full-height empty block
+        // pushed real content (name, distance, trust pill) below
+        // the fold — one-and-a-half cards per phone screen. A slim
+        // banner on mobile / narrow column on desktop keeps the
+        // card scannable while photos roll in.
+        "h-16 w-full sm:h-auto sm:min-h-full sm:w-24",
       )}
     >
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
         No photo yet
       </span>
     </div>

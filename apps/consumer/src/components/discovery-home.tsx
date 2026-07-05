@@ -160,36 +160,69 @@ export function DiscoveryHome({
   // so URL state ownership stays in one place.
   const [nameSearchOpen, setNameSearchOpen] = React.useState(false);
 
+  // True while we're waiting on the browser's geolocation answer.
+  // Drives immediate visual feedback (status line + busy state) so
+  // a cuisine-card / CTA tap never feels like a dead click while
+  // the permission prompt or GPS resolution is in flight.
+  const [locating, setLocating] = React.useState(false);
+
   /** Try to geolocate the browser. On success, immediately launch
    *  near-me with the resolved coords + the optional cuisine. On
    *  any failure (denied / unsupported / timeout) open the picker
    *  in fallback mode and stash the cuisine so it survives the
-   *  city pick. */
+   *  city pick. When the Permissions API reports geolocation is
+   *  already denied, we skip the doomed request entirely and open
+   *  the picker instantly — no multi-second dead tap. */
   const tryGeolocate = React.useCallback(
     (cuisine?: Cuisine) => {
+      const openFallback = () => {
+        setLocating(false);
+        setPendingCuisine(cuisine ?? null);
+        setPickerMode("fallback");
+      };
+
       if (
         typeof navigator === "undefined" ||
         !("geolocation" in navigator)
       ) {
-        setPendingCuisine(cuisine ?? null);
-        setPickerMode("fallback");
+        openFallback();
         return;
       }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          onLaunchNearMe({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            radius: DEFAULT_NEAR_ME_RADIUS_METERS,
-            cuisine,
-          });
-        },
-        () => {
-          setPendingCuisine(cuisine ?? null);
-          setPickerMode("fallback");
-        },
-        { timeout: 10000, maximumAge: 5 * 60 * 1000 },
-      );
+
+      const request = () => {
+        setLocating(true);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setLocating(false);
+            onLaunchNearMe({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              radius: DEFAULT_NEAR_ME_RADIUS_METERS,
+              cuisine,
+            });
+          },
+          openFallback,
+          { timeout: 10000, maximumAge: 5 * 60 * 1000 },
+        );
+      };
+
+      // Permission pre-check (where supported): a known-denied state
+      // means getCurrentPosition would just burn its timeout before
+      // erroring — jump straight to the city picker instead.
+      if (navigator.permissions?.query) {
+        navigator.permissions
+          .query({ name: "geolocation" })
+          .then((status) => {
+            if (status.state === "denied") {
+              openFallback();
+            } else {
+              request();
+            }
+          })
+          .catch(request);
+      } else {
+        request();
+      }
     },
     [onLaunchNearMe],
   );
@@ -254,7 +287,7 @@ export function DiscoveryHome({
           two are stacked rather than side-by-side so each gets its
           own line of explanatory copy on small screens. */}
       <div className="space-y-2">
-        <NearMeCTA onClick={() => tryGeolocate()} />
+        <NearMeCTA locating={locating} onClick={() => tryGeolocate()} />
         <button
           type="button"
           onClick={openProactivePicker}
@@ -288,6 +321,7 @@ export function DiscoveryHome({
               label={c.label}
               emoji={c.emoji}
               gradient={c.gradient}
+              disabled={locating}
               onClick={() => tryGeolocate(c.value)}
             />
           ))}
@@ -347,15 +381,24 @@ function pendingCuisineLabel(value: Cuisine | null): string | null {
 // Big near-me CTA — primary discovery action.
 // ---------------------------------------------------------------------------
 
-function NearMeCTA({ onClick }: { onClick: () => void }) {
+function NearMeCTA({
+  locating,
+  onClick,
+}: {
+  locating: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={locating}
+      aria-busy={locating}
       className={cn(
         "group relative w-full overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition",
         "hover:border-primary/40 hover:shadow-md",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        locating && "cursor-wait opacity-80",
       )}
     >
       {/* Decorative gradient wash that intensifies on hover. */}
@@ -366,24 +409,31 @@ function NearMeCTA({ onClick }: { onClick: () => void }) {
       <div className="relative flex items-center gap-4 p-5 sm:p-6">
         <span
           aria-hidden
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"
+          className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm",
+            locating && "animate-pulse",
+          )}
         >
           <LocateFixed className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-base font-semibold leading-tight sm:text-lg">
-            Find halal near me
+            {locating ? "Locating you…" : "Find halal near me"}
           </p>
-          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-            Tap to discover spots within 5 miles. We&rsquo;ll ask
-            for your location first.
+          <p
+            className="mt-0.5 text-xs text-muted-foreground sm:text-sm"
+            aria-live="polite"
+          >
+            {locating
+              ? "Waiting for your browser to share your location."
+              : "Tap to discover spots within 5 miles. We’ll ask for your location first."}
           </p>
         </div>
         <span
           aria-hidden
           className="hidden rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground sm:inline"
         >
-          Tap to start
+          {locating ? "Locating…" : "Tap to start"}
         </span>
       </div>
     </button>
@@ -412,12 +462,14 @@ function CuisineCard({
   label,
   emoji,
   gradient,
+  disabled = false,
   onClick,
 }: {
   value: Cuisine;
   label: string;
   emoji: string;
   gradient: string;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   // Defaults to "image present" — the moment the browser confirms a
@@ -433,12 +485,14 @@ function CuisineCard({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={`Find halal ${label} restaurants near me`}
       className={cn(
         "group relative flex aspect-[4/5] flex-col justify-between overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left transition sm:p-5",
         gradient,
         "hover:-translate-y-0.5 hover:shadow-md",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        disabled && "cursor-wait opacity-70",
       )}
     >
       {showImage && (

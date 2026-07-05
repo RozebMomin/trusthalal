@@ -26,7 +26,7 @@
  * so this view doesn't depend on ``useParams``.
  */
 
-import { ChevronLeft, Flag, MapPin } from "lucide-react";
+import { ChevronLeft, ExternalLink, Flag, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -126,6 +126,14 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
   );
 
   const router = useRouter();
+
+  // Guarantee the page opens at the top. Without this, entering from
+  // a scrolled results list can land the viewport mid-page (the
+  // async-loaded content shifts heights after Next's own scroll
+  // reset, leaving the header + back link out of view).
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [placeId]);
 
   /**
    * Back-link handler. The link's static ``href="/"`` is the
@@ -242,11 +250,36 @@ function PlaceAddressLine({ place }: { place: PlaceDetail }) {
 
   if (addressParts.length === 0) return null;
 
+  // Tappable address → Google Maps directions. Coordinates are the
+  // destination (more reliable than free-text address matching);
+  // the visible text stays the human-readable address. Getting to
+  // the restaurant is the single most common action on this page,
+  // so it shouldn't require copy-pasting an address.
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`;
+
   return (
-    <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
-      <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-      <span className="break-words">{addressParts.join(" · ")}</span>
-    </p>
+    <div className="flex flex-col gap-1.5">
+      <a
+        href={directionsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group flex items-start gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+      >
+        <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <span className="break-words underline-offset-2 group-hover:underline">
+          {addressParts.join(" · ")}
+        </span>
+      </a>
+      <a
+        href={directionsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
+      >
+        Get directions
+        <ExternalLink className="h-3 w-3" aria-hidden />
+      </a>
+    </div>
   );
 }
 

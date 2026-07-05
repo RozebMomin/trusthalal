@@ -246,6 +246,11 @@ function PrimaryPill({ signal }: { signal: PrimaryHalalSignal }) {
         "absolute right-4 top-4 sm:right-5 sm:top-5",
         "inline-flex max-w-[55%] items-center truncate rounded-full border px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm",
         PRIMARY_TONE_CLASSES[signal.tone],
+        // The muted tone's translucent bg (fine on cards) fails
+        // contrast when floating over a busy hero photo — swap in a
+        // near-solid background so "No halal info yet" stays legible
+        // on any image.
+        signal.tone === "muted" && "bg-background/90 text-foreground/70",
       )}
     >
       {signal.label}

@@ -81,8 +81,13 @@ const CUISINE_LABELS: Readonly<Record<Cuisine, string>> = {
  * The 8 cuisines most likely to be tapped from the home surface.
  * Tuned by hand against the v1 markets (US/UK/CA halal scenes).
  * Re-tune when we have real telemetry.
+ *
+ * Exported so the ActiveFiltersBar can EXCLUDE these from its chip
+ * strip — an on-rail cuisine already shows its active state as a
+ * highlighted rail pill, and rendering it a second time as a
+ * removable chip below reads as duplicate UI.
  */
-const TOP_CUISINES: ReadonlyArray<Cuisine> = [
+export const TOP_CUISINES: ReadonlyArray<Cuisine> = [
   "PAKISTANI",
   "INDIAN",
   "MEDITERRANEAN",

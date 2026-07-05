@@ -248,6 +248,9 @@ def search_by_text(
     offset: int,
     halal_filters: HalalSearchFilters | None = None,
     cuisines: Sequence[Cuisine] = (),
+    lat: float | None = None,
+    lng: float | None = None,
+    radius_m: int | None = None,
 ) -> list[tuple[Place, HalalProfile | None]]:
     """ILIKE substring search on name + address + city for the public
     catalog.
@@ -256,6 +259,13 @@ def search_by_text(
     restaurant") and by the consumer site's search surface. Excludes
     deleted places — they shouldn't show up when an owner is trying
     to find their own listing or when a consumer is browsing.
+
+    When ``lat`` + ``lng`` + ``radius_m`` are all provided, the text
+    match is additionally constrained to that geo radius (PostGIS
+    ST_DWithin — same predicate as ``search_nearby``). This powers
+    the consumer surface's "search by name within my area" flow so
+    typing a name doesn't silently blow away the user's location
+    context. All three must be present; partial geo is ignored.
 
     When ``halal_filters`` is populated, results are restricted to
     places with a non-revoked HalalProfile that matches every
@@ -288,6 +298,16 @@ def search_by_text(
             )
         )
     )
+    if lat is not None and lng is not None and radius_m is not None:
+        stmt = stmt.where(
+            text(
+                "ST_DWithin("
+                "app.places.geom::geography, "
+                "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, "
+                ":radius_m"
+                ")"
+            )
+        ).params(lat=lat, lng=lng, radius_m=radius_m)
     if halal_filters is not None and not halal_filters.is_empty():
         # Filtered → INNER JOIN inside _apply_halal_filters; places
         # without a matching profile drop out entirely.
