@@ -493,6 +493,297 @@ export function useSignup() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Verifier application (public apply form)
+// ---------------------------------------------------------------------------
+
+/**
+ * Payload for ``POST /verifier-applications``. Mirrors the server-
+ * side ``VerifierApplicationCreate`` schema — see
+ * ``api/app/modules/verifiers/schemas.py`` for the canonical spec.
+ *
+ * The endpoint is anonymous-OK: applicants can submit without a
+ * Trust Halal account. Signed-in users get their user id linked
+ * server-side via ``get_current_user_optional``.
+ */
+export type VerifierApplicationCreate = {
+  applicant_email: string;
+  applicant_name: string;
+  motivation: string;
+  background?: string | null;
+  social_links?: {
+    instagram?: string;
+    tiktok?: string;
+    youtube?: string;
+    website?: string;
+  } | null;
+};
+
+/** Response shape — echoes the created application row. */
+export type VerifierApplicationRead = {
+  id: string;
+  applicant_user_id: string | null;
+  applicant_email: string;
+  applicant_name: string;
+  motivation: string;
+  background: string | null;
+  social_links: Record<string, unknown> | null;
+  status: string;
+  submitted_at: string;
+  updated_at: string;
+};
+
+/**
+ * POST /verifier-applications — public verifier application submit.
+ *
+ * Rate-limited server-side per IP. Response echoes the created row
+ * so the success pane can show submission details. No cache
+ * invalidation needed — this is a leaf action from the consumer
+ * side (admin sees it in their own queue).
+ */
+export function useApplyAsVerifier() {
+  return useMutation({
+    mutationFn: (payload: VerifierApplicationCreate) =>
+      apiFetch<VerifierApplicationRead>("/verifier-applications", {
+        method: "POST",
+        json: payload,
+      }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Verifier portal (verifier-self endpoints)
+// ---------------------------------------------------------------------------
+
+/** Mirrors ``VerifierProfileStatus`` on the server. */
+export type VerifierProfileStatus = "ACTIVE" | "SUSPENDED" | "REVOKED";
+
+/** GET /me/verifier-profile — the signed-in verifier's own profile. */
+export type VerifierProfileRead = {
+  user_id: string;
+  public_handle: string | null;
+  bio: string | null;
+  social_links: Record<string, unknown> | null;
+  is_public: boolean;
+  status: VerifierProfileStatus;
+  joined_as_verifier_at: string;
+  updated_at: string;
+};
+
+/** PATCH /me/verifier-profile payload. Every field optional. */
+export type VerifierProfilePatch = {
+  public_handle?: string | null;
+  bio?: string | null;
+  social_links?: Record<string, unknown> | null;
+  is_public?: boolean | null;
+};
+
+/** Mirrors ``VisitDisclosure`` on the server. */
+export type VisitDisclosure =
+  | "SELF_FUNDED"
+  | "MEAL_COMPED"
+  | "PAID_PARTNERSHIP"
+  | "OTHER_DISCLOSURE";
+
+/** Mirrors ``VerificationVisitStatus`` on the server. */
+export type VerificationVisitStatus =
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN";
+
+export type VerificationVisitAttachmentRead = {
+  id: string;
+  visit_id: string;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  caption: string | null;
+  uploaded_at: string;
+};
+
+/** Read shape for a single verification visit (verifier-self view). */
+export type VerificationVisitRead = {
+  id: string;
+  verifier_user_id: string;
+  place_id: string;
+  visited_at: string;
+  structured_findings: Record<string, unknown> | null;
+  notes_for_admin: string | null;
+  public_review_url: string | null;
+  disclosure: VisitDisclosure;
+  disclosure_note: string | null;
+  status: VerificationVisitStatus;
+  attachments: VerificationVisitAttachmentRead[];
+  decided_at: string | null;
+  decided_by_user_id: string | null;
+  decision_note: string | null;
+  submitted_at: string;
+  updated_at: string;
+};
+
+/** POST /me/verification-visits payload. Findings are optional so the
+ *  minimum viable submit is just place + date + disclosure + notes. */
+export type VerificationVisitCreate = {
+  place_id: string;
+  visited_at: string;
+  structured_findings?: Record<string, unknown> | null;
+  notes_for_admin?: string | null;
+  public_review_url?: string | null;
+  disclosure?: VisitDisclosure;
+  disclosure_note?: string | null;
+};
+
+const verifierQk = {
+  profile: () => ["me", "verifier-profile"] as const,
+  visits: () => ["me", "verification-visits"] as const,
+  visit: (id: string) => ["me", "verification-visits", id] as const,
+} as const;
+
+function invalidateVerifierProfile(qc: ReturnType<typeof useQueryClient>) {
+  return qc.invalidateQueries({ queryKey: verifierQk.profile() });
+}
+
+function invalidateMyVisits(qc: ReturnType<typeof useQueryClient>) {
+  return qc.invalidateQueries({ queryKey: verifierQk.visits() });
+}
+
+/** GET /me/verifier-profile — resolves to null on 404 so the caller
+ *  can render an "you don't have a verifier profile yet" state
+ *  instead of an error. Any non-404 error still throws. */
+export function useVerifierProfile() {
+  return useQuery({
+    queryKey: verifierQk.profile(),
+    queryFn: async () => {
+      try {
+        return await apiFetch<VerifierProfileRead>("/me/verifier-profile");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
+    },
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+}
+
+/** PATCH /me/verifier-profile. */
+export function useUpdateVerifierProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: VerifierProfilePatch) =>
+      apiFetch<VerifierProfileRead>("/me/verifier-profile", {
+        method: "PATCH",
+        json: payload,
+      }),
+    onSuccess: () => {
+      void invalidateVerifierProfile(qc);
+    },
+  });
+}
+
+/** GET /me/verification-visits — signed-in verifier's own visits. */
+export function useMyVerificationVisits() {
+  return useQuery({
+    queryKey: verifierQk.visits(),
+    queryFn: () =>
+      apiFetch<VerificationVisitRead[]>("/me/verification-visits"),
+  });
+}
+
+/** GET /me/verification-visits/{id}. */
+export function useMyVerificationVisit(id: string | undefined) {
+  return useQuery({
+    queryKey: verifierQk.visit(id ?? ""),
+    queryFn: () =>
+      apiFetch<VerificationVisitRead>(`/me/verification-visits/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+/** POST /me/verification-visits. */
+export function useSubmitVerificationVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: VerificationVisitCreate) =>
+      apiFetch<VerificationVisitRead>("/me/verification-visits", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => {
+      void invalidateMyVisits(qc);
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Public verifier profile — /verifiers/{handle}
+// ---------------------------------------------------------------------------
+
+/** Slim place summary embedded in a public visit row. */
+export type VerifierPublicVisitPlace = {
+  id: string;
+  name: string;
+  city: string | null;
+  region: string | null;
+};
+
+/** One ACCEPTED visit shown on the verifier's public page. */
+export type VerifierPublicVisitSummary = {
+  id: string;
+  visited_at: string;
+  disclosure: VisitDisclosure;
+  public_review_url: string | null;
+  place: VerifierPublicVisitPlace;
+};
+
+/** GET /verifiers/{handle} response — public profile + recent visits. */
+export type VerifierPublicProfileDetail = {
+  public_handle: string;
+  bio: string | null;
+  social_links: Record<string, unknown> | null;
+  joined_as_verifier_at: string;
+  recent_visits: VerifierPublicVisitSummary[];
+  total_accepted_visits: number;
+};
+
+/** GET /verifiers/{handle} — resolves to null on 404 so the caller
+ *  can render a "profile not found" state instead of throwing. */
+export function usePublicVerifierProfile(handle: string | undefined) {
+  return useQuery({
+    queryKey: ["verifiers", "public", handle ?? ""] as const,
+    queryFn: async () => {
+      try {
+        return await apiFetch<VerifierPublicProfileDetail>(
+          `/verifiers/${handle}`,
+        );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
+    },
+    enabled: Boolean(handle),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** POST /me/verification-visits/{id}/withdraw. */
+export function useWithdrawVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<VerificationVisitRead>(
+        `/me/verification-visits/${id}/withdraw`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      void invalidateMyVisits(qc);
+    },
+  });
+}
+
 /**
  * POST /auth/logout. Idempotent server-side. Clears every cached
  * query so the next user's data doesn't reuse the prior user's

@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080" role="img" aria-label="Quote card — Instagram post template">
+  <!--
+    Template 5: Quote card.
+    For sharing a particularly good line from a verified restaurant
+    owner, a diner testimonial, or a brand voice line. Customize via
+    [QUOTE] and [ATTRIBUTION].
+  -->
+
+  <!-- Cream background -->
+  <rect x="0" y="0" width="1080" height="1080" fill="#F8F4EC"/>
+
+  <!-- Large opening quote mark in olive, decorative -->
+  <text
+    x="540" y="330"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="280"
+    font-weight="700"
+    fill="#5B6F2B"
+    text-anchor="middle"
+    opacity="0.18"
+  >"</text>
+
+  <!-- The quote — serif italic, large -->
+  <text
+    x="540" y="500"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="56"
+    font-style="italic"
+    font-weight="500"
+    fill="#3A3633"
+    text-anchor="middle"
+  >I used to call three restaurants</text>
+  <text
+    x="540" y="570"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="56"
+    font-style="italic"
+    font-weight="500"
+    fill="#3A3633"
+    text-anchor="middle"
+  >before picking one for iftar.</text>
+  <text
+    x="540" y="640"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="56"
+    font-style="italic"
+    font-weight="500"
+    fill="#3A3633"
+    text-anchor="middle"
+  >Now I check halalfoodnearme.com</text>
+  <text
+    x="540" y="710"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="56"
+    font-style="italic"
+    font-weight="500"
+    fill="#3A3633"
+    text-anchor="middle"
+  >once and I'm done.</text>
+
+  <!-- Divider -->
+  <line x1="440" y1="780" x2="640" y2="780" stroke="#9C2A24" stroke-width="2"/>
+
+  <!-- Attribution -->
+  <text
+    x="540" y="830"
+    font-family="'Inter', sans-serif"
+    font-size="22"
+    fill="#3A3633"
+    text-anchor="middle"
+  >— [First Name], [City]</text>
+
+  <!-- Brand mark at the bottom -->
+  <text
+    x="540" y="990"
+    font-family="'Inter', sans-serif"
+    font-size="20"
+    letter-spacing="6"
+    fill="#5B6F2B"
+    text-anchor="middle"
+  >TRUST HALAL</text>
+  <text
+    x="540" y="1020"
+    font-family="'Inter', sans-serif"
+    font-size="16"
+    letter-spacing="4"
+    fill="#3A3633"
+    text-anchor="middle"
+    opacity="0.7"
+  >HALALFOODNEARME.COM</text>
+</svg>

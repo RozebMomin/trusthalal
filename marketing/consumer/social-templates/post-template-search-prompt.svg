@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080" role="img" aria-label="Search prompt — Instagram post template">
+  <!--
+    Template 2: Search prompt.
+    Asks a halal-search question and points at the URL. Customizable
+    cuisine + city via [CUISINE] / [CITY].
+  -->
+
+  <!-- Olive full-bleed background — flip for visual variety -->
+  <rect x="0" y="0" width="1080" height="1080" fill="#5B6F2B"/>
+
+  <!-- Cream inset card -->
+  <rect x="100" y="180" width="880" height="720" rx="24" ry="24" fill="#F8F4EC"/>
+
+  <!-- Top mark -->
+  <text
+    x="540" y="280"
+    font-family="'Inter', sans-serif"
+    font-size="20"
+    letter-spacing="6"
+    fill="#5B6F2B"
+    text-anchor="middle"
+  >TRUST HALAL</text>
+
+  <!-- Big question — main visual -->
+  <text
+    x="540" y="440"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="64"
+    font-weight="600"
+    fill="#3A3633"
+    text-anchor="middle"
+  >Looking for halal</text>
+  <text
+    x="540" y="510"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="64"
+    font-weight="600"
+    fill="#3A3633"
+    text-anchor="middle"
+  >[CUISINE] in [CITY]?</text>
+
+  <!-- Pomegranate underline accent under the cuisine question -->
+  <line x1="380" y1="540" x2="700" y2="540" stroke="#9C2A24" stroke-width="3"/>
+
+  <!-- Subline -->
+  <text
+    x="540" y="610"
+    font-family="'Inter', sans-serif"
+    font-size="28"
+    fill="#3A3633"
+    text-anchor="middle"
+  >Verified halal restaurants. Supplier, slaughter</text>
+  <text
+    x="540" y="650"
+    font-family="'Inter', sans-serif"
+    font-size="28"
+    fill="#3A3633"
+    text-anchor="middle"
+  >method, and certificate on every listing.</text>
+
+  <!-- CTA pill -->
+  <rect x="330" y="730" width="420" height="80" rx="40" ry="40" fill="#5B6F2B"/>
+  <text
+    x="540" y="780"
+    font-family="'Inter', sans-serif"
+    font-size="26"
+    letter-spacing="3"
+    fill="#F8F4EC"
+    text-anchor="middle"
+    font-weight="600"
+  >HALALFOODNEARME.COM</text>
+
+  <!-- Bottom — small "verified by community" line -->
+  <text
+    x="540" y="990"
+    font-family="'Inter', sans-serif"
+    font-size="18"
+    letter-spacing="4"
+    fill="#F8F4EC"
+    text-anchor="middle"
+  >COMMUNITY-CHECKED · MUSLIM-LED</text>
+</svg>

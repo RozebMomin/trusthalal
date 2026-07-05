@@ -34,6 +34,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import (
@@ -42,15 +43,17 @@ from app.core.auth import (
     get_current_user_optional,
     require_roles,
 )
-from app.core.exceptions import BadRequestError, ConflictError
+from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
 from app.core.rate_limit import limiter, user_or_ip_key
 from app.core.storage import StorageClient, StorageError, get_storage_client
 from app.db.deps import get_db
 from app.modules.users.enums import UserRole
 from app.modules.verifiers.enums import VerificationVisitStatus
 from app.modules.verifiers.models import VerificationVisitAttachment
+from app.modules.places.models import Place
 from app.modules.verifiers.repo import (
     get_application_for_applicant,
+    get_public_verifier_by_handle,
     list_applications_for_applicant,
     submit_application,
     withdraw_application,
@@ -61,6 +64,9 @@ from app.modules.verifiers.schemas import (
     VerificationVisitRead,
     VerifierApplicationCreate,
     VerifierApplicationRead,
+    VerifierPublicProfileDetail,
+    VerifierPublicVisitPlace,
+    VerifierPublicVisitSummary,
 )
 from app.modules.verifiers.visits_repo import (
     get_visit_for_verifier,
@@ -86,6 +92,75 @@ _VISIT_ALLOWED_MIME_TYPES: dict[str, str] = {
 _VISIT_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 _VISIT_MAX_FILES = 10  # higher than disputes (5) — visits often want
                        # menu + storefront + kitchen + certificate.
+
+
+# /verifiers/{handle} — the public verifier profile read.
+# Distinct router from the applications one so the OpenAPI grouping
+# separates "apply to be a verifier" (a verb) from "look up a
+# verifier's public page" (a noun).
+public_profile_router = APIRouter(prefix="/verifiers", tags=["verifiers"])
+
+
+@public_profile_router.get(
+    "/{handle}",
+    response_model=VerifierPublicProfileDetail,
+    summary="Public verifier profile + recent accepted visits",
+    description=(
+        "Returns the public-facing profile for a verifier whose "
+        "``is_public=true`` and ``status=ACTIVE``. Includes their "
+        "bio, socials, and the newest ACCEPTED visits (capped at 20). "
+        "404 when the handle doesn't resolve to a public + active "
+        "verifier, matching the 'don't leak existence' posture used "
+        "elsewhere in the API."
+    ),
+)
+def get_public_verifier_profile(
+    handle: str,
+    db: Session = Depends(get_db),
+) -> VerifierPublicProfileDetail:
+    result = get_public_verifier_by_handle(db, handle=handle)
+    if result is None:
+        raise NotFoundError(
+            "VERIFIER_PROFILE_NOT_FOUND",
+            "Verifier not found.",
+        )
+    profile, visits, total = result
+
+    # Fetch place summaries for the visits in one shot so we don't
+    # N+1 through place lookups.
+    place_ids = [v.place_id for v in visits]
+    place_rows = (
+        db.execute(
+            select(Place).where(Place.id.in_(place_ids))
+        ).scalars().all()
+        if place_ids
+        else []
+    )
+    places_by_id = {p.id: p for p in place_rows}
+
+    return VerifierPublicProfileDetail(
+        public_handle=profile.public_handle or "",
+        bio=profile.bio,
+        social_links=profile.social_links,
+        joined_as_verifier_at=profile.joined_as_verifier_at,
+        total_accepted_visits=total,
+        recent_visits=[
+            VerifierPublicVisitSummary(
+                id=v.id,
+                visited_at=v.visited_at,
+                disclosure=v.disclosure,  # type: ignore[arg-type]
+                public_review_url=v.public_review_url,
+                place=VerifierPublicVisitPlace(
+                    id=places_by_id[v.place_id].id,
+                    name=places_by_id[v.place_id].name,
+                    city=places_by_id[v.place_id].city,
+                    region=places_by_id[v.place_id].region,
+                ),
+            )
+            for v in visits
+            if v.place_id in places_by_id
+        ],
+    )
 
 
 # /verifier-applications — public submit. Tagged separately from the

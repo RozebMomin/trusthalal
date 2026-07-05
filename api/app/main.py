@@ -81,6 +81,7 @@ from app.modules.favorites.router import (  # noqa: E402
 from app.modules.verifiers.router import (  # noqa: E402
     me_router as me_verifier_applications_router,
     me_visits_router as me_verification_visits_router,
+    public_profile_router as public_verifier_profile_router,
     public_router as public_verifier_applications_router,
 )
 
@@ -426,6 +427,7 @@ app.include_router(me_disputes_router)
 app.include_router(consumer_preferences_router)
 app.include_router(favorites_router)
 app.include_router(public_verifier_applications_router)
+app.include_router(public_verifier_profile_router)
 app.include_router(me_verifier_applications_router)
 app.include_router(me_verification_visits_router)
 

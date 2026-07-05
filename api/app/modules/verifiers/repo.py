@@ -204,3 +204,80 @@ def withdraw_application(
     db.commit()
     db.refresh(app)
     return app
+
+
+# ---------------------------------------------------------------------------
+# Public profile — /verifiers/{handle}
+# ---------------------------------------------------------------------------
+
+
+def get_public_verifier_by_handle(
+    db: Session,
+    *,
+    handle: str,
+    recent_visits_limit: int = 20,
+) -> tuple[
+    "VerifierProfile",
+    list["VerificationVisit"],
+    int,
+] | None:
+    """Load a public verifier profile + their recent ACCEPTED visits.
+
+    Guardrails:
+      * Handle lookup is case-insensitive (server pattern is
+        lowercase-only, but we normalize defensively).
+      * Only returns a row when ``is_public=true`` AND
+        ``status=ACTIVE``. Otherwise the caller renders a 404,
+        matching the same "don't leak existence" posture the rest of
+        the surface uses.
+      * ``recent_visits`` is capped at ``recent_visits_limit`` newest-
+        first, so a verifier with hundreds of visits doesn't slow the
+        page to a crawl.
+      * ``total_accepted_visits`` is the un-capped count so the UI
+        can say "37 visits verified" as a headline number.
+    """
+    from app.modules.verifiers.enums import (
+        VerificationVisitStatus,
+        VerifierProfileStatus,
+    )
+    from app.modules.verifiers.models import (
+        VerificationVisit,
+        VerifierProfile,
+    )
+    from sqlalchemy import func as sa_func
+
+    normalized = handle.strip().lower()
+    profile = db.execute(
+        select(VerifierProfile).where(
+            sa_func.lower(VerifierProfile.public_handle) == normalized,
+            VerifierProfile.is_public.is_(True),
+            VerifierProfile.status == VerifierProfileStatus.ACTIVE.value,
+        )
+    ).scalar_one_or_none()
+    if profile is None:
+        return None
+
+    accepted_status = VerificationVisitStatus.ACCEPTED.value
+
+    total = db.execute(
+        select(sa_func.count(VerificationVisit.id)).where(
+            VerificationVisit.verifier_user_id == profile.user_id,
+            VerificationVisit.status == accepted_status,
+        )
+    ).scalar_one()
+
+    visits = list(
+        db.execute(
+            select(VerificationVisit)
+            .where(
+                VerificationVisit.verifier_user_id == profile.user_id,
+                VerificationVisit.status == accepted_status,
+            )
+            .order_by(VerificationVisit.visited_at.desc())
+            .limit(recent_visits_limit)
+        )
+        .scalars()
+        .all()
+    )
+
+    return profile, visits, total

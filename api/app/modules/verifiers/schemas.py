@@ -136,6 +136,70 @@ class VerifierPublicProfileRead(BaseModel):
     joined_as_verifier_at: datetime
 
 
+class VerifierPublicVisitPlace(BaseModel):
+    """Slim place summary embedded in a public visit row.
+
+    Just enough for the verifier page to link to the restaurant
+    without exposing internal fields.
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    id: UUID
+    name: str
+    city: Optional[str]
+    region: Optional[str]
+
+
+class VerifierPublicVisitSummary(BaseModel):
+    """One ACCEPTED visit as it appears on the verifier's public
+    profile page.
+
+    We only surface visits that have been ACCEPTED by admin, since
+    those are the only visits the platform stands behind. In-flight
+    or rejected visits stay on the verifier's private dashboard.
+    Disclosure IS shown publicly — the whole point of the
+    disclosure norm is that it's visible.
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    id: UUID
+    visited_at: datetime
+    disclosure: VisitDisclosure
+    public_review_url: Optional[str]
+    place: VerifierPublicVisitPlace
+
+
+class VerifierPublicProfileDetail(VerifierPublicProfileRead):
+    """Extended public profile with recent accepted visits inline.
+
+    The verifier's page is more compelling when it shows what they've
+    actually done. This shape is what ``GET /verifiers/{handle}``
+    returns — the base fields plus up to ``visits_returned`` recent
+    ACCEPTED visits, newest first.
+    """
+
+    model_config = ConfigDict(from_attributes=False, extra="forbid")
+
+    recent_visits: list[VerifierPublicVisitSummary] = Field(
+        default_factory=list,
+        description=(
+            "Newest-first list of the verifier's ACCEPTED visits, "
+            "capped server-side. In-flight and rejected visits are "
+            "never surfaced here."
+        ),
+    )
+    total_accepted_visits: int = Field(
+        default=0,
+        description=(
+            "Total ACCEPTED visits for this verifier, regardless of "
+            "how many rows landed in ``recent_visits``. Lets the UI "
+            "render 'X visits verified' as a headline number."
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Verification visits
 # ---------------------------------------------------------------------------

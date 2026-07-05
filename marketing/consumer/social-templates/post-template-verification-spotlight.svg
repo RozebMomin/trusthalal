@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080" role="img" aria-label="Verification spotlight — Instagram post template">
+  <!--
+    Template 1: Verification spotlight.
+    1080x1080 square — IG feed default.
+    Drop in restaurant name + one detail (supplier, cert, slaughter method).
+    Replace [RESTAURANT] and [DETAIL_LINE] before publishing.
+  -->
+
+  <!-- Cream background -->
+  <rect x="0" y="0" width="1080" height="1080" fill="#F8F4EC"/>
+
+  <!-- Top olive band with TRUST HALAL wordmark -->
+  <rect x="0" y="0" width="1080" height="80" fill="#5B6F2B"/>
+  <text
+    x="540" y="50"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="28"
+    font-weight="600"
+    letter-spacing="10"
+    fill="#F8F4EC"
+    text-anchor="middle"
+  >TRUST HALAL</text>
+
+  <!-- Eyebrow: "Verified spot" -->
+  <text
+    x="540" y="200"
+    font-family="'Inter', sans-serif"
+    font-size="20"
+    letter-spacing="6"
+    fill="#5B6F2B"
+    text-anchor="middle"
+  >VERIFIED SPOT</text>
+
+  <!-- Restaurant name (main) -->
+  <text
+    x="540" y="320"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="84"
+    font-weight="600"
+    fill="#3A3633"
+    text-anchor="middle"
+  >[RESTAURANT NAME]</text>
+
+  <!-- Subline (city, cuisine) -->
+  <text
+    x="540" y="380"
+    font-family="'Inter', sans-serif"
+    font-size="28"
+    font-style="italic"
+    fill="#3A3633"
+    text-anchor="middle"
+  >[Cuisine] · [City]</text>
+
+  <!-- Divider -->
+  <line x1="380" y1="430" x2="700" y2="430" stroke="#D9CDB5" stroke-width="2"/>
+
+  <!-- Detail line (one specific fact) -->
+  <text
+    x="540" y="510"
+    font-family="'Inter', sans-serif"
+    font-size="32"
+    fill="#3A3633"
+    text-anchor="middle"
+  >Zabihah chicken from [Supplier Name]</text>
+  <text
+    x="540" y="560"
+    font-family="'Inter', sans-serif"
+    font-size="32"
+    fill="#3A3633"
+    text-anchor="middle"
+  >Certified by [Authority]</text>
+  <text
+    x="540" y="610"
+    font-family="'Inter', sans-serif"
+    font-size="32"
+    fill="#3A3633"
+    text-anchor="middle"
+  >No alcohol on premises</text>
+
+  <!-- Verified badge centered -->
+  <g transform="translate(540 770) scale(0.5)">
+    <circle cx="0" cy="0" r="190" fill="#F8F4EC" stroke="#5B6F2B" stroke-width="10"/>
+    <circle cx="0" cy="0" r="160" fill="#F8F4EC"/>
+    <defs>
+      <clipPath id="ic3">
+        <circle cx="0" cy="0" r="160"/>
+      </clipPath>
+    </defs>
+    <g clip-path="url(#ic3)">
+      <rect x="-200" y="-85" width="400" height="50" fill="#5B6F2B"/>
+    </g>
+    <text x="0" y="-52" font-family="'Cormorant Garamond', Georgia, serif" font-size="28" font-weight="600" letter-spacing="6" fill="#F8F4EC" text-anchor="middle">TRUST HALAL</text>
+    <text x="0" y="-2" font-family="'Amiri', serif" font-size="34" fill="#3A3633" text-anchor="middle">حلال</text>
+    <text x="0" y="40" font-family="'Cormorant Garamond', Georgia, serif" font-size="32" font-style="italic" fill="#3A3633" text-anchor="middle">Verified</text>
+    <g transform="translate(0 90)">
+      <circle cx="0" cy="0" r="28" fill="#9C2A24"/>
+      <path d="M -12 0 L -4 8 L 12 -8" stroke="#F8F4EC" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </g>
+  </g>
+
+  <!-- Bottom URL bar -->
+  <rect x="0" y="1000" width="1080" height="80" fill="#3A3633"/>
+  <text
+    x="540" y="1050"
+    font-family="'Inter', sans-serif"
+    font-size="26"
+    letter-spacing="4"
+    fill="#F8F4EC"
+    text-anchor="middle"
+  >HALALFOODNEARME.COM</text>
+</svg>
