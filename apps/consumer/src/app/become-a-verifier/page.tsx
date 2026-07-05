@@ -1,29 +1,17 @@
 "use client";
 
 /**
- * Public verifier recruitment page — the top of the community
- * flywheel. Explains what verifiers do, what we ask of them, and
- * hosts the application form inline.
+ * Public verifier recruitment page.
  *
- * The verifier system (application backend, admin review, public
- * profiles) is already fully wired server-side. What was missing
- * was a public front door. This page is that front door.
+ * Tightened v2. The previous version had five explainer sections
+ * before the form and readers were bouncing without applying. This
+ * version is: friendly hero → three-tile "here's the deal" grid →
+ * disclosure callout (kept short but present — non-negotiable for
+ * the trust posture) → form.
  *
- * Not gated behind auth — the ``POST /verifier-applications``
- * endpoint accepts anonymous submissions. Signed-in users get
- * their user_id linked automatically server-side; anonymous
- * applicants get followed up on via the email they provide.
- *
- * Structure:
- *   1. Hero — what this is, primary CTA scrolls to form
- *   2. What is a verifier — explainer of the role
- *   3. What we ask — standards + expectations, including the
- *      disclosure norms that make the whole community trustworthy
- *   4. What you get — badge, profile page, comped meals, community
- *   5. Inline application form
- *   6. Success pane after submission
- *
- * Copy stays warm and community-focused per the brand voice guide.
+ * The disclosure section stays because verifier credibility is the
+ * whole point; without it we're just a review app. Everything else
+ * got cut or compressed.
  */
 
 import Link from "next/link";
@@ -41,9 +29,7 @@ import {
   useCurrentUser,
 } from "@/lib/api/hooks";
 
-// Motivation min-length mirrors the server-side schema
-// (see api/app/modules/verifiers/schemas.py — Field(min_length=20)).
-// Client validation is convenience only; server enforces independently.
+// Mirrors ``Field(min_length=20)`` on the server-side schema.
 const MOTIVATION_MIN_LENGTH = 20;
 const MOTIVATION_MAX_LENGTH = 2000;
 const BACKGROUND_MAX_LENGTH = 2000;
@@ -52,221 +38,94 @@ export default function BecomeAVerifierPage() {
   const { data: me } = useCurrentUser();
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-      <Breadcrumb />
-
+    <main className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
       <Hero />
-
-      <WhatIsAVerifier />
-
-      <WhatWeAsk />
-
-      <WhatYouGet />
-
-      <DisclosureNorms />
-
-      <div id="apply" className="scroll-mt-20 pt-8">
+      <HowItWorks />
+      <DisclosureCallout />
+      <div id="apply" className="scroll-mt-20 pt-2">
         <VerifierApplicationForm
           prefillEmail={me?.email ?? ""}
           prefillName={me?.display_name ?? ""}
         />
       </div>
-
-      <ClosingNote />
+      <FooterHelp />
     </main>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Structural sections
-// ---------------------------------------------------------------------------
-
-function Breadcrumb() {
-  return (
-    <nav className="mb-6 text-sm text-muted-foreground">
-      <Link href="/" className="hover:underline">
-        Halal Food Near Me
-      </Link>
-      <span className="mx-2">·</span>
-      <span>Become a verifier</span>
-    </nav>
   );
 }
 
 function Hero() {
   return (
-    <section className="mb-12">
+    <section className="mb-10">
       <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-primary">
-        Join the community verifier team
+        Join the verifier team
       </p>
-      <h1 className="mb-4 font-serif text-4xl font-semibold leading-tight text-foreground sm:text-5xl">
-        Help the community find halal food it can trust.
+      <h1 className="mb-4 font-serif text-4xl font-semibold leading-tight sm:text-5xl">
+        Eat halal. Help your community trust where they eat.
       </h1>
       <p className="mb-6 text-lg text-muted-foreground sm:text-xl">
-        Trust Halal Verifiers visit halal-claiming restaurants in
-        person, check what&apos;s on the plate, and file honest
-        reports. Your work is how a &ldquo;verified&rdquo; badge
-        actually means something.
+        You visit halal restaurants anyway. As a Trust Halal Verifier,
+        you file a short honest report on each one — and your name
+        helps the community trust the listing.
       </p>
-      <div className="flex flex-wrap gap-3">
-        <Button asChild size="lg">
-          <a href="#apply">Apply to be a verifier</a>
-        </Button>
-        <Button asChild variant="outline" size="lg">
-          <a href="#what-is">What does a verifier do?</a>
-        </Button>
-      </div>
+      <Button asChild size="lg">
+        <a href="#apply">Apply — takes 5 minutes</a>
+      </Button>
     </section>
   );
 }
 
-function WhatIsAVerifier() {
+function HowItWorks() {
   return (
-    <section id="what-is" className="mb-12 scroll-mt-20">
-      <h2 className="mb-4 font-serif text-2xl font-semibold sm:text-3xl">
-        What is a Trust Halal Verifier?
-      </h2>
-      <div className="space-y-4 text-base text-muted-foreground sm:text-lg">
-        <p>
-          Verifiers are vetted community members &mdash; food bloggers,
-          mosque-affiliated reviewers, active platform users &mdash; who
-          do the in-person work of confirming what restaurants say
-          about themselves. When a restaurant tells us their chicken is
-          zabihah, verifiers eat there, see the kitchen when welcomed,
-          and file a report about what they actually saw.
-        </p>
-        <p>
-          You don&apos;t need a formal food background. You need to
-          care about the community, be willing to visit places
-          (usually anonymously), and file an honest, specific report
-          within a week of your visit.
-        </p>
-      </div>
+    <section className="mb-10 grid gap-4 sm:grid-cols-3">
+      <Tile
+        title="One visit a month"
+        body="Go eat somewhere halal. That's the visit. No performance required."
+      />
+      <Tile
+        title="Short honest report"
+        body="A few notes on menu posture, cert on the wall, meat sourcing you saw. 10 minutes tops."
+      />
+      <Tile
+        title="Your public page"
+        body="Your handle, bio, and every accepted visit — link it from your Instagram bio."
+      />
     </section>
   );
 }
 
-function WhatWeAsk() {
+function Tile({ title, body }: { title: string; body: string }) {
   return (
-    <section className="mb-12">
-      <h2 className="mb-4 font-serif text-2xl font-semibold sm:text-3xl">
-        What we ask of you
-      </h2>
-      <ul className="space-y-3 text-base text-muted-foreground sm:text-lg">
-        <ListItem title="1 verified visit per month, minimum">
-          Verifier visits are the source of truth for the top trust
-          tier. If you can&apos;t sustain a visit a month, this
-          isn&apos;t the right role for you right now.
-        </ListItem>
-        <ListItem title="Report within 7 days of the visit">
-          Menu photos, notes on menu posture, per-meat sourcing
-          observations, alcohol on premises. The report form is
-          structured &mdash; you fill in what you saw, not a review.
-        </ListItem>
-        <ListItem title="Full disclosure of any compensation">
-          Comped meal, paid partnership, invited-guest &mdash; all get
-          declared on the visit. Not disqualifying, just non-negotiable
-          to declare. See below for how this works.
-        </ListItem>
-        <ListItem title="No promoting yourself off the platform">
-          Your Trust Halal Verifier badge is for the community, not for
-          driving traffic to your food blog. You can link your socials
-          from your profile, but the verifier role isn&apos;t for
-          growing a personal brand at the community&apos;s expense.
-        </ListItem>
-      </ul>
-    </section>
+    <div className="rounded-md border border-border bg-card p-4">
+      <p className="mb-1 font-semibold text-foreground">{title}</p>
+      <p className="text-sm text-muted-foreground">{body}</p>
+    </div>
   );
 }
 
-function WhatYouGet() {
+function DisclosureCallout() {
   return (
-    <section className="mb-12">
-      <h2 className="mb-4 font-serif text-2xl font-semibold sm:text-3xl">
-        What you get
-      </h2>
-      <ul className="space-y-3 text-base text-muted-foreground sm:text-lg">
-        <ListItem title="A public Trust Halal Verifier profile">
-          Your handle, bio, and every visit you&apos;ve filed live at
-          halalfoodnearme.com/verifiers/[your-handle]. Link to it from
-          Instagram, your blog, anywhere.
-        </ListItem>
-        <ListItem title="The Trust Halal Verifier badge">
-          A distinct badge (visually different from the restaurant
-          Verified badge) you can put in your IG bio, YouTube description,
-          website footer.
-        </ListItem>
-        <ListItem title="Direct influence on which restaurants get verified">
-          Verifiers can nominate restaurants they want to check. Your
-          nominations move up our outreach queue &mdash; the community
-          decides where we grow next.
-        </ListItem>
-        <ListItem title="A tight-knit community of other verifiers">
-          Private group chat with the other verifiers in your city,
-          quarterly meetups (in-person or virtual), first-look at
-          platform decisions we&apos;re considering.
-        </ListItem>
-      </ul>
-    </section>
-  );
-}
-
-function DisclosureNorms() {
-  return (
-    <section className="mb-12 rounded-lg border border-primary/20 bg-primary/5 p-6 sm:p-8">
-      <h2 className="mb-4 font-serif text-2xl font-semibold sm:text-3xl">
-        Disclosure &mdash; the part that matters most
-      </h2>
-      <p className="mb-4 text-base text-muted-foreground sm:text-lg">
-        The whole platform&apos;s credibility rests on verifiers being
-        honest about their relationship to the places they visit. Every
-        visit report asks you to declare one of four disclosure levels:
+    <section className="mb-10 rounded-lg border border-primary/20 bg-primary/5 p-5 sm:p-6">
+      <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-primary">
+        The one non-negotiable
       </p>
-      <dl className="space-y-3 text-sm sm:text-base">
-        <div>
-          <dt className="font-semibold text-foreground">Self-funded</dt>
-          <dd className="text-muted-foreground">
-            You paid for the meal out of pocket. The default and
-            highest-trust scenario.
-          </dd>
-        </div>
-        <div>
-          <dt className="font-semibold text-foreground">Meal comped</dt>
-          <dd className="text-muted-foreground">
-            The restaurant knew you were coming and covered the meal.
-            Not disqualifying &mdash; but the disclosure is required
-            so admin can weigh accordingly.
-          </dd>
-        </div>
-        <div>
-          <dt className="font-semibold text-foreground">Paid partnership</dt>
-          <dd className="text-muted-foreground">
-            You&apos;re in a paid sponsorship with the restaurant.
-            Flagged for extra scrutiny. Should be rare.
-          </dd>
-        </div>
-        <div>
-          <dt className="font-semibold text-foreground">Other</dt>
-          <dd className="text-muted-foreground">
-            Any other relationship worth flagging &mdash; family friend
-            owns the place, you&apos;ve been going for years, etc.
-            Explain briefly in the visit&apos;s disclosure note.
-          </dd>
-        </div>
-      </dl>
-      <p className="mt-4 text-sm text-muted-foreground">
-        Undisclosed compensation, discovered after the fact, is grounds
-        for immediate removal from the verifier program.
+      <p className="mb-2 text-base text-foreground">
+        Every visit asks how you got the meal — you paid, it was
+        comped, it was a paid partnership, or something else. Not
+        disqualifying. Just required.
       </p>
-    </section>
-  );
-}
-
-function ClosingNote() {
-  return (
-    <section className="mt-12 border-t border-border pt-8 text-center">
       <p className="text-sm text-muted-foreground">
-        Questions before applying?{" "}
+        Skipping the disclosure or hiding a paid arrangement is the
+        one thing that gets you removed from the program.
+      </p>
+    </section>
+  );
+}
+
+function FooterHelp() {
+  return (
+    <section className="mt-12 border-t border-border pt-6 text-center">
+      <p className="text-sm text-muted-foreground">
+        Questions?{" "}
         <a
           href="mailto:verifiers@trusthalal.org"
           className="font-medium text-foreground hover:underline"
@@ -279,28 +138,8 @@ function ClosingNote() {
 }
 
 // ---------------------------------------------------------------------------
-// Reusable pieces
-// ---------------------------------------------------------------------------
-
-function ListItem({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <li className="rounded-md border border-border bg-card p-4">
-      <p className="mb-1 font-semibold text-foreground">{title}</p>
-      <p className="text-sm text-muted-foreground sm:text-base">
-        {children}
-      </p>
-    </li>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// The application form itself
+// Application form (unchanged shape; the wordy intro copy above the
+// form is what got cut).
 // ---------------------------------------------------------------------------
 
 type FormState = {
@@ -343,9 +182,6 @@ function VerifierApplicationForm({
     null,
   );
 
-  // If the /me query resolves later, pull those defaults into the
-  // fields — but only while they're still untouched. Feels like a
-  // helpful autofill without silently overwriting typed input.
   React.useEffect(() => {
     setForm((prev) => ({
       ...prev,
@@ -372,8 +208,6 @@ function VerifierApplicationForm({
     if (apply.isPending) return;
     setErrorMsg(null);
 
-    // Build the social_links dict — only include keys the applicant
-    // actually filled in so the server stores a clean payload.
     const socialLinks: NonNullable<VerifierApplicationCreate["social_links"]> =
       {};
     if (form.instagram.trim()) socialLinks.instagram = form.instagram.trim();
@@ -398,7 +232,7 @@ function VerifierApplicationForm({
       });
       setErrorMsg(
         err instanceof ApiError && err.status >= 500
-          ? "Something went wrong on our end. Please try again in a moment."
+          ? "Something went wrong on our end. Try again in a moment."
           : description,
       );
     }
@@ -409,14 +243,12 @@ function VerifierApplicationForm({
   }
 
   return (
-    <section className="rounded-lg border border-border bg-card p-6 sm:p-8">
-      <h2 className="mb-2 font-serif text-2xl font-semibold sm:text-3xl">
-        Apply to be a verifier
+    <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
+      <h2 className="mb-1 font-serif text-2xl font-semibold sm:text-3xl">
+        Apply
       </h2>
-      <p className="mb-6 text-sm text-muted-foreground sm:text-base">
-        Takes about 5 minutes. We review every application by hand,
-        usually within a week. If your fit is clear, we&apos;ll invite
-        you to the verifier team.
+      <p className="mb-6 text-sm text-muted-foreground">
+        We read every application. Usually respond within a week.
       </p>
 
       <form onSubmit={onSubmit} className="space-y-5">
@@ -429,7 +261,7 @@ function VerifierApplicationForm({
               id="applicant_name"
               value={form.applicant_name}
               onChange={(e) => update("applicant_name", e.target.value)}
-              placeholder="First and last name"
+              placeholder="First and last"
               maxLength={255}
               required
               autoComplete="name"
@@ -453,15 +285,15 @@ function VerifierApplicationForm({
 
         <div className="space-y-2">
           <Label htmlFor="motivation">
-            Why do you want to be a verifier?
+            Why do you want to do this?
             <span className="text-destructive"> *</span>
           </Label>
           <Textarea
             id="motivation"
             value={form.motivation}
             onChange={(e) => update("motivation", e.target.value)}
-            placeholder="Tell us about you, your relationship with halal food, and why this matters to you. A few sentences is fine."
-            rows={5}
+            placeholder="A few honest sentences. Where you're based, what you eat, why this matters to you."
+            rows={4}
             maxLength={MOTIVATION_MAX_LENGTH}
             required
             aria-describedby="motivation-help"
@@ -473,7 +305,7 @@ function VerifierApplicationForm({
             <span>
               {motivationTooShort
                 ? `At least ${MOTIVATION_MIN_LENGTH} characters`
-                : "A few honest sentences beats a polished pitch."}
+                : "Honest beats polished."}
             </span>
             <span>
               {motivationChars}/{MOTIVATION_MAX_LENGTH}
@@ -483,13 +315,14 @@ function VerifierApplicationForm({
 
         <div className="space-y-2">
           <Label htmlFor="background">
-            Background <span className="text-muted-foreground">(optional)</span>
+            Anything else about you?{" "}
+            <span className="text-muted-foreground">(optional)</span>
           </Label>
           <Textarea
             id="background"
             value={form.background}
             onChange={(e) => update("background", e.target.value)}
-            placeholder="Anything else about your background that might be relevant — food-writing experience, community organizing, mosque involvement, etc."
+            placeholder="Food-writing, mosque involvement, community organizing — anything relevant."
             rows={3}
             maxLength={BACKGROUND_MAX_LENGTH}
           />
@@ -501,8 +334,8 @@ function VerifierApplicationForm({
             <span className="font-normal text-muted-foreground">(optional)</span>
           </legend>
           <p className="text-xs text-muted-foreground">
-            Share any of your public accounts so we can get a feel for
-            your voice. Handles or full URLs both work.
+            Any public accounts so we can get a feel for your voice.
+            Handles or full URLs both work.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
@@ -563,8 +396,8 @@ function VerifierApplicationForm({
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            By submitting you agree we may contact you at the email
-            provided. We won&apos;t share your info.
+            By submitting you agree we may contact you at this email.
+            We won&apos;t share it.
           </p>
           <Button
             type="submit"
@@ -602,16 +435,16 @@ function SuccessPane({ email }: { email: string }) {
         </svg>
       </div>
       <h2 className="mb-2 font-serif text-2xl font-semibold sm:text-3xl">
-        Application received
+        Got it — thanks
       </h2>
       <p className="mb-4 text-base text-muted-foreground sm:text-lg">
-        Thanks &mdash; we&apos;ve got it. We&apos;ll be in touch at{" "}
+        We&apos;ll be in touch at{" "}
         <span className="font-medium text-foreground">{email}</span>{" "}
-        within a week either way.
+        within a week.
       </p>
       <p className="mb-6 text-sm text-muted-foreground">
-        In the meantime, if you&apos;d like to see the verified
-        restaurants your work would contribute to, browse the directory:
+        In the meantime, browse what verified halal restaurants look
+        like on the platform:
       </p>
       <Button asChild variant="outline">
         <Link href="/">Browse verified restaurants</Link>

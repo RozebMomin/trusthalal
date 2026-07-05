@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Base document tone. The brand landing uses a single warm cream
+ * background across the whole page so the surface feels calm and
+ * document-like, not app-like. Serif for anything display, sans
+ * for body.
+ */
+body {
+  background-color: #F8F4EC;
+  color: #3A3633;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+html {
+  scroll-behavior: smooth;
+}

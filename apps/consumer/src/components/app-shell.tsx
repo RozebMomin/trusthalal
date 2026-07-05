@@ -311,6 +311,9 @@ function SiteFooter() {
           <Link href="/preferences" className="hover:underline">
             Preferences
           </Link>
+          <Link href="/become-a-verifier" className="hover:underline">
+            Become a verifier →
+          </Link>
           <a
             href={OWNER_PORTAL_URL}
             target="_blank"

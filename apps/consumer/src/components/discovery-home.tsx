@@ -36,6 +36,7 @@
  */
 
 import { LocateFixed, MapPin, Search } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 
 import { DEFAULT_NEAR_ME_RADIUS_METERS } from "@/components/near-me-button";
@@ -293,6 +294,8 @@ export function DiscoveryHome({
         </div>
       </section>
 
+      <VerifierInvite />
+
       <LocationPickerDialog
         open={pickerMode !== null}
         onOpenChange={(next) => {
@@ -488,3 +491,34 @@ function CuisineCard({
   );
 }
 
+
+// ---------------------------------------------------------------------------
+// Verifier invite — sits below the cuisine grid on the home page.
+// Warm, understated invitation to the recruitment landing. Not
+// pushy — the goal is discoverability, not conversion pressure.
+// ---------------------------------------------------------------------------
+
+function VerifierInvite() {
+  return (
+    <section className="rounded-lg border border-primary/20 bg-primary/5 p-5 sm:p-6">
+      <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
+        For the community
+      </p>
+      <h2 className="mb-2 font-serif text-xl font-semibold sm:text-2xl">
+        Eat halal already? Help your community trust where they eat.
+      </h2>
+      <p className="mb-4 text-sm text-muted-foreground sm:text-base">
+        Trust Halal Verifiers visit halal spots in person and file
+        short honest reports. If you visit halal restaurants anyway,
+        that&apos;s most of the work done.
+      </p>
+      <Link
+        href="/become-a-verifier"
+        className="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:underline"
+      >
+        Become a verifier
+        <span aria-hidden="true">→</span>
+      </Link>
+    </section>
+  );
+}
