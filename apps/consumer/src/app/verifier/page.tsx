@@ -56,6 +56,9 @@ export default function VerifierDashboardPage() {
 
       <ProfileStatusCard profile={profile ?? null} />
 
+      <BadgeCard hasPublicHandle={Boolean(profile?.public_handle)} />
+
+
       <section className="mt-8">
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="font-serif text-2xl font-semibold">
@@ -183,6 +186,49 @@ function ProfileStatusCard({
           {complete ? "Edit your profile" : "Finish setting up"}
         </Link>
       </Button>
+    </section>
+  );
+}
+
+function BadgeCard({ hasPublicHandle }: { hasPublicHandle: boolean }) {
+  // The verifier badge is the ambassador asset — the graphic they
+  // put in their IG bio, YouTube description, blog footer.
+  // Deep-link the "download" as a right-click hint; the actual SVG
+  // sits at /verifier-badge.svg in the consumer app's public dir.
+  return (
+    <section className="mt-8 rounded-lg border border-border bg-card p-6">
+      <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/verifier-badge.svg"
+          alt="Trust Halal Verifier badge"
+          width="120"
+          height="120"
+          className="shrink-0"
+        />
+        <div className="flex-1">
+          <h2 className="mb-2 font-serif text-lg font-semibold">
+            Your Trust Halal Verifier badge
+          </h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            The community-facing badge you can put in your Instagram
+            bio, YouTube description, personal blog, or wherever your
+            work lives. Right-click / long-press to save.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <a href="/verifier-badge.svg" download="trust-halal-verifier-badge.svg">
+                Download badge
+              </a>
+            </Button>
+            {hasPublicHandle && (
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/verifier/profile">Copy your public link</Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
