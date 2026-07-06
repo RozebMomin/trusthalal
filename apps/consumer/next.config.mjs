@@ -8,6 +8,19 @@ const nextConfig = {
     // Sentry can wire its server-side integrations on boot.
     instrumentationHook: true,
   },
+  async redirects() {
+    return [
+      // The AI ethics document moved to its permanent home on the
+      // brand domain (it's a brand-level commitment, not a
+      // consumer-site page). Permanent (308) so shared links and
+      // indexed URLs transfer.
+      {
+        source: "/ethics",
+        destination: "https://trusthalal.org/ethics",
+        permanent: true,
+      },
+    ];
+  },
   env: {
     // See apps/admin/next.config.mjs for the long version. Short
     // version: Vercel doesn't expand $VARs in env-var values, so we

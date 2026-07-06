@@ -115,4 +115,4 @@ This document is a living version of our commitments. Substantive changes get lo
 
 ---
 
-*Written by the Trust Halal team. If you'd like to reference this document publicly, please do — the URL is halalfoodnearme.com/ethics.*
+*Written by the Trust Halal team. If you'd like to reference this document publicly, please do — the URL is trusthalal.org/ethics.*
