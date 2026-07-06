@@ -18,3 +18,32 @@ body {
 html {
   scroll-behavior: smooth;
 }
+
+/* Brand-toned text selection — small touch, big "someone cared"
+ * signal on a marketing page. */
+::selection {
+  background-color: rgba(91, 111, 43, 0.85);
+  color: #f8f4ec;
+}
+
+/* Visible, consistent keyboard focus across all interactive
+ * elements without relying on per-component classes. */
+:focus-visible {
+  outline: 2px solid #5b6f2b;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect users who opt out of motion — the page's hover lifts and
+ * smooth scrolling become no-ops. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

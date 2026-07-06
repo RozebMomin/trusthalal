@@ -6,6 +6,7 @@ const DESCRIPTION =
   "Trust Halal is a verified directory of halal restaurants. We check what's on the plate — supplier, slaughter method, certificate on file — so diners don't have to call the kitchen first.";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://trusthalal.org"),
   title: TITLE,
   description: DESCRIPTION,
   openGraph: {
@@ -24,6 +25,7 @@ export const metadata: Metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#F8F4EC",
 };
 
 export default function RootLayout({
@@ -42,9 +44,10 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin=""
         />
+        {/* Italic 600 added for the hero's accented em phrase. */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600&display=swap"
         />
       </head>
       <body>{children}</body>
