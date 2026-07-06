@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HalalScout Mobile — Design Mockups v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F6F7; --card:#FFFFFF; --ink:#0B0B0E; --sub:#7A7A83; --line:#ECECEF;
+    --green:#0E9F6E; --green-deep:#057A55; --green-soft:#E6F7F0;
+    --amber:#B45309; --amber-soft:#FEF3E2;
+    --zinc:#52525B; --zinc-soft:#F2F2F4;
+    --red:#E02424; --red-soft:#FDE8E8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0D0D10;font-family:Inter,system-ui,sans-serif;color:var(--ink);padding:56px 24px}
+  h1.page{color:#fff;font-size:34px;font-weight:800;letter-spacing:-.03em;text-align:center}
+  p.page{color:rgba(255,255,255,.45);text-align:center;font-size:14px;margin:8px 0 48px}
+  p.page b{color:#34D399;font-weight:600}
+  .grid{display:flex;flex-wrap:wrap;gap:44px;justify-content:center;max-width:1620px;margin:0 auto}
+  .slot{width:310px}
+  .slot h2{color:#fff;font-size:15px;font-weight:700;letter-spacing:-.01em;margin-bottom:4px}
+  .slot p.cap{color:rgba(255,255,255,.42);font-size:12px;line-height:1.55;margin-bottom:16px;min-height:38px}
+  .phone{width:310px;height:672px;background:var(--bg);border-radius:52px;border:9px solid #1A1A1E;overflow:hidden;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.65)}
+  .phone.dark{background:#0C0C0F}
+  .island{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:86px;height:24px;background:#0B0B0E;border-radius:99px;z-index:20}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden}
+  .sb{height:42px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font-size:12px;font-weight:600}
+  .body{flex:1;overflow:hidden;padding:0 16px;position:relative}
+  /* icons */
+  .i{width:18px;height:18px;display:inline-block;vertical-align:-3px}
+  /* floating nav */
+  .nav{position:absolute;left:18px;right:18px;bottom:14px;height:60px;background:rgba(255,255,255,.86);backdrop-filter:blur(20px);border:1px solid rgba(0,0,0,.05);border-radius:99px;display:flex;align-items:center;justify-content:space-around;box-shadow:0 12px 32px rgba(0,0,0,.14);z-index:10}
+  .nav.darknav{background:rgba(24,24,28,.85);border-color:rgba(255,255,255,.08)}
+  .ni{display:flex;flex-direction:column;align-items:center;gap:2px;color:#A1A1AA;font-size:8.5px;font-weight:600}
+  .ni svg{width:21px;height:21px}
+  .ni.on{color:var(--green-deep)}
+  .ni.on .dot{width:4px;height:4px;border-radius:99px;background:var(--green)}
+  .dot{width:4px;height:4px;border-radius:99px;background:transparent}
+  .darknav .ni.on{color:#34D399}.darknav .ni{color:#5b5b64}
+  /* atoms */
+  .h-lg{font-size:24px;font-weight:800;letter-spacing:-.03em}
+  .search{display:flex;align-items:center;gap:9px;background:var(--card);border-radius:18px;padding:13px 14px;font-size:13px;color:#A1A1AA;box-shadow:0 1px 2px rgba(0,0,0,.03),0 6px 20px rgba(0,0,0,.05);font-weight:500}
+  .chip{display:inline-flex;align-items:center;gap:5px;border-radius:99px;background:var(--card);padding:8px 13px;font-size:11.5px;font-weight:600;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.04);white-space:nowrap}
+  .chip.on{background:var(--ink);color:#fff}
+  .chip.ghost{background:transparent;box-shadow:none;border:1px solid var(--line)}
+  .tag{display:inline-flex;align-items:center;gap:4px;border-radius:8px;padding:3.5px 8px;font-size:9.5px;font-weight:700;letter-spacing:.01em}
+  .tag.v{background:var(--green);color:#fff}
+  .tag.c{background:var(--amber-soft);color:var(--amber)}
+  .tag.a{background:var(--zinc-soft);color:var(--zinc)}
+  .tag.n{background:rgba(255,255,255,.85);color:#71717A;backdrop-filter:blur(8px)}
+  .tag.glass{background:rgba(255,255,255,.9);backdrop-filter:blur(8px);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .card{background:var(--card);border-radius:22px;box-shadow:0 1px 2px rgba(0,0,0,.03),0 10px 30px rgba(0,0,0,.05);overflow:hidden}
+  .btn{display:flex;align-items:center;justify-content:center;gap:7px;border-radius:16px;font-weight:700;font-size:13.5px;padding:14px;letter-spacing:-.01em}
+  .btn.p{background:var(--ink);color:#fff}
+  .btn.g{background:var(--green);color:#fff;box-shadow:0 8px 20px rgba(14,159,110,.35)}
+  .btn.s{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+  .row{display:flex;align-items:center;gap:8px}
+  .sub{color:var(--sub)}
+  .photo{position:relative;background-size:cover}
+  .p1{background:linear-gradient(120deg,#FDBA74 0%,#EA580C 55%,#7C2D12 100%)}
+  .p2{background:linear-gradient(120deg,#86EFAC 0%,#059669 60%,#064E3B 100%)}
+  .p3{background:linear-gradient(120deg,#93C5FD 0%,#3B82F6 55%,#1E3A8A 100%)}
+  .p4{background:linear-gradient(120deg,#FCA5A5 0%,#DC2626 60%,#7F1D1D 100%)}
+  .fade{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.62) 100%)}
+  .glassbtn{width:34px;height:34px;border-radius:99px;background:rgba(255,255,255,.9);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:28px 28px 0 0;box-shadow:0 -16px 48px rgba(0,0,0,.3);padding:10px 18px 22px;z-index:12}
+  .handle{width:36px;height:4px;border-radius:99px;background:#D4D4D8;margin:2px auto 14px}
+  .dim{position:absolute;inset:0;background:rgba(9,9,11,.5);z-index:11}
+  .seg{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#A1A1AA}
+  .steps{display:flex;gap:4px}.steps i{flex:1;height:3px;border-radius:99px;background:#E4E4E7}.steps i.on{background:var(--green)}
+  .ring{width:46px;height:46px;border-radius:99px;background:conic-gradient(var(--green) 0 86%,#E4E4E7 86% 100%);display:flex;align-items:center;justify-content:center}
+  .ring b{width:36px;height:36px;border-radius:99px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--green-deep)}
+  .cell{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--line);font-size:13px;font-weight:600}
+  .cell:last-child{border-bottom:0}
+  .icbox{width:34px;height:34px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+</style>
+</head>
+<body>
+<h1 class="page">HalalScout Mobile · v2</h1>
+<p class="page">Clean-modern redesign — neutral canvas, <b>one emerald accent</b>, edge-to-edge imagery, glass surfaces, floating nav</p>
+
+<!-- Reusable SVG defs (inlined per use for portability) -->
+
+<div class="grid">
+
+<!-- ================= 1 · EXPLORE ================= -->
+<div class="slot">
+  <h2>1 · Explore</h2>
+  <p class="cap">Opens on nearby results. Location is a tappable pill, trust level is a color-coded tag riding each photo.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <div class="row" style="justify-content:space-between;margin-top:8px">
+        <div>
+          <p class="sub" style="font-size:11px;font-weight:500">Finding halal near</p>
+          <p style="font-size:16px;font-weight:800;letter-spacing:-.02em">Midtown, Atlanta <span style="color:var(--green)">▾</span></p>
+        </div>
+        <div class="glassbtn" style="background:#fff">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        </div>
+      </div>
+      <div class="search" style="margin-top:12px">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Search restaurants or dishes
+      </div>
+      <div class="row" style="margin-top:10px;gap:6px;overflow:hidden">
+        <span class="chip on">✓ Verified</span><span class="chip">Pakistani</span><span class="chip">Yemeni</span><span class="chip">BBQ</span><span class="chip">Tur</span>
+      </div>
+
+      <!-- hero card -->
+      <div class="card" style="margin-top:14px">
+        <div class="photo p1" style="height:128px">
+          <div class="fade"></div>
+          <span class="tag v" style="position:absolute;top:10px;left:10px">✓ VERIFIED HALAL</span>
+          <span class="tag glass" style="position:absolute;top:10px;right:10px">0.4 mi</span>
+          <div style="position:absolute;left:12px;bottom:10px;color:#fff">
+            <b style="font-size:16px;letter-spacing:-.02em">Karachi Grill House</b>
+            <p style="font-size:10.5px;opacity:.85;font-weight:500">Pakistani · BBQ · Zabihah · $$</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px">
+        <div class="photo p2" style="height:96px">
+          <div class="fade"></div>
+          <span class="tag c" style="position:absolute;top:10px;left:10px;background:rgba(254,243,226,.95)">CERTIFIED · IFANCA</span>
+          <span class="tag glass" style="position:absolute;top:10px;right:10px">1.1 mi</span>
+          <div style="position:absolute;left:12px;bottom:10px;color:#fff">
+            <b style="font-size:15px;letter-spacing:-.02em">Saffron Yemeni Kitchen</b>
+            <p style="font-size:10.5px;opacity:.85;font-weight:500">Yemeni · Mandi · $$</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px;padding:13px 14px">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <b style="font-size:14px;letter-spacing:-.01em">Kabab King</b>
+            <p class="sub" style="font-size:10.5px;margin-top:2px;font-weight:500">Afghan · 2.1 mi · Norcross</p>
+          </div>
+          <span class="tag a" style="border:1px dashed #D4D4D8;background:#fff;color:#A1A1AA">NO INFO YET</span>
+        </div>
+      </div>
+    </div>
+    <div class="nav">
+      <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>Saved<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>Verify<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>Activity<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile<span class="dot"></span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 2 · MAP ================= -->
+<div class="slot">
+  <h2>2 · Map view</h2>
+  <p class="cap">List ⇄ map toggle. Pins are color-coded by tier; the bottom carousel snaps between places.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body" style="padding:0">
+      <!-- fake map -->
+      <div style="position:absolute;inset:0;background:
+        linear-gradient(0deg,rgba(14,159,110,.05),rgba(14,159,110,.05)),
+        repeating-linear-gradient(0deg,#EDEFEA 0 42px,#E2E6E0 42px 44px),
+        repeating-linear-gradient(90deg,#EDEFEA 0 54px,#E2E6E0 54px 56px)"></div>
+      <div style="position:absolute;top:64px;left:0;right:0;height:10px;background:#D8DDD5;transform:rotate(-7deg)"></div>
+      <div style="position:absolute;top:210px;left:-20px;right:-20px;height:14px;background:#D8DDD5;transform:rotate(12deg)"></div>
+      <div style="position:absolute;top:0;bottom:0;left:120px;width:12px;background:#D8DDD5;transform:rotate(9deg)"></div>
+      <!-- search overlay -->
+      <div style="position:absolute;top:8px;left:16px;right:16px;z-index:5">
+        <div class="search" style="box-shadow:0 8px 28px rgba(0,0,0,.12)">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          Midtown, Atlanta
+          <span class="chip on" style="margin-left:auto;padding:5px 10px;font-size:10px">List</span>
+        </div>
+      </div>
+      <!-- pins -->
+      <div style="position:absolute;top:150px;left:74px;z-index:4"><div style="width:34px;height:34px;border-radius:99px;background:var(--green);border:3px solid #fff;box-shadow:0 6px 16px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px">✓</div></div>
+      <div style="position:absolute;top:236px;left:196px;z-index:4"><div style="width:28px;height:28px;border-radius:99px;background:#F59E0B;border:3px solid #fff;box-shadow:0 5px 14px rgba(0,0,0,.22)"></div></div>
+      <div style="position:absolute;top:320px;left:120px;z-index:4"><div style="width:24px;height:24px;border-radius:99px;background:#A1A1AA;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.2)"></div></div>
+      <div style="position:absolute;top:300px;right:14px;z-index:4"><div class="glassbtn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2.5-7.5z"/></svg></div></div>
+      <!-- carousel card -->
+      <div style="position:absolute;left:14px;right:38px;bottom:88px;z-index:6">
+        <div class="card" style="display:flex;gap:0">
+          <div class="photo p1" style="width:88px;min-height:88px"></div>
+          <div style="padding:11px 12px;flex:1">
+            <span class="tag v" style="font-size:8px">✓ VERIFIED</span>
+            <b style="display:block;font-size:13.5px;margin-top:5px;letter-spacing:-.01em">Karachi Grill House</b>
+            <p class="sub" style="font-size:10px;margin-top:2px;font-weight:500">0.4 mi · Pakistani · open now</p>
+          </div>
+        </div>
+      </div>
+      <div style="position:absolute;right:16px;bottom:96px;width:16px;height:72px;border-radius:16px;background:rgba(255,255,255,.65);z-index:5"></div>
+    </div>
+    <div class="nav">
+      <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>Saved<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>Verify<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>Activity<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile<span class="dot"></span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 3 · PLACE DETAIL ================= -->
+<div class="slot">
+  <h2>3 · Place detail</h2>
+  <p class="cap">Edge-to-edge photo, glass controls, content sheet overlaps the image. Trust module leads with a score-style ring.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="body" style="padding:0">
+      <div class="photo p1" style="height:210px">
+        <div class="fade"></div>
+        <div class="glassbtn" style="position:absolute;top:46px;left:14px"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></div>
+        <div class="row" style="position:absolute;top:46px;right:14px;gap:8px">
+          <div class="glassbtn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg></div>
+          <div class="glassbtn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0-12L8 7m4-4 4 4"/><path d="M5 13v6h14v-6"/></svg></div>
+        </div>
+        <span class="tag glass" style="position:absolute;bottom:64px;right:14px">12 photos</span>
+      </div>
+      <!-- overlapping sheet -->
+      <div style="position:relative;margin-top:-28px;background:var(--bg);border-radius:28px 28px 0 0;padding:18px 18px 0;flex:1">
+        <span class="tag v">✓ VERIFIED HALAL</span>
+        <h3 style="font-size:22px;font-weight:800;letter-spacing:-.03em;margin-top:8px">Karachi Grill House</h3>
+        <p class="sub" style="font-size:11.5px;font-weight:500;margin-top:3px">Pakistani · BBQ · $$ · Open until 11 PM</p>
+        <div class="row" style="gap:8px;margin-top:12px">
+          <div class="btn g" style="flex:1;padding:12px;font-size:12.5px">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2.5-7.5z"/></svg>
+            Directions · 0.4 mi
+          </div>
+          <div class="btn s" style="padding:12px 14px;font-size:12.5px">Menu</div>
+        </div>
+
+        <div class="card" style="margin-top:12px;padding:14px">
+          <div class="row" style="gap:12px">
+            <div class="ring"><b>A</b></div>
+            <div style="flex:1">
+              <b style="font-size:13.5px;letter-spacing:-.01em">Trust profile</b>
+              <p class="sub" style="font-size:10.5px;font-weight:500;margin-top:1px">Confirmed in person · May 2026</p>
+            </div>
+            <span class="sub" style="font-size:11px;font-weight:600">Details ›</span>
+          </div>
+          <div style="height:1px;background:var(--line);margin:12px 0"></div>
+          <div class="row" style="flex-wrap:wrap;gap:6px">
+            <span class="tag" style="background:var(--green-soft);color:var(--green-deep)">Fully halal menu</span>
+            <span class="tag" style="background:var(--green-soft);color:var(--green-deep)">Zabihah · all meats</span>
+            <span class="tag" style="background:var(--green-soft);color:var(--green-deep)">No alcohol</span>
+            <span class="tag" style="background:var(--zinc-soft);color:var(--zinc)">Cert · IFANCA · 2027</span>
+          </div>
+          <div style="height:1px;background:var(--line);margin:12px 0"></div>
+          <div class="row" style="gap:8px">
+            <div style="width:26px;height:26px;border-radius:99px;background:linear-gradient(135deg,#34D399,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800">A</div>
+            <p class="sub" style="font-size:10.5px;font-weight:500;flex:1">Visited by <b style="color:var(--ink)">@amira.eats</b> — meal self-paid, disclosed</p>
+          </div>
+        </div>
+        <p style="text-align:center;font-size:11px;font-weight:600;color:#A1A1AA;margin-top:12px">⚑ &nbsp;Spot something wrong? <span style="color:var(--ink)">Report it</span></p>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 4 · FILTERS ================= -->
+<div class="slot">
+  <h2>4 · Filters</h2>
+  <p class="cap">Sheet with segmented trust levels and clean chip groups. Plain language, zero jargon, instant apply.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body"><div class="search" style="margin-top:10px">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      Search restaurants or dishes</div></div>
+    <div class="dim"></div>
+    <div class="sheet" style="height:512px">
+      <div class="handle"></div>
+      <div class="row" style="justify-content:space-between">
+        <b style="font-size:19px;font-weight:800;letter-spacing:-.02em">Filters</b>
+        <span style="font-size:12px;font-weight:700;color:var(--green-deep)">Reset</span>
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Minimum proof</p>
+      <div style="display:flex;background:#EDEDF0;border-radius:14px;padding:3px">
+        <span style="flex:1;text-align:center;padding:9px 0;font-size:11px;font-weight:600;color:#71717A">Any claim</span>
+        <span style="flex:1;text-align:center;padding:9px 0;font-size:11px;font-weight:600;color:#71717A">Certified</span>
+        <span style="flex:1;text-align:center;padding:9px 0;font-size:11px;font-weight:700;background:#fff;border-radius:11px;box-shadow:0 2px 6px rgba(0,0,0,.08)">✓ Verified</span>
+      </div>
+      <p class="sub" style="font-size:10px;font-weight:500;margin-top:6px">Verified = a Trust Halal community member ate there and confirmed it in person.</p>
+
+      <p class="seg" style="margin:16px 0 8px">Menu coverage</p>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <span class="chip on" style="font-size:11px">Fully halal</span><span class="chip ghost" style="font-size:11px">Separate kitchen</span><span class="chip ghost" style="font-size:11px">Halal options</span><span class="chip ghost" style="font-size:11px">On request</span>
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Cuisine</p>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <span class="chip on" style="font-size:11px">Pakistani</span><span class="chip ghost" style="font-size:11px">Yemeni</span><span class="chip ghost" style="font-size:11px">Turkish</span><span class="chip ghost" style="font-size:11px">Lebanese</span><span class="chip ghost" style="font-size:11px">Indian</span><span class="chip ghost" style="font-size:11px">All 49 ›</span>
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Dietary</p>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <span class="chip ghost" style="font-size:11px">Pork-free</span><span class="chip on" style="font-size:11px">No alcohol served</span><span class="chip ghost" style="font-size:11px">Certificate on file</span>
+      </div>
+
+      <div class="btn p" style="margin-top:18px">Show 8 places</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 5 · SAVED ================= -->
+<div class="slot">
+  <h2>5 · Saved</h2>
+  <p class="cap">Offline-first favorites with big imagery. The sync state is quiet, not shouty.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>✈︎ 􀛨</span></div>
+    <div class="body">
+      <div class="row" style="justify-content:space-between;margin-top:8px">
+        <h3 class="h-lg">Saved</h3>
+        <span class="chip ghost" style="font-size:10px;color:#A1A1AA">✈︎ Offline · synced 2h ago</span>
+      </div>
+      <div class="row" style="gap:6px;margin-top:10px">
+        <span class="chip on">All · 14</span><span class="chip">Atlanta · 9</span><span class="chip">Dearborn · 5</span>
+      </div>
+
+      <div class="card" style="margin-top:12px;display:flex">
+        <div class="photo p1" style="width:92px;min-height:92px"></div>
+        <div style="padding:12px 13px;flex:1">
+          <span class="tag v" style="font-size:8px">✓ VERIFIED</span>
+          <b style="display:block;font-size:14px;margin-top:5px;letter-spacing:-.01em">Karachi Grill House</b>
+          <p class="sub" style="font-size:10.5px;margin-top:2px;font-weight:500">Pakistani · Fully halal · Zabihah</p>
+        </div>
+        <svg class="i" style="margin:12px 12px 0 0;width:16px" viewBox="0 0 24 24" fill="#E02424" stroke="#E02424" stroke-width="2"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>
+      </div>
+
+      <div class="card" style="margin-top:10px;display:flex">
+        <div class="photo p2" style="width:92px;min-height:92px"></div>
+        <div style="padding:12px 13px;flex:1">
+          <span class="tag c" style="font-size:8px">CERTIFIED</span>
+          <b style="display:block;font-size:14px;margin-top:5px;letter-spacing:-.01em">Saffron Yemeni Kitchen</b>
+          <p class="sub" style="font-size:10.5px;margin-top:2px;font-weight:500">Yemeni · Cert · IFANCA</p>
+        </div>
+        <svg class="i" style="margin:12px 12px 0 0;width:16px" viewBox="0 0 24 24" fill="#E02424" stroke="#E02424" stroke-width="2"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>
+      </div>
+
+      <div class="card" style="margin-top:10px;display:flex">
+        <div class="photo p3" style="width:92px;min-height:92px"></div>
+        <div style="padding:12px 13px;flex:1">
+          <span class="tag a" style="font-size:8px">OWNER-ATTESTED</span>
+          <b style="display:block;font-size:14px;margin-top:5px;letter-spacing:-.01em">Bosphorus Grill</b>
+          <p class="sub" style="font-size:10.5px;margin-top:2px;font-weight:500">Turkish · Halal options</p>
+        </div>
+        <svg class="i" style="margin:12px 12px 0 0;width:16px" viewBox="0 0 24 24" fill="#E02424" stroke="#E02424" stroke-width="2"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>
+      </div>
+
+      <div class="card" style="margin-top:10px;display:flex">
+        <div class="photo p4" style="width:92px;min-height:92px"></div>
+        <div style="padding:12px 13px;flex:1">
+          <span class="tag v" style="font-size:8px">✓ VERIFIED</span>
+          <b style="display:block;font-size:14px;margin-top:5px;letter-spacing:-.01em">Al-Noor Shawarma</b>
+          <p class="sub" style="font-size:10.5px;margin-top:2px;font-weight:500">Lebanese · Dearborn, MI</p>
+        </div>
+        <svg class="i" style="margin:12px 12px 0 0;width:16px" viewBox="0 0 24 24" fill="#E02424" stroke="#E02424" stroke-width="2"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>
+      </div>
+    </div>
+    <div class="nav">
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore<span class="dot"></span></div>
+      <div class="ni on"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>Saved<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>Verify<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>Activity<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile<span class="dot"></span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 6 · VERIFIER VISIT ================= -->
+<div class="slot">
+  <h2>6 · Verifier — file a visit</h2>
+  <p class="cap">Full-screen task flow with progress bar. Big tappable radio cards; the disclosure is unmissable. Drafts save offline.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <div class="row" style="justify-content:space-between;margin-top:8px">
+        <span style="font-size:13px;font-weight:700;color:var(--green-deep)">‹ Back</span>
+        <span class="sub" style="font-size:11px;font-weight:600">Step 4 of 5</span>
+      </div>
+      <div class="steps" style="margin-top:10px"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+
+      <h3 style="font-size:21px;font-weight:800;letter-spacing:-.03em;margin-top:18px">Who paid for<br>the meal?</h3>
+      <p class="sub" style="font-size:12px;font-weight:500;margin-top:6px;line-height:1.55">Nothing here disqualifies your visit — hiding it does. This is shown on the public report.</p>
+
+      <div class="card" style="margin-top:16px;padding:15px;border:2px solid var(--green);box-shadow:0 8px 24px rgba(14,159,110,.14)">
+        <div class="row" style="justify-content:space-between">
+          <b style="font-size:13.5px">I paid for it myself</b>
+          <div style="width:20px;height:20px;border-radius:99px;background:var(--green);display:flex;align-items:center;justify-content:center"><svg style="width:11px;height:11px" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:8px;padding:15px"><div class="row" style="justify-content:space-between"><b style="font-size:13.5px;color:#52525B">The restaurant comped it</b><div style="width:20px;height:20px;border-radius:99px;border:2px solid #D4D4D8"></div></div></div>
+      <div class="card" style="margin-top:8px;padding:15px"><div class="row" style="justify-content:space-between"><b style="font-size:13.5px;color:#52525B">Paid partnership</b><div style="width:20px;height:20px;border-radius:99px;border:2px solid #D4D4D8"></div></div></div>
+      <div class="card" style="margin-top:8px;padding:15px"><div class="row" style="justify-content:space-between"><b style="font-size:13.5px;color:#52525B">Something else</b><div style="width:20px;height:20px;border-radius:99px;border:2px solid #D4D4D8"></div></div></div>
+
+      <div class="row" style="margin-top:14px;gap:8px;background:var(--green-soft);border-radius:14px;padding:11px 13px">
+        <svg class="i" style="flex:none" viewBox="0 0 24 24" fill="none" stroke="#057A55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/></svg>
+        <p style="font-size:10px;font-weight:600;color:var(--green-deep);line-height:1.45">Karachi Grill House · 4 photos attached · draft saved on device — syncs when online</p>
+      </div>
+      <div class="btn p" style="margin-top:12px">Continue</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 7 · ACTIVITY (dark) ================= -->
+<div class="slot">
+  <h2>7 · Activity (dark mode)</h2>
+  <p class="cap">System dark mode ships at launch. Trust-relevant notifications only — never marketing.</p>
+  <div class="phone dark"><div class="island"></div><div class="screen">
+    <div class="sb" style="color:#fff"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <h3 class="h-lg" style="color:#fff;margin-top:8px">Activity</h3>
+      <div class="row" style="gap:6px;margin-top:10px">
+        <span class="chip" style="background:#fff;color:#0B0B0E">All</span>
+        <span class="chip" style="background:#1C1C21;color:#8E8E96">Disputes</span>
+        <span class="chip" style="background:#1C1C21;color:#8E8E96">Saved</span>
+        <span class="chip" style="background:#1C1C21;color:#8E8E96">Verifier</span>
+      </div>
+
+      <div style="background:#161619;border-radius:20px;padding:14px;margin-top:14px;border:1px solid rgba(255,255,255,.05)">
+        <div class="row" style="gap:11px;align-items:flex-start">
+          <div class="icbox" style="background:rgba(52,211,153,.12)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div style="flex:1">
+            <b style="font-size:13px;color:#fff;letter-spacing:-.01em">Your report was upheld</b>
+            <p style="font-size:11px;color:#8E8E96;margin-top:3px;line-height:1.5">Bosphorus Grill’s alcohol policy was corrected. The public profile is updated.</p>
+            <p style="font-size:9.5px;color:#5B5B64;margin-top:5px;font-weight:600">2H AGO · DISPUTE</p>
+          </div>
+          <span style="width:7px;height:7px;border-radius:99px;background:#34D399;margin-top:4px"></span>
+        </div>
+      </div>
+
+      <div style="background:#161619;border-radius:20px;padding:14px;margin-top:8px;border:1px solid rgba(255,255,255,.05)">
+        <div class="row" style="gap:11px;align-items:flex-start">
+          <div class="icbox" style="background:rgba(52,211,153,.12)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <div style="flex:1">
+            <b style="font-size:13px;color:#fff;letter-spacing:-.01em">A place you saved is now Verified</b>
+            <p style="font-size:11px;color:#8E8E96;margin-top:3px;line-height:1.5">Al-Noor Shawarma passed an in-person verifier visit.</p>
+            <p style="font-size:9.5px;color:#5B5B64;margin-top:5px;font-weight:600">YESTERDAY · SAVED</p>
+          </div>
+          <span style="width:7px;height:7px;border-radius:99px;background:#34D399;margin-top:4px"></span>
+        </div>
+      </div>
+
+      <div style="background:#161619;border-radius:20px;padding:14px;margin-top:8px;border:1px solid rgba(255,255,255,.05);opacity:.7">
+        <div class="row" style="gap:11px;align-items:flex-start">
+          <div class="icbox" style="background:rgba(251,191,36,.1)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+          <div style="flex:1">
+            <b style="font-size:13px;color:#fff;letter-spacing:-.01em">Owner is responding to your report</b>
+            <p style="font-size:11px;color:#8E8E96;margin-top:3px;line-height:1.5">Saffron Yemeni Kitchen — certificate expiry question.</p>
+            <p style="font-size:9.5px;color:#5B5B64;margin-top:5px;font-weight:600">MAY 8 · DISPUTE</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#161619;border-radius:20px;padding:14px;margin-top:8px;border:1px solid rgba(255,255,255,.05);opacity:.7">
+        <div class="row" style="gap:11px;align-items:flex-start">
+          <div class="icbox" style="background:rgba(147,197,253,.1)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#93C5FD" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/></svg></div>
+          <div style="flex:1">
+            <b style="font-size:13px;color:#fff;letter-spacing:-.01em">Visit accepted</b>
+            <p style="font-size:11px;color:#8E8E96;margin-top:3px;line-height:1.5">Your Karachi Grill House report is live on your profile.</p>
+            <p style="font-size:9.5px;color:#5B5B64;margin-top:5px;font-weight:600">MAY 12 · VERIFIER</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="nav darknav">
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>Saved<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>Verify<span class="dot"></span></div>
+      <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>Activity<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile<span class="dot"></span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 8 · PROFILE ================= -->
+<div class="slot">
+  <h2>8 · Profile</h2>
+  <p class="cap">Minimal settings surface. Verifier identity is celebrated, admin stays on desktop, ethics is one tap away.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <div class="card" style="margin-top:12px;padding:16px;background:linear-gradient(135deg,#0B0B0E 0%,#1F2937 100%)">
+        <div class="row" style="gap:12px">
+          <div style="width:46px;height:46px;border-radius:99px;background:linear-gradient(135deg,#34D399,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px">A</div>
+          <div style="flex:1">
+            <b style="color:#fff;font-size:15px;letter-spacing:-.01em">Amira K.</b>
+            <p style="color:rgba(255,255,255,.55);font-size:10.5px;margin-top:2px;font-weight:500">@amira.eats · 12 accepted visits</p>
+          </div>
+          <span class="tag v" style="font-size:8px">✓ VERIFIER</span>
+        </div>
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Preferences</p>
+      <div class="card" style="padding:2px 15px">
+        <div class="cell"><span class="row" style="gap:10px"><span class="icbox" style="background:var(--green-soft)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#057A55" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg></span>Search defaults</span><span class="sub" style="font-weight:500;font-size:11.5px">Verified only ›</span></div>
+        <div class="cell"><span class="row" style="gap:10px"><span class="icbox" style="background:#EFF6FF"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/></svg></span>Notifications</span><span class="sub" style="font-weight:500;font-size:11.5px">3 on ›</span></div>
+        <div class="cell"><span class="row" style="gap:10px"><span class="icbox" style="background:#FDF2F8"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#DB2777" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg></span>Saved & offline</span><span class="sub" style="font-weight:500;font-size:11.5px">14 places ›</span></div>
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Trust Halal</p>
+      <div class="card" style="padding:2px 15px">
+        <div class="cell"><span class="row" style="gap:10px"><span class="icbox" style="background:var(--zinc-soft)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/></svg></span>My verifier profile</span><span class="sub" style="font-weight:500;font-size:11.5px">public ›</span></div>
+        <div class="cell"><span class="row" style="gap:10px"><span class="icbox" style="background:var(--zinc-soft)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4m0 4h.01"/></svg></span>How we use AI · ethics</span><span class="sub" style="font-weight:500;font-size:11.5px">›</span></div>
+        <div class="cell"><span class="row" style="gap:10px"><span class="icbox" style="background:var(--zinc-soft)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.4-4.4A2 2 0 0 1 7.8 2h8.4a2 2 0 0 1 1.4.6L22 7M4 7v13h16V7M2 7h20"/></svg></span>Own a restaurant?</span><span class="sub" style="font-weight:500;font-size:11.5px">web ↗</span></div>
+      </div>
+
+      <p style="text-align:center;font-size:12px;font-weight:700;color:var(--red);margin-top:16px">Sign out</p>
+      <p style="text-align:center;font-size:9px;color:#A1A1AA;margin-top:8px;font-weight:500">HalalScout by Trust Halal · v1.0.0</p>
+    </div>
+    <div class="nav">
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>Saved<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>Verify<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>Activity<span class="dot"></span></div>
+      <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile<span class="dot"></span></div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<h1 class="page" style="font-size:26px;margin-top:72px">Onboarding &amp; auth</h1>
+<p class="page">First-run in three screens, then optional accounts — Explore never requires sign-in</p>
+
+<div class="grid">
+
+<!-- ================= 9 · ONBOARDING 1 ================= -->
+<div class="slot">
+  <h2>9 · Onboarding — the promise</h2>
+  <p class="cap">Full-bleed brand moment. One sentence, one action. Skippable from the first frame.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="body" style="padding:0">
+      <div class="photo p1" style="position:absolute;inset:0"></div>
+      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,9,11,.25) 0%,rgba(9,9,11,.05) 35%,rgba(9,9,11,.88) 78%)"></div>
+      <span style="position:absolute;top:52px;right:20px;font-size:12px;font-weight:700;color:rgba(255,255,255,.8);z-index:2">Skip</span>
+      <div style="position:absolute;left:22px;right:22px;bottom:34px;z-index:2">
+        <div style="width:44px;height:44px;border-radius:14px;background:var(--green);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(14,159,110,.5)">
+          <svg style="width:22px;height:22px" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <h3 style="color:#fff;font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1.12;margin-top:16px">Verified halal,<br>no guesswork.</h3>
+        <p style="color:rgba(255,255,255,.72);font-size:13.5px;font-weight:500;line-height:1.55;margin-top:10px">Every halal claim on HalalScout is checked — certificate, sourcing, or an in-person visit by someone from the community.</p>
+        <div class="btn" style="background:#fff;color:#0B0B0E;margin-top:18px">Get started</div>
+        <div class="row" style="justify-content:center;gap:5px;margin-top:16px">
+          <span style="width:18px;height:5px;border-radius:99px;background:#fff"></span>
+          <span style="width:5px;height:5px;border-radius:99px;background:rgba(255,255,255,.35)"></span>
+          <span style="width:5px;height:5px;border-radius:99px;background:rgba(255,255,255,.35)"></span>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 10 · ONBOARDING 2 ================= -->
+<div class="slot">
+  <h2>10 · Onboarding — the tiers</h2>
+  <p class="cap">The trust ladder in 10 seconds. These three tags follow the user through the whole app.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body" style="display:flex;flex-direction:column">
+      <span style="position:absolute;top:10px;right:6px;font-size:12px;font-weight:700;color:#A1A1AA">Skip</span>
+      <h3 style="font-size:26px;font-weight:800;letter-spacing:-.035em;line-height:1.15;margin-top:44px">Every place wears<br>its level of proof.</h3>
+      <p class="sub" style="font-size:13px;font-weight:500;line-height:1.55;margin-top:8px">Look for the tag. Higher tiers mean stronger, third-party evidence.</p>
+
+      <div class="card" style="margin-top:20px;padding:15px;border:2px solid var(--green)">
+        <span class="tag v">✓ VERIFIED HALAL</span>
+        <p style="font-size:12px;font-weight:600;margin-top:8px">Confirmed in person</p>
+        <p class="sub" style="font-size:11px;font-weight:500;margin-top:2px;line-height:1.5">A community verifier ate there and filed a public report.</p>
+      </div>
+      <div class="card" style="margin-top:10px;padding:15px">
+        <span class="tag c">CERTIFIED</span>
+        <p style="font-size:12px;font-weight:600;margin-top:8px">Certificate on file</p>
+        <p class="sub" style="font-size:11px;font-weight:500;margin-top:2px;line-height:1.5">A current halal certificate from a recognized authority.</p>
+      </div>
+      <div class="card" style="margin-top:10px;padding:15px">
+        <span class="tag a">OWNER-ATTESTED</span>
+        <p style="font-size:12px;font-weight:600;margin-top:8px">The owner says so</p>
+        <p class="sub" style="font-size:11px;font-weight:500;margin-top:2px;line-height:1.5">Claimed halal with details — not yet independently checked.</p>
+      </div>
+
+      <div style="margin-top:auto;padding-bottom:22px">
+        <div class="btn p">Continue</div>
+        <div class="row" style="justify-content:center;gap:5px;margin-top:14px">
+          <span style="width:5px;height:5px;border-radius:99px;background:#D4D4D8"></span>
+          <span style="width:18px;height:5px;border-radius:99px;background:#0B0B0E"></span>
+          <span style="width:5px;height:5px;border-radius:99px;background:#D4D4D8"></span>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 11 · ONBOARDING 3 ================= -->
+<div class="slot">
+  <h2>11 · Onboarding — location priming</h2>
+  <p class="cap">Explains before the OS asks. Denial is a first-class path straight into the city picker.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body" style="display:flex;flex-direction:column">
+      <!-- radar illustration -->
+      <div style="position:relative;height:230px;margin-top:30px;display:flex;align-items:center;justify-content:center">
+        <div style="position:absolute;width:216px;height:216px;border-radius:99px;background:rgba(14,159,110,.05);border:1px solid rgba(14,159,110,.12)"></div>
+        <div style="position:absolute;width:150px;height:150px;border-radius:99px;background:rgba(14,159,110,.08);border:1px solid rgba(14,159,110,.16)"></div>
+        <div style="position:absolute;width:88px;height:88px;border-radius:99px;background:rgba(14,159,110,.12)"></div>
+        <div style="width:52px;height:52px;border-radius:99px;background:var(--green);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 30px rgba(14,159,110,.45)">
+          <svg style="width:24px;height:24px" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        </div>
+        <span class="tag v" style="position:absolute;top:24px;right:34px;font-size:8px">✓ 0.4 MI</span>
+        <span class="tag c" style="position:absolute;bottom:38px;left:26px;font-size:8px;background:#FEF3E2">1.1 MI</span>
+      </div>
+
+      <h3 style="font-size:26px;font-weight:800;letter-spacing:-.035em;line-height:1.15;margin-top:8px">Halal near you,<br>in two seconds.</h3>
+      <p class="sub" style="font-size:13px;font-weight:500;line-height:1.55;margin-top:8px">We use your location only while you're in the app, only to find places nearby. Never sold, never shared.</p>
+
+      <div style="margin-top:auto;padding-bottom:22px">
+        <div class="btn g">Allow location</div>
+        <div class="btn" style="background:transparent;color:#71717A;font-size:12.5px;padding-top:12px">Pick a city instead</div>
+        <div class="row" style="justify-content:center;gap:5px;margin-top:8px">
+          <span style="width:5px;height:5px;border-radius:99px;background:#D4D4D8"></span>
+          <span style="width:5px;height:5px;border-radius:99px;background:#D4D4D8"></span>
+          <span style="width:18px;height:5px;border-radius:99px;background:#0B0B0E"></span>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 12 · SIGN IN ================= -->
+<div class="slot">
+  <h2>12 · Sign in</h2>
+  <p class="cap">Apple first (store requirement), email under it, guest path always visible. Returned to wherever they came from.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body" style="display:flex;flex-direction:column">
+      <span style="font-size:13px;font-weight:700;color:#A1A1AA;margin-top:10px">✕</span>
+      <div style="width:44px;height:44px;border-radius:14px;background:var(--green);display:flex;align-items:center;justify-content:center;margin-top:26px;box-shadow:0 10px 24px rgba(14,159,110,.3)">
+        <svg style="width:22px;height:22px" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </div>
+      <h3 style="font-size:26px;font-weight:800;letter-spacing:-.035em;margin-top:16px">Welcome back</h3>
+      <p class="sub" style="font-size:13px;font-weight:500;margin-top:6px;line-height:1.5">Sign in to save places, set preferences, and report issues.</p>
+
+      <div class="btn p" style="margin-top:22px;gap:8px">
+        <svg style="width:16px;height:16px" viewBox="0 0 24 24" fill="#fff"><path d="M16.4 12.9c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.8-2-1.6-.2-3.1 1-3.9 1s-2-1-3.4-1c-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.4-.8s2 .8 3.4.8 2.3-1.2 3.1-2.5c1-1.4 1.4-2.8 1.4-2.9-.1 0-2.7-1-2.7-4.1zM13.8 5.3c.7-.9 1.2-2.1 1-3.3-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.2 1.2.1 2.3-.6 3.1-1.5z"/></svg>
+        Continue with Apple
+      </div>
+      <div class="btn s" style="margin-top:8px">Continue with Google</div>
+
+      <div class="row" style="gap:10px;margin:18px 0">
+        <div style="flex:1;height:1px;background:var(--line)"></div>
+        <span class="sub" style="font-size:10px;font-weight:600">OR</span>
+        <div style="flex:1;height:1px;background:var(--line)"></div>
+      </div>
+
+      <div class="card" style="padding:14px 15px;font-size:13px;font-weight:500;color:#0B0B0E">amira@example.com</div>
+      <div class="card" style="padding:14px 15px;margin-top:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:500"><span style="letter-spacing:.25em;color:#0B0B0E">••••••••</span><span style="color:#A1A1AA;font-size:11px;font-weight:600">Show</span></div>
+      <p style="font-size:11px;font-weight:600;color:var(--green-deep);margin-top:10px">Forgot password?</p>
+
+      <div class="btn g" style="margin-top:14px">Sign in</div>
+      <div style="margin-top:auto;padding-bottom:24px">
+        <p style="text-align:center;font-size:12px;font-weight:500;color:#71717A">New here? <b style="color:#0B0B0E">Create an account</b></p>
+        <p style="text-align:center;font-size:11.5px;font-weight:600;color:#A1A1AA;margin-top:10px">Continue as guest →</p>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 13 · CREATE ACCOUNT ================= -->
+<div class="slot">
+  <h2>13 · Create account</h2>
+  <p class="cap">Three fields, honest copy about why we ask for a name. Password rules inline, not in an error toast.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body" style="display:flex;flex-direction:column">
+      <span style="font-size:13px;font-weight:700;color:#A1A1AA;margin-top:10px">‹ Back</span>
+      <h3 style="font-size:26px;font-weight:800;letter-spacing:-.035em;margin-top:24px">Create your<br>account</h3>
+      <p class="sub" style="font-size:13px;font-weight:500;margin-top:6px;line-height:1.5">Save places, sync preferences across devices, and help keep listings honest.</p>
+
+      <p class="seg" style="margin:20px 0 6px">Your name</p>
+      <div class="card" style="padding:14px 15px;font-size:13px;font-weight:500">Amira K.</div>
+      <p class="sub" style="font-size:10px;font-weight:500;margin-top:5px;line-height:1.45">Shown on reports you file, so owners and reviewers know who's reporting.</p>
+
+      <p class="seg" style="margin:14px 0 6px">Email</p>
+      <div class="card" style="padding:14px 15px;font-size:13px;font-weight:500">amira@example.com</div>
+
+      <p class="seg" style="margin:14px 0 6px">Password</p>
+      <div class="card" style="padding:14px 15px;display:flex;justify-content:space-between;font-size:13px;font-weight:500"><span style="letter-spacing:.25em">••••••••••</span><span style="color:#A1A1AA;font-size:11px;font-weight:600">Hide</span></div>
+      <div class="row" style="gap:6px;margin-top:8px">
+        <span class="tag" style="background:var(--green-soft);color:var(--green-deep)">✓ 8+ characters</span>
+        <span class="tag" style="background:var(--green-soft);color:var(--green-deep)">✓ Passwords match</span>
+      </div>
+
+      <div class="btn g" style="margin-top:18px">Create account</div>
+      <p style="text-align:center;font-size:10px;font-weight:500;color:#A1A1AA;margin-top:12px;line-height:1.5;padding:0 10px">By continuing you agree to our community guidelines.<br>We never sell your data or send marketing pushes.</p>
+      <div style="margin-top:auto;padding-bottom:24px">
+        <p style="text-align:center;font-size:12px;font-weight:500;color:#71717A">Already have an account? <b style="color:#0B0B0E">Sign in</b></p>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 14 · LOCATION PICKER ================= -->
+<div class="slot">
+  <h2>14 · Location picker</h2>
+  <p class="cap">The geolocation-denied path and the "trip planning" path share one sheet: current location, popular cities, free search.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body"><div class="search" style="margin-top:10px">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      Search restaurants or dishes</div></div>
+    <div class="dim"></div>
+    <div class="sheet" style="height:472px">
+      <div class="handle"></div>
+      <b style="font-size:19px;font-weight:800;letter-spacing:-.02em">Where to?</b>
+
+      <div class="card" style="margin-top:14px;padding:14px;display:flex;align-items:center;gap:11px;border:1.5px solid var(--green-soft)">
+        <div class="icbox" style="background:var(--green-soft)">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#057A55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2.5-7.5z"/></svg>
+        </div>
+        <div style="flex:1">
+          <b style="font-size:13px">Use my current location</b>
+          <p class="sub" style="font-size:10.5px;font-weight:500;margin-top:1px">Asks the system for permission</p>
+        </div>
+        <span class="sub">›</span>
+      </div>
+
+      <div class="search" style="margin-top:12px;box-shadow:inset 0 0 0 1px var(--line)">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Any city, neighborhood, or address
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Popular</p>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <span class="chip">New York</span><span class="chip">Chicago</span><span class="chip on">Atlanta</span><span class="chip">Houston</span><span class="chip">Dearborn</span><span class="chip">Los Angeles</span><span class="chip">Dallas</span><span class="chip">Toronto</span>
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Recent</p>
+      <div class="card" style="padding:2px 15px">
+        <div class="cell" style="font-weight:500;font-size:12.5px"><span class="row" style="gap:9px"><svg class="i" style="width:15px" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Midtown, Atlanta</span><span class="sub" style="font-size:10px">2h ago</span></div>
+        <div class="cell" style="font-weight:500;font-size:12.5px"><span class="row" style="gap:9px"><svg class="i" style="width:15px" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Dearborn, MI</span><span class="sub" style="font-size:10px">May 28</span></div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 15 · REPORT AN ISSUE ================= -->
+<div class="slot">
+  <h2>15 · Report an issue</h2>
+  <p class="cap">Dispute filing as a sheet: pick what's wrong, say what you saw, attach camera evidence. Status lands in Activity.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="body" style="padding:0"><div class="photo p1" style="height:200px"><div class="fade"></div></div></div>
+    <div class="dim"></div>
+    <div class="sheet" style="height:508px">
+      <div class="handle"></div>
+      <div class="row" style="justify-content:space-between">
+        <b style="font-size:19px;font-weight:800;letter-spacing:-.02em">Report an issue</b>
+        <span class="sub" style="font-size:11px;font-weight:600">Karachi Grill House</span>
+      </div>
+      <p class="sub" style="font-size:11px;font-weight:500;margin-top:4px;line-height:1.5">Goes to the owner and Trust Halal reviewers. You'll get updates in Activity.</p>
+
+      <p class="seg" style="margin:14px 0 8px">What's wrong?</p>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <span class="chip ghost" style="font-size:11px">Pork served</span>
+        <span class="chip on" style="font-size:11px">Alcohol served</span>
+        <span class="chip ghost" style="font-size:11px">Menu coverage wrong</span>
+        <span class="chip ghost" style="font-size:11px">Sourcing wrong</span>
+        <span class="chip ghost" style="font-size:11px">Cert invalid</span>
+        <span class="chip ghost" style="font-size:11px">Closed</span>
+        <span class="chip ghost" style="font-size:11px">Other</span>
+      </div>
+
+      <p class="seg" style="margin:14px 0 8px">What did you see?</p>
+      <div class="card" style="padding:13px 14px;height:76px;font-size:12px;font-weight:500;color:#52525B;line-height:1.5">Beer list on the table and a bar in the back — visited Friday evening, June 26.</div>
+
+      <p class="seg" style="margin:14px 0 8px">Evidence · optional</p>
+      <div class="row" style="gap:8px">
+        <div class="photo p4" style="width:62px;height:62px;border-radius:14px;position:relative"><span style="position:absolute;top:-5px;right:-5px;width:17px;height:17px;border-radius:99px;background:#0B0B0E;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center">✕</span></div>
+        <div style="width:62px;height:62px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h-4L8 7H4v13h16V7h-4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          <span style="font-size:8px;font-weight:700;color:#71717A">CAMERA</span>
+        </div>
+      </div>
+
+      <div class="btn p" style="margin-top:16px">Submit report</div>
+      <p style="text-align:center;font-size:10px;font-weight:500;color:#A1A1AA;margin-top:8px">Your name is shown to reviewers and the owner.</p>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 16 · VERIFY HOME ================= -->
+<div class="slot">
+  <h2>16 · Verify tab (home)</h2>
+  <p class="cap">The verifier's cockpit: stats, an offline draft ready to resume, one big CTA, and past visits with status tags.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <div class="row" style="justify-content:space-between;margin-top:8px">
+        <h3 class="h-lg">Verify</h3>
+        <span class="tag v" style="font-size:8px">✓ @AMIRA.EATS</span>
+      </div>
+      <div class="row" style="gap:8px;margin-top:12px">
+        <div class="card" style="flex:1;padding:12px;text-align:center"><b style="font-size:18px;letter-spacing:-.02em">12</b><p class="sub" style="font-size:9px;font-weight:600;margin-top:2px">ACCEPTED</p></div>
+        <div class="card" style="flex:1;padding:12px;text-align:center"><b style="font-size:18px;letter-spacing:-.02em">1</b><p class="sub" style="font-size:9px;font-weight:600;margin-top:2px">IN REVIEW</p></div>
+        <div class="card" style="flex:1;padding:12px;text-align:center"><b style="font-size:18px;letter-spacing:-.02em">8</b><p class="sub" style="font-size:9px;font-weight:600;margin-top:2px">CITIES</p></div>
+      </div>
+
+      <div class="card" style="margin-top:12px;padding:14px;border:1.5px dashed #D4D4D8;background:#FCFCFD">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <span class="tag" style="background:var(--amber-soft);color:var(--amber);font-size:8px">DRAFT · OFFLINE</span>
+            <b style="display:block;font-size:13.5px;margin-top:6px;letter-spacing:-.01em">Karachi Grill House</b>
+            <p class="sub" style="font-size:10.5px;font-weight:500;margin-top:2px">Step 4 of 5 · 4 photos · saved 6:12 PM</p>
+          </div>
+          <span class="chip on" style="font-size:10px;align-self:center">Resume</span>
+        </div>
+      </div>
+
+      <div class="btn g" style="margin-top:12px;gap:8px">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        File a visit
+      </div>
+      <p class="sub" style="text-align:center;font-size:10px;font-weight:500;margin-top:6px">We'll suggest the place you're standing in.</p>
+
+      <p class="seg" style="margin:16px 0 8px">My visits</p>
+      <div class="card" style="padding:2px 14px">
+        <div class="cell"><div><b style="font-size:12.5px">Al-Noor Shawarma</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">Dearborn · May 12</p></div><span class="tag" style="background:var(--green-soft);color:var(--green-deep);font-size:8px">ACCEPTED</span></div>
+        <div class="cell"><div><b style="font-size:12.5px">Saffron Yemeni Kitchen</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">Atlanta · Jun 2</p></div><span class="tag" style="background:var(--amber-soft);color:var(--amber);font-size:8px">IN REVIEW</span></div>
+        <div class="cell"><div><b style="font-size:12.5px">Bosphorus Grill</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">Atlanta · Apr 20</p></div><span class="tag" style="background:var(--zinc-soft);color:var(--zinc);font-size:8px">WITHDRAWN</span></div>
+      </div>
+    </div>
+    <div class="nav">
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>Saved<span class="dot"></span></div>
+      <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>Verify<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>Activity<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile<span class="dot"></span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 17 · VERIFIER PUBLIC PROFILE ================= -->
+<div class="slot">
+  <h2>17 · Verifier public profile</h2>
+  <p class="cap">What diners see when they tap a verifier's name on a place. Credibility through visible history, not badges alone.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <span style="font-size:13px;font-weight:700;color:#A1A1AA;display:block;margin-top:8px">‹ Karachi Grill House</span>
+      <div style="text-align:center;margin-top:14px">
+        <div style="width:72px;height:72px;border-radius:99px;background:linear-gradient(135deg,#34D399,#059669);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:26px;box-shadow:0 12px 28px rgba(14,159,110,.3)">A</div>
+        <div class="row" style="justify-content:center;gap:6px;margin-top:10px">
+          <b style="font-size:18px;letter-spacing:-.02em">@amira.eats</b>
+          <span class="tag v" style="font-size:7.5px">✓ VERIFIER</span>
+        </div>
+        <p class="sub" style="font-size:11.5px;font-weight:500;margin-top:4px;line-height:1.5;padding:0 14px">Atlanta-based. I eat out three times a week anyway — might as well make it count.</p>
+      </div>
+      <div class="row" style="gap:8px;margin-top:14px">
+        <div class="card" style="flex:1;padding:11px;text-align:center"><b style="font-size:16px">12</b><p class="sub" style="font-size:8.5px;font-weight:600;margin-top:1px">VISITS</p></div>
+        <div class="card" style="flex:1;padding:11px;text-align:center"><b style="font-size:16px">8</b><p class="sub" style="font-size:8.5px;font-weight:600;margin-top:1px">CITIES</p></div>
+        <div class="card" style="flex:1;padding:11px;text-align:center"><b style="font-size:16px">2024</b><p class="sub" style="font-size:8.5px;font-weight:600;margin-top:1px">SINCE</p></div>
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Accepted visits</p>
+      <div class="card" style="display:flex;margin-bottom:8px">
+        <div class="photo p1" style="width:76px;min-height:76px"></div>
+        <div style="padding:11px 12px;flex:1">
+          <b style="font-size:12.5px;letter-spacing:-.01em">Karachi Grill House</b>
+          <p class="sub" style="font-size:10px;font-weight:500;margin-top:2px">May 2026 · meal self-paid</p>
+          <p style="font-size:10px;font-weight:500;color:#52525B;margin-top:3px;line-height:1.4">"Cert on the wall, zabihah confirmed with the kitchen…"</p>
+        </div>
+      </div>
+      <div class="card" style="display:flex">
+        <div class="photo p4" style="width:76px;min-height:76px"></div>
+        <div style="padding:11px 12px;flex:1">
+          <b style="font-size:12.5px;letter-spacing:-.01em">Al-Noor Shawarma</b>
+          <p class="sub" style="font-size:10px;font-weight:500;margin-top:2px">May 2026 · meal self-paid</p>
+          <p style="font-size:10px;font-weight:500;color:#52525B;margin-top:3px;line-height:1.4">"Fully halal menu, supplier receipts shown…"</p>
+        </div>
+      </div>
+      <p style="text-align:center;font-size:10px;font-weight:600;color:#A1A1AA;margin-top:12px">Every visit discloses who paid for the meal.</p>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 18 · EMPTY STATE ================= -->
+<div class="slot">
+  <h2>18 · Empty state</h2>
+  <p class="cap">Honest about coverage, generous with recovery. The same pattern web uses — one-tap widen or switch city.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body" style="display:flex;flex-direction:column">
+      <div class="search" style="margin-top:10px">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span style="color:#0B0B0E;font-weight:600">kabab</span>
+      </div>
+      <div class="row" style="margin-top:8px;gap:6px">
+        <span class="chip on" style="font-size:10px">📍 1 mi · Boise, ID</span>
+        <span class="chip" style="font-size:10px">⚙︎ Filters · 2</span>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 18px">
+        <div style="width:76px;height:76px;border-radius:26px;background:#fff;box-shadow:0 12px 32px rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center">
+          <svg style="width:32px;height:32px" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8.5 11h5"/></svg>
+        </div>
+        <h3 style="font-size:19px;font-weight:800;letter-spacing:-.025em;margin-top:16px">Nothing here yet</h3>
+        <p class="sub" style="font-size:12px;font-weight:500;line-height:1.55;margin-top:6px">Coverage grows city by city. Try a wider radius, a different city, or fewer filters.</p>
+        <div class="btn p" style="margin-top:16px;width:100%;padding:12px">Widen to 25 mi</div>
+        <div class="row" style="gap:8px;margin-top:8px;width:100%">
+          <div class="btn s" style="flex:1;padding:12px;font-size:12px">Change city</div>
+          <div class="btn s" style="flex:1;padding:12px;font-size:12px">Clear filters</div>
+        </div>
+        <p style="font-size:10.5px;font-weight:600;color:var(--green-deep);margin-top:14px">Know a halal spot here? Suggest it →</p>
+      </div>
+    </div>
+    <div class="nav">
+      <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>Saved<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>Verify<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>Activity<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile<span class="dot"></span></div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<h1 class="page" style="font-size:26px;margin-top:72px">The verifier visit, end to end</h1>
+<p class="page">Five steps, filed from the restaurant table — camera-first, offline-safe, disclosure required</p>
+
+<div class="grid">
+
+<!-- ================= 19 · VISIT STEP 1 ================= -->
+<div class="slot">
+  <h2>19 · Visit — pick the place</h2>
+  <p class="cap">GPS-biased: the restaurant you're standing in is the first suggestion. Search covers the rest.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <div class="row" style="justify-content:space-between;margin-top:8px">
+        <span style="font-size:13px;font-weight:700;color:#A1A1AA">✕ Cancel</span>
+        <span class="sub" style="font-size:11px;font-weight:600">Step 1 of 5</span>
+      </div>
+      <div class="steps" style="margin-top:10px"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+      <h3 style="font-size:21px;font-weight:800;letter-spacing:-.03em;margin-top:18px">Where are you<br>eating?</h3>
+
+      <div class="card" style="margin-top:14px;padding:14px;border:2px solid var(--green);box-shadow:0 8px 24px rgba(14,159,110,.14)">
+        <div class="row" style="gap:11px">
+          <div class="icbox" style="background:var(--green-soft)">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#057A55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </div>
+          <div style="flex:1">
+            <b style="font-size:13.5px">Karachi Grill House</b>
+            <p class="sub" style="font-size:10.5px;font-weight:500;margin-top:1px">You're here · 40 ft away</p>
+          </div>
+          <div style="width:20px;height:20px;border-radius:99px;background:var(--green);display:flex;align-items:center;justify-content:center"><svg style="width:11px;height:11px" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:8px;padding:14px"><div class="row" style="gap:11px"><div class="icbox" style="background:var(--zinc-soft)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div><div style="flex:1"><b style="font-size:13px;color:#52525B">Saffron Yemeni Kitchen</b><p class="sub" style="font-size:10.5px;font-weight:500;margin-top:1px">0.3 mi away</p></div></div></div>
+      <div class="card" style="margin-top:8px;padding:14px"><div class="row" style="gap:11px"><div class="icbox" style="background:var(--zinc-soft)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div><div style="flex:1"><b style="font-size:13px;color:#52525B">Bosphorus Grill</b><p class="sub" style="font-size:10.5px;font-weight:500;margin-top:1px">0.6 mi away</p></div></div></div>
+
+      <div class="search" style="margin-top:12px;box-shadow:inset 0 0 0 1px var(--line)">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Search somewhere else
+      </div>
+      <p style="font-size:10.5px;font-weight:600;color:var(--green-deep);margin-top:12px;text-align:center">Restaurant not in the catalog yet? Suggest it →</p>
+      <div style="position:absolute;left:16px;right:16px;bottom:18px"><div class="btn p">Continue</div></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 20 · VISIT STEP 3 ================= -->
+<div class="slot">
+  <h2>20 · Visit — what you observed</h2>
+  <p class="cap">Structured observations, not an essay: what you ordered, then tappable evidence checks with a free-notes field.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <div class="row" style="justify-content:space-between;margin-top:8px">
+        <span style="font-size:13px;font-weight:700;color:var(--green-deep)">‹ Back</span>
+        <span class="sub" style="font-size:11px;font-weight:600">Step 3 of 5</span>
+      </div>
+      <div class="steps" style="margin-top:10px"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+      <h3 style="font-size:21px;font-weight:800;letter-spacing:-.03em;margin-top:16px">What did you<br>observe?</h3>
+
+      <p class="seg" style="margin:14px 0 6px">You ordered</p>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <span class="chip on" style="font-size:11px">Chicken boti</span><span class="chip on" style="font-size:11px">Lamb chops</span><span class="chip ghost" style="font-size:11px">+ Add item</span>
+      </div>
+
+      <p class="seg" style="margin:14px 0 6px">Checks</p>
+      <div class="card" style="padding:2px 14px">
+        <div class="cell" style="font-size:12.5px"><span>Halal cert visible on premises</span><span class="tag" style="background:var(--green-soft);color:var(--green-deep)">YES</span></div>
+        <div class="cell" style="font-size:12.5px"><span>Menu is fully halal</span><span class="tag" style="background:var(--green-soft);color:var(--green-deep)">YES</span></div>
+        <div class="cell" style="font-size:12.5px"><span>Alcohol on premises</span><span class="tag" style="background:var(--green-soft);color:var(--green-deep)">NO</span></div>
+        <div class="cell" style="font-size:12.5px"><span>Staff confirmed sourcing</span><span class="tag" style="background:var(--amber-soft);color:var(--amber)">PARTIAL</span></div>
+      </div>
+
+      <p class="seg" style="margin:14px 0 6px">Notes</p>
+      <div class="card" style="padding:13px 14px;height:70px;font-size:12px;font-weight:500;color:#52525B;line-height:1.5">Kitchen manager showed the supplier invoice for the chicken — Crescent Foods. Lamb comes from a local zabihah butcher…</div>
+
+      <div style="position:absolute;left:16px;right:16px;bottom:18px">
+        <div class="btn p">Continue</div>
+        <p class="sub" style="text-align:center;font-size:9.5px;font-weight:600;margin-top:7px">Draft auto-saves on device</p>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 21 · VISIT STEP 5 ================= -->
+<div class="slot">
+  <h2>21 · Visit — review &amp; submit</h2>
+  <p class="cap">Everything on one card before it goes public. The disclosure line is pinned where it can't be missed.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <div class="row" style="justify-content:space-between;margin-top:8px">
+        <span style="font-size:13px;font-weight:700;color:var(--green-deep)">‹ Back</span>
+        <span class="sub" style="font-size:11px;font-weight:600">Step 5 of 5</span>
+      </div>
+      <div class="steps" style="margin-top:10px"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+      <h3 style="font-size:21px;font-weight:800;letter-spacing:-.03em;margin-top:16px">Review your<br>report</h3>
+
+      <div class="card" style="margin-top:14px;padding:15px">
+        <div class="row" style="justify-content:space-between">
+          <b style="font-size:13.5px">Karachi Grill House</b>
+          <span class="sub" style="font-size:10px;font-weight:600">Jul 6 · 6:40 PM</span>
+        </div>
+        <div style="height:1px;background:var(--line);margin:11px 0"></div>
+        <div class="row" style="gap:6px;flex-wrap:wrap">
+          <span class="tag" style="background:var(--green-soft);color:var(--green-deep)">Cert sighted</span>
+          <span class="tag" style="background:var(--green-soft);color:var(--green-deep)">Fully halal</span>
+          <span class="tag" style="background:var(--green-soft);color:var(--green-deep)">No alcohol</span>
+          <span class="tag" style="background:var(--amber-soft);color:var(--amber)">Sourcing partial</span>
+        </div>
+        <p style="font-size:11px;font-weight:500;color:#52525B;line-height:1.5;margin-top:10px">"Kitchen manager showed the supplier invoice for the chicken — Crescent Foods…"</p>
+        <div class="row" style="gap:6px;margin-top:11px">
+          <div class="photo p1" style="width:48px;height:48px;border-radius:10px"></div>
+          <div class="photo p2" style="width:48px;height:48px;border-radius:10px"></div>
+          <div class="photo p4" style="width:48px;height:48px;border-radius:10px"></div>
+          <div style="width:48px;height:48px;border-radius:10px;background:var(--zinc-soft);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#71717A">+1</div>
+        </div>
+        <div style="height:1px;background:var(--line);margin:11px 0"></div>
+        <div class="row" style="gap:8px">
+          <svg class="i" style="flex:none" viewBox="0 0 24 24" fill="none" stroke="#057A55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>
+          <p style="font-size:11px;font-weight:700;color:var(--green-deep)">Meal self-paid · will be shown publicly</p>
+        </div>
+      </div>
+
+      <p class="sub" style="font-size:10.5px;font-weight:500;line-height:1.55;margin-top:12px;padding:0 4px">Your report goes to Trust Halal review. If accepted, it appears on the restaurant's page and your public profile.</p>
+
+      <div style="position:absolute;left:16px;right:16px;bottom:18px">
+        <div class="btn g">Submit report</div>
+        <div class="btn" style="background:transparent;color:#71717A;font-size:12px;padding-top:10px">Save as draft</div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 22 · VISIT SUBMITTED ================= -->
+<div class="slot">
+  <h2>22 · Visit submitted</h2>
+  <p class="cap">A moment of celebration, honest expectations for what happens next, and a natural exit.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 26px">
+      <div style="width:88px;height:88px;border-radius:99px;background:var(--green);display:flex;align-items:center;justify-content:center;box-shadow:0 20px 50px rgba(14,159,110,.4)">
+        <svg style="width:40px;height:40px" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </div>
+      <h3 style="font-size:24px;font-weight:800;letter-spacing:-.03em;margin-top:22px">Report submitted</h3>
+      <p class="sub" style="font-size:13px;font-weight:500;line-height:1.6;margin-top:8px">Trust Halal reviews every visit. You'll get a notification when it's accepted — usually within a few days.</p>
+
+      <div class="card" style="margin-top:20px;padding:13px 15px;width:100%">
+        <div class="row" style="justify-content:space-between">
+          <span class="sub" style="font-size:11px;font-weight:600">Karachi Grill House</span>
+          <span class="tag" style="background:var(--amber-soft);color:var(--amber);font-size:8px">IN REVIEW</span>
+        </div>
+      </div>
+
+      <p style="font-size:12px;font-weight:700;color:var(--green-deep);margin-top:22px">That's 13 visits — thank you. 🤲</p>
+      <div class="btn p" style="width:100%;margin-top:18px">Done</div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<h1 class="page" style="font-size:26px;margin-top:72px">Trust states, search &amp; settings</h1>
+<p class="page">The screens that make the trust system legible — including when something is wrong</p>
+
+<div class="grid">
+
+<!-- ================= 23 · TRUST PROFILE DETAIL ================= -->
+<div class="slot">
+  <h2>23 · Trust profile (expanded)</h2>
+  <p class="cap">"Details ›" from the place card lands here: per-meat sourcing, cert record, and the full verification history.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <span style="font-size:13px;font-weight:700;color:#A1A1AA;display:block;margin-top:8px">‹ Karachi Grill House</span>
+      <div class="row" style="gap:10px;margin-top:14px">
+        <span class="tag v">✓ VERIFIED HALAL</span>
+        <span class="sub" style="font-size:10.5px;font-weight:600">since May 2026</span>
+      </div>
+      <h3 style="font-size:21px;font-weight:800;letter-spacing:-.03em;margin-top:8px">Trust profile</h3>
+
+      <p class="seg" style="margin:14px 0 6px">Sourcing · per meat</p>
+      <div class="card" style="padding:2px 14px">
+        <div class="cell" style="font-size:12.5px"><span>Chicken</span><span class="tag" style="background:var(--green-soft);color:var(--green-deep)">ZABIHAH · CRESCENT</span></div>
+        <div class="cell" style="font-size:12.5px"><span>Beef</span><span class="tag" style="background:var(--green-soft);color:var(--green-deep)">ZABIHAH</span></div>
+        <div class="cell" style="font-size:12.5px"><span>Lamb</span><span class="tag" style="background:var(--green-soft);color:var(--green-deep)">ZABIHAH · LOCAL</span></div>
+        <div class="cell" style="font-size:12.5px"><span>Pork</span><span class="tag a">NOT SERVED</span></div>
+      </div>
+
+      <p class="seg" style="margin:14px 0 6px">Kitchen</p>
+      <div class="card" style="padding:2px 14px">
+        <div class="cell" style="font-size:12.5px"><span>Menu coverage</span><b style="font-size:12px">Fully halal</b></div>
+        <div class="cell" style="font-size:12.5px"><span>Alcohol served</span><b style="font-size:12px">None</b></div>
+        <div class="cell" style="font-size:12.5px"><span>Alcohol in cooking</span><b style="font-size:12px">No</b></div>
+      </div>
+
+      <p class="seg" style="margin:14px 0 6px">Certificate</p>
+      <div class="card" style="padding:13px 14px">
+        <div class="row" style="justify-content:space-between">
+          <div><b style="font-size:12.5px">IFANCA</b><p class="sub" style="font-size:10.5px;font-weight:500;margin-top:1px">#IF-2841 · expires Mar 2027</p></div>
+          <span class="chip ghost" style="font-size:10px">View cert</span>
+        </div>
+      </div>
+
+      <p class="seg" style="margin:14px 0 6px">Verification history</p>
+      <div class="card" style="padding:2px 14px">
+        <div class="cell" style="font-size:12px"><span class="row" style="gap:8px"><span style="width:22px;height:22px;border-radius:99px;background:linear-gradient(135deg,#34D399,#059669);color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center">A</span>Visit by <b>@amira.eats</b></span><span class="sub" style="font-size:10px">May 2026</span></div>
+        <div class="cell" style="font-size:12px"><span class="row" style="gap:8px"><svg class="i" style="width:15px" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Owner claim approved</span><span class="sub" style="font-size:10px">Feb 2026</span></div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 24 · DISPUTED PLACE ================= -->
+<div class="slot">
+  <h2>24 · Place detail — disputed</h2>
+  <p class="cap">When a profile is questioned the app says so before anything else. Amber, not scarlet — questioned, not condemned.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="body" style="padding:0">
+      <div class="photo p3" style="height:170px">
+        <div class="fade"></div>
+        <div class="glassbtn" style="position:absolute;top:46px;left:14px"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></div>
+        <span class="tag" style="position:absolute;top:46px;right:14px;background:#FEF3E2;color:#B45309;box-shadow:0 2px 10px rgba(0,0,0,.15)">⚠ UNDER REVIEW</span>
+      </div>
+      <div style="position:relative;margin-top:-28px;background:var(--bg);border-radius:28px 28px 0 0;padding:18px 18px 0;flex:1">
+        <h3 style="font-size:22px;font-weight:800;letter-spacing:-.03em">Bosphorus Grill</h3>
+        <p class="sub" style="font-size:11.5px;font-weight:500;margin-top:3px">Turkish · $$ · 0.6 mi</p>
+
+        <div class="card" style="margin-top:12px;padding:14px;border:1.5px solid #FCD34D;background:#FFFBEB">
+          <div class="row" style="gap:10px;align-items:flex-start">
+            <div class="icbox" style="background:rgba(180,83,9,.1)">
+              <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/></svg>
+            </div>
+            <div style="flex:1">
+              <b style="font-size:12.5px;color:#78350F">This profile is being reviewed</b>
+              <p style="font-size:11px;font-weight:500;color:#92400E;margin-top:3px;line-height:1.5">A diner reported the alcohol policy may be out of date. The owner is responding. Last verified info shown below.</p>
+              <p style="font-size:10px;font-weight:700;color:#B45309;margin-top:6px">What does this mean? ›</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:10px;padding:14px;opacity:.75">
+          <div class="row" style="justify-content:space-between">
+            <b style="font-size:13px">Trust profile · pre-dispute</b>
+            <span class="sub" style="font-size:11px;font-weight:600">Details ›</span>
+          </div>
+          <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px">
+            <span class="tag a">Halal options menu</span>
+            <span class="tag a">Owner-attested</span>
+            <span class="tag" style="background:var(--amber-soft);color:var(--amber)">Alcohol policy · disputed</span>
+          </div>
+        </div>
+
+        <div class="row" style="gap:8px;margin-top:12px">
+          <div class="btn s" style="flex:1;padding:12px;font-size:12.5px">Directions</div>
+          <div class="btn s" style="flex:1;padding:12px;font-size:12.5px">Follow updates</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 25 · DISPUTE TIMELINE ================= -->
+<div class="slot">
+  <h2>25 · Dispute status</h2>
+  <p class="cap">From Activity: a vertical timeline in plain language, with the outcome and what changed publicly.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <span style="font-size:13px;font-weight:700;color:#A1A1AA;display:block;margin-top:8px">‹ Activity</span>
+      <div class="row" style="gap:8px;margin-top:14px">
+        <span class="tag" style="background:var(--green-soft);color:var(--green-deep)">RESOLVED · UPHELD</span>
+      </div>
+      <h3 style="font-size:21px;font-weight:800;letter-spacing:-.03em;margin-top:8px">Your report on<br>Bosphorus Grill</h3>
+      <p class="sub" style="font-size:11.5px;font-weight:500;margin-top:4px">Alcohol is served · filed Jun 26</p>
+
+      <div style="margin-top:18px;position:relative;padding-left:26px">
+        <div style="position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line)"></div>
+
+        <div style="position:relative;padding-bottom:18px">
+          <span style="position:absolute;left:-26px;top:2px;width:18px;height:18px;border-radius:99px;background:var(--green);border:4px solid var(--bg)"></span>
+          <b style="font-size:12.5px">Report upheld — profile corrected</b>
+          <p class="sub" style="font-size:10.5px;font-weight:500;margin-top:2px;line-height:1.5">Alcohol policy updated to "beer &amp; wine served." The public page now shows the correction.</p>
+          <p style="font-size:9.5px;font-weight:600;color:#A1A1AA;margin-top:4px">JUL 5 · TRUST HALAL</p>
+        </div>
+
+        <div style="position:relative;padding-bottom:18px">
+          <span style="position:absolute;left:-24px;top:2px;width:14px;height:14px;border-radius:99px;background:#D4D4D8;border:3px solid var(--bg)"></span>
+          <b style="font-size:12.5px;color:#52525B">Owner responded</b>
+          <p class="sub" style="font-size:10.5px;font-weight:500;margin-top:2px;line-height:1.5">"We added a beer list this spring — updating our profile."</p>
+          <p style="font-size:9.5px;font-weight:600;color:#A1A1AA;margin-top:4px">JUN 30 · OWNER</p>
+        </div>
+
+        <div style="position:relative;padding-bottom:18px">
+          <span style="position:absolute;left:-24px;top:2px;width:14px;height:14px;border-radius:99px;background:#D4D4D8;border:3px solid var(--bg)"></span>
+          <b style="font-size:12.5px;color:#52525B">Under review</b>
+          <p class="sub" style="font-size:10.5px;font-weight:500;margin-top:2px">Sent to the owner and Trust Halal reviewers.</p>
+          <p style="font-size:9.5px;font-weight:600;color:#A1A1AA;margin-top:4px">JUN 26 · AUTOMATIC</p>
+        </div>
+
+        <div style="position:relative">
+          <span style="position:absolute;left:-24px;top:2px;width:14px;height:14px;border-radius:99px;background:#D4D4D8;border:3px solid var(--bg)"></span>
+          <b style="font-size:12.5px;color:#52525B">You filed this report</b>
+          <p class="sub" style="font-size:10.5px;font-weight:500;margin-top:2px">1 photo attached.</p>
+          <p style="font-size:9.5px;font-weight:600;color:#A1A1AA;margin-top:4px">JUN 26 · YOU</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;padding:12px 14px;background:var(--green-soft);box-shadow:none">
+        <p style="font-size:11px;font-weight:600;color:var(--green-deep)">Thanks for keeping listings honest — reports like yours are how the map stays true.</p>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 26 · SEARCH ACTIVE ================= -->
+<div class="slot">
+  <h2>26 · Search — typing</h2>
+  <p class="cap">Instant results scoped to the active location, recents underneath, dish-level hints ("kabab" finds kabab houses).</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <div class="row" style="gap:8px;margin-top:10px">
+        <div class="search" style="flex:1;box-shadow:0 0 0 2px var(--green)">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span style="color:#0B0B0E;font-weight:600">kabab|</span>
+          <span style="margin-left:auto;color:#A1A1AA">✕</span>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:#71717A">Cancel</span>
+      </div>
+      <p class="sub" style="font-size:10px;font-weight:600;margin-top:8px">Searching within 5 mi of Midtown, Atlanta</p>
+
+      <div class="card" style="margin-top:10px;padding:2px 14px">
+        <div class="cell" style="border-bottom:1px solid var(--line)">
+          <div class="row" style="gap:10px">
+            <div class="photo p1" style="width:38px;height:38px;border-radius:10px"></div>
+            <div><b style="font-size:12.5px"><u style="text-decoration-color:rgba(14,159,110,.4)">Kabab</u> King</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">Afghan · 2.1 mi</p></div>
+          </div>
+          <span class="tag a" style="font-size:7.5px;border:1px dashed #D4D4D8;background:#fff;color:#A1A1AA">NO INFO</span>
+        </div>
+        <div class="cell" style="border-bottom:1px solid var(--line)">
+          <div class="row" style="gap:10px">
+            <div class="photo p2" style="width:38px;height:38px;border-radius:10px"></div>
+            <div><b style="font-size:12.5px">Sabri <u style="text-decoration-color:rgba(14,159,110,.4)">Kabab</u> House</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">Indian · 3.4 mi</p></div>
+          </div>
+          <span class="tag c" style="font-size:7.5px">CERTIFIED</span>
+        </div>
+        <div class="cell">
+          <div class="row" style="gap:10px">
+            <div class="photo p4" style="width:38px;height:38px;border-radius:10px"></div>
+            <div><b style="font-size:12.5px">Shalimar <u style="text-decoration-color:rgba(14,159,110,.4)">Kabab</u></b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">Pakistani · 4.8 mi</p></div>
+          </div>
+          <span class="tag v" style="font-size:7.5px">✓ VERIFIED</span>
+        </div>
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Recent searches</p>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <span class="chip ghost" style="font-size:11px">🕐 mandi</span>
+        <span class="chip ghost" style="font-size:11px">🕐 halal burger</span>
+        <span class="chip ghost" style="font-size:11px">🕐 Saffron Yemeni</span>
+      </div>
+
+      <p class="seg" style="margin:16px 0 8px">Try</p>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <span class="chip" style="font-size:11px">Open now</span>
+        <span class="chip" style="font-size:11px">✓ Verified only</span>
+        <span class="chip" style="font-size:11px">Zabihah</span>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 27 · BECOME A VERIFIER ================= -->
+<div class="slot">
+  <h2>27 · Become a verifier</h2>
+  <p class="cap">The recruitment pitch from Profile: what it takes, the one non-negotiable, and a short application.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <span style="font-size:13px;font-weight:700;color:#A1A1AA;display:block;margin-top:8px">‹ Profile</span>
+      <div style="width:48px;height:48px;border-radius:16px;background:var(--green);display:flex;align-items:center;justify-content:center;margin-top:18px;box-shadow:0 12px 28px rgba(14,159,110,.35)">
+        <svg style="width:24px;height:24px" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+      <h3 style="font-size:24px;font-weight:800;letter-spacing:-.035em;line-height:1.15;margin-top:14px">You eat out anyway.<br>Make it count.</h3>
+      <p class="sub" style="font-size:12.5px;font-weight:500;line-height:1.55;margin-top:8px">Verifiers eat at halal spots and file short, honest reports. Your name backs the badge diners trust.</p>
+
+      <div class="card" style="margin-top:16px;padding:2px 15px">
+        <div class="cell" style="font-size:12px;font-weight:500"><span class="row" style="gap:10px"><span style="font-size:15px">🍽</span>One visit a month — that's it</span></div>
+        <div class="cell" style="font-size:12px;font-weight:500"><span class="row" style="gap:10px"><span style="font-size:15px">📝</span>10-minute report, filed from the table</span></div>
+        <div class="cell" style="font-size:12px;font-weight:500"><span class="row" style="gap:10px"><span style="font-size:15px">🌍</span>Public profile you can link anywhere</span></div>
+      </div>
+
+      <div class="card" style="margin-top:10px;padding:13px 15px;border:1.5px solid #FCD34D;background:#FFFBEB;box-shadow:none">
+        <b style="font-size:11.5px;color:#78350F">The one non-negotiable</b>
+        <p style="font-size:11px;font-weight:500;color:#92400E;line-height:1.5;margin-top:3px">Every visit discloses who paid for the meal. Comped is fine. Hidden is not.</p>
+      </div>
+
+      <div class="btn g" style="margin-top:14px">Apply — takes 5 minutes</div>
+      <p style="text-align:center;font-size:10px;font-weight:500;color:#A1A1AA;margin-top:10px">Applications reviewed by a human · usually within a week</p>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 28 · SAVED — SIGNED OUT ================= -->
+<div class="slot">
+  <h2>28 · Saved — signed out</h2>
+  <p class="cap">The signup carrot: warm, specific about the payoff, and never blocks browsing.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body" style="display:flex;flex-direction:column">
+      <h3 class="h-lg" style="margin-top:8px">Saved</h3>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 20px">
+        <div style="position:relative;width:120px;height:96px">
+          <div class="card" style="position:absolute;left:0;top:14px;width:76px;height:76px;transform:rotate(-8deg)"><div class="photo p2" style="height:44px"></div><div style="padding:6px"><span class="tag c" style="font-size:6px">CERTIFIED</span></div></div>
+          <div class="card" style="position:absolute;right:0;top:0;width:82px;height:84px;transform:rotate(6deg);box-shadow:0 14px 34px rgba(0,0,0,.12)"><div class="photo p1" style="height:48px"></div><div style="padding:6px"><span class="tag v" style="font-size:6px">✓ VERIFIED</span></div></div>
+          <div style="position:absolute;right:-6px;bottom:-4px;width:30px;height:30px;border-radius:99px;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center">
+            <svg style="width:15px;height:15px" viewBox="0 0 24 24" fill="#E02424"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>
+          </div>
+        </div>
+        <h3 style="font-size:19px;font-weight:800;letter-spacing:-.025em;margin-top:22px">Keep a list you can<br>trust anywhere</h3>
+        <p class="sub" style="font-size:12px;font-weight:500;line-height:1.55;margin-top:6px">Save places, get notified when their halal status changes, and take your list offline when you travel.</p>
+        <div class="btn p" style="width:100%;margin-top:18px">Create a free account</div>
+        <p style="font-size:12px;font-weight:600;color:#71717A;margin-top:12px">Already have one? <b style="color:#0B0B0E">Sign in</b></p>
+      </div>
+    </div>
+    <div class="nav">
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore<span class="dot"></span></div>
+      <div class="ni on"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M19 14c1.5-1.5 2-3.2 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.8.5 3.5 2 5l7 7z"/></svg>Saved<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>Activity<span class="dot"></span></div>
+      <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile<span class="dot"></span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 29 · NOTIFICATION SETTINGS ================= -->
+<div class="slot">
+  <h2>29 · Notifications</h2>
+  <p class="cap">Per-category toggles with honest descriptions. The no-marketing promise is printed right on the screen.</p>
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="sb"><span>9:41</span><span>􀙇 􀛨</span></div>
+    <div class="body">
+      <span style="font-size:13px;font-weight:700;color:#A1A1AA;display:block;margin-top:8px">‹ Profile</span>
+      <h3 style="font-size:22px;font-weight:800;letter-spacing:-.03em;margin-top:14px">Notifications</h3>
+
+      <p class="seg" style="margin:16px 0 8px">Your reports</p>
+      <div class="card" style="padding:2px 15px">
+        <div class="cell"><div style="flex:1"><b style="font-size:12.5px">Dispute updates</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">Owner responses and outcomes</p></div><span style="width:40px;height:24px;border-radius:99px;background:var(--green);position:relative;flex:none"><i style="position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:99px;background:#fff"></i></span></div>
+      </div>
+
+      <p class="seg" style="margin:14px 0 8px">Saved places</p>
+      <div class="card" style="padding:2px 15px">
+        <div class="cell"><div style="flex:1"><b style="font-size:12.5px">Status changes</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">A saved place gains or loses a tier</p></div><span style="width:40px;height:24px;border-radius:99px;background:var(--green);position:relative;flex:none"><i style="position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:99px;background:#fff"></i></span></div>
+        <div class="cell"><div style="flex:1"><b style="font-size:12.5px">Disputes opened</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">A saved place's profile gets questioned</p></div><span style="width:40px;height:24px;border-radius:99px;background:var(--green);position:relative;flex:none"><i style="position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:99px;background:#fff"></i></span></div>
+      </div>
+
+      <p class="seg" style="margin:14px 0 8px">Verifier</p>
+      <div class="card" style="padding:2px 15px">
+        <div class="cell"><div style="flex:1"><b style="font-size:12.5px">Visit review results</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">Accepted, rejected, or needs changes</p></div><span style="width:40px;height:24px;border-radius:99px;background:var(--green);position:relative;flex:none"><i style="position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:99px;background:#fff"></i></span></div>
+        <div class="cell"><div style="flex:1"><b style="font-size:12.5px">Nearby unverified spots</b><p class="sub" style="font-size:10px;font-weight:500;margin-top:1px">"You're near a place that needs a visit"</p></div><span style="width:40px;height:24px;border-radius:99px;background:#D4D4D8;position:relative;flex:none"><i style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:99px;background:#fff"></i></span></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;padding:13px 15px;background:var(--green-soft);box-shadow:none">
+        <p style="font-size:11px;font-weight:600;color:var(--green-deep);line-height:1.5">No marketing pushes. Ever. Every notification here is about something you did or something you saved.</p>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= 30 · GALLERY ================= -->
+<div class="slot">
+  <h2>30 · Photo viewer</h2>
+  <p class="cap">Full-bleed gallery with attribution — who took it and in what role. Evidence photos are labeled as such.</p>
+  <div class="phone dark"><div class="island"></div><div class="screen" style="background:#000">
+    <div class="body" style="padding:0">
+      <div class="photo p1" style="position:absolute;inset:0;top:0;bottom:120px"></div>
+      <div class="glassbtn" style="position:absolute;top:48px;left:14px;background:rgba(0,0,0,.45)"><span style="color:#fff;font-size:13px">✕</span></div>
+      <span style="position:absolute;top:56px;right:16px;color:rgba(255,255,255,.85);font-size:12px;font-weight:700;z-index:2">3 / 12</span>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:120px;background:#000;padding:12px 16px">
+        <div class="row" style="gap:9px">
+          <div style="width:28px;height:28px;border-radius:99px;background:linear-gradient(135deg,#34D399,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800">A</div>
+          <div style="flex:1">
+            <p style="color:#fff;font-size:11.5px;font-weight:600">@amira.eats · <span style="color:#34D399">verifier visit</span></p>
+            <p style="color:rgba(255,255,255,.5);font-size:10px;font-weight:500;margin-top:1px">"Supplier invoice for the chicken — Crescent Foods" · May 2026</p>
+          </div>
+        </div>
+        <div class="row" style="gap:5px;margin-top:12px">
+          <div class="photo p1" style="width:34px;height:34px;border-radius:8px;box-shadow:0 0 0 2px #34D399"></div>
+          <div class="photo p2" style="width:34px;height:34px;border-radius:8px;opacity:.5"></div>
+          <div class="photo p4" style="width:34px;height:34px;border-radius:8px;opacity:.5"></div>
+          <div class="photo p3" style="width:34px;height:34px;border-radius:8px;opacity:.5"></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+</body>
+</html>

@@ -154,3 +154,65 @@ class SignupResponse(BaseModel):
     role: UserRole
     display_name: str | None = None
     redirect_path: str
+
+
+# ---------------------------------------------------------------------------
+# Mobile bearer-token auth (POST /auth/mobile/*)
+# ---------------------------------------------------------------------------
+
+
+class MobileUser(BaseModel):
+    """The user object embedded in every mobile auth response.
+
+    Same fields the web reads off /me — the app renders "signed in as
+    <name>" and gates verifier surfaces on ``role`` without a second
+    round trip.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: EmailStr
+    role: UserRole
+    display_name: str | None = None
+
+
+class MobileAuthResponse(BaseModel):
+    """Login / signup / refresh all return the same envelope.
+
+    ``expires_in`` is the ACCESS token TTL in seconds — the client
+    schedules a refresh slightly ahead of it. The refresh token's own
+    (30-day) expiry is deliberately not surfaced; the client treats a
+    failed refresh as "sign in again."
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    user: MobileUser
+    access_token: str
+    refresh_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int
+
+
+class MobileSignupRequest(BaseModel):
+    """POST /auth/mobile/signup body.
+
+    Mobile-only surface, so unlike the web ``SignupRequest`` there is
+    no ``role`` field — the app mints CONSUMER accounts, full stop.
+    Owners and staff use the web portals.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=256)
+    display_name: str = Field(..., min_length=1, max_length=120)
+
+
+class MobileRefreshRequest(BaseModel):
+    """POST /auth/mobile/refresh + /auth/mobile/logout body."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh_token: str = Field(..., min_length=16, max_length=512)

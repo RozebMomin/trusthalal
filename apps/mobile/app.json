@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "HalalScout",
+    "slug": "halalscout",
+    "version": "0.1.0",
+    "scheme": "trusthalal",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "org.trusthalal.consumer",
+      "supportsTablet": false,
+      "usesAppleSignIn": false,
+      "associatedDomains": ["applinks:halalfoodnearme.com"],
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "So we can show halal restaurants near you.",
+        "NSPhotoLibraryUsageDescription": "So you can attach a photo to a dispute report.",
+        "NSCameraUsageDescription": "So you can take a photo for a dispute report."
+      }
+    },
+    "android": {
+      "package": "org.trusthalal.consumer"
+    },
+    "plugins": ["expo-router", "expo-secure-store", "expo-location", "expo-font"],
+    "experiments": { "typedRoutes": true },
+    "extra": { "apiBaseUrl": "https://api.trusthalal.org" }
+  }
+}

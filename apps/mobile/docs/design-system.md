@@ -1,5 +1,16 @@
 # Design system
 
+> **⚠️ Superseded (July 2026, founder decision):** the app ships the
+> **v2 clean-modern system** — neutral canvas `#F6F6F7`, ONE emerald
+> accent `#0E9F6E`, Inter-only typography, dark mode at launch — as
+> approved in `docs/2026-07-06-mobile-app-mockups.html` +
+> `docs/2026-07-06-mobile-app-design.md` §7 (repo root). Tokens live in
+> `src/lib/theme/`. The olive/cream extract below is kept for reference
+> (it still describes the WEB family), but for the app the mockups win
+> wherever the two disagree. The five-tier trust semantics are
+> unchanged — only the paint differs.
+
+
 The mobile app should feel like a family member of halalfoodnearme.com and trusthalal.org — same palette, same fonts, same warm/community voice. This doc gives you everything to make that happen without hunting through the web repos.
 
 The full brand guide lives at `marketing/style-guide/visual-style.md` and `marketing/style-guide/brand-voice.md`. This is the mobile-focused extract.

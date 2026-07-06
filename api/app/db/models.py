@@ -2,6 +2,7 @@
 # Import all SQLAlchemy models so Base.metadata is fully populated.
 
 from app.modules.auth.models import Session  # noqa: F401
+from app.modules.auth.mobile_tokens import MobileToken  # noqa: F401
 from app.modules.places.models import Place, PlaceExternalId  # noqa: F401
 from app.modules.users.models import User  # noqa: F401
 from app.modules.organizations.models import (  # noqa: F401

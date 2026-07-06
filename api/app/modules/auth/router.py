@@ -15,6 +15,11 @@ from app.modules.auth.invite_repo import (
     consume_invite,
     resolve_invite,
 )
+from app.modules.auth.mobile_tokens import (
+    issue_token_pair,
+    revoke_by_refresh_token,
+    rotate_refresh_token,
+)
 from app.modules.auth.repo import (
     create_session,
     revoke_all_sessions_for_user,
@@ -25,6 +30,10 @@ from app.modules.auth.schemas import (
     LoginRequest,
     LoginResponse,
     MeResponse,
+    MobileAuthResponse,
+    MobileRefreshRequest,
+    MobileSignupRequest,
+    MobileUser,
     SetPasswordRequest,
     SetPasswordResponse,
     SignupRequest,
@@ -516,8 +525,187 @@ _DUMMY_HASH = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Mobile bearer-token auth — POST /auth/mobile/*
+#
+# Same credentials, same user rows, different transport: the app can't
+# hold an HttpOnly cookie, so it gets an opaque access+refresh pair
+# (see modules/auth/mobile_tokens.py for the why-not-JWT rationale).
+# Cookie auth stays untouched for the web apps; both paths are live
+# side by side in core/auth.get_current_user.
+# ---------------------------------------------------------------------------
+
+mobile_auth_router = APIRouter(prefix="/auth/mobile", tags=["auth"])
+
+
+@mobile_auth_router.post(
+    "/login",
+    response_model=MobileAuthResponse,
+    summary="Mobile sign-in — returns bearer access + refresh tokens",
+    description=(
+        "Email/password login for the mobile app. Instead of the "
+        "`tht_session` cookie, returns an opaque bearer access token "
+        "(1 h) plus a single-use refresh token (30 d) for "
+        "`POST /auth/mobile/refresh`. Send the access token as "
+        "`Authorization: Bearer <token>`. Failures collapse to "
+        "`INVALID_CREDENTIALS` exactly like the web login. "
+        "Rate-limited per-IP at 10/min and 100/hour."
+    ),
+)
+@limiter.limit("10/minute", key_func=ip_key)
+@limiter.limit("100/hour", key_func=ip_key)
+def mobile_login(
+    request: Request,
+    payload: LoginRequest,
+    db: Session = Depends(get_db),
+) -> MobileAuthResponse:
+    """Same guardrails as the cookie login (generic error, dummy-hash
+    timing defence, is_active checked last) — only the success payload
+    differs."""
+    normalized_email = payload.email.strip().lower()
+    user = db.execute(
+        select(User).where(func.lower(User.email) == normalized_email)
+    ).scalar_one_or_none()
+
+    hash_to_check = (
+        user.password_hash if (user and user.password_hash) else _DUMMY_HASH
+    )
+    password_ok = verify_password(payload.password, hash_to_check)
+
+    if not user or not user.password_hash or not password_ok or not user.is_active:
+        raise UnauthorizedError(
+            "INVALID_CREDENTIALS",
+            "Invalid email or password.",
+        )
+
+    pair = issue_token_pair(db, user_id=user.id)
+    return MobileAuthResponse(
+        user=MobileUser(
+            id=user.id,
+            email=user.email,
+            role=UserRole(user.role),
+            display_name=user.display_name,
+        ),
+        access_token=pair.access_token,
+        refresh_token=pair.refresh_token,
+        expires_in=pair.expires_in,
+    )
+
+
+@mobile_auth_router.post(
+    "/signup",
+    response_model=MobileAuthResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Mobile signup — CONSUMER only, returns bearer tokens",
+    description=(
+        "Creates a CONSUMER account (the app never mints OWNER or "
+        "staff roles) and returns the same token envelope as mobile "
+        "login, so the client treats signup and login identically. "
+        "Duplicate email → `EMAIL_TAKEN`. Rate-limited per-IP at "
+        "5/min, 20/hour."
+    ),
+)
+@limiter.limit("5/minute", key_func=ip_key)
+@limiter.limit("20/hour", key_func=ip_key)
+def mobile_signup(
+    request: Request,
+    payload: MobileSignupRequest,
+    db: Session = Depends(get_db),
+) -> MobileAuthResponse:
+    normalized_email = payload.email.strip().lower()
+    existing = db.execute(
+        select(User).where(func.lower(User.email) == normalized_email)
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise ConflictError(
+            "EMAIL_TAKEN",
+            "An account with that email already exists.",
+        )
+
+    user = User(
+        email=normalized_email,
+        password_hash=hash_password(payload.password),
+        display_name=payload.display_name.strip(),
+        role=UserRole.CONSUMER,
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    pair = issue_token_pair(db, user_id=user.id)
+    return MobileAuthResponse(
+        user=MobileUser(
+            id=user.id,
+            email=user.email,
+            role=UserRole(user.role),
+            display_name=user.display_name,
+        ),
+        access_token=pair.access_token,
+        refresh_token=pair.refresh_token,
+        expires_in=pair.expires_in,
+    )
+
+
+@mobile_auth_router.post(
+    "/refresh",
+    response_model=MobileAuthResponse,
+    summary="Exchange a refresh token for a new token pair",
+    description=(
+        "Single-use rotation: the presented refresh token (and its "
+        "access-token sibling) is revoked and a fresh pair minted in "
+        "the same transaction. A replayed token gets "
+        "`INVALID_REFRESH_TOKEN` — the client's recovery is a fresh "
+        "sign-in. Rate-limited per-IP at 60/hour."
+    ),
+)
+@limiter.limit("60/hour", key_func=ip_key)
+def mobile_refresh(
+    request: Request,
+    payload: MobileRefreshRequest,
+    db: Session = Depends(get_db),
+) -> MobileAuthResponse:
+    rotated = rotate_refresh_token(db, raw_refresh_token=payload.refresh_token)
+    if rotated is None:
+        raise UnauthorizedError(
+            "INVALID_REFRESH_TOKEN",
+            "That refresh token is expired or revoked. Sign in again.",
+        )
+    pair, user = rotated
+    return MobileAuthResponse(
+        user=MobileUser(
+            id=user.id,
+            email=user.email,
+            role=UserRole(user.role),
+            display_name=user.display_name,
+        ),
+        access_token=pair.access_token,
+        refresh_token=pair.refresh_token,
+        expires_in=pair.expires_in,
+    )
+
+
+@mobile_auth_router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revoke a mobile token pair",
+    description=(
+        "Kills the pair the presented refresh token belongs to. "
+        "Idempotent — an unknown or already-revoked token still "
+        "returns 204, so logout never fails visibly on the client."
+    ),
+)
+def mobile_logout(
+    payload: MobileRefreshRequest,
+    db: Session = Depends(get_db),
+) -> Response:
+    revoke_by_refresh_token(db, raw_refresh_token=payload.refresh_token)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 # Backwards compatibility: main.py imports `router` from this module and mounts
 # it. Re-export `me_router` as `router` and add `/auth` routes alongside.
 router = APIRouter()
 router.include_router(me_router)
 router.include_router(auth_router)
+router.include_router(mobile_auth_router)

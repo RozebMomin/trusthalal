@@ -79,10 +79,39 @@ def _user_from_header(db: Session, x_user_id: str | None) -> CurrentUser | None:
     return CurrentUser(id=user.id, role=role)
 
 
+def _user_from_bearer(db: Session, authorization: str | None) -> CurrentUser | None:
+    """Resolve an ``Authorization: Bearer <mobile access token>`` header.
+
+    The mobile app's auth path (see modules/auth/mobile_tokens.py).
+    Quiet on failure like the cookie resolver — malformed header,
+    unknown/expired/revoked token, and inactive user all collapse to
+    None so the caller keeps a single failure mode. Imported lazily to
+    avoid a core↔modules import cycle at module load.
+    """
+    if not authorization:
+        return None
+    scheme, _, credential = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not credential.strip():
+        return None
+
+    from app.modules.auth.mobile_tokens import resolve_access_token
+
+    resolved = resolve_access_token(db, raw_token=credential.strip())
+    if resolved is None:
+        return None
+    _, user = resolved
+    try:
+        role = UserRole(user.role)
+    except ValueError:
+        return None
+    return CurrentUser(id=user.id, role=role)
+
+
 def get_current_user(
     db: Session = Depends(get_db),
     session_cookie: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
 ) -> CurrentUser:
     """Resolve the authenticated user for a request.
 
@@ -103,13 +132,21 @@ def get_current_user(
 
     Raises 401 when neither path yields a user.
     """
-    current = _user_from_session_cookie(db, session_cookie)
-    if (
-        current is None
-        and session_cookie is None
-        and settings.DEV_HEADER_AUTH_ENABLED
-    ):
-        current = _user_from_header(db, x_user_id)
+    # Bearer first: an explicitly-presented mobile token outranks any
+    # ambient cookie (a phone webview could carry both; the header is
+    # the intentional credential). A *failed* bearer does not fall
+    # through to the cookie — same no-silent-downgrade posture as the
+    # cookie/dev-header rule below.
+    if authorization:
+        current = _user_from_bearer(db, authorization)
+    else:
+        current = _user_from_session_cookie(db, session_cookie)
+        if (
+            current is None
+            and session_cookie is None
+            and settings.DEV_HEADER_AUTH_ENABLED
+        ):
+            current = _user_from_header(db, x_user_id)
 
     if current is None:
         raise HTTPException(
@@ -122,6 +159,7 @@ def get_current_user_optional(
     db: Session = Depends(get_db),
     session_cookie: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
 ) -> CurrentUser | None:
     """Return the current user if resolvable, else None. No 401.
 
@@ -134,6 +172,8 @@ def get_current_user_optional(
     session cookie was presented (so a revoked session doesn't
     silently re-auth).
     """
+    if authorization:
+        return _user_from_bearer(db, authorization)
     current = _user_from_session_cookie(db, session_cookie)
     if (
         current is None
