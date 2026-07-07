@@ -82,7 +82,21 @@ export default function PlaceDetail() {
                 }
               />
 
-              <TrustCard profile={place.halal_profile} />
+              {place.halal_profile?.dispute_state === "DISPUTED" ||
+              place.halal_profile?.dispute_state === "RECONCILING" ? (
+                <View style={{ backgroundColor: t.amberSoft, borderRadius: radii.xl, padding: space.lg, flexDirection: "row", gap: 10 }}>
+                  <Feather name="alert-triangle" size={18} color={t.amber} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[ty.label, { color: t.amber, fontSize: 12.5 }]}>This profile is being reviewed</Text>
+                    <Text style={[ty.small, { color: t.amber, marginTop: 3 }]}>
+                      A diner reported part of this profile may be out of date. The owner is responding. Last verified info shown below.
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+              <View style={{ opacity: place.halal_profile?.dispute_state === "DISPUTED" ? 0.75 : 1 }}>
+                <TrustCard profile={place.halal_profile} />
+              </View>
 
               <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
                 Spot something wrong? Reporting arrives in the next build — for now, report on

@@ -12,24 +12,29 @@ import { useTheme } from "@/lib/theme/useTheme";
  * Tracker: docs/ui-build-plan.md
  */
 const SCREENS: Array<{ n: number; name: string; route?: string; note?: string }> = [
+  { n: 2, name: "Map view", note: "P1 — needs react-native-maps" },
+  { n: 7, name: "Activity", route: "/ui/activity" },
+  { n: 14, name: "Location picker", route: "/ui/location-picker" },
+  { n: 15, name: "Report an issue", route: "/ui/report-issue" },
+  { n: 16, name: "Verify home", route: "/ui/verify-home" },
+  { n: 17, name: "Verifier profile", route: "/ui/verifier-profile" },
+  { n: 19, name: "Visit flow (19–22)", route: "/ui/visit-flow" },
+  { n: 23, name: "Trust profile expanded", route: "/ui/trust-profile" },
+  { n: 25, name: "Dispute timeline", route: "/ui/dispute-timeline" },
+  { n: 26, name: "Search — typing", route: "/ui/search-typing" },
+  { n: 27, name: "Become a verifier", route: "/ui/become-verifier" },
+  { n: 29, name: "Notifications", route: "/ui/notifications" },
+  { n: 30, name: "Photo viewer", route: "/ui/photo-viewer" },
   { n: 1, name: "Explore", route: "/(tabs)" },
-  { n: 2, name: "Map view", note: "P1" },
   { n: 3, name: "Place detail", route: "/places/fx-karachi" },
   { n: 4, name: "Filters sheet", note: "open from Explore" },
   { n: 5, name: "Saved", route: "/(tabs)/saved" },
-  { n: 6, name: "Verifier — disclosure step", note: "Phase 11" },
-  { n: 7, name: "Activity (dark)", note: "next batch" },
   { n: 8, name: "Profile", route: "/(tabs)/profile" },
   { n: 9, name: "Onboarding — promise", route: "/onboarding" },
   { n: 12, name: "Sign in", route: "/(auth)/sign-in" },
   { n: 13, name: "Create account", route: "/(auth)/sign-up" },
-  { n: 14, name: "Location picker", note: "next batch" },
-  { n: 15, name: "Report an issue", note: "next batch" },
   { n: 18, name: "Empty state", note: "search 'zzz' in Explore" },
-  { n: 23, name: "Trust profile expanded", note: "next batch" },
   { n: 24, name: "Disputed place", route: "/places/fx-bosphorus" },
-  { n: 26, name: "Search — typing", note: "next batch" },
-  { n: 30, name: "Photo viewer", note: "next batch" },
 ];
 
 export default function UiGallery() {

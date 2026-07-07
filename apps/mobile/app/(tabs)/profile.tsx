@@ -26,11 +26,16 @@ export default function Profile() {
       <Text style={[ty.title, { color: t.ink }]}>Profile</Text>
 
       {me ? (
-        <View style={{ backgroundColor: t.card, borderRadius: radii.xl, padding: space.lg }}>
-          <Text style={[ty.label, { color: t.ink, fontSize: 16 }]}>
-            {me.display_name ?? me.email}
-          </Text>
-          <Text style={[ty.small, { color: t.sub, marginTop: 2 }]}>{me.email}</Text>
+        <View style={{ backgroundColor: "#0B0B0E", borderRadius: radii.xl, padding: space.lg, flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ width: 46, height: 46, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: "#fff", fontFamily: "Inter_800ExtraBold", fontSize: 17 }}>
+              {(me.display_name ?? me.email).charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[ty.label, { color: "#fff", fontSize: 15 }]}>{me.display_name ?? me.email}</Text>
+            <Text style={[ty.small, { color: "rgba(255,255,255,0.55)" }]}>{me.email}</Text>
+          </View>
         </View>
       ) : (
         <View style={{ gap: space.sm }}>

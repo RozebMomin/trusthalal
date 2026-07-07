@@ -38,6 +38,9 @@ export function EmptyState({
   const t = useTheme();
   return (
     <View style={{ padding: space.xxl, alignItems: "center", gap: space.sm }}>
+      <View style={{ width: 76, height: 76, borderRadius: 26, backgroundColor: t.card, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3, marginBottom: space.sm }}>
+        <Text style={{ fontSize: 28 }}>🔍</Text>
+      </View>
       <Text style={[ty.h2, { color: t.ink, textAlign: "center" }]}>{title}</Text>
       <Text style={[ty.body, { color: t.sub, textAlign: "center" }]}>{body}</Text>
       {actionTitle && onAction ? (
