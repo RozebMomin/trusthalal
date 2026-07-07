@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { Image, Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Linking, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyFavorites, usePlaceDetail, useToggleFavorite } from "@/lib/api/hooks";
 import { primaryHalalSignal } from "@/lib/halal-display";
@@ -54,7 +54,16 @@ export default function PlaceDetail() {
               <View style={{ height: insets.top + 44 }} />
             )}
 
-            <View style={{ padding: space.lg, gap: space.md }}>
+            <View
+              style={{
+                marginTop: place.hero_photo_url ? -28 : 0,
+                backgroundColor: t.bg,
+                borderTopLeftRadius: 28,
+                borderTopRightRadius: 28,
+                padding: space.lg,
+                gap: space.md,
+              }}
+            >
               <TierTag signal={primaryHalalSignal(place.halal_profile)} />
               <Text style={[ty.title, { color: t.ink }]}>{place.name}</Text>
               {place.address ? (
@@ -63,30 +72,15 @@ export default function PlaceDetail() {
                 </Text>
               ) : null}
 
-              <View style={{ flexDirection: "row", gap: space.sm }}>
-                <View style={{ flex: 2 }}>
-                  <Button
-                    title="Directions"
-                    variant="accent"
-                    onPress={() =>
-                      Linking.openURL(
-                        `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
-                      )
-                    }
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Button
-                    title={saved ? "Saved ✓" : "Save"}
-                    variant="secondary"
-                    onPress={() =>
-                      me
-                        ? toggle.mutate({ placeId: place.id, saved })
-                        : router.push("/(auth)/sign-in")
-                    }
-                  />
-                </View>
-              </View>
+              <Button
+                title="Directions"
+                variant="accent"
+                onPress={() =>
+                  Linking.openURL(
+                    `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
+                  )
+                }
+              />
 
               <TrustCard profile={place.halal_profile} />
 
@@ -122,7 +116,54 @@ export default function PlaceDetail() {
       >
         <Feather name="chevron-left" size={20} color={t.ink} />
       </Pressable>
+
+      {/* Glass save + share over the hero (mockup 3) */}
+      <View style={{ position: "absolute", top: insets.top + 6, right: space.lg, flexDirection: "row", gap: 8 }}>
+        <Glass
+          icon="heart"
+          label={saved ? "Unsave" : "Save"}
+          active={saved}
+          onPress={() =>
+            me ? toggle.mutate({ placeId: id, saved }) : router.push("/(auth)/sign-in")
+          }
+        />
+        <Glass
+          icon="share"
+          label="Share"
+          onPress={() =>
+            Share.share({ url: `https://halalfoodnearme.com/places/${id}` }).catch(() => undefined)
+          }
+        />
+      </View>
     </View>
+  );
+}
+
+function Glass({
+  icon,
+  label,
+  onPress,
+  active,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={{
+        width: 36, height: 36, borderRadius: 999, backgroundColor: t.card,
+        alignItems: "center", justifyContent: "center",
+        shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 }, elevation: 4,
+      }}
+    >
+      <Feather name={icon} size={17} color={active ? t.danger : t.ink} />
+    </Pressable>
   );
 }
 
@@ -166,7 +207,16 @@ function TrustCard({ profile }: { profile: HalalProfileEmbed | null }) {
 
   return (
     <View style={{ backgroundColor: t.card, borderRadius: radii.xl, padding: space.lg }}>
-      <Text style={[ty.seg, { color: t.sub, marginBottom: 4 }]}>Halal profile</Text>
+      <Text style={[ty.seg, { color: t.sub, marginBottom: 8 }]}>Trust profile</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+        {profile.menu_posture === "FULLY_HALAL" ? <Wash label="Fully halal menu" /> : null}
+        {zabihah.some(([, m]) => m === "ZABIHAH") ? <Wash label="Zabihah" /> : null}
+        {profile.alcohol_policy === "NONE" ? <Wash label="No alcohol" /> : null}
+        {!profile.has_pork ? <Wash label="Pork-free" /> : null}
+        {profile.has_certification ? (
+          <Wash label={`Cert · ${profile.certifying_body_name ?? "on file"}`} neutral />
+        ) : null}
+      </View>
       <Row label="Menu" value={POSTURE_LABELS[profile.menu_posture] ?? profile.menu_posture} />
       {zabihah.map(([meat, method]) => (
         <Row key={meat} label={meat} value={method === "ZABIHAH" ? "Zabihah ✓" : "Machine"} />
@@ -187,6 +237,30 @@ function TrustCard({ profile }: { profile: HalalProfileEmbed | null }) {
       {profile.has_certification ? (
         <Row label="Certificate" value={profile.certifying_body_name ?? "On file"} />
       ) : null}
+    </View>
+  );
+}
+
+function Wash({ label, neutral }: { label: string; neutral?: boolean }) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        backgroundColor: neutral ? t.zincSoft : t.accentSoft,
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 3.5,
+      }}
+    >
+      <Text
+        style={{
+          color: neutral ? t.zinc : t.accentDeep,
+          fontFamily: "Inter_700Bold",
+          fontSize: 9.5,
+        }}
+      >
+        {label}
+      </Text>
     </View>
   );
 }

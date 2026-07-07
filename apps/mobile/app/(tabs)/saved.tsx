@@ -41,7 +41,7 @@ export default function Saved() {
         <FlatList
           data={favorites.data}
           keyExtractor={(f) => f.place.id}
-          contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 32 }}
+          contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 110 }}
           renderItem={({ item }) => <PlaceCard place={item.place} />}
         />
       )}

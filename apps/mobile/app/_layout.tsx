@@ -6,7 +6,8 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { useColorScheme } from "react-native";
@@ -30,7 +31,12 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
+    if (!loaded) return;
+    SplashScreen.hideAsync();
+    // First run → onboarding (mockups 9–11). Flag lives in SecureStore.
+    SecureStore.getItemAsync("onboarded_v1").then((seen) => {
+      if (!seen) router.replace("/onboarding");
+    });
   }, [loaded]);
   if (!loaded) return null;
 
@@ -44,6 +50,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
         <Stack.Screen name="(auth)/sign-in" options={{ presentation: "modal" }} />
         <Stack.Screen name="(auth)/sign-up" options={{ presentation: "modal" }} />
       </Stack>

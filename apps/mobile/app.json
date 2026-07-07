@@ -11,7 +11,9 @@
       "bundleIdentifier": "org.trusthalal.consumer",
       "supportsTablet": false,
       "usesAppleSignIn": false,
-      "associatedDomains": ["applinks:halalfoodnearme.com"],
+      "associatedDomains": [
+        "applinks:halalfoodnearme.com"
+      ],
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "So we can show halal restaurants near you.",
         "NSPhotoLibraryUsageDescription": "So you can attach a photo to a dispute report.",
@@ -21,8 +23,18 @@
     "android": {
       "package": "org.trusthalal.consumer"
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-location", "expo-font"],
-    "experiments": { "typedRoutes": true },
-    "extra": { "apiBaseUrl": "https://api.trusthalal.org" }
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-location",
+      "expo-font",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "https://api.trusthalal.org"
+    }
   }
 }

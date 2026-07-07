@@ -88,9 +88,14 @@ export default function SignUp() {
         value={password}
         onChangeText={setPassword}
       />
-      {tooShort ? (
-        <Text style={[ty.small, { color: t.danger }]}>At least 8 characters.</Text>
-      ) : null}
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        <View style={{ backgroundColor: password.length >= 8 ? t.accentSoft : t.zincSoft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3.5 }}>
+          <Text style={{ color: password.length >= 8 ? t.accentDeep : t.sub, fontFamily: "Inter_700Bold", fontSize: 9.5 }}>
+            {password.length >= 8 ? "✓ " : ""}8+ characters
+          </Text>
+        </View>
+      </View>
+      {tooShort ? null : null}
       {error ? <Text style={[ty.small, { color: t.danger }]}>{error}</Text> : null}
 
       <Button

@@ -14,6 +14,7 @@ import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { PlaceCard } from "@/components/PlaceCard";
+import { countFilters, FiltersSheet, type Filters } from "@/components/FiltersSheet";
 import { EmptyState, ErrorState, Loading } from "@/components/States";
 
 const RADII_MI = [1, 3, 5, 10, 25] as const;
@@ -46,12 +47,14 @@ export default function Explore() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [radiusMi, setRadiusMi] = useState(5);
   const [locating, setLocating] = useState(false);
+  const [filters, setFilters] = useState<Filters>({});
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
 
   const geo = coords
     ? { lat: coords.lat, lng: coords.lng, radius: radiusMi * M_PER_MI }
     : {};
-  const search = useSearchPlaces({ q: q || undefined, ...geo });
+  const search = useSearchPlaces({ q: q || undefined, ...geo, ...filters });
   const city = useReverseGeocode(coords?.lat, coords?.lng);
 
   async function locate() {
@@ -95,7 +98,33 @@ export default function Explore() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + space.sm }}>
       <View style={{ paddingHorizontal: space.lg, gap: space.sm }}>
-        <Text style={[ty.title, { color: t.ink }]}>Explore</Text>
+        {/* Mockup-1 header: location line + filter button */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <View>
+            <Text style={[ty.small, { color: t.sub }]}>Finding halal near</Text>
+            <Pressable onPress={locate} accessibilityRole="button" accessibilityLabel="Change location">
+              <Text style={[ty.label, { color: t.ink, fontSize: 16 }]}>
+                {coords ? cityLabel : "Anywhere"} <Text style={{ color: t.accent }}>▾</Text>
+              </Text>
+            </Pressable>
+          </View>
+          <Pressable
+            accessibilityLabel="Filters"
+            onPress={() => setFiltersOpen(true)}
+            style={{
+              width: 40, height: 40, borderRadius: 999, backgroundColor: t.card,
+              alignItems: "center", justifyContent: "center",
+              shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+            }}
+          >
+            <Feather name="sliders" size={16} color={t.ink} />
+            {countFilters(filters) > 0 ? (
+              <View style={{ position: "absolute", top: -2, right: -2, backgroundColor: t.accent, borderRadius: 999, minWidth: 16, height: 16, alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: "#fff", fontSize: 9, fontFamily: "Inter_700Bold" }}>{countFilters(filters)}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </View>
 
         {/* Search field */}
         <View
@@ -128,6 +157,17 @@ export default function Explore() {
 
         {/* Location pill + radius chips */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+          <Chip
+            active={filters.min_validation_tier === "TRUST_HALAL_VERIFIED"}
+            label="✓ Verified"
+            onPress={() =>
+              setFilters((f) => ({
+                ...f,
+                min_validation_tier:
+                  f.min_validation_tier === "TRUST_HALAL_VERIFIED" ? undefined : "TRUST_HALAL_VERIFIED",
+              }))
+            }
+          />
           <Chip
             active={coords !== null}
             label={
@@ -179,12 +219,19 @@ export default function Explore() {
         <FlatList
           data={results}
           keyExtractor={(item) => item.place.id}
-          contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 32 }}
+          contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 110 }}
           renderItem={({ item }) => (
             <PlaceCard place={item.place} distanceMeters={item.distanceMeters} />
           )}
         />
       )}
+      <FiltersSheet
+        visible={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        resultCount={hasActiveSearch ? results.length : undefined}
+      />
     </View>
   );
 }

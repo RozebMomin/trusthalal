@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from "react-native";
@@ -57,10 +58,21 @@ export default function SignIn() {
       <Pressable accessibilityLabel="Close" onPress={() => router.back()}>
         <Text style={[ty.label, { color: t.sub }]}>✕</Text>
       </Pressable>
-      <Text style={[ty.title, { color: t.ink, marginTop: space.lg }]}>Welcome back</Text>
+      <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.accent, alignItems: "center", justifyContent: "center", marginTop: space.md }}>
+        <Feather name="check" size={22} color="#fff" />
+      </View>
+      <Text style={[ty.title, { color: t.ink }]}>Welcome back</Text>
       <Text style={[ty.body, { color: t.sub }]}>
         Sign in to save places and set your halal preferences.
       </Text>
+      {/* Social sign-in per mockup 12 — backend endpoints land next build. */}
+      <Button title=" Continue with Apple" onPress={() => setError("Apple sign-in arrives with the next build — use email for now.")} />
+      <Button title="Continue with Google" variant="secondary" onPress={() => setError("Google sign-in arrives with the next build — use email for now.")} />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: t.line }} />
+        <Text style={[ty.seg, { color: t.sub }]}>or</Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: t.line }} />
+      </View>
 
       <TextInput
         style={field}
