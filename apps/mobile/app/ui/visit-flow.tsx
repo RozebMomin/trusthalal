@@ -11,15 +11,15 @@ import { UiScreen } from "./_shared";
 export default function VisitFlow() {
   const t = useTheme();
   const [step, setStep] = useState(0);
-  const next = () => setStep((s) => Math.min(s + 1, 3));
+  const next = () => setStep((s) => Math.min(s + 1, 4));
 
   return (
     <UiScreen>
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_700Bold" }]}>{step === 3 ? "" : "Cancel"}</Text>
-        <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_600SemiBold" }]}>{step < 3 ? `Step ${[1,3,4][step]} of 5` : ""}</Text>
+        <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_700Bold" }]}>{step === 4 ? "" : "Cancel"}</Text>
+        <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_600SemiBold" }]}>{step < 4 ? `Step ${step + 1} of 5` : ""}</Text>
       </View>
-      {step < 3 ? <Steps total={5} done={[1,3,4][step]} /> : null}
+      {step < 4 ? <Steps total={5} done={step + 1} /> : null}
 
       {step === 0 && (<>
         <Text style={[ty.title, { color: t.ink }]}>Where are you{"\n"}eating?</Text>
@@ -41,6 +41,30 @@ export default function VisitFlow() {
       </>)}
 
       {step === 1 && (<>
+        <Text style={[ty.title, { color: t.ink }]}>Snap it while{"\n"}you're there.</Text>
+        <Text style={[ty.body, { color: t.sub }]}>
+          Photos are your evidence — the cert on the wall, the menu, your meal. Camera first; add from your library too.
+        </Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          <View style={{ width: 100, height: 100, borderRadius: radii.lg, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 2, borderColor: t.accent }}>
+            <Feather name="camera" size={22} color={t.accentDeep} />
+            <Text style={[ty.seg, { color: t.accentDeep, fontSize: 8.5 }]}>Camera</Text>
+          </View>
+          {["CERT", "MENU", "MEAL"].map((l) => (
+            <View key={l} style={{ width: 100, height: 100, borderRadius: radii.lg, backgroundColor: t.zincSoft, alignItems: "flex-start", justifyContent: "flex-end", padding: 6 }}>
+              <Tag label={l} tone="glass" />
+            </View>
+          ))}
+          <View style={{ width: 100, height: 100, borderRadius: radii.lg, borderWidth: 1.5, borderStyle: "dashed", borderColor: t.line, alignItems: "center", justifyContent: "center" }}>
+            <Feather name="image" size={18} color={t.sub} />
+          </View>
+        </View>
+        <Text style={[ty.small, { color: t.sub }]}>3 photos attached · aim for the cert, the menu, and what you ordered.</Text>
+        <Button title="Continue" onPress={next} />
+        <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>Photos stay on-device until you submit.</Text>
+      </>)}
+
+      {step === 2 && (<>
         <Text style={[ty.title, { color: t.ink }]}>What did you{"\n"}observe?</Text>
         <Seg>You ordered</Seg>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
@@ -61,7 +85,7 @@ export default function VisitFlow() {
         <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>Draft auto-saves on device</Text>
       </>)}
 
-      {step === 2 && (<>
+      {step === 3 && (<>
         <Text style={[ty.title, { color: t.ink }]}>Who paid for{"\n"}the meal?</Text>
         <Text style={[ty.body, { color: t.sub }]}>Nothing here disqualifies your visit — hiding it does. This is shown on the public report.</Text>
         {["I paid for it myself", "The restaurant comped it", "Paid partnership", "Something else"].map((o, i) => (
@@ -83,7 +107,7 @@ export default function VisitFlow() {
         <Button title="Review & submit" onPress={next} />
       </>)}
 
-      {step === 3 && (
+      {step === 4 && (
         <View style={{ alignItems: "center", gap: space.md, paddingTop: 60 }}>
           <View style={{ width: 88, height: 88, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
             <Feather name="check" size={40} color="#fff" />
