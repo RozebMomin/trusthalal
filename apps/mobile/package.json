@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "main": "expo-router/entry",
   "private": true,
-  "description": "HalalScout iOS/Android app \u2014 the consumer surface for Trust Halal.",
+  "description": "HalalScout iOS/Android app — the consumer surface for Trust Halal.",
   "scripts": {
     "start": "expo start",
     "ios": "expo run:ios",
@@ -21,7 +21,7 @@
     "expo-constants": "~17.0.0",
     "expo-font": "~13.0.0",
     "expo-haptics": "~14.0.0",
-    "expo-linear-gradient": "~14.0.0",
+    "expo-linear-gradient": "~14.0.2",
     "expo-linking": "~7.0.0",
     "expo-location": "~18.0.0",
     "expo-router": "~4.0.0",

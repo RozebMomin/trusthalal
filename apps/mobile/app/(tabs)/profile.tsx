@@ -58,6 +58,11 @@ export default function Profile() {
           icon="home"
           label="Own a restaurant?"
           onPress={() => Linking.openURL("https://owner.trusthalal.org")}
+        />
+        <LinkRow
+          icon="layers"
+          label="UI gallery (dev)"
+          onPress={() => router.push("/ui-gallery")}
           last
         />
       </View>

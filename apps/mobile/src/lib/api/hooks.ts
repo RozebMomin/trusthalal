@@ -108,7 +108,15 @@ export function useSearchPlaces(params: SearchPlacesParams) {
 export function usePlaceDetail(id: string) {
   return useQuery({
     queryKey: ["places", "detail", id],
-    queryFn: () => apiFetch<PlaceDetail>(`/places/${id}`),
+    queryFn: async () => {
+      // UI-first mode: fixture ids render mockup content without the API.
+      if (id.startsWith("fx-")) {
+        const { FIXTURE_PLACES } = await import("@/fixtures");
+        const fx = FIXTURE_PLACES.find((x) => x.id === id);
+        if (fx) return { ...fx, is_deleted: false, photos: [] } as PlaceDetail;
+      }
+      return apiFetch<PlaceDetail>(`/places/${id}`);
+    },
     enabled: Boolean(id),
   });
 }
