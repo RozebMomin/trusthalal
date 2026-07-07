@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReverseGeocode, useSearchPlaces } from "@/lib/api/hooks";
+import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { PlaceCard } from "@/components/PlaceCard";
@@ -73,9 +74,11 @@ export default function Explore() {
     }
   }
 
-  const results = useMemo(() => {
+  const results = useMemo<
+    Array<{ place: PlaceSearchResult; distanceMeters?: number }>
+  >(() => {
     const data = search.data ?? [];
-    if (!coords) return data.map((place) => ({ place, distanceMeters: undefined }));
+    if (!coords) return data.map((place) => ({ place }));
     return data
       .map((place) => ({
         place,
