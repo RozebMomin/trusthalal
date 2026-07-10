@@ -18,10 +18,15 @@
         "NSLocationWhenInUseUsageDescription": "So we can show halal restaurants near you.",
         "NSPhotoLibraryUsageDescription": "So you can attach a photo to a dispute report.",
         "NSCameraUsageDescription": "So you can take a photo for a dispute report."
-      }
+      },
+      "appleTeamId": "3623JG9XS4"
     },
     "android": {
-      "package": "org.trusthalal.consumer"
+      "package": "org.trusthalal.consumer",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-router",
