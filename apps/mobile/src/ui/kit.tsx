@@ -257,3 +257,71 @@ export function Steps({ total, done }: { total: number; done: number }) {
 export function toneFor(t: Palette) {
   return t;
 }
+
+// ---------------------------------------------------------------------------
+// Sheet — bottom-sheet container that animates CORRECTLY: the scrim
+// fades in place while the panel slides. RN Modal's animationType
+// "slide" moves the whole subtree (scrim included), which reads as a
+// black slab riding up and down with the sheet.
+// ---------------------------------------------------------------------------
+import { useEffect, useRef, useState } from "react";
+import { Animated, Modal } from "react-native";
+
+export function Sheet({
+  visible,
+  onClose,
+  children,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const t = useTheme();
+  const anim = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(visible);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      Animated.timing(anim, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(anim, { toValue: 0, duration: 190, useNativeDriver: true }).start(() =>
+        setMounted(false),
+      );
+    }
+  }, [visible, anim]);
+
+  if (!mounted) return null;
+  return (
+    <Modal visible transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View style={{ flex: 1, backgroundColor: "rgba(9,9,11,0.5)", opacity: anim }}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close" />
+      </Animated.View>
+      <Animated.View
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          maxHeight: "88%",
+          transform: [
+            { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) },
+          ],
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: t.bg,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingHorizontal: space.lg,
+            paddingBottom: 34,
+          }}
+        >
+          <View style={{ alignSelf: "center", width: 36, height: 4, borderRadius: 4, backgroundColor: t.line, marginVertical: 12 }} />
+          {children}
+        </View>
+      </Animated.View>
+    </Modal>
+  );
+}

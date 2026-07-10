@@ -2,11 +2,11 @@ import { Feather } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ScrollView, Text, TextInput, View } from "react-native";
 import { apiFetch } from "@/lib/api/client";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card, Cell, Chip, IcBox, Seg } from "@/ui/kit";
+import { Card, Cell, Chip, IcBox, Seg, Sheet } from "@/ui/kit";
 
 export type PickedLocation = { lat: number; lng: number; label: string };
 
@@ -96,12 +96,9 @@ export function LocationSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: "rgba(9,9,11,0.5)" }} onPress={onClose} />
-      <View style={{ backgroundColor: t.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: space.lg, paddingBottom: 34, maxHeight: "85%" }}>
-        <View style={{ alignSelf: "center", width: 36, height: 4, borderRadius: 4, backgroundColor: t.line, marginVertical: 12 }} />
-        <Text style={[ty.h2, { color: t.ink, marginBottom: space.md }]}>Where to?</Text>
-        <ScrollView keyboardShouldPersistTaps="handled">
+    <Sheet visible={visible} onClose={onClose}>
+      <Text style={[ty.h2, { color: t.ink, marginBottom: space.md }]}>Where to?</Text>
+        <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 460 }}>
           <Card style={{ borderWidth: 1.5, borderColor: t.accentSoft }}>
             <Cell
               last
@@ -181,7 +178,6 @@ export function LocationSheet({
             </>
           )}
         </ScrollView>
-      </View>
-    </Modal>
+    </Sheet>
   );
 }

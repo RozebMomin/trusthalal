@@ -1,7 +1,8 @@
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "./Button";
+import { Sheet } from "@/ui/kit";
 import type { SearchPlacesParams, ValidationTier } from "@/lib/api/types";
 
 const TIERS: Array<{ v: ValidationTier | undefined; label: string }> = [
@@ -40,26 +41,14 @@ export function FiltersSheet({
 }) {
   const t = useTheme();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: "rgba(9,9,11,0.5)" }} onPress={onClose} />
-      <View
-        style={{
-          backgroundColor: t.bg,
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-          paddingHorizontal: space.lg,
-          paddingBottom: 34,
-          maxHeight: "80%",
-        }}
-      >
-        <View style={{ alignSelf: "center", width: 36, height: 4, borderRadius: 4, backgroundColor: t.line, marginVertical: 12 }} />
+    <Sheet visible={visible} onClose={onClose}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: space.md }}>
           <Text style={[ty.h2, { color: t.ink }]}>Filters</Text>
           <Pressable onPress={() => onChange({})}>
             <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold" }]}>Reset</Text>
           </Pressable>
         </View>
-        <ScrollView>
+        <ScrollView style={{ maxHeight: 520 }}>
           <Text style={[ty.seg, { color: t.sub, marginBottom: 8 }]}>Minimum proof</Text>
           <View style={{ flexDirection: "row", backgroundColor: t.zincSoft, borderRadius: radii.md, padding: 3 }}>
             {TIERS.map((o) => {
@@ -102,8 +91,7 @@ export function FiltersSheet({
             <Button title={resultCount !== undefined ? `Show ${resultCount} places` : "Done"} onPress={onClose} />
           </View>
         </ScrollView>
-      </View>
-    </Modal>
+    </Sheet>
   );
 }
 
