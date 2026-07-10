@@ -109,7 +109,7 @@ function Chip({ on, label, onPress }: { on: boolean; label: string; onPress: () 
         paddingVertical: 8,
       }}
     >
-      <Text style={{ color: on ? "#fff" : t.ink, fontFamily: "Inter_600SemiBold", fontSize: 11 }}>{label}</Text>
+      <Text style={{ color: on ? t.onInk : t.ink, fontFamily: "Inter_600SemiBold", fontSize: 11 }}>{label}</Text>
     </Pressable>
   );
 }

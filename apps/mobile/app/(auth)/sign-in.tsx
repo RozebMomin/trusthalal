@@ -59,7 +59,7 @@ export default function SignIn() {
         <Text style={[ty.label, { color: t.sub }]}>✕</Text>
       </Pressable>
       <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.accent, alignItems: "center", justifyContent: "center", marginTop: space.md }}>
-        <Feather name="check" size={22} color="#fff" />
+        <Feather name="check" size={22} color={t.onAccent} />
       </View>
       <Text style={[ty.title, { color: t.ink }]}>Welcome back</Text>
       <Text style={[ty.body, { color: t.sub }]}>

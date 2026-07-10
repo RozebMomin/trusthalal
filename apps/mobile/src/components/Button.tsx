@@ -8,7 +8,7 @@ type Variant = "primary" | "accent" | "secondary";
 function bg(v: Variant, t: Palette, pressed: boolean) {
   if (v === "accent") return pressed ? t.accentDeep : t.accent;
   if (v === "secondary") return t.card;
-  return pressed ? "#26262B" : t.ink;
+  return t.ink; // pressed feedback comes from opacity below
 }
 
 export function Button({
@@ -25,7 +25,7 @@ export function Button({
   loading?: boolean;
 }) {
   const t = useTheme();
-  const fg = variant === "secondary" ? t.ink : "#FFFFFF";
+  const fg = variant === "secondary" ? t.ink : variant === "accent" ? t.onAccent : t.onInk;
   return (
     <Pressable
       accessibilityRole="button"
@@ -39,7 +39,7 @@ export function Button({
         borderRadius: radii.lg,
         paddingVertical: 14,
         alignItems: "center",
-        opacity: disabled ? 0.5 : 1,
+        opacity: disabled ? 0.5 : pressed && variant === "primary" ? 0.85 : 1,
         borderWidth: variant === "secondary" ? 1 : 0,
         borderColor: t.line,
         minHeight: 48,

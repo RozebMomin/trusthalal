@@ -139,7 +139,7 @@ export default function Explore() {
             <Feather name="sliders" size={16} color={t.ink} />
             {countFilters(filters) > 0 ? (
               <View style={{ position: "absolute", top: -2, right: -2, backgroundColor: t.accent, borderRadius: 999, minWidth: 16, height: 16, alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ color: "#fff", fontSize: 9, fontFamily: "Inter_700Bold" }}>{countFilters(filters)}</Text>
+                <Text style={{ color: t.onAccent, fontSize: 9, fontFamily: "Inter_700Bold" }}>{countFilters(filters)}</Text>
               </View>
             ) : null}
           </Pressable>
@@ -337,10 +337,10 @@ function Chip({
         minHeight: 34,
       }}
     >
-      {icon ? <Feather name={icon} size={12} color={active ? "#fff" : t.ink} /> : null}
+      {icon ? <Feather name={icon} size={12} color={active ? t.onInk : t.ink} /> : null}
       <Text
         style={{
-          color: active ? "#fff" : t.ink,
+          color: active ? t.onInk : t.ink,
           fontFamily: "Inter_600SemiBold",
           fontSize: 11.5,
         }}

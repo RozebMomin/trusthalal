@@ -36,7 +36,7 @@ export default function Onboarding() {
       {step === 0 && (
         <View style={{ flex: 1, justifyContent: "flex-end", paddingBottom: space.xl, gap: space.md }}>
           <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-            <Feather name="check" size={24} color="#fff" />
+            <Feather name="check" size={24} color={t.onAccent} />
           </View>
           <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 34 }]}>
             Verified halal,{"\n"}no guesswork.
@@ -74,7 +74,7 @@ export default function Onboarding() {
             <View style={{ width: 176, height: 176, borderRadius: 999, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
               <View style={{ width: 104, height: 104, borderRadius: 999, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
                 <View style={{ width: 52, height: 52, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-                  <Feather name="map-pin" size={24} color="#fff" />
+                  <Feather name="map-pin" size={24} color={t.onAccent} />
                 </View>
               </View>
             </View>
@@ -156,7 +156,7 @@ function Tier({
           paddingVertical: 3.5,
         }}
       >
-        <Text style={{ color: solid ? "#fff" : amber ? t.amber : t.zinc, fontFamily: "Inter_700Bold", fontSize: 9.5 }}>
+        <Text style={{ color: solid ? t.onAccent : amber ? t.amber : t.zinc, fontFamily: "Inter_700Bold", fontSize: 9.5 }}>
           {label}
         </Text>
       </View>

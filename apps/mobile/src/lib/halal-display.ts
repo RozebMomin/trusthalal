@@ -58,7 +58,7 @@ export function primaryHalalSignal(p: HalalProfileEmbed | null): PrimarySignal {
 export function toneStyle(tone: Tone, t: Palette) {
   switch (tone) {
     case "positive":
-      return { bg: t.accent, fg: "#FFFFFF", border: t.accent, dashed: false };
+      return { bg: t.accent, fg: t.onAccent, border: t.accent, dashed: false };
     case "trusted":
       return { bg: t.amberSoft, fg: t.amber, border: t.amberSoft, dashed: false };
     case "neutral":

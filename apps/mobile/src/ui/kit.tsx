@@ -31,7 +31,7 @@ export function Tag({
 }) {
   const t = useTheme();
   const map: Record<string, { bg: string; fg: string; dashed?: boolean }> = {
-    solid: { bg: t.accent, fg: "#fff" },
+    solid: { bg: t.accent, fg: t.onAccent },
     wash: { bg: t.accentSoft, fg: t.accentDeep },
     amber: { bg: t.amberSoft, fg: t.amber },
     zinc: { bg: t.zincSoft, fg: t.zinc },
@@ -96,8 +96,8 @@ export function Chip({
         shadowOffset: { width: 0, height: 1 },
       }}
     >
-      {icon ? <Feather name={icon} size={12} color={on ? "#fff" : t.ink} /> : null}
-      <Text style={{ color: on ? "#fff" : t.ink, fontFamily: "Inter_600SemiBold", fontSize: 11.5 }}>
+      {icon ? <Feather name={icon} size={12} color={on ? t.onInk : t.ink} /> : null}
+      <Text style={{ color: on ? t.onInk : t.ink, fontFamily: "Inter_600SemiBold", fontSize: 11.5 }}>
         {label}
       </Text>
     </Pressable>

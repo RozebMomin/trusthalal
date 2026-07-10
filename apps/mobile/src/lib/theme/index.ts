@@ -6,6 +6,10 @@
  */
 export const light = {
   bg: "#F6F6F7",
+  // Text/icon colors for content sitting ON a token background.
+  // Hard-coding #fff broke dark mode: ink is near-white there.
+  onInk: "#FFFFFF",
+  onAccent: "#FFFFFF",
   card: "#FFFFFF",
   ink: "#0B0B0E",
   sub: "#7A7A83",
@@ -23,6 +27,8 @@ export const light = {
 
 export const dark: typeof light = {
   bg: "#0C0C0F",
+  onInk: "#0B0B0E",
+  onAccent: "#0B2A1D",
   card: "#161619",
   ink: "#F4F4F5",
   sub: "#8E8E96",

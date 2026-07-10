@@ -93,7 +93,7 @@ export default function VisitFlow() {
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={[ty.label, { color: i === 0 ? t.ink : t.zinc, fontSize: 13.5 }]}>{o}</Text>
               {i === 0
-                ? <View style={{ width: 20, height: 20, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}><Feather name="check" size={12} color="#fff" /></View>
+                ? <View style={{ width: 20, height: 20, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}><Feather name="check" size={12} color={t.onAccent} /></View>
                 : <View style={{ width: 20, height: 20, borderRadius: 999, borderWidth: 2, borderColor: t.line }} />}
             </View>
           </Card>
@@ -110,7 +110,7 @@ export default function VisitFlow() {
       {step === 4 && (
         <View style={{ alignItems: "center", gap: space.md, paddingTop: 60 }}>
           <View style={{ width: 88, height: 88, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-            <Feather name="check" size={40} color="#fff" />
+            <Feather name="check" size={40} color={t.onAccent} />
           </View>
           <Text style={[ty.title, { color: t.ink, textAlign: "center" }]}>Report submitted</Text>
           <Text style={[ty.body, { color: t.sub, textAlign: "center" }]}>

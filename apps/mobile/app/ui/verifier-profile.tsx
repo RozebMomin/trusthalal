@@ -12,7 +12,7 @@ export default function VerifierProfile() {
     <UiScreen>
       <View style={{ alignItems: "center", gap: 8 }}>
         <View style={{ width: 72, height: 72, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: "#fff", fontFamily: "Inter_800ExtraBold", fontSize: 26 }}>A</Text>
+          <Text style={{ color: t.onAccent, fontFamily: "Inter_800ExtraBold", fontSize: 26 }}>A</Text>
         </View>
         <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
           <Text style={[ty.h2, { color: t.ink }]}>{v.handle}</Text><Tag label="✓ VERIFIER" tone="solid" />

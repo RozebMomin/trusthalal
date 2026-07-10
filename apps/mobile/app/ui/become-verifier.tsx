@@ -11,7 +11,7 @@ export default function BecomeVerifier() {
   return (
     <UiScreen>
       <View style={{ width: 48, height: 48, borderRadius: radii.lg, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-        <Feather name="shield" size={22} color="#fff" />
+        <Feather name="shield" size={22} color={t.onAccent} />
       </View>
       <Text style={[ty.title, { color: t.ink }]}>You eat out anyway.{"\n"}Make it count.</Text>
       <Text style={[ty.body, { color: t.sub }]}>
