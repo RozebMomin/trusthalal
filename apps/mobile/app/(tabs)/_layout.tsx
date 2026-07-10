@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
@@ -84,9 +84,11 @@ function FrostedPillTabs() {
         ),
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Explore", tabBarIcon: (p) => <Feather name="compass" {...p} size={21} /> }} />
-      <Tabs.Screen name="saved" options={{ title: "Saved", tabBarIcon: (p) => <Feather name="heart" {...p} size={21} /> }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: (p) => <Feather name="user" {...p} size={21} /> }} />
+      {/* Filled icon when active, outline when not — mockup convention,
+          and it mirrors what SF Symbols do on the iOS 26 native bar. */}
+      <Tabs.Screen name="index" options={{ title: "Explore", tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? "compass" : "compass-outline"} color={color} size={22} /> }} />
+      <Tabs.Screen name="saved" options={{ title: "Saved", tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? "heart" : "heart-outline"} color={color} size={22} /> }} />
+      <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? "person" : "person-outline"} color={color} size={22} /> }} />
     </Tabs>
   );
 }
