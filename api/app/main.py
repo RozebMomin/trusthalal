@@ -364,7 +364,19 @@ _OPENAPI_TAGS: list[dict] = [
     },
 ]
 
+# Interactive docs are a development/staging convenience only. In prod
+# they're disabled: /docs "Try it out" hands anyone an interactive map
+# of every endpoint (including admin shapes). This is defence-in-depth,
+# not the security boundary — auth guards + rate limits protect the
+# endpoints themselves; hiding the map just stops casual poking. The
+# schema clients codegen from is the committed api/openapi.json, not
+# the live URL, so disabling /openapi.json in prod breaks nothing.
+_docs_enabled = settings.ENV != "prod"
+
 app = FastAPI(
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
     title=settings.APP_NAME,
     summary="Backend for the Trust Halal halal-restaurant verification platform.",
     description=_API_DESCRIPTION,
