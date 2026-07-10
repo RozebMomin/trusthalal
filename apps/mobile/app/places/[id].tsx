@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { Alert, Image, Linking, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -134,7 +134,7 @@ export default function PlaceDetail() {
       {/* Glass save + share over the hero (mockup 3) */}
       <View style={{ position: "absolute", top: insets.top + 6, right: space.lg, flexDirection: "row", gap: 8 }}>
         <Glass
-          icon="heart"
+          ion={saved ? "heart" : "heart-outline"}
           label={saved ? "Unsave" : "Save"}
           active={saved}
           onPress={() => {
@@ -172,11 +172,14 @@ export default function PlaceDetail() {
 
 function Glass({
   icon,
+  ion,
   label,
   onPress,
   active,
 }: {
-  icon: keyof typeof Feather.glyphMap;
+  icon?: keyof typeof Feather.glyphMap;
+  /** Ionicons name — used for states Feather can't draw (filled heart). */
+  ion?: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
   active?: boolean;
@@ -193,7 +196,11 @@ function Glass({
         shadowOffset: { width: 0, height: 2 }, elevation: 4,
       }}
     >
-      <Feather name={icon} size={17} color={active ? t.danger : t.ink} />
+      {ion ? (
+        <Ionicons name={ion} size={18} color={active ? t.danger : t.ink} />
+      ) : (
+        <Feather name={icon!} size={17} color={active ? t.danger : t.ink} />
+      )}
     </Pressable>
   );
 }
