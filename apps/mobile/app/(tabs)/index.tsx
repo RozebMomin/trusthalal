@@ -17,6 +17,7 @@ import { useTheme } from "@/lib/theme/useTheme";
 import { PlaceCard } from "@/components/PlaceCard";
 import { countFilters, FiltersSheet, type Filters } from "@/components/FiltersSheet";
 import { LocationSheet, type PickedLocation } from "@/components/LocationSheet";
+import { MapResults } from "@/components/MapResults";
 import { EmptyState, ErrorState, Loading } from "@/components/States";
 
 const RADII_MI = [1, 3, 5, 10, 25] as const;
@@ -65,6 +66,7 @@ export default function Explore() {
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
+  const [view, setView] = useState<"list" | "map">("list");
   const [manualLabel, setManualLabel] = useState<string | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
 
@@ -127,6 +129,18 @@ export default function Explore() {
               </Text>
             </Pressable>
           </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable
+            accessibilityLabel={view === "list" ? "Map view" : "List view"}
+            onPress={() => setView(view === "list" ? "map" : "list")}
+            style={{
+              width: 40, height: 40, borderRadius: 999, backgroundColor: t.card,
+              alignItems: "center", justifyContent: "center",
+              shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+            }}
+          >
+            <Feather name={view === "list" ? "map" : "list"} size={16} color={t.ink} />
+          </Pressable>
           <Pressable
             accessibilityLabel="Filters"
             onPress={() => setFiltersOpen(true)}
@@ -143,6 +157,7 @@ export default function Explore() {
               </View>
             ) : null}
           </Pressable>
+          </View>
         </View>
 
         {/* Search field */}
@@ -279,6 +294,12 @@ export default function Explore() {
           //   title: "Know a halal spot here? Suggest it",
           //   onPress: () => router.push("/suggest-a-spot"),
           // }}
+        />
+      ) : view === "map" ? (
+        <MapResults
+          results={results}
+          center={coords}
+          onRecenter={locate}
         />
       ) : (
         <FlatList
