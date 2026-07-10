@@ -3,7 +3,6 @@ import * as Location from "expo-location";
 import { useMemo, useState } from "react";
 import {
   FlatList,
-  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -274,13 +273,12 @@ export default function Explore() {
                 }]
               : []),
           ]}
-          footerLink={{
-            title: "Know a halal spot here? Suggest it",
-            onPress: () =>
-              Linking.openURL(
-                `mailto:hello@trusthalal.org?subject=${encodeURIComponent("Halal spot suggestion")}&body=${encodeURIComponent("Restaurant name:\nCity:\nWhy it belongs on HalalScout:\n")}`,
-              ),
-          }}
+          // TODO(wiring-plan W3/W4): re-enable once the nominate-a-restaurant
+          // endpoint exists — in-app suggestion flow, not the mailto stopgap.
+          // footerLink={{
+          //   title: "Know a halal spot here? Suggest it",
+          //   onPress: () => router.push("/suggest-a-spot"),
+          // }}
         />
       ) : (
         <FlatList
