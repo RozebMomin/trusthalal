@@ -1,41 +1,34 @@
-import { Feather } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
-import { Platform } from "react-native";
-import { useTheme } from "@/lib/theme/useTheme";
+import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 
-/** Floating pill nav from the mockups. Verify + Activity tabs join in
- *  Phase 11 (verifier field-kit, push). */
+/**
+ * Native system tab bar (expo-router native tabs, SDK 54+).
+ *
+ * Why native instead of the custom floating pill we had: on iOS 26
+ * the system bar renders as a floating Liquid Glass capsule with real
+ * refraction, automatic scroll-edge effects, and correct safe-area
+ * behavior — everything the JS pill approximated badly. On iOS 18 and
+ * earlier it falls back to the classic tab bar; Android adapts to
+ * Material 3. Requires a build with Xcode 26 for the glass effect.
+ * The system owns the look — don't fight it with custom backgrounds.
+ *
+ * Icons are SF Symbols on iOS (drawable on Android). Verify + Activity
+ * tabs join in Phase 11.
+ */
 export default function TabsLayout() {
-  const t = useTheme();
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: t.accentDeep,
-        tabBarInactiveTintColor: t.sub,
-        tabBarStyle: {
-          position: "absolute",
-          left: 18,
-          right: 18,
-          bottom: Platform.OS === "ios" ? 24 : 14,
-          height: 62,
-          borderRadius: 999,
-          backgroundColor: t.card,
-          borderTopWidth: 0,
-          paddingTop: 8,
-          paddingBottom: 10,
-          shadowColor: "#000",
-          shadowOpacity: 0.14,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 8 },
-          elevation: 10,
-        },
-        tabBarLabelStyle: { fontFamily: "Inter_600SemiBold", fontSize: 9 },
-      }}
-    >
-      <Tabs.Screen name="index" options={{ title: "Explore", tabBarIcon: (p) => <Feather name="compass" {...p} size={21} /> }} />
-      <Tabs.Screen name="saved" options={{ title: "Saved", tabBarIcon: (p) => <Feather name="heart" {...p} size={21} /> }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: (p) => <Feather name="user" {...p} size={21} /> }} />
-    </Tabs>
+    <NativeTabs>
+      <NativeTabs.Trigger name="index">
+        <Icon sf="safari.fill" drawable="ic_explore" />
+        <Label>Explore</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="saved">
+        <Icon sf="heart.fill" drawable="ic_saved" />
+        <Label>Saved</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf="person.fill" drawable="ic_profile" />
+        <Label>Profile</Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }
