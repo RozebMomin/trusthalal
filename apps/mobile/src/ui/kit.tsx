@@ -21,9 +21,13 @@ import { useTheme } from "@/lib/theme/useTheme";
 export function Tag({
   label,
   tone = "zinc",
+  mini = false,
 }: {
   label: string;
   tone?: "solid" | "wash" | "amber" | "zinc" | "danger" | "dashed" | "glass";
+  /** Illustration-scale tag (~6.5px) — decoration inside mini cards,
+   *  not a readable label. Matches the mockup-28 graphic. */
+  mini?: boolean;
 }) {
   const t = useTheme();
   const map: Record<string, { bg: string; fg: string; dashed?: boolean }> = {
@@ -41,15 +45,15 @@ export function Tag({
       style={{
         alignSelf: "flex-start",
         backgroundColor: s.bg,
-        borderRadius: 8,
-        paddingHorizontal: 8,
-        paddingVertical: 3.5,
+        borderRadius: mini ? 5 : 8,
+        paddingHorizontal: mini ? 5 : 8,
+        paddingVertical: mini ? 2 : 3.5,
         borderWidth: s.dashed ? 1 : 0,
         borderColor: t.line,
         borderStyle: s.dashed ? "dashed" : "solid",
       }}
     >
-      <Text style={{ color: s.fg, fontFamily: "Inter_700Bold", fontSize: 9.5, letterSpacing: 0.3 }}>
+      <Text style={{ color: s.fg, fontFamily: "Inter_700Bold", fontSize: mini ? 6.5 : 9.5, letterSpacing: 0.3 }}>
         {label}
       </Text>
     </View>

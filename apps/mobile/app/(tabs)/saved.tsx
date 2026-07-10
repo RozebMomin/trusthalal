@@ -121,11 +121,11 @@ function SignedOutSaved() {
       <View style={{ width: 130, height: 104, marginBottom: space.md }}>
         <Card style={{ position: "absolute", left: 0, top: 14, width: 78, height: 80, transform: [{ rotate: "-8deg" }] }}>
           <LinearGradient colors={["#86EFAC", "#059669"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 46 }} />
-          <View style={{ padding: 6 }}><Tag label="CERTIFIED" tone="amber" /></View>
+          <View style={{ padding: 5 }}><Tag mini label="CERTIFIED" tone="amber" /></View>
         </Card>
         <Card style={{ position: "absolute", right: 0, top: 0, width: 84, height: 88, transform: [{ rotate: "6deg" }], shadowOpacity: 0.12, shadowRadius: 16 }}>
           <LinearGradient colors={["#FDBA74", "#EA580C"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 50 }} />
-          <View style={{ padding: 6 }}><Tag label="✓ VERIFIED" tone="solid" /></View>
+          <View style={{ padding: 5 }}><Tag mini label="✓ VERIFIED" tone="solid" /></View>
         </Card>
         <View style={{ position: "absolute", right: -8, bottom: -6, width: 32, height: 32, borderRadius: 999, backgroundColor: t.card, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
           <Ionicons name="heart" size={16} color={t.danger} />
