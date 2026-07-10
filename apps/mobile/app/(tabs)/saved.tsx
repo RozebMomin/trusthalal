@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, Image, Pressable, Text, View } from "react-native";
@@ -8,6 +9,7 @@ import { primaryHalalSignal } from "@/lib/halal-display";
 import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
+import { Button } from "@/components/Button";
 import { Card, Chip, Tag } from "@/ui/kit";
 import { EmptyState, ErrorState, Loading } from "@/components/States";
 
@@ -52,12 +54,7 @@ export default function Saved() {
       {meLoading ? (
         <Loading />
       ) : !me ? (
-        <EmptyState
-          title="Keep a list you can trust"
-          body="Save places and take your list with you. Sign in or create a free account to start saving."
-          actionTitle="Sign in"
-          onAction={() => router.push("/(auth)/sign-in")}
-        />
+        <SignedOutSaved />
       ) : favorites.isLoading ? (
         <Loading />
       ) : favorites.error ? (
@@ -113,4 +110,41 @@ function SavedRow({ place, onUnsave }: { place: PlaceSearchResult; onUnsave: () 
 
 function titleCase(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase().replaceAll("_", " ");
+}
+
+/** Mockup 28: stacked tilted place-cards with a heart badge, then
+ *  create-account as the primary path and sign-in as the text link. */
+function SignedOutSaved() {
+  const t = useTheme();
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: space.xl, gap: space.sm }}>
+      <View style={{ width: 130, height: 104, marginBottom: space.md }}>
+        <Card style={{ position: "absolute", left: 0, top: 14, width: 78, height: 80, transform: [{ rotate: "-8deg" }] }}>
+          <LinearGradient colors={["#86EFAC", "#059669"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 46 }} />
+          <View style={{ padding: 6 }}><Tag label="CERTIFIED" tone="amber" /></View>
+        </Card>
+        <Card style={{ position: "absolute", right: 0, top: 0, width: 84, height: 88, transform: [{ rotate: "6deg" }], shadowOpacity: 0.12, shadowRadius: 16 }}>
+          <LinearGradient colors={["#FDBA74", "#EA580C"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 50 }} />
+          <View style={{ padding: 6 }}><Tag label="✓ VERIFIED" tone="solid" /></View>
+        </Card>
+        <View style={{ position: "absolute", right: -8, bottom: -6, width: 32, height: 32, borderRadius: 999, backgroundColor: t.card, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
+          <Ionicons name="heart" size={16} color={t.danger} />
+        </View>
+      </View>
+      <Text style={[ty.h2, { color: t.ink, textAlign: "center" }]}>
+        Keep a list you can{"\n"}trust anywhere
+      </Text>
+      <Text style={[ty.body, { color: t.sub, textAlign: "center" }]}>
+        Save places, get notified when their halal status changes, and take your list with you when you travel.
+      </Text>
+      <View style={{ alignSelf: "stretch", marginTop: space.md }}>
+        <Button title="Create a free account" onPress={() => router.push("/(auth)/sign-up")} />
+      </View>
+      <Pressable onPress={() => router.push("/(auth)/sign-in")} accessibilityRole="link" style={{ paddingVertical: 10 }}>
+        <Text style={[ty.small, { color: t.sub }]}>
+          Already have one? <Text style={{ color: t.ink, fontFamily: "Inter_600SemiBold" }}>Sign in</Text>
+        </Text>
+      </Pressable>
+    </View>
+  );
 }
