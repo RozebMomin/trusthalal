@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   FlatList,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -18,6 +19,18 @@ import { countFilters, FiltersSheet, type Filters } from "@/components/FiltersSh
 import { EmptyState, ErrorState, Loading } from "@/components/States";
 
 const RADII_MI = [1, 3, 5, 10, 25] as const;
+
+/** Same top-8 rail as the consumer web (cuisine-rail.tsx). */
+const TOP_CUISINES = [
+  { value: "PAKISTANI", label: "Pakistani" },
+  { value: "INDIAN", label: "Indian" },
+  { value: "MEDITERRANEAN", label: "Mediterranean" },
+  { value: "LEBANESE", label: "Lebanese" },
+  { value: "TURKISH", label: "Turkish" },
+  { value: "YEMENI", label: "Yemeni" },
+  { value: "AFGHAN", label: "Afghan" },
+  { value: "AMERICAN", label: "American" },
+] as const;
 const M_PER_MI = 1609.34;
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -48,13 +61,14 @@ export default function Explore() {
   const [radiusMi, setRadiusMi] = useState(5);
   const [locating, setLocating] = useState(false);
   const [filters, setFilters] = useState<Filters>({});
+  const [cuisines, setCuisines] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
 
   const geo = coords
     ? { lat: coords.lat, lng: coords.lng, radius: radiusMi * M_PER_MI }
     : {};
-  const search = useSearchPlaces({ q: q || undefined, ...geo, ...filters });
+  const search = useSearchPlaces({ q: q || undefined, ...geo, ...filters, cuisines: cuisines.length ? cuisines : undefined });
   const city = useReverseGeocode(coords?.lat, coords?.lng);
 
   async function locate() {
@@ -156,7 +170,14 @@ export default function Explore() {
         </View>
 
         {/* Location pill + radius chips */}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {/* One-line scrolling rail (mockup 1): location · verified · cuisines. */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+          <Chip
+            active={coords !== null}
+            label={locating ? "Locating you…" : coords ? cityLabel : "Near me"}
+            icon="navigation"
+            onPress={locate}
+          />
           <Chip
             active={filters.min_validation_tier === "TRUST_HALAL_VERIFIED"}
             label="✓ Verified"
@@ -168,28 +189,52 @@ export default function Explore() {
               }))
             }
           />
-          <Chip
-            active={coords !== null}
-            label={
-              locating
-                ? "Locating you…"
-                : coords
-                  ? `${radiusMi} mi around ${cityLabel}`
-                  : "Near me"
-            }
-            icon="navigation"
-            onPress={locate}
-          />
-          {coords &&
-            RADII_MI.map((r) => (
-              <Chip
-                key={r}
-                active={r === radiusMi}
-                label={`${r} mi`}
-                onPress={() => setRadiusMi(r)}
-              />
-            ))}
-        </View>
+          {TOP_CUISINES.map((c) => (
+            <Chip
+              key={c.value}
+              active={cuisines.includes(c.value)}
+              label={c.label}
+              onPress={() =>
+                setCuisines((prev) =>
+                  prev.includes(c.value) ? prev.filter((x) => x !== c.value) : [...prev, c.value],
+                )
+              }
+            />
+          ))}
+        </ScrollView>
+
+        {/* Radius: one segmented control, only when location is active.
+            No wrapping badge rows — pick one of five, at a glance. */}
+        {coords ? (
+          <View style={{ flexDirection: "row", backgroundColor: t.zincSoft, borderRadius: 14, padding: 3 }}>
+            {RADII_MI.map((r) => {
+              const on = r === radiusMi;
+              return (
+                <Pressable
+                  key={r}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Search within ${r} miles`}
+                  onPress={() => setRadiusMi(r)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    borderRadius: 11,
+                    alignItems: "center",
+                    backgroundColor: on ? t.card : "transparent",
+                    shadowColor: "#000",
+                    shadowOpacity: on ? 0.08 : 0,
+                    shadowRadius: 4,
+                    shadowOffset: { width: 0, height: 1 },
+                  }}
+                >
+                  <Text style={{ fontFamily: on ? "Inter_700Bold" : "Inter_600SemiBold", fontSize: 11.5, color: on ? t.ink : t.sub }}>
+                    {r} mi
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
         {locError ? <Text style={[ty.small, { color: t.danger }]}>{locError}</Text> : null}
       </View>
 
