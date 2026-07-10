@@ -4,7 +4,7 @@ import { FIXTURE_ACTIVITY } from "@/fixtures";
 import { Chip, IcBox } from "@/ui/kit";
 import { space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { UiScreen } from "./_shared";
+import { UiScreen } from "@/ui/screen-shell";
 
 export default function Activity() {
   const t = useTheme();

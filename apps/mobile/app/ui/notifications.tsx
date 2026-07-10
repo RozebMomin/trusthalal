@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { Card, Cell, Seg } from "@/ui/kit";
 import { space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { UiScreen } from "./_shared";
+import { UiScreen } from "@/ui/screen-shell";
 
 function Toggle({ on }: { on: boolean }) {
   const t = useTheme();

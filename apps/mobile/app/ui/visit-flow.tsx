@@ -5,7 +5,7 @@ import { Button } from "@/components/Button";
 import { Card, Cell, Chip, IcBox, Seg, Steps, Tag } from "@/ui/kit";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { UiScreen } from "./_shared";
+import { UiScreen } from "@/ui/screen-shell";
 
 /** Mockups 19–22 in one route, stepped. UI only. */
 export default function VisitFlow() {

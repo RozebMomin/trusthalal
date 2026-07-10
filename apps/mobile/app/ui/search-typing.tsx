@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import { Card, Cell, Chip, SearchShell, Seg, Tag } from "@/ui/kit";
 import { type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { UiScreen } from "./_shared";
+import { UiScreen } from "@/ui/screen-shell";
 
 const ROWS = [
   { name: "Kabab King", meta: "Afghan · 2.1 mi", tag: <Tag label="NO INFO" tone="dashed" /> },

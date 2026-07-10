@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { Card, Cell, Chip, Seg, Tag } from "@/ui/kit";
 import { type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { UiScreen } from "./_shared";
+import { UiScreen } from "@/ui/screen-shell";
 
 const R = ({l,v,tone}:{l:string;v:string;tone?:"wash"|"zinc"}) => {
   const t = useTheme();

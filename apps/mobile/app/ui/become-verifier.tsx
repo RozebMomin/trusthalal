@@ -4,7 +4,7 @@ import { Button } from "@/components/Button";
 import { Card, Cell } from "@/ui/kit";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { UiScreen } from "./_shared";
+import { UiScreen } from "@/ui/screen-shell";
 
 export default function BecomeVerifier() {
   const t = useTheme();

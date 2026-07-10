@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { Card, Tag } from "@/ui/kit";
 import { space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { UiScreen } from "./_shared";
+import { UiScreen } from "@/ui/screen-shell";
 
 const STEPS = [
   { title: "Report upheld — profile corrected", body: 'Alcohol policy updated to "beer & wine served." The public page now shows the correction.', when: "JUL 5 · TRUST HALAL", active: true },
