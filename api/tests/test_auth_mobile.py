@@ -114,8 +114,7 @@ def test_bearer_authenticates_favorites(api, factories, db_session):
     db_session.commit()
 
     save = api.post(
-        "/me/favorites",
-        json={"place_id": str(place.id)},
+        f"/me/favorites/{place.id}",
         headers=_auth_headers(body),
     )
     assert save.status_code in (200, 201), save.text

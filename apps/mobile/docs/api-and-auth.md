@@ -53,7 +53,7 @@ Search query params — the full list is defined in `apps/consumer/src/lib/api/h
 | `GET /me/preferences` | User's saved halal filter defaults |
 | `PATCH /me/preferences` | Update them |
 | `GET /me/favorites` | Saved places |
-| `POST /me/favorites` | Save a place (`{ place_id }`) |
+| `POST /me/favorites/{place_id}` | Save a place (path param, no body) |
 | `DELETE /me/favorites/{place_id}` | Unsave |
 
 ### Disputes

@@ -147,10 +147,7 @@ export function useToggleFavorite() {
     mutationFn: ({ placeId, saved }: { placeId: string; saved: boolean }) =>
       saved
         ? apiFetch(`/me/favorites/${placeId}`, { method: "DELETE" })
-        : apiFetch("/me/favorites", {
-            method: "POST",
-            body: JSON.stringify({ place_id: placeId }),
-          }),
+        : apiFetch(`/me/favorites/${placeId}`, { method: "POST" }),
     onSettled: () => qc.invalidateQueries({ queryKey: ["me", "favorites"] }),
   });
 }
