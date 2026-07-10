@@ -120,7 +120,7 @@ export default function Explore() {
         {/* Mockup-1 header: location line + filter button */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <View>
-            <Text style={[ty.small, { color: t.sub }]}>Finding halal near</Text>
+            <Text style={[ty.small, { color: t.sub }]}>Finding halal food near</Text>
             <Pressable onPress={() => setLocOpen(true)} accessibilityRole="button" accessibilityLabel="Change location">
               <Text style={[ty.label, { color: t.ink, fontSize: 16 }]}>
                 {coords ? cityLabel : "Anywhere"} <Text style={{ color: t.accent }}>▾</Text>
