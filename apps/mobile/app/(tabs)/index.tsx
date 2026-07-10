@@ -3,6 +3,7 @@ import * as Location from "expo-location";
 import { useMemo, useState } from "react";
 import {
   FlatList,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -261,9 +262,25 @@ export default function Explore() {
       ) : results.length === 0 ? (
         <EmptyState
           title="Nothing here yet"
-          body="Coverage grows city by city. Try a wider radius or a different search."
+          body="Coverage grows city by city. Try a wider radius, a different city, or fewer filters."
           actionTitle={coords && radiusMi < 25 ? "Widen to 25 mi" : undefined}
           onAction={coords && radiusMi < 25 ? () => setRadiusMi(25) : undefined}
+          secondaryActions={[
+            { title: "Change city", onPress: () => setLocOpen(true) },
+            ...(countFilters(filters) > 0 || cuisines.length > 0 || q
+              ? [{
+                  title: "Clear filters",
+                  onPress: () => { setFilters({}); setCuisines([]); setRawQuery(""); },
+                }]
+              : []),
+          ]}
+          footerLink={{
+            title: "Know a halal spot here? Suggest it",
+            onPress: () =>
+              Linking.openURL(
+                `mailto:hello@trusthalal.org?subject=${encodeURIComponent("Halal spot suggestion")}&body=${encodeURIComponent("Restaurant name:\nCity:\nWhy it belongs on HalalScout:\n")}`,
+              ),
+          }}
         />
       ) : (
         <FlatList

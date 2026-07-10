@@ -1,4 +1,4 @@
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "./Button";
@@ -29,11 +29,17 @@ export function EmptyState({
   body,
   actionTitle,
   onAction,
+  secondaryActions,
+  footerLink,
 }: {
   title: string;
   body: string;
   actionTitle?: string;
   onAction?: () => void;
+  /** Mockup-18 recovery row: e.g. Change city · Clear filters. */
+  secondaryActions?: Array<{ title: string; onPress: () => void }>;
+  /** Accent link under everything: "Know a halal spot here? …" */
+  footerLink?: { title: string; onPress: () => void };
 }) {
   const t = useTheme();
   return (
@@ -47,6 +53,22 @@ export function EmptyState({
         <View style={{ marginTop: space.sm, alignSelf: "stretch" }}>
           <Button title={actionTitle} onPress={onAction} />
         </View>
+      ) : null}
+      {secondaryActions && secondaryActions.length > 0 ? (
+        <View style={{ flexDirection: "row", gap: space.sm, alignSelf: "stretch", marginTop: space.xs }}>
+          {secondaryActions.map((a) => (
+            <View key={a.title} style={{ flex: 1 }}>
+              <Button title={a.title} variant="secondary" onPress={a.onPress} />
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {footerLink ? (
+        <Pressable onPress={footerLink.onPress} accessibilityRole="link" style={{ marginTop: space.md }}>
+          <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_600SemiBold" }]}>
+            {footerLink.title} →
+          </Text>
+        </Pressable>
       ) : null}
     </View>
   );
