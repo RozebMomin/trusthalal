@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import * as SecureStore from "expo-secure-store";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { apiFetch } from "@/lib/api/client";
@@ -8,6 +9,36 @@ import { useTheme } from "@/lib/theme/useTheme";
 import { Card, Cell, Chip, IcBox, Seg } from "@/ui/kit";
 
 export type PickedLocation = { lat: number; lng: number; label: string };
+
+// ---------------------------------------------------------------------------
+// Recent picks — tiny JSON list in SecureStore (last 3, deduped by
+// label). Local-only convenience; never leaves the device.
+// ---------------------------------------------------------------------------
+type RecentLocation = PickedLocation & { at: number };
+const RECENTS_KEY = "recent_locations_v1";
+
+async function loadRecents(): Promise<RecentLocation[]> {
+  try {
+    const raw = await SecureStore.getItemAsync(RECENTS_KEY);
+    return raw ? (JSON.parse(raw) as RecentLocation[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function pushRecent(loc: PickedLocation) {
+  const prev = await loadRecents();
+  const next = [{ ...loc, at: Date.now() }, ...prev.filter((r) => r.label !== loc.label)].slice(0, 3);
+  await SecureStore.setItemAsync(RECENTS_KEY, JSON.stringify(next)).catch(() => undefined);
+}
+
+function ago(ts: number): string {
+  const m = Math.round((Date.now() - ts) / 60000);
+  if (m < 60) return `${Math.max(1, m)}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 /** Same curated shortlist the web picker leads with (lib/cities). */
 const POPULAR: PickedLocation[] = [
@@ -51,12 +82,15 @@ export function LocationSheet({
   onPick: (loc: PickedLocation) => void;
 }) {
   const t = useTheme();
+  const qc = useQueryClient();
   const [q, setQ] = useState("");
   const geo = useForwardGeocode(q);
+  const recents = useQuery({ queryKey: ["recent-locations"], queryFn: loadRecents, enabled: visible });
   const matches: GeocodeMatch[] = Array.isArray(geo.data) ? geo.data : (geo.data?.results ?? []);
 
   const pick = (loc: PickedLocation) => {
     setQ("");
+    void pushRecent(loc).then(() => qc.invalidateQueries({ queryKey: ["recent-locations"] }));
     onPick(loc);
     onClose();
   };
@@ -122,6 +156,28 @@ export function LocationSheet({
                   <Chip key={c.label} label={c.label} onPress={() => pick(c)} />
                 ))}
               </View>
+
+              {(recents.data ?? []).length > 0 ? (
+                <>
+                  <Seg style={{ marginTop: space.lg, marginBottom: 8 }}>Recent</Seg>
+                  <Card>
+                    {(recents.data ?? []).map((r, i, arr) => (
+                      <Cell
+                        key={r.label}
+                        last={i === arr.length - 1}
+                        onPress={() => pick(r)}
+                        left={
+                          <>
+                            <Feather name="clock" size={15} color={t.sub} />
+                            <Text style={[ty.body, { color: t.ink }]}>{r.label}</Text>
+                          </>
+                        }
+                        right={<Text style={[ty.small, { color: t.sub }]}>{ago(r.at)}</Text>}
+                      />
+                    ))}
+                  </Card>
+                </>
+              ) : null}
             </>
           )}
         </ScrollView>
