@@ -52,9 +52,11 @@ function FrostedPillTabs() {
         tabBarLabelStyle: { fontFamily: "Inter_600SemiBold", fontSize: 9 },
         tabBarStyle: {
           position: "absolute",
-          left: 18,
-          right: 18,
-          bottom: Platform.OS === "ios" ? 28 : 16,
+          // Margins, not left/right offsets — React Navigation's bar
+          // container ignores edge offsets, which stretched the pill
+          // full-width. Margins inset it reliably on both platforms.
+          marginHorizontal: 18,
+          marginBottom: Platform.OS === "ios" ? 28 : 16,
           height: 62,
           borderRadius: 999,
           overflow: "hidden",
