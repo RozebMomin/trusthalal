@@ -1,20 +1,27 @@
+import { Feather } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
+import { Platform, StyleSheet, useColorScheme } from "react-native";
+import { useTheme } from "@/lib/theme/useTheme";
 
 /**
- * Native system tab bar (expo-router native tabs, SDK 54+).
- *
- * Why native instead of the custom floating pill we had: on iOS 26
- * the system bar renders as a floating Liquid Glass capsule with real
- * refraction, automatic scroll-edge effects, and correct safe-area
- * behavior — everything the JS pill approximated badly. On iOS 18 and
- * earlier it falls back to the classic tab bar; Android adapts to
- * Material 3. Requires a build with Xcode 26 for the glass effect.
- * The system owns the look — don't fight it with custom backgrounds.
- *
- * Icons are SF Symbols on iOS (drawable on Android). Verify + Activity
- * tabs join in Phase 11.
+ * Tab bar strategy:
+ *  - iOS 26+ → the system's real Liquid Glass capsule via native tabs
+ *    (needs an Xcode 26 build; refraction, scroll-edge effects, all free).
+ *  - iOS <26 and Android → our own floating frosted pill: expo-blur
+ *    BlurView background (true blur, graceful contrast overlay),
+ *    correct radius/shadow, no fighting the system.
+ * Same three tabs either way; Verify + Activity join in Phase 11.
  */
+const IOS_26 =
+  Platform.OS === "ios" && parseInt(String(Platform.Version), 10) >= 26;
+
 export default function TabsLayout() {
+  return IOS_26 ? <GlassNativeTabs /> : <FrostedPillTabs />;
+}
+
+function GlassNativeTabs() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -30,5 +37,54 @@ export default function TabsLayout() {
         <Label>Profile</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
+  );
+}
+
+function FrostedPillTabs() {
+  const t = useTheme();
+  const dark = useColorScheme() === "dark";
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: t.accentDeep,
+        tabBarInactiveTintColor: t.sub,
+        tabBarLabelStyle: { fontFamily: "Inter_600SemiBold", fontSize: 9 },
+        tabBarStyle: {
+          position: "absolute",
+          left: 18,
+          right: 18,
+          bottom: Platform.OS === "ios" ? 28 : 16,
+          height: 62,
+          borderRadius: 999,
+          overflow: "hidden",
+          borderTopWidth: 0,
+          backgroundColor: "transparent",
+          paddingTop: 8,
+          paddingBottom: 10,
+          shadowColor: "#000",
+          shadowOpacity: 0.16,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 12,
+        },
+        tabBarBackground: () => (
+          <BlurView
+            intensity={dark ? 40 : 60}
+            tint={dark ? "dark" : "light"}
+            style={[
+              StyleSheet.absoluteFill,
+              // Soft wash on top of the blur so labels keep AA contrast
+              // over busy photo content scrolling underneath.
+              { backgroundColor: dark ? "rgba(22,22,25,0.55)" : "rgba(255,255,255,0.55)" },
+            ]}
+          />
+        ),
+      }}
+    >
+      <Tabs.Screen name="index" options={{ title: "Explore", tabBarIcon: (p) => <Feather name="compass" {...p} size={21} /> }} />
+      <Tabs.Screen name="saved" options={{ title: "Saved", tabBarIcon: (p) => <Feather name="heart" {...p} size={21} /> }} />
+      <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: (p) => <Feather name="user" {...p} size={21} /> }} />
+    </Tabs>
   );
 }
