@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { Image, Linking, Pressable, ScrollView, Share, Text, View } from "react-native";
+import { Alert, Image, Linking, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyFavorites, usePlaceDetail, useToggleFavorite } from "@/lib/api/hooks";
 import { primaryHalalSignal } from "@/lib/halal-display";
@@ -137,9 +137,26 @@ export default function PlaceDetail() {
           icon="heart"
           label={saved ? "Unsave" : "Save"}
           active={saved}
-          onPress={() =>
-            me ? toggle.mutate({ placeId: id, saved }) : router.push("/(auth)/sign-in")
-          }
+          onPress={() => {
+            if (id.startsWith("fx-")) {
+              Alert.alert("UI preview", "This is a fixture screen — saving works on live places.");
+              return;
+            }
+            if (!me) {
+              router.push("/(auth)/sign-in");
+              return;
+            }
+            toggle.mutate(
+              { placeId: id, saved },
+              {
+                onError: (e) =>
+                  Alert.alert(
+                    "Couldn't save",
+                    e instanceof Error ? e.message : "Try again in a moment.",
+                  ),
+              },
+            );
+          }}
         />
         <Glass
           icon="share"
