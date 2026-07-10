@@ -16,6 +16,7 @@ import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { PlaceCard } from "@/components/PlaceCard";
 import { countFilters, FiltersSheet, type Filters } from "@/components/FiltersSheet";
+import { LocationSheet, type PickedLocation } from "@/components/LocationSheet";
 import { EmptyState, ErrorState, Loading } from "@/components/States";
 
 const RADII_MI = [1, 3, 5, 10, 25] as const;
@@ -63,6 +64,8 @@ export default function Explore() {
   const [filters, setFilters] = useState<Filters>({});
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [locOpen, setLocOpen] = useState(false);
+  const [manualLabel, setManualLabel] = useState<string | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
 
   const geo = coords
@@ -83,6 +86,7 @@ export default function Explore() {
       const pos = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
+      setManualLabel(null);
       setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
     } catch {
       setLocError("We couldn't get your location right now. Try again in a moment.");
@@ -105,9 +109,10 @@ export default function Explore() {
   }, [search.data, coords]);
 
   const hasActiveSearch = Boolean(q) || coords !== null;
-  const cityLabel = city.data?.city
-    ? `${city.data.city}${city.data.region ? `, ${city.data.region}` : ""}`
-    : "you";
+  const cityLabel = manualLabel
+    ?? (city.data?.city
+      ? `${city.data.city}${city.data.region ? `, ${city.data.region}` : ""}`
+      : "you");
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + space.sm }}>
@@ -116,7 +121,7 @@ export default function Explore() {
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <View>
             <Text style={[ty.small, { color: t.sub }]}>Finding halal near</Text>
-            <Pressable onPress={locate} accessibilityRole="button" accessibilityLabel="Change location">
+            <Pressable onPress={() => setLocOpen(true)} accessibilityRole="button" accessibilityLabel="Change location">
               <Text style={[ty.label, { color: t.ink, fontSize: 16 }]}>
                 {coords ? cityLabel : "Anywhere"} <Text style={{ color: t.accent }}>▾</Text>
               </Text>
@@ -174,9 +179,9 @@ export default function Explore() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
           <Chip
             active={coords !== null}
-            label={locating ? "Locating you…" : coords ? cityLabel : "Near me"}
+            label={locating ? "Locating you…" : coords ? cityLabel : "Set location"}
             icon="navigation"
-            onPress={locate}
+            onPress={() => setLocOpen(true)}
           />
           <Chip
             active={filters.min_validation_tier === "TRUST_HALAL_VERIFIED"}
@@ -270,6 +275,15 @@ export default function Explore() {
           )}
         />
       )}
+      <LocationSheet
+        visible={locOpen}
+        onClose={() => setLocOpen(false)}
+        onUseMyLocation={locate}
+        onPick={(loc: PickedLocation) => {
+          setManualLabel(loc.label);
+          setCoords({ lat: loc.lat, lng: loc.lng });
+        }}
+      />
       <FiltersSheet
         visible={filtersOpen}
         onClose={() => setFiltersOpen(false)}
