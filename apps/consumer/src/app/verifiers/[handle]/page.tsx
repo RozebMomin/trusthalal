@@ -25,6 +25,7 @@ import { cache } from "react";
 
 import { BRAND_NAME } from "@/lib/branding";
 import { serverFetch } from "@/lib/api/server";
+import { jsonLdSafe } from "@/lib/utils";
 
 import { VerifierProfileClient } from "./verifier-profile-client";
 
@@ -182,8 +183,10 @@ export default async function VerifierProfilePage({
           // — halalfoodnearme.com. Hard-coded here to avoid needing
           // the ``NEXT_PUBLIC_SITE_URL`` env var to be present in
           // the server component.
+          // bio + social_links are user-controlled; jsonLdSafe escapes
+          // any </script> breakout before it reaches the DOM.
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
+            __html: jsonLdSafe(
               buildPersonJsonLd(verifier, "https://halalfoodnearme.com"),
             ),
           }}

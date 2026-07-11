@@ -26,6 +26,7 @@ import { cache } from "react";
 
 import { BRAND_NAME } from "@/lib/branding";
 import { serverFetch } from "@/lib/api/server";
+import { jsonLdSafe } from "@/lib/utils";
 
 import { PlaceDetailClient } from "./place-detail-client";
 
@@ -52,7 +53,9 @@ type PlaceForSeo = {
 // `generateMetadata` and the page body can call `loadPlace(id)` and
 // the underlying `/places/{id}` request only fires once.
 const loadPlace = cache(async (placeId: string) => {
-  return serverFetch<PlaceForSeo>(`/places/${placeId}`);
+  // Encode the route param so a crafted id can't manipulate the API
+  // path/query (mirrors the verifier route's handle encoding).
+  return serverFetch<PlaceForSeo>(`/places/${encodeURIComponent(placeId)}`);
 });
 
 function buildAddress(place: PlaceForSeo): string {
@@ -132,8 +135,9 @@ function PlaceJsonLd({ place }: { place: PlaceForSeo }) {
   return (
     <script
       type="application/ld+json"
-      // eslint-disable-next-line react/no-danger -- structured data, not user-controlled HTML
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      // place.name is user-controlled, so escape </script> breakout —
+      // see jsonLdSafe. eslint-disable-next-line react/no-danger
+      dangerouslySetInnerHTML={{ __html: jsonLdSafe(data) }}
     />
   );
 }
