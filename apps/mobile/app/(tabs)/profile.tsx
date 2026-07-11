@@ -92,6 +92,13 @@ export default function Profile() {
             right={rightText("public")}
           />
         ) : null}
+        {me?.role !== "VERIFIER" ? (
+          <Cell
+            onPress={() => router.push("/become-a-verifier")}
+            left={<><IcBox icon="shield" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Become a verifier</Text></>}
+            right={chev}
+          />
+        ) : null}
         <Cell
           onPress={() => Linking.openURL("https://trusthalal.org/ethics")}
           left={<><IcBox icon="info" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>How Trust Halal uses AI</Text></>}

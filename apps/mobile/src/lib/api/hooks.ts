@@ -168,3 +168,40 @@ export function useToggleFavorite() {
     onSettled: () => qc.invalidateQueries({ queryKey: ["me", "favorites"] }),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Verifier applications
+// ---------------------------------------------------------------------------
+export type VerifierApplication = {
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
+  submitted_at: string;
+  decision_note: string | null;
+};
+
+export function useMyVerifierApplications(enabled: boolean) {
+  return useQuery({
+    queryKey: ["me", "verifier-applications"],
+    queryFn: () => apiFetch<VerifierApplication[]>("/me/verifier-applications"),
+    enabled,
+  });
+}
+
+export function useSubmitVerifierApplication() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      applicant_email: string;
+      applicant_name: string;
+      motivation: string;
+      background?: string;
+      social_links?: Record<string, string>;
+    }) =>
+      apiFetch("/verifier-applications", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["me", "verifier-applications"] }),
+  });
+}

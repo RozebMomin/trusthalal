@@ -24,7 +24,7 @@ tick the box in this file in the same PR as the wiring.
 - [ ] 23 Trust profile → GET /places/{id}/halal-profile; link from detail "Details ›"
 - [ ] 24 Disputed state → drives off dispute_state (already live once data exists)
 - [ ] 17 Verifier public profile → GET /verifiers/{handle}
-- [ ] 27 Become a verifier → POST /verifier-applications
+- [x] 27 Become a verifier → POST /verifier-applications (app/become-a-verifier.tsx)
 - [ ] 30 Photo viewer → place.photos gallery from detail
 - [ ] 25 Dispute timeline → GET /me/disputes/{id} (reporter view)
 - [ ] Preferences screen (spec §4, no UI yet) → GET/PATCH /me/preferences + match banner on detail

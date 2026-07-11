@@ -22,7 +22,7 @@ const SCREENS: Array<{ n: number; name: string; route?: string; note?: string }>
   { n: 23, name: "Trust profile expanded", route: "/ui/trust-profile" },
   { n: 25, name: "Dispute timeline", route: "/ui/dispute-timeline" },
   { n: 26, name: "Search — typing", route: "/ui/search-typing" },
-  { n: 27, name: "Become a verifier", route: "/ui/become-verifier" },
+  { n: 27, name: "Become a verifier (wired)", route: "/become-a-verifier" },
   { n: 29, name: "Notifications", route: "/ui/notifications" },
   { n: 30, name: "Photo viewer", route: "/ui/photo-viewer" },
   { n: 1, name: "Explore", route: "/(tabs)" },
