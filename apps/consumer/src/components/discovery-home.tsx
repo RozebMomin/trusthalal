@@ -558,7 +558,7 @@ function VerifierInvite() {
       <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
         For the community
       </p>
-      <h2 className="mb-2 font-serif text-xl font-semibold sm:text-2xl">
+      <h2 className="mb-2 tracking-tight text-xl font-semibold sm:text-2xl">
         Eat halal already? Help your community trust where they eat.
       </h2>
       <p className="mb-4 text-sm text-muted-foreground sm:text-base">

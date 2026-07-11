@@ -89,7 +89,7 @@ function ProfileHeader({
       <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
         Trust Halal Verifier
       </p>
-      <h1 className="mb-3 font-serif text-4xl font-semibold sm:text-5xl">
+      <h1 className="mb-3 tracking-tight text-4xl font-semibold sm:text-5xl">
         @{profile.public_handle}
       </h1>
       <p className="text-muted-foreground">
@@ -106,7 +106,7 @@ function ProfileHeader({
 function BioSection({ bio }: { bio: string }) {
   return (
     <section className="mb-8">
-      <h2 className="mb-3 font-serif text-xl font-semibold">About</h2>
+      <h2 className="mb-3 tracking-tight text-xl font-semibold">About</h2>
       <p className="whitespace-pre-wrap text-base text-muted-foreground">
         {bio}
       </p>
@@ -130,7 +130,7 @@ function SocialLinks({
 
   return (
     <section className="mb-8">
-      <h2 className="mb-3 font-serif text-xl font-semibold">Elsewhere</h2>
+      <h2 className="mb-3 tracking-tight text-xl font-semibold">Elsewhere</h2>
       <ul className="flex flex-wrap gap-2">
         {entries.map((e) => (
           <li key={e.key}>
@@ -161,7 +161,7 @@ function VisitsSection({
 }) {
   return (
     <section className="mb-8">
-      <h2 className="mb-3 font-serif text-xl font-semibold">
+      <h2 className="mb-3 tracking-tight text-xl font-semibold">
         Recent verified visits
       </h2>
       {visits.length === 0 ? (
@@ -253,7 +253,7 @@ function TrustFooter() {
 function NotFoundPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-12 text-center">
-      <h1 className="mb-3 font-serif text-3xl font-semibold">
+      <h1 className="mb-3 tracking-tight text-3xl font-semibold">
         Verifier not found
       </h1>
       <p className="mb-6 text-muted-foreground">

@@ -160,7 +160,7 @@ export default function NewVisitPage() {
         <span>Submit a visit</span>
       </nav>
 
-      <h1 className="mb-2 font-serif text-3xl font-semibold sm:text-4xl">
+      <h1 className="mb-2 tracking-tight text-3xl font-semibold sm:text-4xl">
         Submit a visit
       </h1>
       <p className="mb-8 text-muted-foreground">

@@ -131,7 +131,7 @@ export default function VerifierProfilePage() {
         <span>Edit profile</span>
       </nav>
 
-      <h1 className="mb-2 font-serif text-3xl font-semibold sm:text-4xl">
+      <h1 className="mb-2 tracking-tight text-3xl font-semibold sm:text-4xl">
         Your verifier profile
       </h1>
       <p className="mb-8 text-muted-foreground">

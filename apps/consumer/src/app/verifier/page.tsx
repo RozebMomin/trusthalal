@@ -36,7 +36,7 @@ export default function VerifierDashboardPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
       <header className="mb-8">
-        <h1 className="mb-2 font-serif text-3xl font-semibold sm:text-4xl">
+        <h1 className="mb-2 tracking-tight text-3xl font-semibold sm:text-4xl">
           Welcome back, {firstName}.
         </h1>
         <p className="text-muted-foreground">
@@ -61,7 +61,7 @@ export default function VerifierDashboardPage() {
 
       <section className="mt-8">
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="font-serif text-2xl font-semibold">
+          <h2 className="tracking-tight text-2xl font-semibold">
             Your recent visits
           </h2>
         </div>
@@ -164,7 +164,7 @@ function ProfileStatusCard({
           : "border-amber-500/40 bg-amber-50/60"
       }`}
     >
-      <h2 className="mb-2 font-serif text-lg font-semibold">
+      <h2 className="mb-2 tracking-tight text-lg font-semibold">
         {complete ? "Your public profile is live" : "Finish your public profile"}
       </h2>
       <p className="mb-3 text-sm text-muted-foreground">
@@ -207,7 +207,7 @@ function BadgeCard({ hasPublicHandle }: { hasPublicHandle: boolean }) {
           className="shrink-0"
         />
         <div className="flex-1">
-          <h2 className="mb-2 font-serif text-lg font-semibold">
+          <h2 className="mb-2 tracking-tight text-lg font-semibold">
             Your Trust Halal Verifier badge
           </h2>
           <p className="mb-3 text-sm text-muted-foreground">

@@ -68,7 +68,7 @@ export function VerifierGate({ children }: { children: React.ReactNode }) {
 function NotAVerifierPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-12 text-center">
-      <h1 className="mb-3 font-serif text-3xl font-semibold">
+      <h1 className="mb-3 tracking-tight text-3xl font-semibold">
         You&apos;re not a verifier yet
       </h1>
       <p className="mb-6 text-muted-foreground">
@@ -96,7 +96,7 @@ function SuspendedProfilePage({
   const isRevoked = status === "REVOKED";
   return (
     <main className="mx-auto max-w-2xl px-4 py-12 text-center">
-      <h1 className="mb-3 font-serif text-3xl font-semibold">
+      <h1 className="mb-3 tracking-tight text-3xl font-semibold">
         {isRevoked ? "Verifier access revoked" : "Verifier access paused"}
       </h1>
       <p className="mb-6 text-muted-foreground">

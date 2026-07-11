@@ -3,15 +3,13 @@
 @tailwind utilities;
 
 /*
- * Color tokens — Trust Halal olive / sage.
+ * Color tokens — Trust Halal emerald (v2 clean-modern).
  *
- * Same brand tokens as apps/owner. --primary swaps from a near-black
- * dark navy (effectively monochrome) to an olive-sage HSL `88 35%
- * 38%` — yellow-tinted green at low-medium saturation. Reads as
- * "halal" via the green association without the cartoon-bright
- * energy of a vivid emerald, and pairs with the existing neutral
- * grays' warm undertone. Lightness chosen for ~4.6:1 contrast
- * against white --primary-foreground (passes WCAG AA).
+ * --primary is the brand emerald #0E9F6E (HSL `160 84% 34%`), the same
+ * accent as the mobile app and trusthalal.org. White
+ * --primary-foreground sits on it (matches the app's onAccent pairing).
+ * This replaces the earlier olive/sage; the whole platform now shares
+ * one accent.
  *
  * Aesthetic refresh additions:
  *
@@ -38,8 +36,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* Olive / sage primary — see header comment for rationale. */
-    --primary: 88 35% 38%;
+    /* Brand emerald #0E9F6E — see header comment. */
+    --primary: 160 84% 34%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96.1%;
@@ -58,7 +56,7 @@
     --input: 214.3 31.8% 91.4%;
     /* Focus ring matches primary so keyboard focus + active states
        speak the same visual language. */
-    --ring: 88 35% 38%;
+    --ring: 160 84% 34%;
 
     /* Warm amber accent. Used by the halal-display helper's
        ``trusted`` tone and a few secondary affordances. Saturated
@@ -88,11 +86,11 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    /* Brighter olive in dark mode — bumped saturation + lightness
-       so the sage stays vivid against the dark background. Foreground
-       darkens so text on the lighter primary still has AA contrast. */
-    --primary: 88 50% 55%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Brighter emerald in dark mode (#34D399) so it stays vivid
+       against the dark background. Foreground darkens to a deep green
+       so text on the lighter primary keeps contrast. */
+    --primary: 158 64% 52%;
+    --primary-foreground: 158 55% 11%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -108,7 +106,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 88 50% 55%;
+    --ring: 158 64% 52%;
   }
 }
 

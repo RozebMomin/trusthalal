@@ -59,7 +59,7 @@ function Hero() {
       <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-primary">
         Join the verifier team
       </p>
-      <h1 className="mb-4 font-serif text-4xl font-semibold leading-tight sm:text-5xl">
+      <h1 className="mb-4 tracking-tight text-4xl font-semibold leading-tight sm:text-5xl">
         Eat halal. Help your community trust where they eat.
       </h1>
       <p className="mb-6 text-lg text-muted-foreground sm:text-xl">
@@ -244,7 +244,7 @@ function VerifierApplicationForm({
 
   return (
     <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
-      <h2 className="mb-1 font-serif text-2xl font-semibold sm:text-3xl">
+      <h2 className="mb-1 tracking-tight text-2xl font-semibold sm:text-3xl">
         Apply
       </h2>
       <p className="mb-6 text-sm text-muted-foreground">
@@ -434,7 +434,7 @@ function SuccessPane({ email }: { email: string }) {
           <path d="M20 6L9 17l-5-5" />
         </svg>
       </div>
-      <h2 className="mb-2 font-serif text-2xl font-semibold sm:text-3xl">
+      <h2 className="mb-2 tracking-tight text-2xl font-semibold sm:text-3xl">
         Got it — thanks
       </h2>
       <p className="mb-4 text-base text-muted-foreground sm:text-lg">
