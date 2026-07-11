@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
+  Animated,
   FlatList,
   Pressable,
   ScrollView,
@@ -67,6 +68,15 @@ export default function Explore() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
   const [view, setView] = useState<"list" | "map">("list");
+  // List ⇄ map cross-fade: fade the whole surface out, swap layouts,
+  // fade back in. Dependency-free and Fabric-safe (vs LayoutAnimation).
+  const fade = useRef(new Animated.Value(1)).current;
+  function toggleView(next: "list" | "map") {
+    Animated.timing(fade, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => {
+      setView(next);
+      Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+    });
+  }
   const [manualLabel, setManualLabel] = useState<string | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
 
@@ -120,6 +130,7 @@ export default function Explore() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: mapMode ? 0 : insets.top + space.sm }}>
+      <Animated.View style={{ flex: 1, opacity: fade }}>
       {!mapMode ? (
       <View style={{ paddingHorizontal: space.lg, gap: space.sm }}>
         {/* Mockup-1 header: location line + filter button */}
@@ -135,7 +146,7 @@ export default function Explore() {
           <View style={{ flexDirection: "row", gap: 8 }}>
           <Pressable
             accessibilityLabel={view === "list" ? "Map view" : "List view"}
-            onPress={() => setView(view === "list" ? "map" : "list")}
+            onPress={() => toggleView(view === "list" ? "map" : "list")}
             style={{
               width: 40, height: 40, borderRadius: 999, backgroundColor: t.card,
               alignItems: "center", justifyContent: "center",
@@ -303,9 +314,17 @@ export default function Explore() {
         <MapResults
           results={results}
           center={coords}
-          cityLabel={coords ? cityLabel : (q || "Search results")}
+          cityLabel={
+            coords
+              ? cityLabel === "you"
+                ? "Showing places near you"
+                : `Near ${cityLabel}`
+              : q
+                ? `Results for “${q}”`
+                : "Search results"
+          }
           onRecenter={locate}
-          onList={() => setView("list")}
+          onList={() => toggleView("list")}
           onLocation={() => setLocOpen(true)}
         />
       ) : (
@@ -318,6 +337,7 @@ export default function Explore() {
           )}
         />
       )}
+      </Animated.View>
       <LocationSheet
         visible={locOpen}
         onClose={() => setLocOpen(false)}
