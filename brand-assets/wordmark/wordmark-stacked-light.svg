@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300" role="img" aria-label="Trust Halal — find halal food you can trust">
+  <!-- Stacked lockup with tagline — light background. -->
+  <g>
+    <rect x="120" y="24" width="160" height="160" rx="36" fill="#0E9F6E"/>
+    <circle cx="193.13" cy="104" r="46.56" fill="#FFFFFF"/>
+    <circle cx="207.19" cy="91.97" r="40.94" fill="#0E9F6E"/>
+    <path d="M198.75 106.5 L207.66 115.88 L223.13 97.28" fill="none" stroke="#FFFFFF"
+          stroke-width="8.3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="200" y="240" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+        font-size="54" font-weight="600" letter-spacing="-1" fill="#0B0B0E">Trust Halal</text>
+  <text x="200" y="275" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+        font-size="19" font-weight="400" letter-spacing="0.3" fill="#52525B">find halal food you can trust</text>
+</svg>

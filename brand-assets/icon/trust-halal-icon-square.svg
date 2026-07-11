@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Trust Halal">
+  <!-- Full-bleed square variant — iOS masks its own corners, and the
+       App Store icon must have no alpha/rounding. -->
+  <rect width="1024" height="1024" fill="#0E9F6E"/>
+  <circle cx="468" cy="512" r="298" fill="#FFFFFF"/>
+  <circle cx="558" cy="435" r="262" fill="#0E9F6E"/>
+  <path d="M504 528 L561 588 L660 469" fill="none" stroke="#FFFFFF"
+        stroke-width="53" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
