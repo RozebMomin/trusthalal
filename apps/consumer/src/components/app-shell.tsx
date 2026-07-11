@@ -304,10 +304,10 @@ function WrongAudienceCallout({ role }: { role: string }) {
  * Sitewide footer.
  *
  * Three responsibilities, in order of weight:
- *   1. Surface the "Powered by Trust Halal" attribution prominently
- *      enough that consumers know where the verification data is
- *      coming from. The brand promise of the site is data quality;
- *      naming the source pays that promise off.
+ *   1. State the category claim: Trust Halal is the source of record
+ *      for halal, and every claim is independently verified. The brand
+ *      promise is data quality; the footer asserts it plainly rather
+ *      than crediting some upstream "platform" (we are it).
  *   2. Quietly nudge restaurant operators toward the owner portal.
  *      Owners discover the consumer site organically (a customer
  *      shows them a listing) — the footer is the lowest-friction
@@ -322,16 +322,16 @@ function SiteFooter() {
         <div className="flex flex-col gap-1">
           <span className="font-semibold tracking-tight">{BRAND_NAME}</span>
           <span className="text-xs text-muted-foreground">
-            Powered by{" "}
+            The source of record for halal restaurants. Every claim{" "}
             <a
               href={TRUST_HALAL_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-foreground underline-offset-2 hover:underline"
             >
-              Trust Halal
+              independently verified
             </a>
-            {" "}— the open verification platform for halal restaurants.
+            , sourced, and open to dispute.
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">

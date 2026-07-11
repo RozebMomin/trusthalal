@@ -16,15 +16,14 @@
 export const BRAND_NAME = "Trust Halal";
 
 /** Short pitch shown under the brand on the apex hero. */
-export const BRAND_TAGLINE =
-  "Find verified halal restaurants near you, with the receipts.";
+export const BRAND_TAGLINE = "The source of truth for halal.";
 
 /** Long-form description used as the default OG/meta description. */
 export const BRAND_DESCRIPTION =
-  "Search verified halal restaurants near you. See the validation tier, " +
-  "menu posture, slaughter method, alcohol policy, and consumer dispute " +
-  "history before you eat — all backed by the Trust Halal verification " +
-  "platform.";
+  "The definitive record of verified halal restaurants. Every claim is " +
+  "checked — validation tier, menu posture, slaughter method, alcohol " +
+  "policy, and open disputes — so you know exactly what you're eating " +
+  "before you go.";
 
 /**
  * Public, canonical URL of the consumer site. Used by the metadata

@@ -1,27 +1,24 @@
 /**
  * Apex hero block shown above the search surface.
  *
- * Two jobs: announce the brand, and explain the value prop in one
- * sentence. Aesthetic-pass refresh:
+ * Two jobs: stake the category claim, and back it in one sentence.
+ * Voice is deliberately authoritative — Trust Halal is positioned as
+ * the record of halal, not one more listings site:
  *
- *   * Larger display type (44px on desktop, 32px on mobile) so the
- *     name reads as a brand statement, not a header.
- *   * Tighter copy. "Verified halal, no guesswork." is the new
- *     tagline-on-the-page — concrete, no jargon. Followed by a
- *     short subhead that explains what makes us different
- *     ("verified" not "listed").
- *   * The compact form (post-search) trims to a single line so
- *     results stay above the fold.
+ *   * Large display type so "The last word on halal." reads as a
+ *     category claim, not a header.
+ *   * The subhead earns the claim with specifics (certificate,
+ *     slaughter method, menu, disputes) — authority through rigor,
+ *     not adjectives.
+ *   * The compact form (post-search) trims to the name plus a
+ *     one-line positioning tag so results stay above the fold.
  *
  * The marketing-y "claim your listing" line moved off the home
  * surface — it lives on the AppShell footer / a future CTA strip.
  * Owners aren't the audience here; diners are.
  */
 
-import {
-  BRAND_NAME,
-  TRUST_HALAL_URL,
-} from "@/lib/branding";
+import { BRAND_NAME } from "@/lib/branding";
 
 type Props = {
   /** When true, render a compact hero — used after the user types a
@@ -36,16 +33,8 @@ export function SiteHero({ compact = false }: Props) {
         <h1 className="text-xl font-semibold tracking-tight">
           {BRAND_NAME}
         </h1>
-        <p className="text-[11px] text-muted-foreground">
-          Powered by{" "}
-          <a
-            href={TRUST_HALAL_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline-offset-2 hover:underline"
-          >
-            Trust Halal
-          </a>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          The source of truth for halal
         </p>
       </header>
     );
@@ -54,14 +43,14 @@ export function SiteHero({ compact = false }: Props) {
   return (
     <header className="space-y-3 pt-2 sm:pt-8">
       <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
-        Verified halal,
+        The last word
         <br className="sm:hidden" />{" "}
-        <span className="text-primary">no guesswork.</span>
+        on <span className="text-primary">halal.</span>
       </h1>
       <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
-        Find restaurants where the halal claim has been confirmed —
-        with the slaughter method, certificate, and any open disputes
-        all visible up front.
+        Every restaurant, every claim — checked against the certificate,
+        the slaughter method, the menu, and any open disputes. The full
+        record, before you eat.
       </p>
     </header>
   );

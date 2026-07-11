@@ -251,14 +251,14 @@ export function DiscoveryHome({
       {/* Tagline + collapsed name-search disclosure. */}
       <div className="space-y-3 pt-2 sm:pt-6">
         <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
-          Verified halal,
+          The last word
           <br className="sm:hidden" />{" "}
-          <span className="text-primary">no guesswork.</span>
+          on <span className="text-primary">halal.</span>
         </h1>
         <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
-          Find restaurants where the halal claim has been confirmed —
-          slaughter method, certificate, and any open disputes all
-          visible up front.
+          Every restaurant, every claim — checked against the certificate,
+          the slaughter method, the menu, and any open disputes. The full
+          record, before you eat.
         </p>
         {nameSearchOpen ? (
           <div className="space-y-1">

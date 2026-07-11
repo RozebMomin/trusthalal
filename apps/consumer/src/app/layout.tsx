@@ -49,7 +49,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${BRAND_NAME} · Find verified halal restaurants near you`,
+    default: `${BRAND_NAME} · Verified halal restaurants near you`,
     template: `%s · ${BRAND_NAME}`,
   },
   description: BRAND_DESCRIPTION,
@@ -70,12 +70,12 @@ export const metadata: Metadata = {
     type: "website",
     siteName: BRAND_NAME,
     url: SITE_URL,
-    title: `${BRAND_NAME} · Find verified halal restaurants near you`,
+    title: `${BRAND_NAME} · Verified halal restaurants near you`,
     description: BRAND_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: `${BRAND_NAME} · Find verified halal restaurants near you`,
+    title: `${BRAND_NAME} · Verified halal restaurants near you`,
     description: BRAND_DESCRIPTION,
   },
   robots: {
