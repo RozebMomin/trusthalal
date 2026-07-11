@@ -20,7 +20,7 @@ export function BrandMark() {
   return (
     <span
       aria-hidden="true"
-      className="flex h-8 w-8 items-center justify-center rounded-lg bg-olive text-cream shadow-sm"
+      className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-onaccent shadow-sm"
     >
       <svg
         width="16"
@@ -66,34 +66,34 @@ export function Header() {
     <header className="mb-16 flex items-center justify-between gap-4 sm:mb-24">
       <a href="/" className="flex items-center gap-2.5 transition hover:opacity-80">
         <BrandMark />
-        <span className="font-serif text-xl font-semibold tracking-tight text-stone sm:text-2xl">
+        <span className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
           Trust Halal
         </span>
       </a>
       <div className="flex items-center gap-5">
         <nav
           aria-label="Sections"
-          className="hidden items-center gap-5 text-sm text-stone/70 md:flex"
+          className="hidden items-center gap-5 text-sm text-sub md:flex"
         >
-          <a href="/#how-it-works" className="transition hover:text-stone">
+          <a href="/#how-it-works" className="transition hover:text-ink">
             How it works
           </a>
-          <a href="/#tiers" className="transition hover:text-stone">
+          <a href="/#tiers" className="transition hover:text-ink">
             Verification tiers
           </a>
-          <a href={ETHICS_PATH} className="transition hover:text-stone">
+          <a href={ETHICS_PATH} className="transition hover:text-ink">
             Ethics
           </a>
           <a
             href={`mailto:${CONTACT_EMAIL}`}
-            className="transition hover:text-stone"
+            className="transition hover:text-ink"
           >
             Contact
           </a>
         </nav>
         <a
           href={CONSUMER_URL}
-          className="inline-flex items-center gap-1.5 rounded-full bg-olive px-4 py-2 text-sm font-medium text-cream shadow-sm transition hover:bg-olive-deep"
+          className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-onaccent shadow-sm transition hover:bg-accent-deep"
         >
           Find halal near you
           <ArrowIcon />
@@ -105,17 +105,17 @@ export function Header() {
 
 export function Footer() {
   return (
-    <footer className="border-t border-sand/60 bg-cream">
+    <footer className="border-t border-line bg-surface">
       <div className="mx-auto max-w-5xl px-6 py-12">
         <div className="mb-10 grid gap-10 sm:grid-cols-[1.4fr_1fr_1fr]">
           <div>
             <div className="mb-3 flex items-center gap-2.5">
               <BrandMark />
-              <span className="font-serif text-xl font-semibold tracking-tight text-stone">
+              <span className="text-xl font-semibold tracking-tight text-ink">
                 Trust Halal
               </span>
             </div>
-            <p className="max-w-sm text-sm leading-relaxed text-stone/60">
+            <p className="max-w-sm text-sm leading-relaxed text-sub">
               The open verification platform for halal restaurants.
               Independent of any specific certifying body; we accept
               certificates from any recognized halal authority.
@@ -142,7 +142,7 @@ export function Footer() {
             ]}
           />
         </div>
-        <p className="border-t border-sand/60 pt-6 text-xs text-stone/50">
+        <p className="border-t border-line pt-6 text-xs text-sub">
           © {new Date().getFullYear()} Trust Halal. Community-built,
           Muslim-led.
         </p>
@@ -160,13 +160,13 @@ function FooterColumn({
 }) {
   return (
     <nav aria-label={title}>
-      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone/50">
+      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-sub">
         {title}
       </h3>
-      <ul className="space-y-2 text-sm text-stone/70">
+      <ul className="space-y-2 text-sm text-sub">
         {links.map((l) => (
           <li key={l.href}>
-            <a href={l.href} className="transition hover:text-stone hover:underline">
+            <a href={l.href} className="transition hover:text-ink hover:underline">
               {l.label}
             </a>
           </li>

@@ -15,9 +15,10 @@
  *      two commitments that differentiate the platform.
  *   6. Footer — structured product / contact columns.
  *
- * Design system stays intentionally self-contained (no shadcn, no
- * shared tokens): warm cream canvas, Cormorant Garamond display
- * serif, Inter body, olive as the single accent. Decorative
+ * Design system: the v2 clean-modern language shared with the
+ * consumer site and mobile app — emerald accent, ink text, white
+ * surfaces on a faint neutral canvas, Inter-only type (no serif).
+ * Self-contained (no shadcn, no shared tokens). Decorative
  * backgrounds are pure CSS gradients — no image requests.
  */
 
@@ -59,14 +60,14 @@ function HeroBackdrop() {
         className="absolute -top-40 right-[-10%] h-[480px] w-[480px] rounded-full opacity-60 blur-3xl"
         style={{
           background:
-            "radial-gradient(closest-side, rgba(91,111,43,0.16), transparent)",
+            "radial-gradient(closest-side, rgba(14,159,110,0.14), transparent)",
         }}
       />
       <div
         className="absolute -top-24 left-[-12%] h-[420px] w-[420px] rounded-full opacity-70 blur-3xl"
         style={{
           background:
-            "radial-gradient(closest-side, rgba(217,205,181,0.5), transparent)",
+            "radial-gradient(closest-side, rgba(14,159,110,0.05), transparent)",
         }}
       />
     </div>
@@ -79,16 +80,16 @@ function HeroBackdrop() {
 function Hero() {
   return (
     <section className="mb-24 sm:mb-32">
-      <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-olive/25 bg-white/50 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-olive">
-        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-olive" />
+      <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-accent/25 bg-white/50 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent" />
         Community-built · Muslim-led
       </p>
-      <h1 className="mb-6 max-w-3xl font-serif text-5xl font-semibold leading-[1.05] text-stone sm:text-7xl">
+      <h1 className="mb-6 max-w-3xl tracking-tight text-5xl font-semibold leading-[1.05] text-ink sm:text-7xl">
         The source of truth
         <br className="hidden sm:block" />{" "}
-        for <em className="text-olive">halal.</em>
+        for <em className="text-accent">halal.</em>
       </h1>
-      <p className="mb-9 max-w-2xl text-lg leading-relaxed text-stone/70 sm:text-xl">
+      <p className="mb-9 max-w-2xl text-lg leading-relaxed text-sub sm:text-xl">
         Trust Halal is the definitive record of halal restaurants. Every
         claim is checked at the source &mdash; supplier, slaughter
         method, certificate on file, and an in-person visit &mdash; so no
@@ -97,20 +98,20 @@ function Hero() {
       <div className="mb-12 flex flex-wrap items-center gap-3">
         <a
           href={CONSUMER_URL}
-          className="inline-flex items-center gap-2 rounded-full bg-olive px-6 py-3 text-base font-medium text-cream shadow-md shadow-olive/20 transition hover:-translate-y-0.5 hover:bg-olive-deep hover:shadow-lg hover:shadow-olive/25"
+          className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-base font-medium text-onaccent shadow-md shadow-accent/20 transition hover:-translate-y-0.5 hover:bg-accent-deep hover:shadow-lg hover:shadow-accent/25"
         >
           Browse verified restaurants
           <ArrowIcon />
         </a>
         <a
           href={OWNER_URL}
-          className="inline-flex items-center gap-2 rounded-full border border-stone/20 bg-white/60 px-6 py-3 text-base font-medium text-stone transition hover:border-olive/50 hover:bg-white"
+          className="inline-flex items-center gap-2 rounded-full border border-line bg-white/60 px-6 py-3 text-base font-medium text-ink transition hover:border-accent/50 hover:bg-white"
         >
           Verify your restaurant
         </a>
       </div>
       {/* Trust strip — the three commitments in one glance. */}
-      <ul className="flex flex-wrap items-center gap-x-7 gap-y-2 text-sm text-stone/60">
+      <ul className="flex flex-wrap items-center gap-x-7 gap-y-2 text-sm text-sub">
         <TrustItem>Independent of any certifying body</TrustItem>
         <TrustItem>Free for restaurants, forever</TrustItem>
         <TrustItem>Every paid meal disclosed</TrustItem>
@@ -128,7 +129,7 @@ function TrustItem({ children }: { children: React.ReactNode }) {
         height="14"
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#5B6F2B"
+        stroke="#0E9F6E"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -142,7 +143,7 @@ function TrustItem({ children }: { children: React.ReactNode }) {
 
 // ---------------------------------------------------------------------------
 // How verification works — the 3-step pipeline. Numbered editorial
-// cards; the connecting thread is the olive number.
+// cards; the connecting thread is the accent number.
 // ---------------------------------------------------------------------------
 function HowItWorks() {
   return (
@@ -183,17 +184,17 @@ function Step({
   body: string;
 }) {
   return (
-    <li className="relative rounded-2xl border border-sand/60 bg-white/60 p-6 transition hover:border-olive/40 hover:bg-white sm:p-7">
+    <li className="relative rounded-2xl border border-line bg-white/60 p-6 transition hover:border-accent/40 hover:bg-white sm:p-7">
       <p
         aria-hidden="true"
-        className="mb-4 font-serif text-5xl font-semibold leading-none text-olive/25"
+        className="mb-4 tracking-tight text-5xl font-semibold leading-none text-accent/25"
       >
         {n}
       </p>
-      <h3 className="mb-2 font-serif text-2xl font-semibold text-stone">
+      <h3 className="mb-2 tracking-tight text-2xl font-semibold text-ink">
         {title}
       </h3>
-      <p className="text-sm leading-relaxed text-stone/70 sm:text-base">
+      <p className="text-sm leading-relaxed text-sub sm:text-base">
         {body}
       </p>
     </li>
@@ -202,7 +203,7 @@ function Step({
 
 // ---------------------------------------------------------------------------
 // Verification tiers — the trust ladder. The pills intentionally
-// mirror the consumer site's tone system (slate → amber → olive) so
+// mirror the consumer site's tone system (slate → amber → accent) so
 // the badge a diner meets on halalfoodnearme.com already means
 // something.
 // ---------------------------------------------------------------------------
@@ -229,7 +230,7 @@ function Tiers() {
         />
         <TierCard
           pill="✓ Verified halal"
-          pillClass="border-olive bg-olive text-cream"
+          pillClass="border-accent bg-accent text-onaccent"
           title="Confirmed in person"
           body="A Trust Halal Verifier physically visited, ate, and confirmed the claim. The strongest signal we award — and it can be lost."
           featured
@@ -257,8 +258,8 @@ function TierCard({
       className={[
         "rounded-2xl border p-6 transition sm:p-7",
         featured
-          ? "border-olive/50 bg-white shadow-lg shadow-olive/10"
-          : "border-sand/60 bg-white/60 hover:border-olive/40 hover:bg-white",
+          ? "border-accent/50 bg-white shadow-lg shadow-accent/10"
+          : "border-line bg-white/60 hover:border-accent/40 hover:bg-white",
       ].join(" ")}
     >
       <span
@@ -266,10 +267,10 @@ function TierCard({
       >
         {pill}
       </span>
-      <h3 className="mb-2 font-serif text-2xl font-semibold text-stone">
+      <h3 className="mb-2 tracking-tight text-2xl font-semibold text-ink">
         {title}
       </h3>
-      <p className="text-sm leading-relaxed text-stone/70 sm:text-base">
+      <p className="text-sm leading-relaxed text-sub sm:text-base">
         {body}
       </p>
     </div>
@@ -335,24 +336,24 @@ function AudienceCard({
   return (
     <a
       href={href}
-      className="group flex flex-col rounded-2xl border border-sand/60 bg-white/60 p-6 transition hover:-translate-y-1 hover:border-olive/50 hover:bg-white hover:shadow-lg hover:shadow-olive/10 sm:p-7"
+      className="group flex flex-col rounded-2xl border border-line bg-white/60 p-6 transition hover:-translate-y-1 hover:border-accent/50 hover:bg-white hover:shadow-lg hover:shadow-accent/10 sm:p-7"
     >
       <span
         aria-hidden="true"
-        className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-olive/10 text-olive transition group-hover:bg-olive group-hover:text-cream"
+        className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent transition group-hover:bg-accent group-hover:text-onaccent"
       >
         {icon}
       </span>
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-olive/80">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent/80">
         {eyebrow}
       </p>
-      <h3 className="mb-2 font-serif text-2xl font-semibold text-stone">
+      <h3 className="mb-2 tracking-tight text-2xl font-semibold text-ink">
         {title}
       </h3>
-      <p className="mb-7 flex-1 text-sm leading-relaxed text-stone/70 sm:text-base">
+      <p className="mb-7 flex-1 text-sm leading-relaxed text-sub sm:text-base">
         {body}
       </p>
-      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-olive">
+      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent">
         {cta}
         <span className="transition group-hover:translate-x-1">
           <ArrowIcon />
@@ -363,30 +364,30 @@ function AudienceCard({
 }
 
 // ---------------------------------------------------------------------------
-// Principles band — deep olive full-bleed section carrying the two
+// Principles band — deep accent full-bleed section carrying the two
 // commitments that define the platform, plus the ethics link and a
 // final CTA. Doubling as the page's closing statement.
 // ---------------------------------------------------------------------------
 function PrinciplesBand() {
   return (
-    <section aria-label="Our principles" className="bg-olive-deep text-cream">
+    <section aria-label="Our principles" className="bg-accent-deep text-onaccent">
       <div className="mx-auto max-w-5xl px-6 py-20 sm:py-24">
-        <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-cream/60">
+        <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-onaccent/60">
           Our principles
         </p>
-        <blockquote className="mb-10 max-w-3xl font-serif text-3xl font-semibold leading-snug sm:text-5xl">
+        <blockquote className="mb-10 max-w-3xl tracking-tight text-3xl font-semibold leading-snug sm:text-5xl">
           Trust is the product. So every visit discloses who paid for
           the meal &mdash; and no certifying body owns us.
         </blockquote>
-        <div className="mb-12 grid gap-6 text-cream/80 sm:grid-cols-2">
+        <div className="mb-12 grid gap-6 text-onaccent/80 sm:grid-cols-2">
           <p className="text-sm leading-relaxed sm:text-base">
-            <strong className="text-cream">Independent.</strong> Trust
+            <strong className="text-onaccent">Independent.</strong> Trust
             Halal is not owned by, funded by, or affiliated with any
             certifying body. We accept certificates from any
             recognized halal authority and verify them ourselves.
           </p>
           <p className="text-sm leading-relaxed sm:text-base">
-            <strong className="text-cream">Disclosed.</strong> Hiding
+            <strong className="text-onaccent">Disclosed.</strong> Hiding
             a comped meal or a paid arrangement is the one thing that
             gets a verifier removed from the program. Honest beats
             polished, every time.
@@ -395,14 +396,14 @@ function PrinciplesBand() {
         <div className="flex flex-wrap items-center gap-4">
           <a
             href={CONSUMER_URL}
-            className="inline-flex items-center gap-2 rounded-full bg-cream px-6 py-3 text-base font-semibold text-olive-deep transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20"
+            className="inline-flex items-center gap-2 rounded-full bg-surface px-6 py-3 text-base font-semibold text-accent-deep transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20"
           >
             Know before you eat
             <ArrowIcon />
           </a>
           <a
             href={ETHICS_PATH}
-            className="text-sm font-medium text-cream/80 underline-offset-4 transition hover:text-cream hover:underline"
+            className="text-sm font-medium text-onaccent/80 underline-offset-4 transition hover:text-onaccent hover:underline"
           >
             Read the full ethics commitment →
           </a>
@@ -426,14 +427,14 @@ function SectionHeading({
 }) {
   return (
     <div className="mb-10">
-      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-olive">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
         {eyebrow}
       </p>
-      <h2 className="max-w-2xl font-serif text-3xl font-semibold leading-tight text-stone sm:text-5xl">
+      <h2 className="max-w-2xl tracking-tight text-3xl font-semibold leading-tight text-ink sm:text-5xl">
         {title}
       </h2>
       {lede && (
-        <p className="mt-4 max-w-2xl text-base leading-relaxed text-stone/70 sm:text-lg">
+        <p className="mt-4 max-w-2xl text-base leading-relaxed text-sub sm:text-lg">
           {lede}
         </p>
       )}

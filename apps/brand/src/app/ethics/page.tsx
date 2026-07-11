@@ -4,8 +4,8 @@
  * under trusthalal.org rather than the consumer site; the old
  * halalfoodnearme.com/ethics path 301s here).
  *
- * Server-rendered, zero client JS, styled with the 2026 brand
- * system: cream canvas, Cormorant display serif, olive accent.
+ * Server-rendered, zero client JS, styled with the v2 clean-modern
+ * brand system: neutral canvas, ink text, Inter type, emerald accent.
  * Canonical source of truth for the WORDING remains
  * ``content/ethics/ai-ethics.md`` — keep them in sync when edited.
  * The change-history table at the bottom is authoritative.
@@ -46,22 +46,22 @@ export default function EthicsPage() {
       <main className="mx-auto flex min-h-screen max-w-5xl flex-col px-6 pt-8 sm:pt-10">
         <Header />
         <article className="prose-brand mx-auto mb-24 w-full max-w-2xl">
-          <nav aria-label="Breadcrumb" className="mb-8 text-sm text-stone/50">
-            <a href="/" className="hover:text-stone hover:underline">
+          <nav aria-label="Breadcrumb" className="mb-8 text-sm text-sub">
+            <a href="/" className="hover:text-ink hover:underline">
               Trust Halal
             </a>
             <span className="mx-2">·</span>
             <span>Ethics</span>
           </nav>
 
-          <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-olive">
+          <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
             How Trust Halal uses AI
           </p>
-          <h1 className="mb-6 font-serif text-4xl font-semibold leading-tight text-stone sm:text-5xl">
+          <h1 className="mb-6 tracking-tight text-4xl font-semibold leading-tight text-ink sm:text-5xl">
             Every &lsquo;Verified&rsquo; designation is made by a
             human.
           </h1>
-          <p className="mb-8 text-lg leading-relaxed text-stone/70 sm:text-xl">
+          <p className="mb-8 text-lg leading-relaxed text-sub sm:text-xl">
             AI helps us work faster; AI does not decide whether a
             restaurant is halal. This is the source-of-truth document
             for how we use it, and where we draw the lines.
@@ -362,22 +362,22 @@ export default function EthicsPage() {
           </p>
 
           <SectionHeader>Change history</SectionHeader>
-          <div className="my-4 overflow-hidden rounded-xl border border-sand/60 bg-white/60">
+          <div className="my-4 overflow-hidden rounded-xl border border-line bg-white/60">
             <table className="w-full text-sm">
-              <thead className="bg-sand/30 text-stone">
+              <thead className="bg-line text-ink">
                 <tr>
                   <th className="p-3 text-left font-semibold">Date</th>
                   <th className="p-3 text-left font-semibold">Change</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-t border-sand/60">
-                  <td className="p-3 text-stone/60">(publication date)</td>
-                  <td className="p-3 text-stone/80">First published.</td>
+                <tr className="border-t border-line">
+                  <td className="p-3 text-sub">(publication date)</td>
+                  <td className="p-3 text-sub">First published.</td>
                 </tr>
-                <tr className="border-t border-sand/60">
-                  <td className="p-3 text-stone/60">July 2026</td>
-                  <td className="p-3 text-stone/80">
+                <tr className="border-t border-line">
+                  <td className="p-3 text-sub">July 2026</td>
+                  <td className="p-3 text-sub">
                     Moved to its permanent home at trusthalal.org/ethics
                     (previously halalfoodnearme.com/ethics, which now
                     redirects here). Wording unchanged.
@@ -387,11 +387,11 @@ export default function EthicsPage() {
             </table>
           </div>
 
-          <hr className="my-10 border-sand/60" />
-          <p className="text-sm italic text-stone/60">
+          <hr className="my-10 border-line" />
+          <p className="text-sm italic text-sub">
             Written by the Trust Halal team. If you&apos;d like to
             reference this document publicly, please do — the URL is{" "}
-            <span className="font-mono not-italic text-stone">
+            <span className="font-mono not-italic text-ink">
               trusthalal.org/ethics
             </span>
             .
@@ -408,11 +408,11 @@ export default function EthicsPage() {
 // ---------------------------------------------------------------------------
 function OneLineVersion() {
   return (
-    <section className="my-10 rounded-2xl border border-olive/30 bg-olive/5 p-6 sm:p-7">
-      <h2 className="mb-2 font-serif text-xl font-semibold text-stone">
+    <section className="my-10 rounded-2xl border border-accent/30 bg-accent/5 p-6 sm:p-7">
+      <h2 className="mb-2 tracking-tight text-xl font-semibold text-ink">
         The one-line version
       </h2>
-      <p className="text-base leading-relaxed text-stone sm:text-lg">
+      <p className="text-base leading-relaxed text-ink sm:text-lg">
         <strong>
           Every &lsquo;Trust Halal Verified&rsquo; designation is
           made by a human. AI helps us work faster; AI does not
@@ -425,7 +425,7 @@ function OneLineVersion() {
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-4 mt-12 font-serif text-2xl font-semibold text-stone sm:text-3xl">
+    <h2 className="mb-4 mt-12 tracking-tight text-2xl font-semibold text-ink sm:text-3xl">
       {children}
     </h2>
   );
@@ -433,7 +433,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 function SubHeader({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="mb-2 mt-8 font-serif text-xl font-semibold text-stone">
+    <h3 className="mb-2 mt-8 tracking-tight text-xl font-semibold text-ink">
       {children}
     </h3>
   );

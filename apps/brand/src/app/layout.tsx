@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#F8F4EC",
+  themeColor: "#F6F6F7",
 };
 
 export default function RootLayout({
@@ -36,18 +36,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Serif + sans free font pair. Loaded async via preconnect
-            so the initial paint doesn't wait on Google Fonts. */}
+        {/* Inter only — v2 is Inter-driven, no serif. Loaded async via
+            preconnect so the initial paint doesn't wait on Google Fonts.
+            Italic 600 kept for the hero's accented <em> phrase. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
           href="https://fonts.gstatic.com"
           crossOrigin=""
         />
-        {/* Italic 600 added for the hero's accented em phrase. */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,600&display=swap"
         />
       </head>
       <body>{children}</body>

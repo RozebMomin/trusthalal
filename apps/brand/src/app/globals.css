@@ -3,14 +3,12 @@
 @tailwind utilities;
 
 /*
- * Base document tone. The brand landing uses a single warm cream
- * background across the whole page so the surface feels calm and
- * document-like, not app-like. Serif for anything display, sans
- * for body.
+ * Base document tone. v2 clean-modern: a faint neutral canvas with
+ * near-black ink text. Inter for everything — no serif.
  */
 body {
-  background-color: #F8F4EC;
-  color: #3A3633;
+  background-color: #F6F6F7;
+  color: #0B0B0E;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -20,25 +18,25 @@ html {
 }
 
 /*
- * Long-form document typography for /ethics (and any future
- * prose page). Kept as plain CSS instead of @tailwindcss/typography
- * so the brand app stays dependency-light.
+ * Long-form document typography for /ethics (and any future prose
+ * page). Plain CSS instead of @tailwindcss/typography so the brand
+ * app stays dependency-light.
  */
 .prose-brand p {
   margin: 1.1em 0;
-  color: rgba(58, 54, 51, 0.72);
+  color: #7A7A83;
   font-size: 1.0625rem;
   line-height: 1.75;
 }
 .prose-brand p strong {
-  color: #3a3633;
+  color: #0B0B0E;
   font-weight: 600;
 }
 .prose-brand ul,
 .prose-brand ol {
   margin: 1em 0 1.5em;
   padding-left: 1.4em;
-  color: rgba(58, 54, 51, 0.72);
+  color: #7A7A83;
   font-size: 1.0625rem;
   line-height: 1.65;
 }
@@ -52,29 +50,29 @@ html {
   margin: 0.55em 0;
 }
 .prose-brand li strong {
-  color: #3a3633;
+  color: #0B0B0E;
   font-weight: 600;
 }
 .prose-brand a {
-  color: #5b6f2b;
+  color: #0E9F6E;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 .prose-brand a:hover {
-  color: #3f4f1e;
+  color: #057A55;
 }
 
 /* Brand-toned text selection — small touch, big "someone cared"
  * signal on a marketing page. */
 ::selection {
-  background-color: rgba(91, 111, 43, 0.85);
-  color: #f8f4ec;
+  background-color: rgba(14, 159, 110, 0.9);
+  color: #ffffff;
 }
 
 /* Visible, consistent keyboard focus across all interactive
  * elements without relying on per-component classes. */
 :focus-visible {
-  outline: 2px solid #5b6f2b;
+  outline: 2px solid #0E9F6E;
   outline-offset: 2px;
   border-radius: 4px;
 }
