@@ -55,9 +55,18 @@ logger = logging.getLogger(__name__)
 
 
 def ip_key(request: Request) -> str:
-    """IP-based bucket. slowapi's util respects X-Forwarded-For if
-    we ever sit behind a proxy that sets it (Render does, on the
-    Render edge → Render service hop)."""
+    """IP-based bucket.
+
+    ``get_remote_address`` returns ``request.client.host`` — it does
+    NOT parse ``X-Forwarded-For`` itself. Behind Render's proxy that is
+    only the real client IP if the ASGI server rewrites ``request.client``
+    from a *trusted* forwarded header. This REQUIRES the service to run
+    uvicorn/gunicorn with ``--proxy-headers`` and ``--forwarded-allow-ips``
+    scoped to the Render edge. Without it, every caller collapses to the
+    proxy IP (per-IP caps become global — a login-lockout DoS); with a
+    permissive ``--forwarded-allow-ips`` the header becomes spoofable.
+    The start command lives in the Render service config, not this repo.
+    """
     return get_remote_address(request)
 
 

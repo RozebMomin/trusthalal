@@ -412,6 +412,15 @@ if cors_origins:
     # The CORS spec forbids ``allow_origins=["*"]`` when credentials
     # are enabled, so the explicit origin list above is mandatory.
     #
+    # Fail fast if an operator ever sets ``CORS_ORIGINS=*``: Starlette
+    # would otherwise reflect the caller's Origin *with credentials*,
+    # a full cross-origin bypass of the same-origin policy.
+    if "*" in cors_origins:
+        raise RuntimeError(
+            "CORS_ORIGINS may not contain '*' while credentials are "
+            "enabled — list explicit origins instead."
+        )
+    #
     # ``X-Request-ID`` is exposed so the frontend can read it off
     # responses and surface it on its own Sentry breadcrumbs — that's
     # how a single request stays correlated across browser + server

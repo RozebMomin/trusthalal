@@ -16,7 +16,12 @@ from app.modules.organizations.models import (
 )
 from app.modules.places.enums import ExternalIdProvider, PlaceEventType
 from app.modules.places.models import Place, PlaceEvent, PlaceExternalId
-from app.modules.places.repo import get_place, log_place_event
+from app.modules.places.repo import (
+    LIKE_ESCAPE,
+    escape_like,
+    get_place,
+    log_place_event,
+)
 
 
 # Allowed ``order_by`` values for ``admin_list_places``. Kept as a
@@ -76,19 +81,21 @@ def admin_list_places(
     # Text search: ILIKE on name + address. Case-insensitive substring match
     # is enough for an admin browse; we don't need trigram/full-text yet.
     if q:
-        needle = f"%{q.strip()}%"
-        if needle != "%%":
+        term = q.strip()
+        if term:
+            needle = f"%{escape_like(term)}%"
             stmt = stmt.where(
                 or_(
-                    Place.name.ilike(needle),
-                    Place.address.ilike(needle),
+                    Place.name.ilike(needle, escape=LIKE_ESCAPE),
+                    Place.address.ilike(needle, escape=LIKE_ESCAPE),
                 )
             )
 
     if city:
-        city_needle = f"%{city.strip()}%"
-        if city_needle != "%%":
-            stmt = stmt.where(Place.city.ilike(city_needle))
+        city_term = city.strip()
+        if city_term:
+            city_needle = f"%{escape_like(city_term)}%"
+            stmt = stmt.where(Place.city.ilike(city_needle, escape=LIKE_ESCAPE))
 
     if country:
         # country_code is stored uppercase (ISO-2 CHECK constraint); normalize

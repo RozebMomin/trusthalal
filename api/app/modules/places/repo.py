@@ -23,6 +23,21 @@ from app.modules.organizations.models import (
 from app.modules.places.enums import Cuisine, PlaceEventType
 from app.modules.places.models import Place, PlaceEvent
 
+# Backslash is the escape character passed to ``.ilike(..., escape="\\")``.
+LIKE_ESCAPE = "\\"
+
+
+def escape_like(term: str) -> str:
+    """Neutralize LIKE/ILIKE metacharacters in user-supplied search text.
+
+    Escapes ``\\``, ``%`` and ``_`` so a caller can't inject wildcards
+    (a lone ``%`` would otherwise match every row / force a full scan).
+    Use with ``.ilike(f"%{escape_like(q)}%", escape=LIKE_ESCAPE)``.
+    """
+    return (
+        term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    )
+
 
 # ---------------------------------------------------------------------------
 # Halal search filters
@@ -283,18 +298,19 @@ def search_by_text(
     10k+, we can layer trigram (pg_trgm) or full-text (tsvector) on
     top without changing the wire shape.
     """
-    needle = f"%{q.strip()}%"
-    if needle == "%%":
+    term = q.strip()
+    if not term:
         return []
+    needle = f"%{escape_like(term)}%"
 
     stmt = (
         select(Place, HalalProfile)
         .where(Place.is_deleted.is_(False))
         .where(
             or_(
-                Place.name.ilike(needle),
-                Place.address.ilike(needle),
-                Place.city.ilike(needle),
+                Place.name.ilike(needle, escape=LIKE_ESCAPE),
+                Place.address.ilike(needle, escape=LIKE_ESCAPE),
+                Place.city.ilike(needle, escape=LIKE_ESCAPE),
             )
         )
     )

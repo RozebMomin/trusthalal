@@ -32,7 +32,9 @@ class LoginRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     email: EmailStr
-    password: str
+    # Bounded so a multi-megabyte password can't amplify the per-request
+    # Argon2 verify cost into a cheap DoS. 256 mirrors signup/set-password.
+    password: str = Field(..., max_length=256)
 
 
 class LoginResponse(BaseModel):

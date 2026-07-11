@@ -7,7 +7,9 @@ services:
       POSTGRES_PASSWORD: trusthalal
       POSTGRES_DB: trusthalal
     ports:
-      - "5432:5432"
+      # Bind to loopback only. The default password is a dev convenience;
+      # binding 0.0.0.0 would expose a superuser DB to anyone on the LAN.
+      - "127.0.0.1:5432:5432"
     volumes:
       - trusthalal_pgdata:/var/lib/postgresql/data
     healthcheck:

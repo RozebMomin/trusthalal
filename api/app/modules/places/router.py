@@ -233,7 +233,7 @@ def patch_owned_place(
 def post_place(
     payload: PlaceCreate,
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(UserRole.OWNER, UserRole.ADMIN)),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> PlaceRead:
     place = create_place(
         db,

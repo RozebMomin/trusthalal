@@ -159,19 +159,28 @@ def issue_token_pair(db: DbSession, *, user_id: UUID) -> TokenPair:
 
 
 def _resolve(
-    db: DbSession, *, raw_token: str, kind: str
+    db: DbSession, *, raw_token: str, kind: str, for_update: bool = False
 ) -> tuple[MobileToken, User] | None:
     """Hash-lookup a live token of ``kind`` and return it with its user.
 
     None on any failure (unknown, expired, revoked, inactive user) —
     one failure mode, mirroring ``resolve_session``.
+
+    ``for_update`` takes a row lock on the token so concurrent callers
+    serialize. The refresh path uses it: without the lock two requests
+    replaying the same refresh token could both resolve before either
+    revokes, minting two live pairs and defeating single-use rotation.
     """
     now = datetime.now(timezone.utc)
-    row = db.execute(
+    stmt = (
         select(MobileToken, User)
         .join(User, User.id == MobileToken.user_id)
         .where(MobileToken.token_hash == _hash(raw_token))
-    ).first()
+    )
+    if for_update:
+        # Lock only the token row (not the joined user).
+        stmt = stmt.with_for_update(of=MobileToken)
+    row = db.execute(stmt).first()
     if row is None:
         return None
     token, user = row
@@ -204,7 +213,9 @@ def rotate_refresh_token(
     rotated) refresh token resolves to nothing and the caller 401s —
     the client's recovery is a fresh login.
     """
-    resolved = _resolve(db, raw_token=raw_refresh_token, kind=KIND_REFRESH)
+    resolved = _resolve(
+        db, raw_token=raw_refresh_token, kind=KIND_REFRESH, for_update=True
+    )
     if resolved is None:
         return None
     token, user = resolved

@@ -146,7 +146,11 @@ def send_email(
             "[email] RESEND_API_KEY not configured — skipping send",
             extra={"template": template, "to": to, "subject": subject},
         )
-        logger.debug("[email] would-have-sent body:\n%s", html_body)
+        # The rendered body can contain single-use invite / password-reset
+        # links. Only dump it in local dev — never in a deployed env that
+        # happens to run at DEBUG without a Resend key.
+        if settings.ENV == "local":
+            logger.debug("[email] would-have-sent body:\n%s", html_body)
         return None
 
     # Re-apply the API key on every send — the SDK reads from a
