@@ -39,11 +39,11 @@ export default function Onboarding() {
             <Feather name="check" size={24} color={t.onAccent} />
           </View>
           <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 34 }]}>
-            Verified halal,{"\n"}no guesswork.
+            The last word{"\n"}on halal.
           </Text>
           <Text style={[ty.body, { color: t.sub }]}>
             Every halal claim on Trust Halal is checked — certificate, sourcing, or an in-person
-            visit by someone from the community.
+            visit by someone from the community. The full record, before you eat.
           </Text>
           <Button title="Get started" onPress={() => setStep(1)} />
           <Dots step={0} />
