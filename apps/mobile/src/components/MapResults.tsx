@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Dimensions, FlatList, Image, Pressable, Text, View } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Circle, Marker } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { primaryHalalSignal } from "@/lib/halal-display";
 import type { PlaceSearchResult } from "@/lib/api/types";
@@ -13,6 +13,8 @@ import { Tag } from "@/ui/kit";
 const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_W = SCREEN_W - 72;
 const TONE = { positive: "solid", trusted: "amber", neutral: "zinc", muted: "dashed", warning: "danger" } as const;
+const RADII_MI = [1, 3, 5, 10, 25] as const;
+const M_PER_MI = 1609.34;
 
 /** Mockup-2 pin hierarchy: size communicates TIER (verified biggest),
  *  selection adds emphasis on top. */
@@ -31,6 +33,8 @@ export function MapResults({
   onRecenter,
   onList,
   onLocation,
+  radiusMi,
+  onRadius,
 }: {
   results: Array<{ place: PlaceSearchResult; distanceMeters?: number }>;
   center: { lat: number; lng: number } | null;
@@ -38,6 +42,10 @@ export function MapResults({
   onRecenter: () => void;
   onList: () => void;
   onLocation: () => void;
+  /** Active radius in miles; undefined for text-only searches (no
+   *  radius pill, no circle). */
+  radiusMi?: number;
+  onRadius?: (mi: number) => void;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -49,6 +57,16 @@ export function MapResults({
     const c = center ?? (results[0] ? { lat: results[0].place.lat, lng: results[0].place.lng } : { lat: 39.5, lng: -98.35 });
     return { latitude: c.lat, longitude: c.lng, latitudeDelta: 0.12, longitudeDelta: 0.12 };
   }, [center, results]);
+
+  const fitAll = () => {
+    const pts = results.map(({ place }) => ({ latitude: place.lat, longitude: place.lng }));
+    if (center) pts.push({ latitude: center.lat, longitude: center.lng });
+    if (pts.length === 0) return;
+    mapRef.current?.fitToCoordinates(pts, {
+      edgePadding: { top: 140, bottom: 260, left: 70, right: 70 },
+      animated: true,
+    });
+  };
 
   const focus = (i: number, fromMap: boolean) => {
     setSelected(i);
@@ -70,7 +88,17 @@ export function MapResults({
         showsUserLocation
         showsCompass={false}
         toolbarEnabled={false}
+        onMapReady={fitAll}
       >
+        {center && radiusMi ? (
+          <Circle
+            center={{ latitude: center.lat, longitude: center.lng }}
+            radius={radiusMi * M_PER_MI}
+            strokeColor="rgba(14,159,110,0.65)"
+            strokeWidth={1.5}
+            fillColor="rgba(14,159,110,0.07)"
+          />
+        ) : null}
         {results.map(({ place }, i) => {
           const pin = pinFor(place, t);
           const sel = i === selected;
@@ -124,6 +152,51 @@ export function MapResults({
           </Pressable>
         </View>
       </View>
+
+      {/* Floating radius pill (only for geo searches) */}
+      {radiusMi && onRadius ? (
+        <View
+          style={{
+            position: "absolute", top: insets.top + 64, left: space.lg, right: space.lg,
+            flexDirection: "row", backgroundColor: t.card, borderRadius: 999, padding: 3,
+            shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+          }}
+        >
+          {RADII_MI.map((r) => {
+            const on = r === radiusMi;
+            return (
+              <Pressable
+                key={r}
+                accessibilityRole="button"
+                accessibilityLabel={`Search within ${r} miles`}
+                onPress={() => onRadius(r)}
+                style={{
+                  flex: 1, paddingVertical: 7, borderRadius: 999, alignItems: "center",
+                  backgroundColor: on ? t.ink : "transparent",
+                }}
+              >
+                <Text style={{ fontFamily: on ? "Inter_700Bold" : "Inter_600SemiBold", fontSize: 11, color: on ? t.onInk : t.sub }}>
+                  {r} mi
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {/* Overview: zoom out to fit every pin */}
+      <Pressable
+        accessibilityLabel="Show all results"
+        onPress={fitAll}
+        style={{
+          position: "absolute", right: space.lg, bottom: 264,
+          width: 40, height: 40, borderRadius: 999, backgroundColor: t.card,
+          alignItems: "center", justifyContent: "center",
+          shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 5,
+        }}
+      >
+        <Feather name="maximize-2" size={15} color={t.ink} />
+      </Pressable>
 
       {/* Recenter */}
       <Pressable
