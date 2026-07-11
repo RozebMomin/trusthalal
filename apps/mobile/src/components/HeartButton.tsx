@@ -80,7 +80,9 @@ export function HeartButton({
           transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1.9] }) }],
         }}
       />
-      <Ionicons name={saved ? "heart" : "heart-outline"} size={size} color={saved ? t.danger : t.ink} />
+      {/* Idle color is FIXED dark: this button sits on fixed white glass
+          over photos, and t.ink flips near-white in dark mode. */}
+      <Ionicons name={saved ? "heart" : "heart-outline"} size={size} color={saved ? t.danger : "#0B0B0E"} />
     </Animated.View>
   );
 

@@ -119,7 +119,9 @@ export default function PlaceDetail() {
           width: 36,
           height: 36,
           borderRadius: 999,
-          backgroundColor: t.card,
+          // Fixed white glass: this floats over the hero PHOTO, which
+          // doesn't theme — matching the save/share buttons.
+          backgroundColor: "rgba(255,255,255,0.92)",
           alignItems: "center",
           justifyContent: "center",
           shadowColor: "#000",
@@ -129,7 +131,7 @@ export default function PlaceDetail() {
           elevation: 4,
         }}
       >
-        <Feather name="chevron-left" size={20} color={t.ink} />
+        <Feather name="chevron-left" size={20} color="#0B0B0E" />
       </Pressable>
 
       {/* Glass save + share over the hero (mockup 3) */}
@@ -197,9 +199,9 @@ function Glass({
       }}
     >
       {ion ? (
-        <Ionicons name={ion} size={18} color={active ? t.danger : t.ink} />
+        <Ionicons name={ion} size={18} color={active ? t.danger : "#0B0B0E"} />
       ) : (
-        <Feather name={icon!} size={17} color={active ? t.danger : t.ink} />
+        <Feather name={icon!} size={17} color={active ? t.danger : "#0B0B0E"} />
       )}
     </Pressable>
   );
