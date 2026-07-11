@@ -73,7 +73,7 @@ export function PlaceCard({
           style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 90 }}
         />
         <View style={{ position: "absolute", top: 10, left: 10 }}>
-          <TierTag signal={signal} />
+          <TierTag signal={signal} onPhoto />
         </View>
         {dist ? (
           <View
