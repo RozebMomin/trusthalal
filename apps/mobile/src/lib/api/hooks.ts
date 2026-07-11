@@ -144,10 +144,27 @@ export function useMyFavorites(enabled: boolean) {
 export function useToggleFavorite() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ placeId, saved }: { placeId: string; saved: boolean }) =>
+    mutationFn: ({ placeId, saved }: { placeId: string; saved: boolean; place?: PlaceSearchResult }) =>
       saved
         ? apiFetch(`/me/favorites/${placeId}`, { method: "DELETE" })
         : apiFetch(`/me/favorites/${placeId}`, { method: "POST" }),
+    // Optimistic: the heart fills the instant you tap, the list updates
+    // immediately, and we roll back if the server disagrees.
+    onMutate: async ({ placeId, saved, place }) => {
+      await qc.cancelQueries({ queryKey: ["me", "favorites"] });
+      const previous = qc.getQueryData<FavoriteRead[]>(["me", "favorites"]);
+      qc.setQueryData<FavoriteRead[]>(["me", "favorites"], (old = []) =>
+        saved
+          ? old.filter((f) => f.place.id !== placeId)
+          : place
+            ? [{ saved_at: new Date().toISOString(), place }, ...old]
+            : old,
+      );
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) qc.setQueryData(["me", "favorites"], ctx.previous);
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: ["me", "favorites"] }),
   });
 }

@@ -10,6 +10,7 @@ import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
+import { HeartButton } from "@/components/HeartButton";
 import { Card, Chip, Tag } from "@/ui/kit";
 import { EmptyState, ErrorState, Loading } from "@/components/States";
 
@@ -95,14 +96,12 @@ function SavedRow({ place, onUnsave }: { place: PlaceSearchResult; onUnsave: () 
           <Text numberOfLines={1} style={[ty.label, { color: t.ink, fontSize: 14 }]}>{place.name}</Text>
           {meta ? <Text style={[ty.small, { color: t.sub }]}>{meta}</Text> : null}
         </View>
-        <Pressable
-          accessibilityLabel={`Unsave ${place.name}`}
+        <HeartButton
+          saved
+          label={`Unsave ${place.name}`}
           onPress={onUnsave}
-          hitSlop={10}
           style={{ padding: space.md, justifyContent: "flex-start" }}
-        >
-          <Ionicons name="heart" size={18} color={t.danger} />
-        </Pressable>
+        />
       </Card>
     </Pressable>
   );

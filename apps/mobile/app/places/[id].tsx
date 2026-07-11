@@ -7,6 +7,7 @@ import { primaryHalalSignal } from "@/lib/halal-display";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
+import { HeartButton } from "@/components/HeartButton";
 import { TierTag } from "@/components/TierTag";
 import { ErrorState, Loading } from "@/components/States";
 import type { HalalProfileEmbed } from "@/lib/api/types";
@@ -133,10 +134,9 @@ export default function PlaceDetail() {
 
       {/* Glass save + share over the hero (mockup 3) */}
       <View style={{ position: "absolute", top: insets.top + 6, right: space.lg, flexDirection: "row", gap: 8 }}>
-        <Glass
-          ion={saved ? "heart" : "heart-outline"}
-          label={saved ? "Unsave" : "Save"}
-          active={saved}
+        <HeartButton
+          glass
+          saved={saved}
           onPress={() => {
             if (id.startsWith("fx-")) {
               Alert.alert("UI preview", "This is a fixture screen — saving works on live places.");
@@ -147,7 +147,7 @@ export default function PlaceDetail() {
               return;
             }
             toggle.mutate(
-              { placeId: id, saved },
+              { placeId: id, saved, place: place ?? undefined },
               {
                 onError: (e) =>
                   Alert.alert(
