@@ -8,7 +8,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Trust Halal · Owner portal",
   description:
-    "Manage your restaurants, claims, and certifications on Trust Halal.",
+    "Claim, verify, and manage your restaurant on Trust Halal — the source of truth for halal.",
 };
 
 /*

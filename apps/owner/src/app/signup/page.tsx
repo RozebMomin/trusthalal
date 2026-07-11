@@ -135,7 +135,8 @@ export default function SignupPage() {
             Create your owner account
           </h1>
           <p className="text-sm text-muted-foreground">
-            Trust Halal owner portal — claim your restaurant.
+            Get your restaurant on the record — verified and searchable on
+            Trust Halal.
           </p>
         </div>
 
