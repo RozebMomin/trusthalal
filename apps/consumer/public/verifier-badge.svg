@@ -1,22 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Trust Halal Verifier">
   <!--
-    Verifier badge — VISUALLY DISTINCT from the restaurant Verified
-    badge on purpose. Same brand palette, different shape and icon
-    so at a glance you know: circle badge = a verified restaurant,
-    hexagonal badge = a community verifier vouching for restaurants.
+    Verifier badge — v2 clean-modern (emerald/ink/white), matching the
+    consumer site and mobile app. VISUALLY DISTINCT from the restaurant
+    Verified badge on purpose: hexagon = a community verifier vouching
+    for restaurants; circle = a verified restaurant.
 
-    Design intent:
-      * Hexagonal outline (person-shape connotation, community
-        organizer feel) vs. the restaurant badge's circle.
-      * Sky accent (#5F8CA8) on the person-check icon instead of
-        the restaurant badge's pomegranate check. Different accent,
-        same trust semantics.
-      * "TRUST HALAL" wordmark on the top olive band.
-      * "VERIFIER" in serif italic as the center wordmark.
-      * Person-with-checkmark icon: the human vouching for the
-        food, not the food itself being certified.
-
-    Sized to read at 48px (IG bio) and at large scale.
+    Palette: emerald #0E9F6E accent, ink #0B0B0E, white surface.
+    Type: Inter (no serif). Sized to read at 48px and at large scale.
   -->
   <defs>
     <clipPath id="hexClip">
@@ -27,44 +17,42 @@
   <!-- Hexagon body -->
   <polygon
     points="200,20 366,110 366,290 200,380 34,290 34,110"
-    fill="#F8F4EC"
-    stroke="#5B6F2B"
+    fill="#FFFFFF"
+    stroke="#0E9F6E"
     stroke-width="10"
     stroke-linejoin="round"
   />
 
-  <!-- Top olive band (clipped to hex) -->
+  <!-- Top emerald band (clipped to hex) -->
   <g clip-path="url(#hexClip)">
-    <rect x="0" y="90" width="400" height="60" fill="#5B6F2B"/>
+    <rect x="0" y="90" width="400" height="60" fill="#0E9F6E"/>
   </g>
 
   <!-- Wordmark on band -->
   <text
-    x="200" y="127"
-    font-family="'Cormorant Garamond', 'EB Garamond', Georgia, serif"
-    font-size="26"
+    x="200" y="126"
+    font-family="Inter, system-ui, -apple-system, sans-serif"
+    font-size="24"
     font-weight="600"
-    letter-spacing="6"
-    fill="#F8F4EC"
+    letter-spacing="5"
+    fill="#FFFFFF"
     text-anchor="middle"
   >TRUST HALAL</text>
 
   <!-- Person icon (silhouette) — center-upper -->
   <g transform="translate(200 200)">
-    <!-- Head -->
-    <circle cx="0" cy="-32" r="18" fill="#3A3633"/>
-    <!-- Shoulders / torso arc -->
+    <circle cx="0" cy="-32" r="18" fill="#0B0B0E"/>
     <path
       d="M -42 20 Q -42 -12 0 -12 Q 42 -12 42 20 L 42 30 L -42 30 Z"
-      fill="#3A3633"
+      fill="#0B0B0E"
     />
-    <!-- Sky-blue check badge in the corner of the person icon -->
+    <!-- Emerald check badge in the corner of the person icon -->
     <g transform="translate(30 12)">
-      <circle cx="0" cy="0" r="16" fill="#5F8CA8"/>
-      <circle cx="0" cy="0" r="16" fill="none" stroke="#F8F4EC" stroke-width="2"/>
+      <circle cx="0" cy="0" r="16" fill="#0E9F6E"/>
+      <circle cx="0" cy="0" r="16" fill="none" stroke="#FFFFFF" stroke-width="2"/>
       <path
         d="M -7 0 L -2 5 L 8 -5"
-        stroke="#F8F4EC"
+        stroke="#FFFFFF"
         stroke-width="3"
         stroke-linecap="round"
         stroke-linejoin="round"
@@ -75,25 +63,27 @@
 
   <!-- Verifier wordmark -->
   <text
-    x="200" y="285"
-    font-family="'Cormorant Garamond', 'EB Garamond', Georgia, serif"
-    font-size="36"
-    font-style="italic"
-    fill="#3A3633"
+    x="200" y="288"
+    font-family="Inter, system-ui, -apple-system, sans-serif"
+    font-size="34"
+    font-weight="700"
+    letter-spacing="-0.5"
+    fill="#0B0B0E"
     text-anchor="middle"
   >Verifier</text>
 
   <!-- Small caption line under the wordmark -->
   <text
     x="200" y="320"
-    font-family="'Inter', system-ui, sans-serif"
+    font-family="Inter, system-ui, -apple-system, sans-serif"
     font-size="10"
-    letter-spacing="4"
-    fill="#5B6F2B"
+    font-weight="600"
+    letter-spacing="3"
+    fill="#0E9F6E"
     text-anchor="middle"
   >COMMUNITY · IN PERSON · INDEPENDENT</text>
 
   <!-- Two small decorative dots flanking the wordmark on the band -->
-  <circle cx="50" cy="120" r="3" fill="#F8F4EC"/>
-  <circle cx="350" cy="120" r="3" fill="#F8F4EC"/>
+  <circle cx="50" cy="120" r="3" fill="#FFFFFF"/>
+  <circle cx="350" cy="120" r="3" fill="#FFFFFF"/>
 </svg>
