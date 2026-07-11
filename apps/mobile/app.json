@@ -14,10 +14,11 @@
       "associatedDomains": [
         "applinks:halalfoodnearme.com"
       ],
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "So we can show halal restaurants near you.",
-        "NSPhotoLibraryUsageDescription": "So you can attach a photo to a dispute report.",
-        "NSCameraUsageDescription": "So you can take a photo for a dispute report."
+        "NSLocationWhenInUseUsageDescription": "So we can show halal restaurants near you."
       },
       "appleTeamId": "3623JG9XS4"
     },
@@ -31,7 +32,14 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-location",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "So we can show halal restaurants near you.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
       "expo-font",
       "expo-asset"
     ],

@@ -37,18 +37,33 @@ async function tryRefresh(): Promise<boolean> {
   refreshing ??= (async () => {
     const { refresh } = await tokenStore.get();
     if (!refresh) return false;
-    const res = await fetch(`${BASE}/auth/mobile/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refresh }),
-    });
-    if (!res.ok) {
-      await tokenStore.clear();
+    let res: Response;
+    try {
+      res = await fetch(`${BASE}/auth/mobile/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refresh }),
+      });
+    } catch {
+      // Network error — the refresh token may still be perfectly valid.
+      // Keep it; the caller sees the original failure and can retry.
       return false;
     }
-    const body = (await res.json()) as MobileAuthResponse;
-    await tokenStore.set({ access: body.access_token, refresh: body.refresh_token });
-    return true;
+    if (res.ok) {
+      const body = (await res.json()) as MobileAuthResponse;
+      await tokenStore.set({
+        access: body.access_token,
+        refresh: body.refresh_token,
+      });
+      return true;
+    }
+    // Only clear on a definitive "this token is no longer valid" (401/403).
+    // A transient 5xx / 429 must NOT nuke a still-valid 30-day refresh
+    // token and force an unnecessary re-login.
+    if (res.status === 401 || res.status === 403) {
+      await tokenStore.clear();
+    }
+    return false;
   })().finally(() => {
     refreshing = null;
   });

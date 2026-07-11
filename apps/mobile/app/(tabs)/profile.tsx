@@ -105,16 +105,21 @@ export default function Profile() {
           right={chev}
         />
         <Cell
+          last={!__DEV__}
           onPress={() => Linking.openURL("https://owner.trusthalal.org")}
           left={<><IcBox icon="home" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Own a restaurant?</Text></>}
           right={rightText("web ↗")}
         />
-        <Cell
-          last
-          onPress={() => router.push("/ui-gallery")}
-          left={<><IcBox icon="layers" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>UI gallery (dev)</Text></>}
-          right={chev}
-        />
+        {/* Dev-only entry point. Excluded from release bundles so the
+            fixture/mockup screens never surface in production. */}
+        {__DEV__ ? (
+          <Cell
+            last
+            onPress={() => router.push("/ui-gallery")}
+            left={<><IcBox icon="layers" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>UI gallery (dev)</Text></>}
+            right={chev}
+          />
+        ) : null}
       </Card>
 
       {me ? (

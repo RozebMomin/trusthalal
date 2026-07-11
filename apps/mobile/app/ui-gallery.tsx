@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, Cell, Tag } from "@/ui/kit";
@@ -40,6 +40,8 @@ const SCREENS: Array<{ n: number; name: string; route?: string; note?: string }>
 export default function UiGallery() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  // Dev-only screen — unreachable in production, even via deep link.
+  if (!__DEV__) return <Redirect href="/" />;
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: t.bg }}

@@ -110,12 +110,18 @@ export function usePlaceDetail(id: string) {
     queryKey: ["places", "detail", id],
     queryFn: async () => {
       // UI-first mode: fixture ids render mockup content without the API.
-      if (id.startsWith("fx-")) {
+      // Gated to dev builds — in production these `fx-` ids must never
+      // resolve, or a deep link (trusthalal://places/fx-…) could render a
+      // fabricated "verified" restaurant. Metro strips the branch (and the
+      // fixtures import) from release bundles when __DEV__ is false.
+      if (__DEV__ && id.startsWith("fx-")) {
         const { FIXTURE_PLACES } = await import("@/fixtures");
         const fx = FIXTURE_PLACES.find((x) => x.id === id);
         if (fx) return { ...fx, is_deleted: false, photos: [] } as PlaceDetail;
       }
-      return apiFetch<PlaceDetail>(`/places/${id}`);
+      // Encode the id so a crafted deep-link param can't steer the
+      // authenticated request onto another API path.
+      return apiFetch<PlaceDetail>(`/places/${encodeURIComponent(id)}`);
     },
     enabled: Boolean(id),
   });
@@ -146,8 +152,8 @@ export function useToggleFavorite() {
   return useMutation({
     mutationFn: ({ placeId, saved }: { placeId: string; saved: boolean; place?: PlaceSearchResult }) =>
       saved
-        ? apiFetch(`/me/favorites/${placeId}`, { method: "DELETE" })
-        : apiFetch(`/me/favorites/${placeId}`, { method: "POST" }),
+        ? apiFetch(`/me/favorites/${encodeURIComponent(placeId)}`, { method: "DELETE" })
+        : apiFetch(`/me/favorites/${encodeURIComponent(placeId)}`, { method: "POST" }),
     // Optimistic: the heart fills the instant you tap, the list updates
     // immediately, and we roll back if the server disagrees.
     onMutate: async ({ placeId, saved, place }) => {
