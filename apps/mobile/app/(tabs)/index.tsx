@@ -143,34 +143,22 @@ export default function Explore() {
               </Text>
             </Pressable>
           </View>
+          {/* Labeled pills — icon-only circles read as mystery buttons;
+              "Map" and "Filters" say what they do. */}
           <View style={{ flexDirection: "row", gap: 8 }}>
-          <Pressable
-            accessibilityLabel={view === "list" ? "Map view" : "List view"}
+          <HeaderPill
+            icon={view === "list" ? "map" : "list"}
+            label={view === "list" ? "Map" : "List"}
+            a11y={view === "list" ? "Switch to map view" : "Switch to list view"}
             onPress={() => toggleView(view === "list" ? "map" : "list")}
-            style={{
-              width: 40, height: 40, borderRadius: 999, backgroundColor: t.card,
-              alignItems: "center", justifyContent: "center",
-              shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
-            }}
-          >
-            <Feather name={view === "list" ? "map" : "list"} size={16} color={t.ink} />
-          </Pressable>
-          <Pressable
-            accessibilityLabel="Filters"
+          />
+          <HeaderPill
+            icon="sliders"
+            label="Filters"
+            a11y="Open filters"
+            count={countFilters(filters)}
             onPress={() => setFiltersOpen(true)}
-            style={{
-              width: 40, height: 40, borderRadius: 999, backgroundColor: t.card,
-              alignItems: "center", justifyContent: "center",
-              shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
-            }}
-          >
-            <Feather name="sliders" size={16} color={t.ink} />
-            {countFilters(filters) > 0 ? (
-              <View style={{ position: "absolute", top: -2, right: -2, backgroundColor: t.accent, borderRadius: 999, minWidth: 16, height: 16, alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ color: t.onAccent, fontSize: 9, fontFamily: "Inter_700Bold" }}>{countFilters(filters)}</Text>
-              </View>
-            ) : null}
-          </Pressable>
+          />
           </View>
         </View>
 
@@ -357,6 +345,51 @@ export default function Explore() {
         resultCount={hasActiveSearch ? results.length : undefined}
       />
     </View>
+  );
+}
+
+function HeaderPill({
+  icon,
+  label,
+  a11y,
+  count,
+  onPress,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  a11y: string;
+  count?: number;
+  onPress: () => void;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={a11y}
+      onPress={onPress}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: t.card,
+        borderRadius: 999,
+        paddingHorizontal: 13,
+        minHeight: 40,
+        shadowColor: "#000",
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
+      }}
+    >
+      <Feather name={icon} size={14} color={t.ink} />
+      <Text style={{ color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{label}</Text>
+      {count && count > 0 ? (
+        <View style={{ backgroundColor: t.accent, borderRadius: 999, minWidth: 17, height: 17, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}>
+          <Text style={{ color: t.onAccent, fontSize: 9.5, fontFamily: "Inter_700Bold" }}>{count}</Text>
+        </View>
+      ) : null}
+    </Pressable>
   );
 }
 
