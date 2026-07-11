@@ -1,11 +1,11 @@
 /**
  * Single source of truth for the consumer-site brand.
  *
- * The consumer site lives under its own brand ("HalalScout") so the
- * domain — halalfoodnearme.com — feels less like a search-engine URL
- * and more like a destination. The "Powered by Trust Halal" line in
- * the footer keeps the credentialing platform connected to the
- * surface so trust transfers without diluting either brand.
+ * The consumer surface carries the "Trust Halal" brand directly; the
+ * domain — halalfoodnearme.com — stays as the SEO-friendly entry point
+ * that funnels people to the destination. One name across the platform
+ * (site, mobile app, and the verification layer) so trust compounds
+ * instead of being split across sub-brands.
  *
  * Everything here is imported by layout.tsx, the AppShell header, the
  * apex hero, the footer, and the SEO metadata helpers. Changing
@@ -13,7 +13,7 @@
  * domain swap; nothing else hard-codes either value.
  */
 
-export const BRAND_NAME = "HalalScout";
+export const BRAND_NAME = "Trust Halal";
 
 /** Short pitch shown under the brand on the apex hero. */
 export const BRAND_TAGLINE =

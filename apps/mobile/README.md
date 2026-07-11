@@ -1,4 +1,4 @@
-# HalalScout mobile (apps/mobile)
+# Trust Halal mobile (apps/mobile)
 
 The consumer iOS/Android app. Start with `HANDOFF.md`, then `docs/`.
 

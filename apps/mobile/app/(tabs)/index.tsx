@@ -92,7 +92,7 @@ export default function Explore() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        setLocError("Location is off for HalalScout. You can still search by name.");
+        setLocError("Location is off for Trust Halal. You can still search by name.");
         return;
       }
       const pos = await Location.getCurrentPositionAsync({

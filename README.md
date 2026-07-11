@@ -16,7 +16,7 @@ trusthalal/
 ├── apps/
 │   ├── admin/            # Next.js 14 admin panel (internal staff)
 │   ├── owner/            # Next.js 14 owner portal (restaurant owners)
-│   └── consumer/         # Next.js 14 consumer site (HalalScout @ halalfoodnearme.com)
+│   └── consumer/         # Next.js 14 consumer site (Trust Halal @ halalfoodnearme.com)
 └── README.md
 ```
 

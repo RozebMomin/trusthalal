@@ -179,7 +179,7 @@ deliberately so every contract change shows up in the diff.
 ## Branding
 
 The consumer site lives under its own brand
-(**HalalScout**) so the apex domain
+(**Trust Halal**) so the apex domain
 ([halalfoodnearme.com](https://halalfoodnearme.com)) feels like a
 destination rather than a search-engine URL. The "Powered by Trust
 Halal" line in the footer keeps the credentialing platform connected
@@ -205,7 +205,7 @@ nothing else hard-codes either name.
 What's wired up:
 
 - `app/layout.tsx` — root metadata, OG defaults, Twitter card,
-  `metadataBase`, title template (`%s · HalalScout`).
+  `metadataBase`, title template (`%s · Trust Halal`).
 - `app/places/[id]/page.tsx` — server-rendered `generateMetadata`
   that fetches the place via `serverFetch` and builds per-place
   title, description, canonical URL, and OG tags. Soft-deleted /

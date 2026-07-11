@@ -131,7 +131,7 @@ export default function Profile() {
       ) : null}
 
       <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
-        HalalScout by Trust Halal · v0.1.0{"\n"}Community-built · Muslim-led
+        Trust Halal · v0.1.0{"\n"}Community-built · Muslim-led
       </Text>
     </ScrollView>
   );

@@ -1,4 +1,4 @@
-# Design & UX Audit — halalfoodnearme.com (HalalScout)
+# Design & UX Audit — halalfoodnearme.com (Trust Halal)
 
 Reviewed July 5, 2026 on desktop (1440px) and mobile (390px). Version shown on site: v0.8.0 · 5b391b4.
 

@@ -1,4 +1,4 @@
-# HalalScout Mobile — Consumer App Design
+# Trust Halal Mobile — Consumer App Design
 
 **Status:** Draft for review · design only, no implementation yet
 **Scope:** Consumer-facing app (diners + verifier mode). No admin, no owner features — those stay on desktop web.
@@ -136,7 +136,7 @@ No marketing pushes. Ever. That's a trust product decision, not just a settings 
 1. Map view: P1 as proposed, or must-have for MVP?
 2. Should anonymous users get local-only Saved (like web's local preferences) or is Saved a signup carrot? (Design assumes signup carrot, matching web.)
 3. Verifier place-pick: restrict to places already in catalog, or allow nominating a brand-new place from the app (API supports suggestion via ownership/public paths — needs product call)?
-4. App name: "HalalScout" (consumer brand) with "by Trust Halal" — assumed; confirm for store listings.
+4. App name: "Trust Halal" (consumer brand) — confirmed 2026-07-11; see brand-assets/.
 
 ---
 

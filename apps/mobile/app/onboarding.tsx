@@ -42,7 +42,7 @@ export default function Onboarding() {
             Verified halal,{"\n"}no guesswork.
           </Text>
           <Text style={[ty.body, { color: t.sub }]}>
-            Every halal claim on HalalScout is checked — certificate, sourcing, or an in-person
+            Every halal claim on Trust Halal is checked — certificate, sourcing, or an in-person
             visit by someone from the community.
           </Text>
           <Button title="Get started" onPress={() => setStep(1)} />
