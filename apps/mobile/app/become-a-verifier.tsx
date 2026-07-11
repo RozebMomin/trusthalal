@@ -61,23 +61,23 @@ export default function BecomeAVerifier() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + space.md, padding: space.lg, gap: space.md, paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + space.md, padding: space.lg, paddingBottom: 60 }}>
         <Pressable onPress={() => router.back()} accessibilityLabel="Back" style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
           <Feather name="chevron-left" size={18} color={t.sub} />
           <Text style={[ty.label, { color: t.sub, fontSize: 13 }]}>Back</Text>
         </Pressable>
 
-        <View style={{ width: 48, height: 48, borderRadius: radii.lg, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ marginTop: 18, width: 48, height: 48, borderRadius: radii.lg, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
           <Feather name="shield" size={22} color={t.onAccent} />
         </View>
-        <Text style={[ty.title, { color: t.ink }]}>You eat out anyway.{"\n"}Make it count.</Text>
-        <Text style={[ty.body, { color: t.sub }]}>
+        <Text style={[ty.title, { color: t.ink, marginTop: 14, fontSize: 26, lineHeight: 30 }]}>You eat out anyway.{"\n"}Make it count.</Text>
+        <Text style={[ty.body, { color: t.sub, marginTop: 8 }]}>
           Verifiers eat at halal spots and file short, honest reports. Your name backs the badge diners trust.
         </Text>
 
         {/* Status states replace the CTA once an application exists */}
         {pending ? (
-          <Card style={{ padding: space.lg, gap: 6 }}>
+          <Card style={{ marginTop: 16, padding: space.lg, gap: 6 }}>
             <Tag label="APPLICATION IN REVIEW" tone="amber" />
             <Text style={[ty.small, { color: t.sub }]}>
               Submitted {new Date(pending.submitted_at).toLocaleDateString()}. A human reviews every
@@ -85,41 +85,43 @@ export default function BecomeAVerifier() {
             </Text>
           </Card>
         ) : me?.role === "VERIFIER" ? (
-          <Card style={{ padding: space.lg, gap: 6 }}>
+          <Card style={{ marginTop: 16, padding: space.lg, gap: 6 }}>
             <Tag label="✓ YOU'RE A VERIFIER" tone="solid" />
             <Text style={[ty.small, { color: t.sub }]}>The field kit for filing visits from your phone arrives in an upcoming build.</Text>
           </Card>
         ) : (
           <>
-            <Card>
+            <Card style={{ marginTop: 16 }}>
               <Cell left={<Text style={[ty.body, { color: t.ink }]}>🍽  One visit a month — that's it</Text>} />
               <Cell left={<Text style={[ty.body, { color: t.ink }]}>📝  10-minute report, filed from the table</Text>} />
               <Cell last left={<Text style={[ty.body, { color: t.ink }]}>🌍  Public profile you can link anywhere</Text>} />
             </Card>
-            <Card style={{ padding: space.lg, backgroundColor: t.amberSoft }}>
+            <Card style={{ marginTop: 10, padding: space.lg, backgroundColor: t.amberSoft }}>
               <Text style={[ty.label, { color: t.amber, fontSize: 11.5 }]}>The one non-negotiable</Text>
               <Text style={[ty.small, { color: t.amber, marginTop: 3 }]}>
                 Every visit discloses who paid for the meal. Comped is fine. Hidden is not.
               </Text>
             </Card>
             {rejected?.decision_note ? (
-              <Card style={{ padding: space.lg }}>
+              <Card style={{ marginTop: 10, padding: space.lg }}>
                 <Seg>From your last application</Seg>
                 <Text style={[ty.small, { color: t.sub, marginTop: 4 }]}>{rejected.decision_note}</Text>
               </Card>
             ) : null}
 
             {!me ? (
-              <>
+              <View style={{ marginTop: 14, gap: 10 }}>
                 <Button title="Sign in to apply" variant="accent" onPress={() => router.push("/(auth)/sign-in")} />
                 <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
                   Applications are tied to your account so you can track the result.
                 </Text>
-              </>
+              </View>
             ) : !formOpen ? (
-              <Button title="Apply — takes 5 minutes" variant="accent" onPress={() => setFormOpen(true)} />
+              <View style={{ marginTop: 14 }}>
+                <Button title="Apply — takes 5 minutes" variant="accent" onPress={() => setFormOpen(true)} />
+              </View>
             ) : (
-              <View style={{ gap: space.sm }}>
+              <View style={{ marginTop: 14, gap: space.sm }}>
                 <Seg>Why do you want to do this?</Seg>
                 <TextInput
                   style={[field, { minHeight: 100, textAlignVertical: "top" }]}
@@ -168,7 +170,7 @@ export default function BecomeAVerifier() {
                 </Text>
               </View>
             )}
-            <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
+            <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: 10 }]}>
               Applications reviewed by a human · usually within a week
             </Text>
           </>
