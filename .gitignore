@@ -15,11 +15,22 @@ Thumbs.db
 
 # --- Secrets: belt and suspenders ---
 # Individual apps also gitignore their own .env variants, but a
-# top-level pattern guards against a fresh `.env` dropped at the root
-# by mistake (e.g. during deploy tinkering).
+# top-level pattern guards against a fresh secret dropped anywhere in
+# the monorepo by mistake (e.g. during deploy tinkering). Match every
+# .env* variant (including .env.production / .env.staging, which the
+# old explicit list missed) while keeping tracked *.example templates.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
+!*.env.example
+
+# Private keys / certs anywhere in the tree.
+*.pem
+*.key
+*.p12
+*.p8
+*.keystore
 
 # --- Logs / tmp ---
 *.log
