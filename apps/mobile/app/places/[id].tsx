@@ -161,7 +161,7 @@ export default function PlaceDetail() {
           }}
         />
         <Glass
-          icon="share"
+          ion="share-outline"
           label="Share"
           onPress={() =>
             Share.share({ url: `https://halalfoodnearme.com/places/${id}` }).catch(() => undefined)
@@ -192,7 +192,10 @@ function Glass({
       accessibilityLabel={label}
       onPress={onPress}
       style={{
-        width: 36, height: 36, borderRadius: 999, backgroundColor: t.card,
+        // Fixed white glass over the hero photo — photos don't theme,
+        // so neither does this. t.card here made a dark circle in dark
+        // mode with a dark icon on it.
+        width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.92)",
         alignItems: "center", justifyContent: "center",
         shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 }, elevation: 4,
