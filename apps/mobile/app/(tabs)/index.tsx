@@ -116,8 +116,11 @@ export default function Explore() {
       ? `${city.data.city}${city.data.region ? `, ${city.data.region}` : ""}`
       : "you");
 
+  const mapMode = view === "map" && hasActiveSearch && !search.isLoading && !search.error && results.length > 0;
+
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + space.sm }}>
+    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: mapMode ? 0 : insets.top + space.sm }}>
+      {!mapMode ? (
       <View style={{ paddingHorizontal: space.lg, gap: space.sm }}>
         {/* Mockup-1 header: location line + filter button */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -257,6 +260,7 @@ export default function Explore() {
         ) : null}
         {locError ? <Text style={[ty.small, { color: t.danger }]}>{locError}</Text> : null}
       </View>
+      ) : null}
 
       {/* Results */}
       {!hasActiveSearch ? (
@@ -299,7 +303,10 @@ export default function Explore() {
         <MapResults
           results={results}
           center={coords}
+          cityLabel={coords ? cityLabel : (q || "Search results")}
           onRecenter={locate}
+          onList={() => setView("list")}
+          onLocation={() => setLocOpen(true)}
         />
       ) : (
         <FlatList
