@@ -84,14 +84,15 @@ function Hero() {
         Community-built · Muslim-led
       </p>
       <h1 className="mb-6 max-w-3xl font-serif text-5xl font-semibold leading-[1.05] text-stone sm:text-7xl">
-        The halal restaurants you can{" "}
-        <em className="text-olive">actually trust.</em>
+        The source of truth
+        <br className="hidden sm:block" />{" "}
+        for <em className="text-olive">halal.</em>
       </h1>
       <p className="mb-9 max-w-2xl text-lg leading-relaxed text-stone/70 sm:text-xl">
-        Trust Halal is a verified directory of halal restaurants. We
-        check what&apos;s on the plate &mdash; supplier, slaughter
-        method, certificate on file &mdash; so diners don&apos;t have
-        to call the kitchen first.
+        Trust Halal is the definitive record of halal restaurants. Every
+        claim is checked at the source &mdash; supplier, slaughter
+        method, certificate on file, and an in-person visit &mdash; so no
+        one has to call the kitchen and hope.
       </p>
       <div className="mb-12 flex flex-wrap items-center gap-3">
         <a

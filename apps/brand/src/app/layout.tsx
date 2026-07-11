@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-const TITLE = "Trust Halal — verified halal restaurants you can actually trust";
+const TITLE = "Trust Halal — the source of truth for halal restaurants";
 const DESCRIPTION =
-  "Trust Halal is a verified directory of halal restaurants. We check what's on the plate — supplier, slaughter method, certificate on file — so diners don't have to call the kitchen first.";
+  "Trust Halal is the definitive record of halal restaurants. Every claim is checked at the source — supplier, slaughter method, certificate on file, and an in-person visit — so no one has to call the kitchen and hope.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://trusthalal.org"),
