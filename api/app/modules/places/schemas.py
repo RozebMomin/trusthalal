@@ -229,6 +229,21 @@ class HalalProfileEmbed(BaseModel):
     updated_at: datetime
 
 
+class HalalHistoryEventRead(BaseModel):
+    """Consumer-facing verification-history entry for a place's halal
+    profile — powers the "verification history" section on the expanded
+    trust profile. Deliberately narrow vs the admin ``HalalProfileEventRead``:
+    no actor/user id and no internal related-record ids, just the
+    event type, a human summary, and when it happened.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    event_type: str
+    description: str | None = None
+    created_at: datetime
+
+
 class PlacePhotoRead(BaseModel):
     """Owner- or consumer-uploaded photo as it lands on the
     consumer-facing place detail.

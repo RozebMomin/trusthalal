@@ -43,6 +43,7 @@ from app.modules.places.repo import (
 )
 from app.modules.places.schemas import (
     GoogleAutocompletePrediction,
+    HalalHistoryEventRead,
     HalalProfileEmbed,
     OwnedPlaceRead,
     OwnedPlaceUpdate,
@@ -688,6 +689,35 @@ def get_place_halal_profile(
             "This place doesn't have a current halal profile.",
         )
     return HalalProfileRead.model_validate(profile)
+
+
+@router.get(
+    "/{place_id}/halal-history",
+    response_model=list[HalalHistoryEventRead],
+    summary="Verification history for a place's halal profile",
+    description=(
+        "Chronological (newest-first) audit trail of the place's halal "
+        "profile — creation, updates, disputes, revocations, accepted "
+        "verifier visits. Powers the 'verification history' section on "
+        "the expanded trust profile. Returns an empty list when the "
+        "place has no profile yet; 404 only if the place doesn't exist."
+    ),
+)
+def get_place_halal_history(
+    place_id: UUID,
+    db: Session = Depends(get_db),
+) -> list[HalalHistoryEventRead]:
+    place = get_place(db, place_id)
+    if place is None:
+        raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
+
+    profile = get_public_halal_profile(db, place_id=place_id)
+    if profile is None:
+        return []
+    # ``HalalProfile.events`` is ordered created_at DESC on the relationship.
+    return [
+        HalalHistoryEventRead.model_validate(event) for event in profile.events
+    ]
 
 
 @router.get(
