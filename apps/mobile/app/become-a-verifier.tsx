@@ -8,7 +8,7 @@ import { useCurrentUser, useMyVerifierApplications, useSubmitVerifierApplication
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
-import { Card, Cell, Seg, Tag } from "@/ui/kit";
+import { Card, Seg, Tag } from "@/ui/kit";
 
 /** Mockup 27, wired: pitch → short application → status tracking.
  *  Anonymous applications are allowed by the API, but the app asks
@@ -59,19 +59,32 @@ export default function BecomeAVerifier() {
     paddingVertical: 12, color: t.ink, ...ty.body,
   } as const;
 
+  const PitchRow = ({ emoji, text, last }: { emoji: string; text: string; last?: boolean }) => (
+    <View
+      style={{
+        flexDirection: "row", alignItems: "center", gap: 14,
+        paddingVertical: 16, paddingHorizontal: 18,
+        borderBottomWidth: last ? 0 : 1, borderBottomColor: t.line,
+      }}
+    >
+      <Text style={{ fontSize: 20 }}>{emoji}</Text>
+      <Text style={[ty.body, { color: t.ink, fontSize: 16, lineHeight: 22, flex: 1 }]}>{text}</Text>
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + space.md, padding: space.lg, paddingBottom: 60 }}>
         <Pressable onPress={() => router.back()} accessibilityLabel="Back" style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <Feather name="chevron-left" size={18} color={t.sub} />
-          <Text style={[ty.label, { color: t.sub, fontSize: 13 }]}>Back</Text>
+          <Feather name="chevron-left" size={20} color={t.sub} />
+          <Text style={[ty.label, { color: t.sub, fontSize: 14 }]}>Profile</Text>
         </Pressable>
 
-        <View style={{ marginTop: 18, width: 48, height: 48, borderRadius: radii.lg, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-          <Feather name="shield" size={22} color={t.onAccent} />
+        <View style={{ marginTop: 18, width: 52, height: 52, borderRadius: 16, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+          <Feather name="shield" size={24} color={t.onAccent} />
         </View>
-        <Text style={[ty.title, { color: t.ink, marginTop: 14, fontSize: 26, lineHeight: 30 }]}>You eat out anyway.{"\n"}Make it count.</Text>
-        <Text style={[ty.body, { color: t.sub, marginTop: 8 }]}>
+        <Text style={[ty.title, { color: t.ink, marginTop: 16, fontSize: 30, lineHeight: 34 }]}>You eat out anyway.{"\n"}Make it count.</Text>
+        <Text style={[ty.body, { color: t.sub, marginTop: 10, fontSize: 16, lineHeight: 23 }]}>
           Verifiers eat at halal spots and file short, honest reports. Your name backs the badge diners trust.
         </Text>
 
@@ -91,17 +104,26 @@ export default function BecomeAVerifier() {
           </Card>
         ) : (
           <>
-            <Card style={{ marginTop: 16 }}>
-              <Cell left={<Text style={[ty.body, { color: t.ink }]}>🍽  One visit a month — that's it</Text>} />
-              <Cell left={<Text style={[ty.body, { color: t.ink }]}>📝  10-minute report, filed from the table</Text>} />
-              <Cell last left={<Text style={[ty.body, { color: t.ink }]}>🌍  Public profile you can link anywhere</Text>} />
+            <Card style={{ marginTop: 18 }}>
+              <PitchRow emoji="🍽" text="One visit a month — that's it" />
+              <PitchRow emoji="📝" text="10-minute report, filed from the table" />
+              <PitchRow emoji="🌍" text="Public profile you can link anywhere" last />
             </Card>
-            <Card style={{ marginTop: 10, padding: space.lg, backgroundColor: t.amberSoft }}>
-              <Text style={[ty.label, { color: t.amber, fontSize: 11.5 }]}>The one non-negotiable</Text>
-              <Text style={[ty.small, { color: t.amber, marginTop: 3 }]}>
+            <View
+              style={{
+                marginTop: 12,
+                padding: 18,
+                borderRadius: radii.xl,
+                backgroundColor: t.amberSoft,
+                borderWidth: 1,
+                borderColor: "rgba(251,191,36,0.45)",
+              }}
+            >
+              <Text style={[ty.label, { color: t.amber, fontSize: 13 }]}>The one non-negotiable</Text>
+              <Text style={[ty.body, { color: t.amber, fontSize: 14, lineHeight: 20, marginTop: 4 }]}>
                 Every visit discloses who paid for the meal. Comped is fine. Hidden is not.
               </Text>
-            </Card>
+            </View>
             {rejected?.decision_note ? (
               <Card style={{ marginTop: 10, padding: space.lg }}>
                 <Seg>From your last application</Seg>
@@ -110,14 +132,14 @@ export default function BecomeAVerifier() {
             ) : null}
 
             {!me ? (
-              <View style={{ marginTop: 14, gap: 10 }}>
+              <View style={{ marginTop: 16, gap: 10 }}>
                 <Button title="Sign in to apply" variant="accent" onPress={() => router.push("/(auth)/sign-in")} />
-                <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
+                <Text style={[ty.small, { color: t.sub, fontSize: 13, textAlign: "center" }]}>
                   Applications are tied to your account so you can track the result.
                 </Text>
               </View>
             ) : !formOpen ? (
-              <View style={{ marginTop: 14 }}>
+              <View style={{ marginTop: 16 }}>
                 <Button title="Apply — takes 5 minutes" variant="accent" onPress={() => setFormOpen(true)} />
               </View>
             ) : (
@@ -170,7 +192,7 @@ export default function BecomeAVerifier() {
                 </Text>
               </View>
             )}
-            <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: 10 }]}>
+            <Text style={[ty.small, { color: t.sub, fontSize: 13, textAlign: "center", marginTop: 14 }]}>
               Applications reviewed by a human · usually within a week
             </Text>
           </>
