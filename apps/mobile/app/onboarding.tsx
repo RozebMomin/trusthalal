@@ -4,7 +4,7 @@ import * as Location from "expo-location";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Image, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -21,8 +21,6 @@ async function finish() {
 export default function Onboarding() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-  const heroH = Math.round(height * 0.4);
   const [step, setStep] = useState(0);
 
   async function allowLocation() {
@@ -34,19 +32,20 @@ export default function Onboarding() {
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       {step === 0 && (
         <View style={{ flex: 1 }}>
-          {/* Hero bleeds to the very top + screen edges, fading into the bg. */}
-          <View style={{ height: heroH }}>
+          {/* Hero photo fills the top and fades into the bg — flex:1 so it
+              grows to meet the bottom content block on any screen size. */}
+          <View style={{ flex: 1 }}>
             <Image
-              source={require("../assets/onboarding-hero.png")}
+              source={require("../assets/onboarding-hero.jpg")}
               style={{ width: "100%", height: "100%", resizeMode: "cover" }}
             />
             <LinearGradient
               colors={["transparent", t.bg]}
-              style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 200 }}
+              style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 240 }}
             />
           </View>
-          {/* Content lifts up to sit just beneath the hero. */}
-          <View style={{ paddingHorizontal: space.xl, marginTop: -space.md, gap: space.md }}>
+          {/* Copy + CTA anchored together at the bottom, close by design. */}
+          <View style={{ paddingHorizontal: space.xl, gap: space.md }}>
             <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
               <Feather name="check" size={24} color={t.onAccent} />
             </View>
@@ -58,8 +57,7 @@ export default function Onboarding() {
               visit by someone from the community. The full record, before you eat.
             </Text>
           </View>
-          <View style={{ flex: 1 }} />
-          <View style={{ paddingHorizontal: space.xl, paddingBottom: insets.bottom + space.xxl, gap: space.md }}>
+          <View style={{ paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: insets.bottom + space.lg, gap: space.md }}>
             <Button title="Get started" onPress={() => setStep(1)} />
             <Dots step={0} />
           </View>
