@@ -30,6 +30,7 @@ export function MapResults({
   results,
   center,
   cityLabel,
+  countLabel,
   onRecenter,
   onList,
   onLocation,
@@ -45,6 +46,9 @@ export function MapResults({
   results: Array<{ place: PlaceSearchResult; distanceMeters?: number }>;
   center: { lat: number; lng: number } | null;
   cityLabel: string;
+  /** Pluralized result count shown under the location in the floating bar
+   *  (e.g. "12 spots within 5 mi"). Undefined when there's nothing to count. */
+  countLabel?: string;
   onRecenter: () => void;
   onList: () => void;
   onLocation: () => void;
@@ -158,10 +162,13 @@ export function MapResults({
           }}
         >
           <Feather name="search" size={16} color={t.sub} />
-          <Pressable onPress={onLocation} accessibilityLabel="Change location" style={{ flex: 1, paddingVertical: 13 }}>
+          <Pressable onPress={onLocation} accessibilityLabel="Change location" style={{ flex: 1, paddingVertical: countLabel ? 7 : 13 }}>
             <Text numberOfLines={1} style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>
               {cityLabel}
             </Text>
+            {countLabel ? (
+              <Text numberOfLines={1} style={[ty.small, { color: t.sub, marginTop: 1 }]}>{countLabel}</Text>
+            ) : null}
           </Pressable>
           <Pressable
             onPress={onList}

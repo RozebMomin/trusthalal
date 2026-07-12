@@ -126,6 +126,15 @@ export default function Explore() {
       ? `${city.data.city}${city.data.region ? `, ${city.data.region}` : ""}`
       : "you");
 
+  // Result count for the map's floating bar — pluralized, with the radius
+  // when it's a geo search. Undefined when there's nothing to count.
+  const countLabel =
+    results.length > 0
+      ? coords
+        ? `${results.length} ${results.length === 1 ? "spot" : "spots"} within ${radiusMi} mi`
+        : `${results.length} ${results.length === 1 ? "spot" : "spots"}`
+      : undefined;
+
   // Map view owns all of its states — cold-start, loading, empty, error,
   // and results — so it never drops back to the list layout.
   const mapMode = view === "map";
@@ -279,6 +288,7 @@ export default function Explore() {
                   ? `Results for “${q}”`
                   : "Search results"
           }
+          countLabel={countLabel}
           onRecenter={locate}
           onList={() => toggleView("list")}
           onLocation={() => setLocOpen(true)}
