@@ -252,7 +252,7 @@ export function MapResults({
             <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>Check your connection and try again.</Text>
             {onRetry ? (
               <Pressable onPress={onRetry} style={{ marginTop: 6, backgroundColor: t.ink, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 11 }}>
-                <Text style={{ color: t.onInk, fontFamily: "Inter_700Bold", fontSize: 13 }}>Retry</Text>
+                <Text style={{ color: t.onInk, fontFamily: "Inter_700Bold", fontSize: 13 }}>Try again</Text>
               </Pressable>
             ) : null}
           </View>
@@ -300,7 +300,7 @@ export function MapResults({
             }}
           >
             <ActivityIndicator size="small" color={t.accent} />
-            <Text style={[ty.small, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>Finding halal nearby…</Text>
+            <Text style={[ty.small, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>Finding halal food nearby…</Text>
           </View>
         </View>
       ) : null}

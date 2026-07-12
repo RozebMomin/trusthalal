@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { ActivityIndicator, Pressable, Text } from "react-native";
-import { radii, type Palette } from "@/lib/theme";
+import { radii, space, type Palette } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 
 type Variant = "primary" | "accent" | "secondary";
@@ -38,6 +38,7 @@ export function Button({
         backgroundColor: bg(variant, t, pressed),
         borderRadius: radii.lg,
         paddingVertical: 14,
+        paddingHorizontal: space.xl,
         alignItems: "center",
         opacity: disabled ? 0.5 : pressed && variant === "primary" ? 0.85 : 1,
         borderWidth: variant === "secondary" ? 1 : 0,
