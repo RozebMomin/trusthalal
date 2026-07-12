@@ -23,6 +23,6 @@ export const ETHICS_CONTACT_EMAIL = "ethics@trusthalal.org";
  *    test" → copy the opt-in URL (the internal one contains a token;
  *    the package-based URL below is only a stand-in).
  */
-export const IOS_TESTFLIGHT_URL = "https://testflight.apple.com/join/REPLACE_ME";
+export const IOS_TESTFLIGHT_URL = "https://testflight.apple.com/join/QQqFDu5n";
 export const ANDROID_TEST_URL =
-  "https://play.google.com/apps/testing/org.trusthalal.consumer";
+  "https://play.google.com/apps/internaltest/4701558485353882154";
