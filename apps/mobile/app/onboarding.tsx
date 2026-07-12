@@ -31,26 +31,22 @@ export default function Onboarding() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + space.lg, paddingHorizontal: space.xl }}>
-      <Pressable onPress={finish} style={{ alignSelf: "flex-end" }}>
-        <Text style={[ty.label, { color: t.sub, fontSize: 13 }]}>Skip</Text>
-      </Pressable>
-
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       {step === 0 && (
         <View style={{ flex: 1 }}>
-          {/* Full-bleed hero that melts into the screen via a gradient fade. */}
-          <View style={{ marginHorizontal: -space.xl, marginTop: space.sm, height: heroH, position: "relative" }}>
+          {/* Hero bleeds to the very top + screen edges, fading into the bg. */}
+          <View style={{ height: heroH }}>
             <Image
               source={require("../assets/onboarding-hero.png")}
               style={{ width: "100%", height: "100%", resizeMode: "cover" }}
             />
             <LinearGradient
               colors={["transparent", t.bg]}
-              style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 180 }}
+              style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 200 }}
             />
           </View>
-          {/* Content sits in the upper-middle, not pinned to the bottom. */}
-          <View style={{ marginTop: space.lg, gap: space.md }}>
+          {/* Content lifts up to sit just beneath the hero. */}
+          <View style={{ paddingHorizontal: space.xl, marginTop: -space.md, gap: space.md }}>
             <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
               <Feather name="check" size={24} color={t.onAccent} />
             </View>
@@ -63,12 +59,22 @@ export default function Onboarding() {
             </Text>
           </View>
           <View style={{ flex: 1 }} />
-          <View style={{ paddingBottom: space.xl, gap: space.md }}>
+          <View style={{ paddingHorizontal: space.xl, paddingBottom: insets.bottom + space.xxl, gap: space.md }}>
             <Button title="Get started" onPress={() => setStep(1)} />
             <Dots step={0} />
           </View>
+          {/* Skip floats over the hero (light for contrast on the image). */}
+          <Pressable onPress={finish} style={{ position: "absolute", top: insets.top + space.xs, right: space.xl }}>
+            <Text style={[ty.label, { color: "rgba(255,255,255,0.92)", fontSize: 13 }]}>Skip</Text>
+          </Pressable>
         </View>
       )}
+
+      {step !== 0 && (
+        <View style={{ flex: 1, paddingTop: insets.top + space.lg, paddingHorizontal: space.xl }}>
+          <Pressable onPress={finish} style={{ alignSelf: "flex-end" }}>
+            <Text style={[ty.label, { color: t.sub, fontSize: 13 }]}>Skip</Text>
+          </Pressable>
 
       {step === 1 && (
         <View style={{ flex: 1, gap: space.sm, paddingTop: space.xl }}>
@@ -115,6 +121,8 @@ export default function Onboarding() {
             </Pressable>
             <Dots step={2} />
           </View>
+        </View>
+      )}
         </View>
       )}
     </View>
