@@ -74,7 +74,11 @@ export default function BecomeAVerifier() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + space.md, padding: space.lg, paddingBottom: 60 }}>
+      <ScrollView
+        scrollEnabled={formOpen}
+        alwaysBounceVertical={false}
+        contentContainerStyle={{ paddingTop: insets.top + space.md, padding: space.lg, paddingBottom: 60 }}
+      >
         <Pressable onPress={() => router.back()} accessibilityLabel="Back" style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
           <Feather name="chevron-left" size={20} color={t.sub} />
           <Text style={[ty.label, { color: t.sub, fontSize: 14 }]}>Profile</Text>
