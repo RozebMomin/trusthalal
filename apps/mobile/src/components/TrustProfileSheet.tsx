@@ -8,7 +8,7 @@ import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { CertViewer } from "@/components/CertViewer";
 import { TierTag } from "@/components/TierTag";
-import type { PlaceDetail } from "@/lib/api/types";
+import type { HalalHistoryEvent, PlaceDetail } from "@/lib/api/types";
 
 const POSTURE_LABELS: Record<string, string> = {
   FULLY_HALAL: "Fully halal",
@@ -33,6 +33,17 @@ const EVENT_LABELS: Record<string, string> = {
   REVOKED: "Revoked",
   RESTORED: "Restored",
   VERIFIER_VISIT_ACCEPTED: "Verified in person",
+};
+
+const EVENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  CREATED: "file-text",
+  UPDATED: "edit-2",
+  EXPIRED: "clock",
+  DISPUTE_OPENED: "flag",
+  DISPUTE_RESOLVED: "check-circle",
+  REVOKED: "x-circle",
+  RESTORED: "rotate-ccw",
+  VERIFIER_VISIT_ACCEPTED: "check",
 };
 
 function methodLabel(m: string | null | undefined): string | null {
@@ -166,18 +177,9 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
           ) : (history.data?.length ?? 0) === 0 ? (
             <Text style={[ty.small, { color: t.sub }]}>No recorded changes yet.</Text>
           ) : (
-            <View>
+            <View style={{ backgroundColor: t.card, borderRadius: radii.xl, paddingHorizontal: 18 }}>
               {history.data!.map((e, i) => (
-                <View key={i} style={{ flexDirection: "row", gap: 12, paddingVertical: 12 }}>
-                  <View style={{ width: 9, height: 9, borderRadius: 999, backgroundColor: t.accent, marginTop: 5 }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[ty.label, { color: t.ink, fontSize: 16 }]}>{EVENT_LABELS[e.event_type] ?? e.event_type}</Text>
-                    {e.description ? <Text style={[ty.small, { color: t.sub, fontSize: 13, marginTop: 3, lineHeight: 19 }]}>{e.description}</Text> : null}
-                    <Text style={[ty.small, { color: t.sub, marginTop: 4, fontSize: 12 }]}>
-                      {new Date(e.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                    </Text>
-                  </View>
-                </View>
+                <HistoryRow key={i} event={e} last={i === history.data!.length - 1} />
               ))}
             </View>
           )}
@@ -240,6 +242,56 @@ function Pill({ label, tone = "accent" }: { label: string; tone?: "accent" | "zi
   return (
     <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
       <Text style={{ color: fg, fontFamily: "Inter_700Bold", fontSize: 12.5, letterSpacing: 0.3 }}>{label}</Text>
+    </View>
+  );
+}
+
+/** One verification-history line: leading avatar (verifier visit) or event
+ *  icon, a title (with the handle highlighted for visits), and the month on
+ *  the right — matching the mockup's card rows. */
+function HistoryRow({ event, last }: { event: HalalHistoryEvent; last: boolean }) {
+  const t = useTheme();
+  const isVisit = event.event_type === "VERIFIER_VISIT_ACCEPTED";
+  const handle = event.actor_handle;
+  const initial = (event.actor_display_name ?? event.actor_handle ?? "")
+    .trim()
+    .replace(/^@/, "")
+    .charAt(0)
+    .toUpperCase();
+  const date = new Date(event.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" });
+
+  return (
+    <View
+      style={{
+        flexDirection: "row", alignItems: "center", gap: 12,
+        paddingVertical: 15, borderBottomWidth: last ? 0 : 1, borderBottomColor: t.line,
+      }}
+    >
+      {isVisit ? (
+        <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+          {initial ? (
+            <Text style={{ color: t.onAccent, fontFamily: "Inter_800ExtraBold", fontSize: 13 }}>{initial}</Text>
+          ) : (
+            <Feather name="check" size={15} color={t.onAccent} />
+          )}
+        </View>
+      ) : (
+        <View style={{ width: 30, alignItems: "center" }}>
+          <Feather name={EVENT_ICONS[event.event_type] ?? "activity"} size={17} color={t.sub} />
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        {isVisit && handle ? (
+          <Text style={[ty.body, { color: t.ink, fontSize: 15 }]}>
+            Visit by <Text style={{ color: t.accentDeep, fontFamily: "Inter_700Bold" }}>{handle}</Text>
+          </Text>
+        ) : (
+          <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 15 }]}>
+            {EVENT_LABELS[event.event_type] ?? event.event_type}
+          </Text>
+        )}
+      </View>
+      <Text style={[ty.small, { color: t.sub, fontSize: 13 }]}>{date}</Text>
     </View>
   );
 }

@@ -58,6 +58,10 @@ export type HalalHistoryEvent = {
   event_type: string;
   description: string | null;
   created_at: string;
+  /** Who the event is attributed to — drives the avatar + "Visit by @handle"
+   *  line. Optional until the API populates it. */
+  actor_display_name?: string | null;
+  actor_handle?: string | null;
 };
 
 export type PlaceSearchResult = {
