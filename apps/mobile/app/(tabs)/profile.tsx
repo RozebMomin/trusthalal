@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -110,15 +111,25 @@ export default function Profile() {
           left={<><IcBox icon="home" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Own a restaurant?</Text></>}
           right={rightText("web ↗")}
         />
-        {/* Dev-only entry point. Excluded from release bundles so the
-            fixture/mockup screens never surface in production. */}
+        {/* Dev-only entry points. Excluded from release bundles so the
+            fixture/mockup + replay tools never surface in production. */}
         {__DEV__ ? (
-          <Cell
-            last
-            onPress={() => router.push("/ui-gallery")}
-            left={<><IcBox icon="layers" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>UI gallery (dev)</Text></>}
-            right={chev}
-          />
+          <>
+            <Cell
+              onPress={async () => {
+                await SecureStore.deleteItemAsync("onboarded_v1");
+                router.replace("/onboarding");
+              }}
+              left={<><IcBox icon="refresh-cw" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Replay onboarding (dev)</Text></>}
+              right={chev}
+            />
+            <Cell
+              last
+              onPress={() => router.push("/ui-gallery")}
+              left={<><IcBox icon="layers" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>UI gallery (dev)</Text></>}
+              right={chev}
+            />
+          </>
         ) : null}
       </Card>
 
