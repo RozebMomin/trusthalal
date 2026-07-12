@@ -109,7 +109,7 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
               <Text style={[ty.small, { color: t.sub }]}>since {monthYear(p.last_verified_at)}</Text>
             </View>
           ) : null}
-          <Text style={[ty.title, { color: t.ink, fontSize: 28, lineHeight: 32, marginBottom: space.lg }]}>
+          <Text style={[ty.title, { color: t.ink, fontSize: 28, lineHeight: 32, marginTop: 4, marginBottom: space.xl }]}>
             Trust profile
           </Text>
 
@@ -133,11 +133,11 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
 
               {p.has_certification ? (
                 <Section title="Certificate">
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.md }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.md, paddingVertical: 4 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[ty.label, { color: t.ink, fontSize: 15 }]}>{p.certifying_body_name ?? "On file"}</Text>
+                      <Text style={[ty.label, { color: t.ink, fontSize: 16 }]}>{p.certifying_body_name ?? "On file"}</Text>
                       {p.certificate_expires_at ? (
-                        <Text style={[ty.small, { color: t.sub, marginTop: 2 }]}>
+                        <Text style={[ty.small, { color: t.sub, marginTop: 3 }]}>
                           expires {new Date(p.certificate_expires_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
                         </Text>
                       ) : null}
@@ -145,9 +145,9 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
                     {p.certificate_url ? (
                       <Pressable
                         onPress={() => Linking.openURL(p.certificate_url as string)}
-                        style={{ backgroundColor: t.ink, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}
+                        style={{ backgroundColor: t.bg, borderRadius: 999, borderWidth: 1, borderColor: t.line, paddingHorizontal: 18, paddingVertical: 10 }}
                       >
-                        <Text style={{ color: t.onInk, fontFamily: "Inter_600SemiBold", fontSize: 12.5 }}>View cert</Text>
+                        <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 13 }}>View cert</Text>
                       </Pressable>
                     ) : null}
                   </View>
@@ -158,20 +158,20 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
             <Text style={[ty.body, { color: t.sub }]}>No halal profile yet.</Text>
           )}
 
-          <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 10 }]}>Verification history</Text>
+          <Text style={[ty.seg, { color: t.sub, marginBottom: 12, marginLeft: 2 }]}>Verification history</Text>
           {history.isLoading ? (
             <Text style={[ty.small, { color: t.sub }]}>Loading…</Text>
           ) : (history.data?.length ?? 0) === 0 ? (
             <Text style={[ty.small, { color: t.sub }]}>No recorded changes yet.</Text>
           ) : (
-            <View style={{ gap: 2 }}>
+            <View>
               {history.data!.map((e, i) => (
-                <View key={i} style={{ flexDirection: "row", gap: 12, paddingVertical: 8 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: t.accent, marginTop: 6 }} />
+                <View key={i} style={{ flexDirection: "row", gap: 12, paddingVertical: 12 }}>
+                  <View style={{ width: 9, height: 9, borderRadius: 999, backgroundColor: t.accent, marginTop: 5 }} />
                   <View style={{ flex: 1 }}>
-                    <Text style={[ty.label, { color: t.ink, fontSize: 14 }]}>{EVENT_LABELS[e.event_type] ?? e.event_type}</Text>
-                    {e.description ? <Text style={[ty.small, { color: t.sub, marginTop: 1 }]}>{e.description}</Text> : null}
-                    <Text style={[ty.small, { color: t.sub, marginTop: 1, fontSize: 11 }]}>
+                    <Text style={[ty.label, { color: t.ink, fontSize: 15 }]}>{EVENT_LABELS[e.event_type] ?? e.event_type}</Text>
+                    {e.description ? <Text style={[ty.small, { color: t.sub, marginTop: 3, lineHeight: 18 }]}>{e.description}</Text> : null}
+                    <Text style={[ty.small, { color: t.sub, marginTop: 4, fontSize: 11 }]}>
                       {new Date(e.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </Text>
                   </View>
@@ -188,9 +188,9 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const t = useTheme();
   return (
-    <View style={{ marginBottom: space.lg }}>
-      <Text style={[ty.seg, { color: t.sub, marginBottom: 8 }]}>{title}</Text>
-      <View style={{ backgroundColor: t.card, borderRadius: radii.xl, paddingHorizontal: space.lg, paddingVertical: 4 }}>
+    <View style={{ marginBottom: 22 }}>
+      <Text style={[ty.seg, { color: t.sub, marginBottom: 11, marginLeft: 2 }]}>{title}</Text>
+      <View style={{ backgroundColor: t.card, borderRadius: radii.xl, paddingHorizontal: 18, paddingVertical: 6 }}>
         {children}
       </View>
     </View>
@@ -203,10 +203,10 @@ function SheetRow({ label, right, last }: { label: string; right: React.ReactNod
     <View
       style={{
         flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-        paddingVertical: 14, borderBottomWidth: last ? 0 : 1, borderBottomColor: t.line, gap: space.md,
+        paddingVertical: 18, borderBottomWidth: last ? 0 : 1, borderBottomColor: t.line, gap: space.md,
       }}
     >
-      <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>{label}</Text>
+      <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 16 }]}>{label}</Text>
       {right}
     </View>
   );
@@ -214,7 +214,7 @@ function SheetRow({ label, right, last }: { label: string; right: React.ReactNod
 
 function Value({ text }: { text: string }) {
   const t = useTheme();
-  return <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>{text}</Text>;
+  return <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_700Bold", fontSize: 16 }]}>{text}</Text>;
 }
 
 function Pill({ label, tone = "accent" }: { label: string; tone?: "accent" | "zinc" | "danger" }) {
@@ -222,8 +222,8 @@ function Pill({ label, tone = "accent" }: { label: string; tone?: "accent" | "zi
   const bg = tone === "danger" ? t.dangerSoft : tone === "zinc" ? t.zincSoft : t.accentSoft;
   const fg = tone === "danger" ? t.danger : tone === "zinc" ? t.zinc : t.accentDeep;
   return (
-    <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
-      <Text style={{ color: fg, fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 0.3 }}>{label}</Text>
+    <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
+      <Text style={{ color: fg, fontFamily: "Inter_700Bold", fontSize: 11.5, letterSpacing: 0.3 }}>{label}</Text>
     </View>
   );
 }
