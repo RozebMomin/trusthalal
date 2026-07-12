@@ -79,9 +79,8 @@ export default function Profile() {
           right={<Tag label="SOON" tone="dashed" />}
         />
         <Cell
-          onPress={() => router.push("/ui/notifications")}
           left={<><IcBox icon="bell" bg="#EFF6FF" fg="#2563EB" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Notifications</Text></>}
-          right={chev}
+          right={<Tag label="SOON" tone="dashed" />}
         />
         <Cell
           last
