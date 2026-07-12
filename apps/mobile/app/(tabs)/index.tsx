@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
@@ -106,6 +106,20 @@ export default function Explore() {
       setLocating(false);
     }
   }
+
+  // Auto-locate on first load so results appear without tapping "Near me".
+  // Silent when permission is already granted (e.g. from onboarding), prompts
+  // once when undetermined, and skips denied users (so they aren't nagged with
+  // an error every load — they can still pick a city). Won't override a
+  // manually chosen city.
+  useEffect(() => {
+    (async () => {
+      if (coords || manualLabel) return;
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== "denied") locate();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const results = useMemo<
     Array<{ place: PlaceSearchResult; distanceMeters?: number }>
