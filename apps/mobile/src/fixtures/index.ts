@@ -9,7 +9,10 @@ const profile = (over: object) => ({
   menu_posture: "HALAL_OPTIONS_ADVERTISED" as const,
   chicken_slaughter: null, beef_slaughter: null, lamb_slaughter: null, goat_slaughter: null,
   has_pork: false, alcohol_policy: null, alcohol_in_cooking: false, seafood_only: false,
-  has_certification: false, certifying_body_name: null, dispute_state: "NONE" as const,
+  has_certification: false, certifying_body_name: null,
+  certificate_expires_at: null, certificate_url: null, certificate_content_type: null,
+  caveats: null, last_verified_at: "2026-05-01T00:00:00Z",
+  dispute_state: "NONE" as const,
   ...over,
 });
 

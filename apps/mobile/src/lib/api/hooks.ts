@@ -8,6 +8,7 @@ import { apiFetch } from "./client";
 import { tokenStore } from "@/lib/auth/token-store";
 import type {
   FavoriteRead,
+  HalalHistoryEvent,
   MobileAuthResponse,
   MobileUser,
   PlaceDetail,
@@ -117,13 +118,23 @@ export function usePlaceDetail(id: string) {
       if (__DEV__ && id.startsWith("fx-")) {
         const { FIXTURE_PLACES } = await import("@/fixtures");
         const fx = FIXTURE_PLACES.find((x) => x.id === id);
-        if (fx) return { ...fx, is_deleted: false, photos: [] } as PlaceDetail;
+        if (fx) return { ...fx, is_deleted: false, phone: null, photos: [] } as PlaceDetail;
       }
       // Encode the id so a crafted deep-link param can't steer the
       // authenticated request onto another API path.
       return apiFetch<PlaceDetail>(`/places/${encodeURIComponent(id)}`);
     },
     enabled: Boolean(id),
+  });
+}
+
+/** Verification-history timeline for the expanded trust profile. */
+export function useHalalHistory(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["places", "halal-history", id],
+    queryFn: () =>
+      apiFetch<HalalHistoryEvent[]>(`/places/${encodeURIComponent(id)}/halal-history`),
+    enabled: enabled && Boolean(id) && !id.startsWith("fx-"),
   });
 }
 

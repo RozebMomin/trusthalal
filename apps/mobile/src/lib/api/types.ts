@@ -46,7 +46,18 @@ export type HalalProfileEmbed = {
   seafood_only: boolean;
   has_certification: boolean;
   certifying_body_name: string | null;
+  certificate_expires_at: string | null;
+  certificate_url: string | null;
+  certificate_content_type: string | null;
+  caveats: string | null;
+  last_verified_at: string;
   dispute_state: DisputeState;
+};
+
+export type HalalHistoryEvent = {
+  event_type: string;
+  description: string | null;
+  created_at: string;
 };
 
 export type PlaceSearchResult = {
@@ -78,6 +89,7 @@ export type PlacePhoto = {
 
 export type PlaceDetail = PlaceSearchResult & {
   is_deleted: boolean;
+  phone: string | null;
   photos: PlacePhoto[];
 };
 

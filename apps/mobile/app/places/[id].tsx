@@ -11,6 +11,7 @@ import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
 import { HeartButton } from "@/components/HeartButton";
 import { PhotoViewer } from "@/components/PhotoViewer";
+import { TrustProfileSheet } from "@/components/TrustProfileSheet";
 import { TierTag } from "@/components/TierTag";
 import { ErrorState, Loading } from "@/components/States";
 import type { HalalProfileEmbed } from "@/lib/api/types";
@@ -50,6 +51,7 @@ export default function PlaceDetail() {
   const place = detail.data;
   const saved = Boolean(favorites.data?.some((f) => f.place.id === id));
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [trustOpen, setTrustOpen] = useState(false);
   const photoCount = place?.photos.length ?? 0;
 
   // Distance for the Directions button — best-effort from the last known
@@ -151,15 +153,26 @@ export default function PlaceDetail() {
                 </Text>
               ) : null}
 
-              <Button
-                title={`Directions${distLabel}`}
-                variant="accent"
-                onPress={() =>
-                  Linking.openURL(
-                    `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
-                  )
-                }
-              />
+              <View style={{ flexDirection: "row", gap: space.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    title={`Directions${distLabel}`}
+                    variant="accent"
+                    onPress={() =>
+                      Linking.openURL(
+                        `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
+                      )
+                    }
+                  />
+                </View>
+                {place.phone ? (
+                  <Button
+                    title="Call"
+                    variant="secondary"
+                    onPress={() => Linking.openURL(`tel:${place.phone}`)}
+                  />
+                ) : null}
+              </View>
 
               {place.halal_profile?.dispute_state === "DISPUTED" ||
               place.halal_profile?.dispute_state === "RECONCILING" ? (
@@ -174,7 +187,7 @@ export default function PlaceDetail() {
                 </View>
               ) : null}
               <View style={{ opacity: place.halal_profile?.dispute_state === "DISPUTED" ? 0.75 : 1 }}>
-                <TrustCard profile={place.halal_profile} />
+                <TrustCard profile={place.halal_profile} onDetails={() => setTrustOpen(true)} />
               </View>
 
               <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
@@ -254,6 +267,10 @@ export default function PlaceDetail() {
           onClose={() => setViewerIndex(null)}
         />
       ) : null}
+
+      {place && trustOpen ? (
+        <TrustProfileSheet place={place} onClose={() => setTrustOpen(false)} />
+      ) : null}
     </View>
   );
 }
@@ -313,7 +330,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TrustCard({ profile }: { profile: HalalProfileEmbed | null }) {
+function TrustCard({ profile, onDetails }: { profile: HalalProfileEmbed | null; onDetails?: () => void }) {
   const t = useTheme();
   if (!profile) {
     return (
@@ -352,6 +369,12 @@ function TrustCard({ profile }: { profile: HalalProfileEmbed | null }) {
           <Text style={[ty.label, { color: t.ink, fontSize: 15 }]}>Trust profile</Text>
           <Text style={[ty.small, { color: t.sub, marginTop: 1 }]}>{basis}</Text>
         </View>
+        {onDetails ? (
+          <Pressable onPress={onDetails} accessibilityLabel="Full trust profile" style={{ flexDirection: "row", alignItems: "center", gap: 1 }}>
+            <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_600SemiBold" }]}>Details</Text>
+            <Feather name="chevron-right" size={14} color={t.accentDeep} />
+          </Pressable>
+        ) : null}
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
         {profile.menu_posture === "FULLY_HALAL" ? <Wash label="Fully halal menu" /> : null}
