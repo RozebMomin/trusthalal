@@ -1,11 +1,12 @@
 import { Feather } from "@expo/vector-icons";
-import { useEffect, useRef } from "react";
-import { Animated, Easing, Linking, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHalalHistory } from "@/lib/api/hooks";
 import { primaryHalalSignal } from "@/lib/halal-display";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
+import { CertViewer } from "@/components/CertViewer";
 import { TierTag } from "@/components/TierTag";
 import type { PlaceDetail } from "@/lib/api/types";
 
@@ -54,6 +55,7 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
   const insets = useSafeAreaInsets();
   const p = place.halal_profile;
   const history = useHalalHistory(place.id, true);
+  const [certOpen, setCertOpen] = useState(false);
 
   // Slide in from the right (a push, matching the "Details ›" arrow), and
   // slide back out before unmounting. Modal itself is instant + transparent;
@@ -144,7 +146,7 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
                     </View>
                     {p.certificate_url ? (
                       <Pressable
-                        onPress={() => Linking.openURL(p.certificate_url as string)}
+                        onPress={() => setCertOpen(true)}
                         style={{ backgroundColor: t.bg, borderRadius: 999, borderWidth: 1, borderColor: t.line, paddingHorizontal: 18, paddingVertical: 10 }}
                       >
                         <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 13 }}>View cert</Text>
@@ -181,6 +183,20 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
           )}
         </ScrollView>
       </Animated.View>
+
+      {certOpen && p?.certificate_url ? (
+        <CertViewer
+          url={p.certificate_url}
+          contentType={p.certificate_content_type}
+          title={p.certifying_body_name ?? "Certificate"}
+          subtitle={
+            p.certificate_expires_at
+              ? `Expires ${new Date(p.certificate_expires_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })}`
+              : "No expiry on file"
+          }
+          onClose={() => setCertOpen(false)}
+        />
+      ) : null}
     </Modal>
   );
 }
