@@ -96,24 +96,21 @@ export default function Onboarding() {
       )}
 
       {step === 2 && (
-        <View style={{ flex: 1, gap: space.md, paddingTop: space.xl }}>
-          <View style={{ alignItems: "center", paddingVertical: space.xl }}>
-            <View style={{ width: 176, height: 176, borderRadius: 999, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
-              <View style={{ width: 104, height: 104, borderRadius: 999, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
-                <View style={{ width: 52, height: 52, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-                  <Feather name="map-pin" size={24} color={t.onAccent} />
-                </View>
-              </View>
-            </View>
+        <View style={{ flex: 1, paddingTop: space.md }}>
+          {/* Radar graphic fills the top, mirroring the hero on screen 1. */}
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            <LocationRadar />
           </View>
-          <Text style={[ty.title, { color: t.ink, fontSize: 26 }]}>
-            Halal near you,{"\n"}in two seconds.
-          </Text>
-          <Text style={[ty.body, { color: t.sub }]}>
-            We use your location only while you're in the app, only to find places nearby. Never
-            sold, never shared.
-          </Text>
-          <View style={{ marginTop: "auto", paddingBottom: space.xl, gap: space.sm }}>
+          <View style={{ gap: space.md }}>
+            <Text style={[ty.title, { color: t.ink, fontSize: 26 }]}>
+              Halal near you,{"\n"}in two seconds.
+            </Text>
+            <Text style={[ty.body, { color: t.sub }]}>
+              We use your location only while you're in the app, only to find places nearby. Never
+              sold, never shared.
+            </Text>
+          </View>
+          <View style={{ paddingTop: space.xl, paddingBottom: insets.bottom + space.lg, gap: space.md }}>
             <Button title="Allow location" variant="accent" onPress={allowLocation} />
             <Pressable onPress={finish}>
               <Text style={[ty.label, { color: t.sub, textAlign: "center", paddingVertical: 10 }]}>
@@ -193,6 +190,27 @@ function Tier({
       </View>
       <Text style={[ty.label, { color: t.ink, marginTop: 6, fontSize: 18 }]}>{title}</Text>
       <Text style={[ty.body, { color: t.sub }]}>{body}</Text>
+    </View>
+  );
+}
+
+function LocationRadar() {
+  const t = useTheme();
+  return (
+    <View style={{ width: 260, height: 260, borderRadius: 999, backgroundColor: "rgba(16,185,129,0.07)", alignItems: "center", justifyContent: "center" }}>
+      <View style={{ width: 196, height: 196, borderRadius: 999, backgroundColor: "rgba(16,185,129,0.09)", alignItems: "center", justifyContent: "center" }}>
+        <View style={{ width: 132, height: 132, borderRadius: 999, backgroundColor: "rgba(16,185,129,0.14)", alignItems: "center", justifyContent: "center" }}>
+          <View style={{ width: 62, height: 62, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+            <Feather name="map-pin" size={26} color={t.onAccent} />
+          </View>
+        </View>
+      </View>
+      <View style={{ position: "absolute", top: 28, right: 2, backgroundColor: t.accent, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+        <Text style={{ color: t.onAccent, fontFamily: "Inter_700Bold", fontSize: 11 }}>✓ 0.4 MI</Text>
+      </View>
+      <View style={{ position: "absolute", bottom: 38, left: 0, backgroundColor: t.amberSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+        <Text style={{ color: t.amber, fontFamily: "Inter_700Bold", fontSize: 11 }}>1.1 MI</Text>
+      </View>
     </View>
   );
 }
