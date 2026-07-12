@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { Dimensions, FlatList, Image, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, FlatList, Image, Pressable, Text, View } from "react-native";
 import MapView, { Circle, Marker } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { primaryHalalSignal } from "@/lib/halal-display";
@@ -36,6 +36,7 @@ export function MapResults({
   radiusMi,
   onRadius,
   onClearFilters,
+  loading,
 }: {
   results: Array<{ place: PlaceSearchResult; distanceMeters?: number }>;
   center: { lat: number; lng: number } | null;
@@ -50,6 +51,9 @@ export function MapResults({
   /** Provided only when filters/cuisines/query are active — shows a
    *  "Clear filters" action in the empty state. */
   onClearFilters?: () => void;
+  /** True while a search is in flight — shows a loading pill and
+   *  suppresses the empty state so the map never flashes to the list. */
+  loading?: boolean;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -216,9 +220,25 @@ export function MapResults({
         <Feather name="navigation" size={16} color={t.ink} />
       </Pressable>
 
+      {/* Loading pill — stays on the map while a search is in flight. */}
+      {loading ? (
+        <View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center" }}>
+          <View
+            style={{
+              flexDirection: "row", alignItems: "center", gap: 10,
+              backgroundColor: t.card, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11,
+              shadowColor: "#000", shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
+            }}
+          >
+            <ActivityIndicator size="small" color={t.accent} />
+            <Text style={[ty.small, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>Finding halal nearby…</Text>
+          </View>
+        </View>
+      ) : null}
+
       {/* Empty state — stays on the map (with radius pill + location + List
           all reachable) instead of bouncing to the list layout. */}
-      {results.length === 0 ? (
+      {results.length === 0 && !loading ? (
         <View
           pointerEvents="box-none"
           style={{ position: "absolute", left: space.xl, right: space.xl, top: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}

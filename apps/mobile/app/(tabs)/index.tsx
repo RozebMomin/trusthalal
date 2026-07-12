@@ -126,9 +126,9 @@ export default function Explore() {
       ? `${city.data.city}${city.data.region ? `, ${city.data.region}` : ""}`
       : "you");
 
-  // Stay in map mode even with zero results — the map shows its own empty
-  // state instead of bouncing back to the list layout.
-  const mapMode = view === "map" && hasActiveSearch && !search.isLoading && !search.error;
+  // Stay in map mode through loading and zero results — the map shows its
+  // own loading + empty states instead of bouncing back to the list layout.
+  const mapMode = view === "map" && hasActiveSearch && !search.error;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: mapMode ? 0 : insets.top + space.sm }}>
@@ -271,8 +271,6 @@ export default function Explore() {
           actionTitle="Near me"
           onAction={locate}
         />
-      ) : search.isLoading ? (
-        <Loading />
       ) : search.error ? (
         <ErrorState
           message="We couldn't reach Trust Halal. Check your connection."
@@ -301,7 +299,10 @@ export default function Explore() {
               ? () => { setFilters({}); setCuisines([]); setRawQuery(""); }
               : undefined
           }
+          loading={search.isLoading}
         />
+      ) : search.isLoading ? (
+        <Loading />
       ) : results.length === 0 ? (
         <EmptyState
           title="Nothing here yet"
