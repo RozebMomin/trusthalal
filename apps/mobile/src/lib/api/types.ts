@@ -73,6 +73,7 @@ export type PlacePhoto = {
   uploaded_by_display_name: string | null;
   width_px: number | null;
   height_px: number | null;
+  created_at: string;
 };
 
 export type PlaceDetail = PlaceSearchResult & {

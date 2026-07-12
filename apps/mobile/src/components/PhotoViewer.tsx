@@ -44,6 +44,9 @@ export function PhotoViewer({
   const [index, setIndex] = useState(initialIndex);
   const current = photos[index];
   const many = photos.length > 1;
+  const dateStr = current
+    ? new Date(current.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+    : "";
 
   function goTo(i: number) {
     setIndex(i);
@@ -109,13 +112,33 @@ export function PhotoViewer({
           </Text>
         ) : null}
 
-        {/* Bottom: thumbnail strip + credit */}
+        {/* Bottom: credit (avatar + name/role + caption/date), then the
+            thumbnail strip below it — matches mockup 30. */}
         <View
           style={{
             position: "absolute", left: 0, right: 0, bottom: 0,
             backgroundColor: "rgba(0,0,0,0.55)", paddingBottom: insets.bottom + 12,
           }}
         >
+          {current ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 16, paddingTop: 14 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: "#059669", alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: "#fff", fontFamily: "Inter_800ExtraBold", fontSize: 12 }}>
+                  {(current.uploaded_by_display_name ?? "T").trim().charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>
+                  {current.uploaded_by_display_name ?? "Trust Halal"}
+                  {"  ·  "}
+                  <Text style={{ color: "#34D399" }}>{SOURCE_LABEL[current.source] ?? "photo"}</Text>
+                </Text>
+                <Text numberOfLines={1} style={{ color: "rgba(255,255,255,0.6)", fontSize: 11.5, marginTop: 1 }}>
+                  {current.caption ? `“${current.caption}” · ` : ""}{dateStr}
+                </Text>
+              </View>
+            </View>
+          ) : null}
           {many ? (
             <FlatList
               ref={stripRef}
@@ -125,7 +148,7 @@ export function PhotoViewer({
               showsHorizontalScrollIndicator={false}
               initialScrollIndex={initialIndex}
               getItemLayout={(_, i) => ({ length: THUMB + THUMB_GAP, offset: (THUMB + THUMB_GAP) * i, index: i })}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: THUMB_GAP, paddingVertical: 10 }}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: THUMB_GAP, paddingTop: 12, paddingBottom: 2 }}
               renderItem={({ item, index: i }) => (
                 <Pressable onPress={() => goTo(i)} accessibilityLabel={`Photo ${i + 1}`}>
                   <Image
@@ -139,18 +162,6 @@ export function PhotoViewer({
                 </Pressable>
               )}
             />
-          ) : null}
-          {current ? (
-            <View style={{ paddingHorizontal: 16, paddingTop: many ? 0 : 4, gap: 4 }}>
-              <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>
-                {current.uploaded_by_display_name ?? "Trust Halal"}
-                {"  ·  "}
-                <Text style={{ color: "#34D399" }}>{SOURCE_LABEL[current.source] ?? "photo"}</Text>
-              </Text>
-              {current.caption ? (
-                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>{current.caption}</Text>
-              ) : null}
-            </View>
           ) : null}
         </View>
       </View>
