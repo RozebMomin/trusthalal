@@ -52,7 +52,12 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://api.trusthalal.org"
-    }
+      "apiBaseUrl": "https://api.trusthalal.org",
+      "router": {},
+      "eas": {
+        "projectId": "a3fe0425-dc9e-45ea-88c2-b60b6aaa1812"
+      }
+    },
+    "owner": "rozebmomin"
   }
 }
