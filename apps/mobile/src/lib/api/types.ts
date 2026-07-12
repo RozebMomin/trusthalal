@@ -63,9 +63,21 @@ export type PlaceSearchResult = {
   halal_profile: HalalProfileEmbed | null;
 };
 
+export type PlacePhoto = {
+  id: string;
+  url: string;
+  caption: string | null;
+  is_hero: boolean;
+  /** OWNER | CONSUMER | VERIFIER — drives the credit line in the viewer. */
+  source: string;
+  uploaded_by_display_name: string | null;
+  width_px: number | null;
+  height_px: number | null;
+};
+
 export type PlaceDetail = PlaceSearchResult & {
   is_deleted: boolean;
-  photos: Array<{ id: string; url: string; caption: string | null; is_hero: boolean }>;
+  photos: PlacePhoto[];
 };
 
 export type SearchPlacesParams = {

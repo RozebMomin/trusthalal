@@ -1,5 +1,6 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
 import { Alert, Image, Linking, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyFavorites, usePlaceDetail, useToggleFavorite } from "@/lib/api/hooks";
@@ -8,6 +9,7 @@ import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
 import { HeartButton } from "@/components/HeartButton";
+import { PhotoViewer } from "@/components/PhotoViewer";
 import { TierTag } from "@/components/TierTag";
 import { ErrorState, Loading } from "@/components/States";
 import type { HalalProfileEmbed } from "@/lib/api/types";
@@ -31,6 +33,8 @@ export default function PlaceDetail() {
 
   const place = detail.data;
   const saved = Boolean(favorites.data?.some((f) => f.place.id === id));
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const photoCount = place?.photos.length ?? 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
@@ -45,12 +49,33 @@ export default function PlaceDetail() {
         ) : (
           <>
             {place.hero_photo_url ? (
-              <Image
-                source={{ uri: place.hero_photo_url }}
-                accessibilityLabel={place.name}
-                style={{ height: 220, width: "100%" }}
-                resizeMode="cover"
-              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={photoCount > 0 ? `View ${photoCount} photos` : place.name}
+                onPress={() => photoCount > 0 && setViewerIndex(0)}
+              >
+                <Image
+                  source={{ uri: place.hero_photo_url }}
+                  accessibilityLabel={place.name}
+                  style={{ height: 220, width: "100%" }}
+                  resizeMode="cover"
+                />
+                {photoCount > 0 ? (
+                  <View
+                    style={{
+                      position: "absolute", right: space.lg, bottom: 40,
+                      flexDirection: "row", alignItems: "center", gap: 5,
+                      backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 999,
+                      paddingHorizontal: 12, paddingVertical: 6,
+                    }}
+                  >
+                    <Feather name="image" size={13} color="#fff" />
+                    <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+                      {photoCount} photo{photoCount === 1 ? "" : "s"}
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
             ) : (
               <View style={{ height: insets.top + 44 }} />
             )}
@@ -168,6 +193,14 @@ export default function PlaceDetail() {
           }
         />
       </View>
+
+      {place && viewerIndex !== null ? (
+        <PhotoViewer
+          photos={place.photos}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+        />
+      ) : null}
     </View>
   );
 }
