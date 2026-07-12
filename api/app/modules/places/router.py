@@ -12,10 +12,15 @@ from app.core.exceptions import BadRequestError, NotFoundError
 from app.core.rate_limit import ip_key, limiter
 from app.db.deps import get_db
 from app.modules.halal_profiles.enums import (
+    HalalProfileEventType,
     MenuPosture,
     SlaughterMethod,
     ValidationTier,
 )
+from app.modules.halal_claims.enums import HalalClaimEventType
+from app.modules.halal_claims.models import HalalClaimEvent
+from app.modules.verifiers.models import VerifierProfile
+from app.modules.users.models import User
 from app.modules.places.enums import Cuisine
 from app.modules.halal_profiles.repo import get_public_halal_profile
 from app.modules.halal_profiles.schemas import HalalProfileRead
@@ -693,6 +698,21 @@ def get_place_halal_profile(
     return HalalProfileRead.model_validate(profile)
 
 
+# Profile-lifecycle events surfaced verbatim on the consumer timeline (their
+# public event_type equals the enum value). CREATED/UPDATED and
+# VERIFIER_VISIT_ACCEPTED are handled specially; everything not listed here or
+# there is internal noise and dropped.
+_PUBLIC_PROFILE_EVENTS = frozenset(
+    {
+        HalalProfileEventType.EXPIRED,
+        HalalProfileEventType.DISPUTE_OPENED,
+        HalalProfileEventType.DISPUTE_RESOLVED,
+        HalalProfileEventType.REVOKED,
+        HalalProfileEventType.RESTORED,
+    }
+)
+
+
 @router.get(
     "/{place_id}/halal-history",
     response_model=list[HalalHistoryEventRead],
@@ -716,10 +736,96 @@ def get_place_halal_history(
     profile = get_public_halal_profile(db, place_id=place_id)
     if profile is None:
         return []
+
     # ``HalalProfile.events`` is ordered created_at DESC on the relationship.
-    return [
-        HalalHistoryEventRead.model_validate(event) for event in profile.events
-    ]
+    events = list(profile.events)
+
+    # The claim(s) behind this profile: CREATED/UPDATED point at the approved
+    # claim that produced the state. We surface those claims' submitted/approved
+    # milestones instead of the profile CREATED/UPDATED mirror rows.
+    claim_ids = {
+        e.related_claim_id
+        for e in events
+        if e.event_type
+        in (HalalProfileEventType.CREATED, HalalProfileEventType.UPDATED)
+        and e.related_claim_id is not None
+    }
+
+    # Verifier actors (display name + public handle) for visit rows — the only
+    # events that carry a person on the consumer timeline.
+    visit_actor_ids = {
+        e.actor_user_id
+        for e in events
+        if e.event_type == HalalProfileEventType.VERIFIER_VISIT_ACCEPTED
+        and e.actor_user_id is not None
+    }
+    actor_map: dict[UUID, tuple[str | None, str | None]] = {}
+    if visit_actor_ids:
+        rows = (
+            db.query(User.id, User.display_name, VerifierProfile.public_handle)
+            .outerjoin(VerifierProfile, VerifierProfile.user_id == User.id)
+            .filter(User.id.in_(visit_actor_ids))
+            .all()
+        )
+        actor_map = {r[0]: (r[1], r[2]) for r in rows}
+
+    timeline: list[HalalHistoryEventRead] = []
+
+    for e in events:
+        et = e.event_type
+        if et in (HalalProfileEventType.CREATED, HalalProfileEventType.UPDATED):
+            # Claim-backed creations are represented by the claim milestones
+            # below; only surface a bare "profile created/updated" when there's
+            # no claim (e.g. an admin-ingested profile).
+            if e.related_claim_id is not None:
+                continue
+            timeline.append(
+                HalalHistoryEventRead(
+                    event_type="PROFILE_CREATED"
+                    if et == HalalProfileEventType.CREATED
+                    else "PROFILE_UPDATED",
+                    created_at=e.created_at,
+                )
+            )
+        elif et == HalalProfileEventType.VERIFIER_VISIT_ACCEPTED:
+            name, handle = actor_map.get(e.actor_user_id, (None, None))
+            timeline.append(
+                HalalHistoryEventRead(
+                    event_type="VERIFIER_VISIT",
+                    created_at=e.created_at,
+                    actor_display_name=name,
+                    actor_handle=handle,
+                )
+            )
+        elif et in _PUBLIC_PROFILE_EVENTS:
+            timeline.append(
+                HalalHistoryEventRead(event_type=str(et), created_at=e.created_at)
+            )
+        # Everything else (internal noise) is intentionally dropped.
+
+    if claim_ids:
+        claim_events = (
+            db.query(HalalClaimEvent)
+            .filter(
+                HalalClaimEvent.claim_id.in_(claim_ids),
+                HalalClaimEvent.event_type.in_(
+                    [HalalClaimEventType.SUBMITTED, HalalClaimEventType.APPROVED]
+                ),
+            )
+            .all()
+        )
+        for ce in claim_events:
+            timeline.append(
+                HalalHistoryEventRead(
+                    event_type="CLAIM_SUBMITTED"
+                    if ce.event_type == HalalClaimEventType.SUBMITTED
+                    else "CLAIM_APPROVED",
+                    created_at=ce.created_at,
+                )
+            )
+
+    timeline.sort(key=lambda x: x.created_at, reverse=True)
+    return timeline
 
 
 @router.get(

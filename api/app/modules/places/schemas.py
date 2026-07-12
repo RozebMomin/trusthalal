@@ -245,6 +245,11 @@ class HalalHistoryEventRead(BaseModel):
     event_type: str
     description: str | None = None
     created_at: datetime
+    # Attributed actor — only populated for verifier visits today, driving the
+    # avatar + "Visit by @handle" line. Null for system/admin/owner milestones,
+    # which the consumer timeline shows without exposing a person.
+    actor_display_name: str | None = None
+    actor_handle: str | None = None
 
 
 class PlacePhotoRead(BaseModel):

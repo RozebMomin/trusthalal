@@ -25,25 +25,28 @@ const ALCOHOL_LABELS: Record<string, string> = {
 };
 
 const EVENT_LABELS: Record<string, string> = {
-  CREATED: "Profile created",
-  UPDATED: "Profile updated",
+  CLAIM_SUBMITTED: "Owner submitted claim",
+  CLAIM_APPROVED: "Claim approved",
+  VERIFIER_VISIT: "Verified in person",
+  PROFILE_CREATED: "Profile created",
+  PROFILE_UPDATED: "Profile updated",
   EXPIRED: "Certification expired",
   DISPUTE_OPENED: "Dispute opened",
   DISPUTE_RESOLVED: "Dispute resolved",
   REVOKED: "Revoked",
   RESTORED: "Restored",
-  VERIFIER_VISIT_ACCEPTED: "Verified in person",
 };
 
 const EVENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
-  CREATED: "file-text",
-  UPDATED: "edit-2",
+  CLAIM_SUBMITTED: "file-plus",
+  CLAIM_APPROVED: "check-circle",
+  PROFILE_CREATED: "file-text",
+  PROFILE_UPDATED: "edit-2",
   EXPIRED: "clock",
   DISPUTE_OPENED: "flag",
   DISPUTE_RESOLVED: "check-circle",
   REVOKED: "x-circle",
   RESTORED: "rotate-ccw",
-  VERIFIER_VISIT_ACCEPTED: "check",
 };
 
 function methodLabel(m: string | null | undefined): string | null {
@@ -251,7 +254,7 @@ function Pill({ label, tone = "accent" }: { label: string; tone?: "accent" | "zi
  *  the right — matching the mockup's card rows. */
 function HistoryRow({ event, last }: { event: HalalHistoryEvent; last: boolean }) {
   const t = useTheme();
-  const isVisit = event.event_type === "VERIFIER_VISIT_ACCEPTED";
+  const isVisit = event.event_type === "VERIFIER_VISIT";
   const handle = event.actor_handle;
   const initial = (event.actor_display_name ?? event.actor_handle ?? "")
     .trim()
