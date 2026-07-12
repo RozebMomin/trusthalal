@@ -39,6 +39,8 @@ export function MapResults({
   loading,
   coldStart,
   onLocate,
+  error,
+  onRetry,
 }: {
   results: Array<{ place: PlaceSearchResult; distanceMeters?: number }>;
   center: { lat: number; lng: number } | null;
@@ -60,6 +62,10 @@ export function MapResults({
    *  over the map instead of the empty/loading overlays. */
   coldStart?: boolean;
   onLocate?: () => void;
+  /** Search failed — shows a retry card over the map instead of dropping
+   *  back to the list error screen. */
+  error?: boolean;
+  onRetry?: () => void;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -226,8 +232,35 @@ export function MapResults({
         <Feather name="navigation" size={16} color={t.ink} />
       </Pressable>
 
+      {/* Error — retry over the map instead of the list error screen. */}
+      {error ? (
+        <View
+          pointerEvents="box-none"
+          style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center", paddingHorizontal: space.xl }}
+        >
+          <View
+            style={{
+              backgroundColor: t.card, borderRadius: radii.xl, paddingVertical: space.xl, paddingHorizontal: space.xl,
+              alignItems: "center", gap: 8, maxWidth: 320,
+              shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: 8 }, elevation: 8,
+            }}
+          >
+            <View style={{ width: 48, height: 48, borderRadius: 999, backgroundColor: t.dangerSoft, alignItems: "center", justifyContent: "center" }}>
+              <Feather name="wifi-off" size={20} color={t.danger} />
+            </View>
+            <Text style={[ty.label, { color: t.ink, fontSize: 16, textAlign: "center" }]}>Couldn&apos;t reach Trust Halal</Text>
+            <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>Check your connection and try again.</Text>
+            {onRetry ? (
+              <Pressable onPress={onRetry} style={{ marginTop: 6, backgroundColor: t.ink, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 11 }}>
+                <Text style={{ color: t.onInk, fontFamily: "Inter_700Bold", fontSize: 13 }}>Retry</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
       {/* Cold start — no search yet: prompt to locate, over the map. */}
-      {coldStart ? (
+      {coldStart && !error ? (
         <View
           pointerEvents="box-none"
           style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center", paddingHorizontal: space.xl }}
@@ -257,7 +290,7 @@ export function MapResults({
       ) : null}
 
       {/* Loading pill — stays on the map while a search is in flight. */}
-      {loading && !coldStart ? (
+      {loading && !coldStart && !error ? (
         <View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center" }}>
           <View
             style={{
@@ -274,7 +307,7 @@ export function MapResults({
 
       {/* Empty state — stays on the map (with radius pill + location + List
           all reachable) instead of bouncing to the list layout. */}
-      {results.length === 0 && !loading && !coldStart ? (
+      {results.length === 0 && !loading && !coldStart && !error ? (
         <View
           pointerEvents="box-none"
           style={{ position: "absolute", left: space.xl, right: space.xl, top: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}

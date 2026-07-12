@@ -126,9 +126,9 @@ export default function Explore() {
       ? `${city.data.city}${city.data.region ? `, ${city.data.region}` : ""}`
       : "you");
 
-  // Map view owns all of its states (cold-start, loading, empty, results);
-  // only a hard error drops back to the list layout.
-  const mapMode = view === "map" && !search.error;
+  // Map view owns all of its states — cold-start, loading, empty, error,
+  // and results — so it never drops back to the list layout.
+  const mapMode = view === "map";
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: mapMode ? 0 : insets.top + space.sm }}>
@@ -264,12 +264,7 @@ export default function Explore() {
       ) : null}
 
       {/* Results */}
-      {search.error ? (
-        <ErrorState
-          message="We couldn't reach Trust Halal. Check your connection."
-          onRetry={() => search.refetch()}
-        />
-      ) : view === "map" ? (
+      {view === "map" ? (
         <MapResults
           results={results}
           center={coords}
@@ -297,6 +292,8 @@ export default function Explore() {
           coldStart={!hasActiveSearch}
           onLocate={locate}
           loading={hasActiveSearch && search.isLoading}
+          error={!!search.error}
+          onRetry={() => search.refetch()}
         />
       ) : !hasActiveSearch ? (
         <EmptyState
@@ -304,6 +301,11 @@ export default function Explore() {
           body="Tap Near me, or search a restaurant by name. Every result wears its level of proof."
           actionTitle="Near me"
           onAction={locate}
+        />
+      ) : search.error ? (
+        <ErrorState
+          message="We couldn't reach Trust Halal. Check your connection."
+          onRetry={() => search.refetch()}
         />
       ) : search.isLoading ? (
         <Loading />
