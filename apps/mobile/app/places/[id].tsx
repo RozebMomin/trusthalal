@@ -138,26 +138,30 @@ export default function PlaceDetail() {
                 gap: space.md,
               }}
             >
-              <TierTag signal={primaryHalalSignal(place.halal_profile)} />
-              <Text style={[ty.title, { color: t.ink, fontSize: 28, lineHeight: 32 }]}>
-                {place.name}
-              </Text>
-              {place.cuisine_types.length > 0 ? (
-                <Text style={[ty.body, { color: t.sub }]}>
-                  {place.cuisine_types.slice(0, 3).map(titleCaseCuisine).join(" · ")}
+              {/* Name / cuisine / address read as one tight group. */}
+              <View style={{ gap: 3 }}>
+                <TierTag signal={primaryHalalSignal(place.halal_profile)} />
+                <Text style={[ty.title, { color: t.ink, fontSize: 28, lineHeight: 34, marginTop: 5 }]}>
+                  {place.name}
                 </Text>
-              ) : null}
-              {place.address ? (
-                <Text style={[ty.small, { color: t.sub }]}>
-                  {[place.address, place.city, place.region].filter(Boolean).join(" · ")}
-                </Text>
-              ) : null}
+                {place.cuisine_types.length > 0 ? (
+                  <Text style={[ty.body, { color: t.sub }]}>
+                    {place.cuisine_types.slice(0, 3).map(titleCaseCuisine).join(" · ")}
+                  </Text>
+                ) : null}
+                {place.address ? (
+                  <Text style={[ty.small, { color: t.sub }]}>
+                    {[place.address, place.city, place.region].filter(Boolean).join(" · ")}
+                  </Text>
+                ) : null}
+              </View>
 
-              <View style={{ flexDirection: "row", gap: space.sm }}>
+              <View style={{ flexDirection: "row", gap: space.sm, marginTop: 2 }}>
                 <View style={{ flex: 1 }}>
                   <Button
                     title={`Directions${distLabel}`}
                     variant="accent"
+                    icon="navigation"
                     onPress={() =>
                       Linking.openURL(
                         `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
@@ -169,6 +173,7 @@ export default function PlaceDetail() {
                   <Button
                     title="Call"
                     variant="secondary"
+                    icon="phone"
                     onPress={() => Linking.openURL(`tel:${place.phone}`)}
                   />
                 ) : null}

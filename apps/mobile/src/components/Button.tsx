@@ -1,5 +1,6 @@
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { ActivityIndicator, Pressable, Text } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { radii, space, type Palette } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 
@@ -17,12 +18,14 @@ export function Button({
   variant = "primary",
   disabled,
   loading,
+  icon,
 }: {
   title: string;
   onPress: () => void;
   variant?: Variant;
   disabled?: boolean;
   loading?: boolean;
+  icon?: keyof typeof Feather.glyphMap;
 }) {
   const t = useTheme();
   const fg = variant === "secondary" ? t.ink : variant === "accent" ? t.onAccent : t.onInk;
@@ -50,9 +53,12 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
-        <Text style={{ color: fg, fontFamily: "Inter_700Bold", fontSize: 14 }}>
-          {title}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+          {icon ? <Feather name={icon} size={16} color={fg} /> : null}
+          <Text style={{ color: fg, fontFamily: "Inter_700Bold", fontSize: 14 }}>
+            {title}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
