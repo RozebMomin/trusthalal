@@ -5,6 +5,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   Text,
   View,
   useWindowDimensions,
@@ -19,9 +20,13 @@ const SOURCE_LABEL: Record<string, string> = {
   CONSUMER: "community photo",
 };
 
+const THUMB = 48;
+const THUMB_GAP = 8;
+
 /**
- * Full-screen, swipeable photo viewer. Rendered as a Modal over the place
- * detail screen; reads real `place.photos` (url + credit + caption).
+ * Full-screen, swipeable photo viewer with pinch-to-zoom (iOS-native via a
+ * zoomable ScrollView per page) and a thumbnail filmstrip. Rendered as a
+ * Modal over the place detail screen; reads real `place.photos`.
  */
 export function PhotoViewer({
   photos,
@@ -35,8 +40,16 @@ export function PhotoViewer({
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList<PlacePhoto>>(null);
+  const stripRef = useRef<FlatList<PlacePhoto>>(null);
   const [index, setIndex] = useState(initialIndex);
   const current = photos[index];
+  const many = photos.length > 1;
+
+  function goTo(i: number) {
+    setIndex(i);
+    listRef.current?.scrollToIndex({ index: i, animated: true });
+    stripRef.current?.scrollToIndex({ index: i, animated: true, viewPosition: 0.5 });
+  }
 
   return (
     <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -50,11 +63,25 @@ export function PhotoViewer({
           showsHorizontalScrollIndicator={false}
           initialScrollIndex={initialIndex}
           getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-          onMomentumScrollEnd={(e) =>
-            setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
-          }
+          onMomentumScrollEnd={(e) => {
+            const i = Math.round(e.nativeEvent.contentOffset.x / width);
+            setIndex(i);
+            if (many) stripRef.current?.scrollToIndex({ index: i, animated: true, viewPosition: 0.5 });
+          }}
           renderItem={({ item }) => (
-            <Image source={{ uri: item.url }} style={{ width, height }} resizeMode="contain" />
+            // Zoomable page — iOS ScrollView gives native pinch-zoom; at min
+            // zoom, horizontal swipes fall through to the pager above.
+            <ScrollView
+              style={{ width, height }}
+              contentContainerStyle={{ width, height }}
+              maximumZoomScale={3}
+              minimumZoomScale={1}
+              centerContent
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+            >
+              <Image source={{ uri: item.url }} style={{ width, height }} resizeMode="contain" />
+            </ScrollView>
           )}
         />
 
@@ -71,7 +98,7 @@ export function PhotoViewer({
         </Pressable>
 
         {/* Counter */}
-        {photos.length > 1 ? (
+        {many ? (
           <Text
             style={{
               position: "absolute", top: insets.top + 18, right: 18,
@@ -82,26 +109,50 @@ export function PhotoViewer({
           </Text>
         ) : null}
 
-        {/* Credit + caption for the current photo */}
-        {current ? (
-          <View
-            style={{
-              position: "absolute", left: 0, right: 0, bottom: 0,
-              padding: 16, paddingBottom: insets.bottom + 16, backgroundColor: "rgba(0,0,0,0.55)", gap: 4,
-            }}
-          >
-            <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>
-              {current.uploaded_by_display_name ?? "Trust Halal"}
-              {"  ·  "}
-              <Text style={{ color: "#34D399" }}>
-                {SOURCE_LABEL[current.source] ?? "photo"}
+        {/* Bottom: thumbnail strip + credit */}
+        <View
+          style={{
+            position: "absolute", left: 0, right: 0, bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.55)", paddingBottom: insets.bottom + 12,
+          }}
+        >
+          {many ? (
+            <FlatList
+              ref={stripRef}
+              data={photos}
+              keyExtractor={(p) => `t-${p.id}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              initialScrollIndex={initialIndex}
+              getItemLayout={(_, i) => ({ length: THUMB + THUMB_GAP, offset: (THUMB + THUMB_GAP) * i, index: i })}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: THUMB_GAP, paddingVertical: 10 }}
+              renderItem={({ item, index: i }) => (
+                <Pressable onPress={() => goTo(i)} accessibilityLabel={`Photo ${i + 1}`}>
+                  <Image
+                    source={{ uri: item.url }}
+                    style={{
+                      width: THUMB, height: THUMB, borderRadius: 8,
+                      borderWidth: i === index ? 2 : 0, borderColor: "#34D399",
+                      opacity: i === index ? 1 : 0.55,
+                    }}
+                  />
+                </Pressable>
+              )}
+            />
+          ) : null}
+          {current ? (
+            <View style={{ paddingHorizontal: 16, paddingTop: many ? 0 : 4, gap: 4 }}>
+              <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>
+                {current.uploaded_by_display_name ?? "Trust Halal"}
+                {"  ·  "}
+                <Text style={{ color: "#34D399" }}>{SOURCE_LABEL[current.source] ?? "photo"}</Text>
               </Text>
-            </Text>
-            {current.caption ? (
-              <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>{current.caption}</Text>
-            ) : null}
-          </View>
-        ) : null}
+              {current.caption ? (
+                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>{current.caption}</Text>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
       </View>
     </Modal>
   );
