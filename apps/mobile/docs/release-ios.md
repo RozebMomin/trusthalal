@@ -1,0 +1,149 @@
+# Releasing to TestFlight & the App Store (iOS)
+
+Runbook for shipping `apps/mobile` to iOS. Built around **EAS** (Expo
+Application Services), which builds in the cloud and manages the signing
+certificate + provisioning profile for you — no manual work in the Apple
+Developer portal.
+
+> **Fastest beta:** TestFlight **internal** testing needs **no App Store
+> review**. Build → submit → add up to 100 internal testers → they're testing in
+> minutes. Review only enters when you add *external* testers or go public.
+
+---
+
+## Prerequisites (one-time)
+
+- **Apple Developer Program** membership (paid, ~$99/yr). Team ID is already
+  set in `app.json` (`3623JG9XS4`).
+- **eas-cli**: `npm i -g eas-cli` (or use `npx eas-cli`).
+- `eas login`.
+- In **App Store Connect**, accept the agreements under Business → Agreements
+  (even a free app needs the free-app agreement accepted, or builds won't
+  distribute).
+
+---
+
+## Step 1 — link the EAS project (one-time)
+
+```bash
+cd apps/mobile
+eas init
+```
+
+Writes `extra.eas.projectId` into `app.json` (project slug: `trust-halal`).
+**Commit that change.**
+
+## Step 2 — build the app
+
+```bash
+eas build -p ios --profile production
+```
+
+- The cloud build runs `expo prebuild` from `app.json`, so the emerald icon,
+  the "Trust Halal" display name, trimmed permissions, and the
+  export-compliance flag are all baked in automatically. You do **not** need to
+  touch the local `ios/` folder (it's gitignored and regenerated).
+- On the **first** run it prompts you to log into Apple, then auto-registers the
+  bundle ID `org.trusthalal.consumer` and creates the **distribution
+  certificate** + **provisioning profile**. Let EAS manage them.
+- Output is a `.ipa` stored on EAS.
+
+## Step 3 — create the App Store Connect app record (one-time)
+
+In App Store Connect → Apps → **+**: name **Trust Halal**, bundle
+`org.trusthalal.consumer`, an SKU (e.g. `trust-halal-ios`), primary language.
+(`eas submit` can also create this for you on first submit.)
+
+## Step 4 — App Privacy (REQUIRED before any TestFlight build distributes)
+
+Answer the data-collection questions honestly. What the app collects **today**:
+
+- **Contact info — email**: for the account. Linked to identity, app
+  functionality, not used for tracking.
+- **Location — precise/coarse**: used *in-app only* to find nearby places; sent
+  to the API as a search parameter, not stored or sold. App functionality, not
+  tracking.
+- **Identifiers**: the user id / opaque auth tokens (SecureStore).
+- **No third-party tracking, no ads.** (PostHog analytics is not yet wired on
+  mobile — revisit these answers when it lands; see
+  `roadmap/phase-11-analytics-and-monetization.md`.)
+
+## Step 5 — submit to TestFlight
+
+```bash
+eas submit -p ios --latest
+```
+
+First run asks for an **App Store Connect API key** (recommended — create one in
+ASC → Users and Access → Integrations, role App Manager) or your Apple ID. The
+build appears in TestFlight after Apple finishes processing (a few minutes).
+
+## Step 6 — testing
+
+- **Internal** (fastest, no review): App Store Connect → TestFlight → add
+  internal testers (must be users on your ASC team, up to 100). Build is
+  available to them immediately after processing.
+- **External** (community beta): create a group, add a **beta description** +
+  "what to test," submit for **Beta App Review** (usually ~24h). This is where
+  the review-clean checklist below applies.
+
+---
+
+## Before external testers / public release — review-clean checklist
+
+- [ ] **Remove the dead "Continue with Apple/Google" buttons** in
+      `app/(auth)/sign-in.tsx`. They're non-functional placeholders — a common
+      rejection reason, and offering Google-without-Apple violates guideline 4.8.
+      Shipping **email-only** is fully functional and also removes the
+      Sign-in-with-Apple requirement entirely. (Or implement Sign in with Apple
+      for real.)
+- [ ] **Privacy policy URL** live (e.g. `https://trusthalal.org/privacy`) and set
+      in ASC → App Information.
+- [ ] **Screenshots** (6.7" and 6.5" at minimum), plus subtitle, description,
+      keywords, support URL, marketing URL.
+- [ ] **Age rating** questionnaire completed.
+- [ ] **Reviewer test account** — put working credentials in the review notes
+      (never in the app UI).
+
+---
+
+## Versioning
+
+- **Marketing version**: `app.json` → `expo.version` (currently `0.1.0`). Bump
+  for user-facing releases.
+- **Build number**: the `production` profile in `eas.json` has
+  `autoIncrement: true`, so EAS bumps `CFBundleVersion` on every build — no
+  manual edit needed.
+
+## Cheat-sheet
+
+```bash
+eas login
+eas init                                 # once
+eas build  -p ios --profile production
+eas submit -p ios --latest
+# then in App Store Connect: fill App Privacy, add internal testers
+```
+
+## Gotchas (see `docs/gotchas.md` for the full list)
+
+- `ios/` is gitignored and regenerated by prebuild — never hand-edit it for a
+  release; change `app.json` instead.
+- Push notifications don't work on the simulator — test on a real device.
+- Signing certs expire yearly; EAS reminds you, but rebuild ~2 weeks ahead.
+
+---
+
+## Android / Play Store (later)
+
+Same EAS flow once you've created a Google Play Console developer account
+(one-time $25) and a service-account key for submissions:
+
+```bash
+eas build  -p android --profile production   # generates the upload keystore
+eas submit -p android --latest
+```
+
+The adaptive icon (emerald background + crescent-check foreground) is already
+configured in `app.json`. Play has its own data-safety form (the equivalent of
+App Privacy) and content-rating questionnaire.

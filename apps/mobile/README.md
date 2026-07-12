@@ -29,6 +29,23 @@ Explore (near-me + name search, radius chips, tier tags), place detail
 (trust profile, directions, save), Saved, Profile, email sign-in/up
 with token refresh, dark mode.
 
+## Releasing (iOS → TestFlight)
+
+Full runbook in [`docs/release-ios.md`](./docs/release-ios.md). Fast path
+(TestFlight internal = no review):
+
+```bash
+eas login
+eas init                                 # once — writes extra.eas.projectId
+eas build  -p ios --profile production
+eas submit -p ios --latest
+```
+
+Then in App Store Connect: fill **App Privacy** (required to distribute any
+build) and add internal testers. Before *external* testers, clear the
+review-clean checklist in the runbook (drop the placeholder Apple/Google
+buttons, publish a privacy-policy URL, add screenshots).
+
 ## Next
 
 Filters sheet · dispute filing · Sign in with Apple + Google ·
