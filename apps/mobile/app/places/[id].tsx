@@ -1,6 +1,7 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import * as Location from "expo-location";
+import { useEffect, useState } from "react";
 import { Alert, Image, Linking, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyFavorites, usePlaceDetail, useToggleFavorite } from "@/lib/api/hooks";
@@ -22,6 +23,21 @@ const POSTURE_LABELS: Record<string, string> = {
   MIXED_SHARED_KITCHEN: "Shared kitchen",
 };
 
+function titleCaseCuisine(s: string) {
+  return s.charAt(0) + s.slice(1).toLowerCase().replaceAll("_", " ");
+}
+
+/** Straight-line miles between two coords — for the "Directions · X mi" label. */
+function haversineMi(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 3958.8;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
 export default function PlaceDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useTheme();
@@ -35,6 +51,36 @@ export default function PlaceDetail() {
   const saved = Boolean(favorites.data?.some((f) => f.place.id === id));
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const photoCount = place?.photos.length ?? 0;
+
+  // Distance for the Directions button — best-effort from the last known
+  // location (no prompt); label just hides if we can't resolve it.
+  const [distanceMi, setDistanceMi] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!place) return;
+      try {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (perm.status !== "granted") return;
+        const pos = await Location.getLastKnownPositionAsync();
+        if (pos && !cancelled) {
+          setDistanceMi(
+            haversineMi(
+              { lat: pos.coords.latitude, lng: pos.coords.longitude },
+              { lat: place.lat, lng: place.lng },
+            ),
+          );
+        }
+      } catch {
+        /* no location — just show "Directions" */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [place?.id, place?.lat, place?.lng]);
+  const distLabel =
+    distanceMi != null ? ` · ${distanceMi < 10 ? distanceMi.toFixed(1) : Math.round(distanceMi)} mi` : "";
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
@@ -91,7 +137,14 @@ export default function PlaceDetail() {
               }}
             >
               <TierTag signal={primaryHalalSignal(place.halal_profile)} />
-              <Text style={[ty.title, { color: t.ink }]}>{place.name}</Text>
+              <Text style={[ty.title, { color: t.ink, fontSize: 28, lineHeight: 32 }]}>
+                {place.name}
+              </Text>
+              {place.cuisine_types.length > 0 ? (
+                <Text style={[ty.body, { color: t.sub }]}>
+                  {place.cuisine_types.slice(0, 3).map(titleCaseCuisine).join(" · ")}
+                </Text>
+              ) : null}
               {place.address ? (
                 <Text style={[ty.small, { color: t.sub }]}>
                   {[place.address, place.city, place.region].filter(Boolean).join(" · ")}
@@ -99,7 +152,7 @@ export default function PlaceDetail() {
               ) : null}
 
               <Button
-                title="Directions"
+                title={`Directions${distLabel}`}
                 variant="accent"
                 onPress={() =>
                   Linking.openURL(
@@ -250,11 +303,12 @@ function Row({ label, value }: { label: string; value: string }) {
       style={{
         flexDirection: "row",
         justifyContent: "space-between",
-        paddingVertical: 8,
+        alignItems: "center",
+        paddingVertical: 9,
       }}
     >
-      <Text style={[ty.small, { color: t.sub }]}>{label}</Text>
-      <Text style={[ty.small, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>{value}</Text>
+      <Text style={[ty.body, { color: t.sub }]}>{label}</Text>
+      <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>{value}</Text>
     </View>
   );
 }
@@ -281,9 +335,24 @@ function TrustCard({ profile }: { profile: HalalProfileEmbed | null }) {
     ] as const
   ).filter(([, m]) => m && m !== "NOT_SERVED");
 
+  const basis =
+    profile.validation_tier === "TRUST_HALAL_VERIFIED"
+      ? "Confirmed in person"
+      : profile.has_certification
+        ? `Certified · ${profile.certifying_body_name ?? "on file"}`
+        : "Owner-attested";
+
   return (
     <View style={{ backgroundColor: t.card, borderRadius: radii.xl, padding: space.lg }}>
-      <Text style={[ty.seg, { color: t.sub, marginBottom: 8 }]}>Trust profile</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
+          <Feather name="shield" size={16} color={t.accentDeep} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[ty.label, { color: t.ink, fontSize: 15 }]}>Trust profile</Text>
+          <Text style={[ty.small, { color: t.sub, marginTop: 1 }]}>{basis}</Text>
+        </View>
+      </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
         {profile.menu_posture === "FULLY_HALAL" ? <Wash label="Fully halal menu" /> : null}
         {zabihah.some(([, m]) => m === "ZABIHAH") ? <Wash label="Zabihah" /> : null}
@@ -323,16 +392,16 @@ function Wash({ label, neutral }: { label: string; neutral?: boolean }) {
     <View
       style={{
         backgroundColor: neutral ? t.zincSoft : t.accentSoft,
-        borderRadius: 8,
-        paddingHorizontal: 8,
-        paddingVertical: 3.5,
+        borderRadius: 999,
+        paddingHorizontal: 11,
+        paddingVertical: 5,
       }}
     >
       <Text
         style={{
           color: neutral ? t.zinc : t.accentDeep,
           fontFamily: "Inter_700Bold",
-          fontSize: 9.5,
+          fontSize: 11.5,
         }}
       >
         {label}
