@@ -75,17 +75,20 @@ export default function Onboarding() {
           </Pressable>
 
       {step === 1 && (
-        <View style={{ flex: 1, gap: space.sm, paddingTop: space.xl }}>
+        <View style={{ flex: 1, paddingTop: space.md }}>
           <Text style={[ty.title, { color: t.ink, fontSize: 26 }]}>
             Every place wears{"\n"}its level of proof.
           </Text>
-          <Text style={[ty.body, { color: t.sub, marginBottom: space.sm }]}>
+          <Text style={[ty.body, { color: t.sub, marginTop: space.sm }]}>
             Look for the tag. Higher tiers mean stronger, third-party evidence.
           </Text>
-          <Tier label="✓ VERIFIED HALAL" title="Confirmed in person" body="A community verifier ate there and filed a public report." solid featured />
-          <Tier label="CERTIFIED" title="Certificate on file" body="A current halal certificate from a recognized authority." amber />
-          <Tier label="OWNER-ATTESTED" title="The owner says so" body="Claimed halal with details — not yet independently checked." />
-          <View style={{ marginTop: "auto", paddingBottom: space.xl, gap: space.md }}>
+          {/* Tiers grow to fill the screen so the proof ladder reads big. */}
+          <View style={{ flex: 1, gap: space.md, marginTop: space.lg }}>
+            <Tier label="✓ VERIFIED HALAL" title="Confirmed in person" body="A community verifier ate there and filed a public report." solid featured />
+            <Tier label="CERTIFIED" title="Certificate on file" body="A current halal certificate from a recognized authority." amber />
+            <Tier label="OWNER-ATTESTED" title="The owner says so" body="Claimed halal with details — not yet independently checked." />
+          </View>
+          <View style={{ paddingTop: space.lg, paddingBottom: insets.bottom + space.lg, gap: space.md }}>
             <Button title="Continue" onPress={() => setStep(2)} />
             <Dots step={1} />
           </View>
@@ -165,12 +168,14 @@ function Tier({
   return (
     <View
       style={{
+        flex: 1,
+        justifyContent: "center",
         backgroundColor: t.card,
         borderRadius: radii.xl,
-        padding: space.lg,
+        padding: space.xl,
         borderWidth: featured ? 2 : 0,
         borderColor: t.accent,
-        gap: 4,
+        gap: 8,
       }}
     >
       <View
@@ -178,16 +183,16 @@ function Tier({
           alignSelf: "flex-start",
           backgroundColor: solid ? t.accent : amber ? t.amberSoft : t.zincSoft,
           borderRadius: 8,
-          paddingHorizontal: 8,
-          paddingVertical: 3.5,
+          paddingHorizontal: 10,
+          paddingVertical: 5,
         }}
       >
-        <Text style={{ color: solid ? t.onAccent : amber ? t.amber : t.zinc, fontFamily: "Inter_700Bold", fontSize: 9.5 }}>
+        <Text style={{ color: solid ? t.onAccent : amber ? t.amber : t.zinc, fontFamily: "Inter_700Bold", fontSize: 10.5 }}>
           {label}
         </Text>
       </View>
-      <Text style={[ty.label, { color: t.ink, marginTop: 4 }]}>{title}</Text>
-      <Text style={[ty.small, { color: t.sub }]}>{body}</Text>
+      <Text style={[ty.label, { color: t.ink, marginTop: 6, fontSize: 18 }]}>{title}</Text>
+      <Text style={[ty.body, { color: t.sub }]}>{body}</Text>
     </View>
   );
 }
