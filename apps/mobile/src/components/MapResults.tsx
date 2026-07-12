@@ -35,6 +35,7 @@ export function MapResults({
   onLocation,
   radiusMi,
   onRadius,
+  onClearFilters,
 }: {
   results: Array<{ place: PlaceSearchResult; distanceMeters?: number }>;
   center: { lat: number; lng: number } | null;
@@ -46,6 +47,9 @@ export function MapResults({
    *  radius pill, no circle). */
   radiusMi?: number;
   onRadius?: (mi: number) => void;
+  /** Provided only when filters/cuisines/query are active — shows a
+   *  "Clear filters" action in the empty state. */
+  onClearFilters?: () => void;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -211,6 +215,36 @@ export function MapResults({
       >
         <Feather name="navigation" size={16} color={t.ink} />
       </Pressable>
+
+      {/* Empty state — stays on the map (with radius pill + location + List
+          all reachable) instead of bouncing to the list layout. */}
+      {results.length === 0 ? (
+        <View
+          pointerEvents="box-none"
+          style={{ position: "absolute", left: space.xl, right: space.xl, top: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}
+        >
+          <View
+            style={{
+              backgroundColor: t.card, borderRadius: radii.xl, paddingVertical: space.xl, paddingHorizontal: space.xl,
+              alignItems: "center", gap: 8, maxWidth: 320,
+              shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: 8 }, elevation: 8,
+            }}
+          >
+            <View style={{ width: 44, height: 44, borderRadius: 999, backgroundColor: t.zincSoft, alignItems: "center", justifyContent: "center" }}>
+              <Feather name="map-pin" size={20} color={t.sub} />
+            </View>
+            <Text style={[ty.label, { color: t.ink, fontSize: 16, textAlign: "center" }]}>No halal spots in this area</Text>
+            <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
+              Try a wider radius{onClearFilters ? ", fewer filters," : ""} or a different city.
+            </Text>
+            {onClearFilters ? (
+              <Pressable onPress={onClearFilters} style={{ marginTop: 6, backgroundColor: t.ink, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}>
+                <Text style={{ color: t.onInk, fontFamily: "Inter_600SemiBold", fontSize: 12.5 }}>Clear filters</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
 
       {/* Snap carousel: photo-thumb cards (mockup 2) */}
       <FlatList

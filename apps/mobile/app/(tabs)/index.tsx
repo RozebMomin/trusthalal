@@ -126,7 +126,9 @@ export default function Explore() {
       ? `${city.data.city}${city.data.region ? `, ${city.data.region}` : ""}`
       : "you");
 
-  const mapMode = view === "map" && hasActiveSearch && !search.isLoading && !search.error && results.length > 0;
+  // Stay in map mode even with zero results — the map shows its own empty
+  // state instead of bouncing back to the list layout.
+  const mapMode = view === "map" && hasActiveSearch && !search.isLoading && !search.error;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: mapMode ? 0 : insets.top + space.sm }}>
@@ -264,7 +266,7 @@ export default function Explore() {
       {/* Results */}
       {!hasActiveSearch ? (
         <EmptyState
-          title="Find halal near you"
+          title="Find halal food near you"
           body="Tap Near me, or search a restaurant by name. Every result wears its level of proof."
           actionTitle="Near me"
           onAction={locate}
@@ -275,6 +277,30 @@ export default function Explore() {
         <ErrorState
           message="We couldn't reach Trust Halal. Check your connection."
           onRetry={() => search.refetch()}
+        />
+      ) : view === "map" ? (
+        <MapResults
+          results={results}
+          center={coords}
+          cityLabel={
+            coords
+              ? cityLabel === "you"
+                ? "Showing places near you"
+                : `Near ${cityLabel}`
+              : q
+                ? `Results for “${q}”`
+                : "Search results"
+          }
+          onRecenter={locate}
+          onList={() => toggleView("list")}
+          onLocation={() => setLocOpen(true)}
+          radiusMi={coords ? radiusMi : undefined}
+          onRadius={coords ? setRadiusMi : undefined}
+          onClearFilters={
+            countFilters(filters) > 0 || cuisines.length > 0 || q
+              ? () => { setFilters({}); setCuisines([]); setRawQuery(""); }
+              : undefined
+          }
         />
       ) : results.length === 0 ? (
         <EmptyState
@@ -297,25 +323,6 @@ export default function Explore() {
           //   title: "Know a halal spot here? Suggest it",
           //   onPress: () => router.push("/suggest-a-spot"),
           // }}
-        />
-      ) : view === "map" ? (
-        <MapResults
-          results={results}
-          center={coords}
-          cityLabel={
-            coords
-              ? cityLabel === "you"
-                ? "Showing places near you"
-                : `Near ${cityLabel}`
-              : q
-                ? `Results for “${q}”`
-                : "Search results"
-          }
-          onRecenter={locate}
-          onList={() => toggleView("list")}
-          onLocation={() => setLocOpen(true)}
-          radiusMi={coords ? radiusMi : undefined}
-          onRadius={coords ? setRadiusMi : undefined}
         />
       ) : (
         <FlatList
