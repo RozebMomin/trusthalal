@@ -16,14 +16,6 @@ import { TierTag } from "@/components/TierTag";
 import { ErrorState, Loading } from "@/components/States";
 import type { HalalProfileEmbed } from "@/lib/api/types";
 
-const POSTURE_LABELS: Record<string, string> = {
-  FULLY_HALAL: "Fully halal",
-  MIXED_SEPARATE_KITCHENS: "Separate kitchen",
-  HALAL_OPTIONS_ADVERTISED: "Halal options",
-  HALAL_UPON_REQUEST: "On request",
-  MIXED_SHARED_KITCHEN: "Shared kitchen",
-};
-
 function titleCaseCuisine(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase().replaceAll("_", " ");
 }
@@ -150,9 +142,7 @@ export default function PlaceDetail() {
                   </Text>
                 ) : null}
                 {place.address ? (
-                  <Text style={[ty.small, { color: t.sub }]}>
-                    {[place.address, place.city, place.region].filter(Boolean).join(" · ")}
-                  </Text>
+                  <Text style={[ty.small, { color: t.sub }]}>{place.address}</Text>
                 ) : null}
               </View>
 
@@ -318,23 +308,6 @@ function Glass({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  const t = useTheme();
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: 9,
-      }}
-    >
-      <Text style={[ty.body, { color: t.sub }]}>{label}</Text>
-      <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>{value}</Text>
-    </View>
-  );
-}
-
 function TrustCard({ profile, onDetails }: { profile: HalalProfileEmbed | null; onDetails?: () => void }) {
   const t = useTheme();
   if (!profile) {
@@ -364,52 +337,37 @@ function TrustCard({ profile, onDetails }: { profile: HalalProfileEmbed | null; 
         ? `Certified · ${profile.certifying_body_name ?? "on file"}`
         : "Owner-attested";
 
+  const allZabihah = zabihah.length > 0 && zabihah.every(([, m]) => m === "ZABIHAH");
+  const zabihahLabel = allZabihah ? "Zabihah · all meats" : "Zabihah";
+  const certYear = profile.certificate_expires_at
+    ? new Date(profile.certificate_expires_at).getFullYear()
+    : null;
+  const certLabel = `Cert · ${profile.certifying_body_name ?? "on file"}${certYear ? ` · ${certYear}` : ""}`;
+
   return (
     <View style={{ backgroundColor: t.card, borderRadius: radii.xl, padding: space.lg }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
-          <Feather name="shield" size={16} color={t.accentDeep} />
+        <View style={{ width: 36, height: 36, borderRadius: 999, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
+          <Feather name="shield" size={17} color={t.accentDeep} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[ty.label, { color: t.ink, fontSize: 15 }]}>Trust profile</Text>
+          <Text style={[ty.label, { color: t.ink, fontSize: 16 }]}>Trust profile</Text>
           <Text style={[ty.small, { color: t.sub, marginTop: 1 }]}>{basis}</Text>
         </View>
         {onDetails ? (
           <Pressable onPress={onDetails} accessibilityLabel="Full trust profile" style={{ flexDirection: "row", alignItems: "center", gap: 1 }}>
-            <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_600SemiBold" }]}>Details</Text>
-            <Feather name="chevron-right" size={14} color={t.accentDeep} />
+            <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_600SemiBold", fontSize: 13 }]}>Details</Text>
+            <Feather name="chevron-right" size={15} color={t.accentDeep} />
           </Pressable>
         ) : null}
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
         {profile.menu_posture === "FULLY_HALAL" ? <Wash label="Fully halal menu" /> : null}
-        {zabihah.some(([, m]) => m === "ZABIHAH") ? <Wash label="Zabihah" /> : null}
+        {zabihah.some(([, m]) => m === "ZABIHAH") ? <Wash label={zabihahLabel} /> : null}
         {profile.alcohol_policy === "NONE" ? <Wash label="No alcohol" /> : null}
         {!profile.has_pork ? <Wash label="Pork-free" /> : null}
-        {profile.has_certification ? (
-          <Wash label={`Cert · ${profile.certifying_body_name ?? "on file"}`} neutral />
-        ) : null}
+        {profile.has_certification ? <Wash label={certLabel} neutral /> : null}
       </View>
-      <Row label="Menu" value={POSTURE_LABELS[profile.menu_posture] ?? profile.menu_posture} />
-      {zabihah.map(([meat, method]) => (
-        <Row key={meat} label={meat} value={method === "ZABIHAH" ? "Zabihah ✓" : "Machine"} />
-      ))}
-      <Row
-        label="Alcohol"
-        value={
-          profile.alcohol_policy === "NONE"
-            ? "None served"
-            : profile.alcohol_policy === "BEER_AND_WINE_ONLY"
-              ? "Beer & wine"
-              : profile.alcohol_policy === "FULL_BAR"
-                ? "Full bar"
-                : "Unknown"
-        }
-      />
-      <Row label="Pork" value={profile.has_pork ? "On the menu" : "Pork-free"} />
-      {profile.has_certification ? (
-        <Row label="Certificate" value={profile.certifying_body_name ?? "On file"} />
-      ) : null}
     </View>
   );
 }

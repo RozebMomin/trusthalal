@@ -53,9 +53,9 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-          {icon ? <Feather name={icon} size={16} color={fg} /> : null}
-          <Text style={{ color: fg, fontFamily: "Inter_700Bold", fontSize: 14 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {icon ? <Feather name={icon} size={18} color={fg} /> : null}
+          <Text style={{ color: fg, fontFamily: "Inter_800ExtraBold", fontSize: 16 }}>
             {title}
           </Text>
         </View>
