@@ -1,9 +1,10 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Image, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -20,6 +21,8 @@ async function finish() {
 export default function Onboarding() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const heroH = Math.round(height * 0.4);
   const [step, setStep] = useState(0);
 
   async function allowLocation() {
@@ -34,19 +37,36 @@ export default function Onboarding() {
       </Pressable>
 
       {step === 0 && (
-        <View style={{ flex: 1, justifyContent: "flex-end", paddingBottom: space.xl, gap: space.md }}>
-          <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-            <Feather name="check" size={24} color={t.onAccent} />
+        <View style={{ flex: 1 }}>
+          {/* Full-bleed hero that melts into the screen via a gradient fade. */}
+          <View style={{ marginHorizontal: -space.xl, marginTop: space.sm, height: heroH, position: "relative" }}>
+            <Image
+              source={require("../assets/onboarding-hero.png")}
+              style={{ width: "100%", height: "100%", resizeMode: "cover" }}
+            />
+            <LinearGradient
+              colors={["transparent", t.bg]}
+              style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 180 }}
+            />
           </View>
-          <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 34 }]}>
-            The last word{"\n"}on halal.
-          </Text>
-          <Text style={[ty.body, { color: t.sub }]}>
-            Every halal claim on Trust Halal is checked — certificate, sourcing, or an in-person
-            visit by someone from the community. The full record, before you eat.
-          </Text>
-          <Button title="Get started" onPress={() => setStep(1)} />
-          <Dots step={0} />
+          {/* Content sits in the upper-middle, not pinned to the bottom. */}
+          <View style={{ marginTop: space.lg, gap: space.md }}>
+            <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+              <Feather name="check" size={24} color={t.onAccent} />
+            </View>
+            <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 34 }]}>
+              The last word{"\n"}on halal.
+            </Text>
+            <Text style={[ty.body, { color: t.sub }]}>
+              Every halal claim on Trust Halal is checked — certificate, sourcing, or an in-person
+              visit by someone from the community. The full record, before you eat.
+            </Text>
+          </View>
+          <View style={{ flex: 1 }} />
+          <View style={{ paddingBottom: space.xl, gap: space.md }}>
+            <Button title="Get started" onPress={() => setStep(1)} />
+            <Dots step={0} />
+          </View>
         </View>
       )}
 
