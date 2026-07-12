@@ -126,9 +126,9 @@ export default function Explore() {
       ? `${city.data.city}${city.data.region ? `, ${city.data.region}` : ""}`
       : "you");
 
-  // Stay in map mode through loading and zero results — the map shows its
-  // own loading + empty states instead of bouncing back to the list layout.
-  const mapMode = view === "map" && hasActiveSearch && !search.error;
+  // Map view owns all of its states (cold-start, loading, empty, results);
+  // only a hard error drops back to the list layout.
+  const mapMode = view === "map" && !search.error;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: mapMode ? 0 : insets.top + space.sm }}>
@@ -264,14 +264,7 @@ export default function Explore() {
       ) : null}
 
       {/* Results */}
-      {!hasActiveSearch ? (
-        <EmptyState
-          title="Find halal food near you"
-          body="Tap Near me, or search a restaurant by name. Every result wears its level of proof."
-          actionTitle="Near me"
-          onAction={locate}
-        />
-      ) : search.error ? (
+      {search.error ? (
         <ErrorState
           message="We couldn't reach Trust Halal. Check your connection."
           onRetry={() => search.refetch()}
@@ -281,13 +274,15 @@ export default function Explore() {
           results={results}
           center={coords}
           cityLabel={
-            coords
-              ? cityLabel === "you"
-                ? "Showing places near you"
-                : `Near ${cityLabel}`
-              : q
-                ? `Results for “${q}”`
-                : "Search results"
+            !hasActiveSearch
+              ? "Set your location"
+              : coords
+                ? cityLabel === "you"
+                  ? "Showing places near you"
+                  : `Near ${cityLabel}`
+                : q
+                  ? `Results for “${q}”`
+                  : "Search results"
           }
           onRecenter={locate}
           onList={() => toggleView("list")}
@@ -299,7 +294,16 @@ export default function Explore() {
               ? () => { setFilters({}); setCuisines([]); setRawQuery(""); }
               : undefined
           }
-          loading={search.isLoading}
+          coldStart={!hasActiveSearch}
+          onLocate={locate}
+          loading={hasActiveSearch && search.isLoading}
+        />
+      ) : !hasActiveSearch ? (
+        <EmptyState
+          title="Find halal food near you"
+          body="Tap Near me, or search a restaurant by name. Every result wears its level of proof."
+          actionTitle="Near me"
+          onAction={locate}
         />
       ) : search.isLoading ? (
         <Loading />

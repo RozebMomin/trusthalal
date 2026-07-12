@@ -37,6 +37,8 @@ export function MapResults({
   onRadius,
   onClearFilters,
   loading,
+  coldStart,
+  onLocate,
 }: {
   results: Array<{ place: PlaceSearchResult; distanceMeters?: number }>;
   center: { lat: number; lng: number } | null;
@@ -54,6 +56,10 @@ export function MapResults({
   /** True while a search is in flight — shows a loading pill and
    *  suppresses the empty state so the map never flashes to the list. */
   loading?: boolean;
+  /** No search yet (no query, no location) — shows the "Near me" prompt
+   *  over the map instead of the empty/loading overlays. */
+  coldStart?: boolean;
+  onLocate?: () => void;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -220,8 +226,38 @@ export function MapResults({
         <Feather name="navigation" size={16} color={t.ink} />
       </Pressable>
 
+      {/* Cold start — no search yet: prompt to locate, over the map. */}
+      {coldStart ? (
+        <View
+          pointerEvents="box-none"
+          style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center", paddingHorizontal: space.xl }}
+        >
+          <View
+            style={{
+              backgroundColor: t.card, borderRadius: radii.xl, paddingVertical: space.xl, paddingHorizontal: space.xl,
+              alignItems: "center", gap: 8, maxWidth: 320,
+              shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: 8 }, elevation: 8,
+            }}
+          >
+            <View style={{ width: 48, height: 48, borderRadius: 999, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
+              <Feather name="navigation" size={20} color={t.accent} />
+            </View>
+            <Text style={[ty.label, { color: t.ink, fontSize: 16, textAlign: "center" }]}>Halal food near you</Text>
+            <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>Turn on location to see verified spots around you.</Text>
+            {onLocate ? (
+              <Pressable onPress={onLocate} style={{ marginTop: 6, backgroundColor: t.accent, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 11 }}>
+                <Text style={{ color: t.onAccent, fontFamily: "Inter_700Bold", fontSize: 13 }}>Near me</Text>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={onLocation} style={{ paddingVertical: 6 }}>
+              <Text style={[ty.small, { color: t.sub }]}>or pick a city</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       {/* Loading pill — stays on the map while a search is in flight. */}
-      {loading ? (
+      {loading && !coldStart ? (
         <View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center" }}>
           <View
             style={{
@@ -238,7 +274,7 @@ export function MapResults({
 
       {/* Empty state — stays on the map (with radius pill + location + List
           all reachable) instead of bouncing to the list layout. */}
-      {results.length === 0 && !loading ? (
+      {results.length === 0 && !loading && !coldStart ? (
         <View
           pointerEvents="box-none"
           style={{ position: "absolute", left: space.xl, right: space.xl, top: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}
