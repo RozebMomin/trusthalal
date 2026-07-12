@@ -160,7 +160,7 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
             <Text style={[ty.body, { color: t.sub }]}>No halal profile yet.</Text>
           )}
 
-          <Text style={[ty.seg, { color: t.sub, fontSize: 12, letterSpacing: 0.6, marginBottom: 12, marginLeft: 2 }]}>Verification history</Text>
+          <Text style={[ty.seg, { color: t.sub, fontSize: 15, letterSpacing: 0.4, marginBottom: 12, marginLeft: 2 }]}>Verification history</Text>
           {history.isLoading ? (
             <Text style={[ty.small, { color: t.sub }]}>Loading…</Text>
           ) : (history.data?.length ?? 0) === 0 ? (
@@ -205,7 +205,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   const t = useTheme();
   return (
     <View style={{ marginBottom: 22 }}>
-      <Text style={[ty.seg, { color: t.sub, fontSize: 12, letterSpacing: 0.6, marginBottom: 12, marginLeft: 2 }]}>{title}</Text>
+      <Text style={[ty.seg, { color: t.sub, fontSize: 15, letterSpacing: 0.4, marginBottom: 12, marginLeft: 2 }]}>{title}</Text>
       <View style={{ backgroundColor: t.card, borderRadius: radii.xl, paddingHorizontal: 18, paddingVertical: 6 }}>
         {children}
       </View>
