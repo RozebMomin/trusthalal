@@ -163,7 +163,7 @@ Not a discrete phase. Runs across all of 10A / 10B / 10C.
 ## What's NOT in this phase (deliberately)
 
 * **Android app.** Comes after iOS is validated. Expo makes it a smaller lift.
-* **Payments / monetization.** Verification stays free through Phase 10. Featured placement / owner subscriptions land in Phase 11 at earliest.
+* **Payments / monetization.** Verification stays free through Phase 10. Featured placement / owner subscriptions land in Phase 11 at earliest — game plan captured in [`phase-11-analytics-and-monetization.md`](./phase-11-analytics-and-monetization.md). The one exception to "later": product **event instrumentation** ships with v1, because reach data can't be backfilled. Hard line recorded there — verification is never for sale.
 * **Full admin mobile.** Verifier field-kit app is Phase 11 material.
 * **Additional cities.** Focus one launch city hard through Phase 10. Second city in Phase 11.
 * **Halal grocery / delivery adjacency.** Tempting scope creep. Not now.
@@ -207,7 +207,8 @@ trusthalal/
 │   ├── README.md        # you are here
 │   ├── phase-10a-community.md    # to be added as needed
 │   ├── phase-10b-ai.md
-│   └── phase-10c-ios.md
+│   ├── phase-10c-ios.md
+│   └── phase-11-analytics-and-monetization.md
 └── content/             # NEW — buildinpublic content plan + assets
     ├── youtube/
     ├── twitter/
