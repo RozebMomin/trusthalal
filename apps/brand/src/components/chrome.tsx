@@ -95,7 +95,7 @@ export function Header() {
           href={CONSUMER_URL}
           className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-onaccent shadow-sm transition hover:bg-accent-deep"
         >
-          Find halal near you
+          Find halal food near you
           <ArrowIcon />
         </a>
       </div>
