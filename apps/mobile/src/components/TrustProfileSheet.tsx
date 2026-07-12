@@ -113,12 +113,24 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
           shadowOffset: { width: -4, height: 0 },
         }}
       >
-        <ScrollView contentContainerStyle={{ paddingTop: insets.top + space.sm, paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.xl }}>
-          <Pressable onPress={handleClose} accessibilityLabel="Back" style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: space.md }}>
+        {/* Pinned header — stays put while the profile scrolls under it. */}
+        <View
+          style={{
+            paddingTop: insets.top + space.sm,
+            paddingBottom: 10,
+            paddingHorizontal: space.lg,
+            backgroundColor: t.bg,
+            borderBottomWidth: 1,
+            borderBottomColor: t.line,
+          }}
+        >
+          <Pressable onPress={handleClose} accessibilityLabel="Back" style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <Feather name="chevron-left" size={20} color={t.sub} />
             <Text numberOfLines={1} style={[ty.label, { color: t.sub, fontSize: 14, flexShrink: 1 }]}>{place.name}</Text>
           </Pressable>
+        </View>
 
+        <ScrollView contentContainerStyle={{ paddingTop: space.md, paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.xl }}>
           {p ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <TierTag signal={primaryHalalSignal(p)} />
