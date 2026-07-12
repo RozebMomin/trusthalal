@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, Linking, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHalalHistory } from "@/lib/api/hooks";
 import { primaryHalalSignal } from "@/lib/halal-display";
@@ -54,6 +55,28 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
   const p = place.halal_profile;
   const history = useHalalHistory(place.id, true);
 
+  // Slide in from the right (a push, matching the "Details ›" arrow), and
+  // slide back out before unmounting. Modal itself is instant + transparent;
+  // the panel carries the motion so the detail screen shows behind it.
+  const { width } = useWindowDimensions();
+  const tx = useRef(new Animated.Value(width)).current;
+  useEffect(() => {
+    Animated.timing(tx, {
+      toValue: 0,
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [tx]);
+  const handleClose = () => {
+    Animated.timing(tx, {
+      toValue: width,
+      duration: 220,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => onClose());
+  };
+
   const meats = [
     ["Chicken", methodLabel(p?.chicken_slaughter)],
     ["Beef", methodLabel(p?.beef_slaughter)],
@@ -62,10 +85,20 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
   ].filter(([, m]) => m) as Array<[string, string]>;
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: t.bg }}>
+    <Modal visible transparent animationType="none" onRequestClose={handleClose} statusBarTranslucent>
+      <Animated.View
+        style={{
+          flex: 1,
+          backgroundColor: t.bg,
+          transform: [{ translateX: tx }],
+          shadowColor: "#000",
+          shadowOpacity: 0.18,
+          shadowRadius: 14,
+          shadowOffset: { width: -4, height: 0 },
+        }}
+      >
         <ScrollView contentContainerStyle={{ paddingTop: insets.top + space.sm, paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.xl }}>
-          <Pressable onPress={onClose} accessibilityLabel="Back" style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: space.md }}>
+          <Pressable onPress={handleClose} accessibilityLabel="Back" style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: space.md }}>
             <Feather name="chevron-left" size={18} color={t.sub} />
             <Text numberOfLines={1} style={[ty.label, { color: t.sub, fontSize: 13, flexShrink: 1 }]}>{place.name}</Text>
           </Pressable>
@@ -147,7 +180,7 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
             </View>
           )}
         </ScrollView>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
