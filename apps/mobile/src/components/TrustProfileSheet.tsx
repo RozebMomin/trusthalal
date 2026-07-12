@@ -145,9 +145,8 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
             <>
               {meats.length > 0 ? (
                 <Section title="Sourcing · per meat">
-                  {meats.map(([meat, m], i) => (
-                    <SheetRow key={meat} label={meat} last={i === meats.length - 1 && !p.has_pork}
-                      right={<Pill label={m.toUpperCase()} />} />
+                  {meats.map(([meat, m]) => (
+                    <SheetRow key={meat} label={meat} right={<Pill label={m.toUpperCase()} />} />
                   ))}
                   <SheetRow label="Pork" last right={<Pill label={p.has_pork ? "ON THE MENU" : "NOT SERVED"} tone={p.has_pork ? "danger" : "zinc"} />} />
                 </Section>
