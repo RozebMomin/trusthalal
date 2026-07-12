@@ -10,6 +10,13 @@ import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
 import { Card, Cell, IcBox, Seg, Tag } from "@/ui/kit";
 
+// The onboarding-replay tool shows in local dev AND in beta builds that set
+// EXPO_PUBLIC_DEV_TOOLS=1 (the eas.json "beta" profile). The public App Store
+// build uses the "production" profile without that flag, so it disappears —
+// that's how you "revoke" it. The UI gallery below stays strictly __DEV__
+// because it renders fabricated trust data.
+const SHOW_DEV_TOOLS = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === "1";
+
 /** Mockup 8: dark gradient account card, sectioned rows with colored
  *  icon boxes and live right-hand values, red sign-out, quiet footer. */
 export default function Profile() {
@@ -106,30 +113,31 @@ export default function Profile() {
           right={chev}
         />
         <Cell
-          last={!__DEV__}
+          last={!SHOW_DEV_TOOLS}
           onPress={() => Linking.openURL("https://owner.trusthalal.org")}
           left={<><IcBox icon="home" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Own a restaurant?</Text></>}
           right={rightText("web ↗")}
         />
-        {/* Dev-only entry points. Excluded from release bundles so the
-            fixture/mockup + replay tools never surface in production. */}
+        {/* Replay onboarding — dev + beta builds only (see SHOW_DEV_TOOLS). */}
+        {SHOW_DEV_TOOLS ? (
+          <Cell
+            last={!__DEV__}
+            onPress={async () => {
+              await SecureStore.deleteItemAsync("onboarded_v1");
+              router.replace("/onboarding");
+            }}
+            left={<><IcBox icon="refresh-cw" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Replay onboarding</Text></>}
+            right={chev}
+          />
+        ) : null}
+        {/* Fixture gallery stays strictly dev-only (renders fake trust data). */}
         {__DEV__ ? (
-          <>
-            <Cell
-              onPress={async () => {
-                await SecureStore.deleteItemAsync("onboarded_v1");
-                router.replace("/onboarding");
-              }}
-              left={<><IcBox icon="refresh-cw" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Replay onboarding (dev)</Text></>}
-              right={chev}
-            />
-            <Cell
-              last
-              onPress={() => router.push("/ui-gallery")}
-              left={<><IcBox icon="layers" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>UI gallery (dev)</Text></>}
-              right={chev}
-            />
-          </>
+          <Cell
+            last
+            onPress={() => router.push("/ui-gallery")}
+            left={<><IcBox icon="layers" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>UI gallery (dev)</Text></>}
+            right={chev}
+          />
         ) : null}
       </Card>
 
