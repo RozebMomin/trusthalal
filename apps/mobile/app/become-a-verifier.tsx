@@ -63,12 +63,12 @@ export default function BecomeAVerifier() {
     <View
       style={{
         flexDirection: "row", alignItems: "center", gap: 14,
-        paddingVertical: 16, paddingHorizontal: 18,
+        paddingVertical: 18, paddingHorizontal: 18,
         borderBottomWidth: last ? 0 : 1, borderBottomColor: t.line,
       }}
     >
-      <Text style={{ fontSize: 20 }}>{emoji}</Text>
-      <Text style={[ty.body, { color: t.ink, fontSize: 16, lineHeight: 22, flex: 1 }]}>{text}</Text>
+      <Text style={{ fontSize: 22 }}>{emoji}</Text>
+      <Text style={[ty.body, { color: t.ink, fontSize: 17, lineHeight: 24, flex: 1 }]}>{text}</Text>
     </View>
   );
 
@@ -80,11 +80,11 @@ export default function BecomeAVerifier() {
           <Text style={[ty.label, { color: t.sub, fontSize: 14 }]}>Profile</Text>
         </Pressable>
 
-        <View style={{ marginTop: 18, width: 52, height: 52, borderRadius: 16, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-          <Feather name="shield" size={24} color={t.onAccent} />
+        <View style={{ marginTop: 18, width: 56, height: 56, borderRadius: 18, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+          <Feather name="shield" size={27} color={t.onAccent} />
         </View>
-        <Text style={[ty.title, { color: t.ink, marginTop: 16, fontSize: 30, lineHeight: 34 }]}>You eat out anyway.{"\n"}Make it count.</Text>
-        <Text style={[ty.body, { color: t.sub, marginTop: 10, fontSize: 16, lineHeight: 23 }]}>
+        <Text style={[ty.title, { color: t.ink, marginTop: 18, fontSize: 34, lineHeight: 39 }]}>You eat out anyway.{"\n"}Make it count.</Text>
+        <Text style={[ty.body, { color: t.sub, marginTop: 12, fontSize: 18, lineHeight: 26 }]}>
           Verifiers eat at halal spots and file short, honest reports. Your name backs the badge diners trust.
         </Text>
 
@@ -111,16 +111,16 @@ export default function BecomeAVerifier() {
             </Card>
             <View
               style={{
-                marginTop: 12,
-                padding: 18,
+                marginTop: 14,
+                padding: 20,
                 borderRadius: radii.xl,
                 backgroundColor: t.amberSoft,
                 borderWidth: 1,
                 borderColor: "rgba(251,191,36,0.45)",
               }}
             >
-              <Text style={[ty.label, { color: t.amber, fontSize: 13 }]}>The one non-negotiable</Text>
-              <Text style={[ty.body, { color: t.amber, fontSize: 14, lineHeight: 20, marginTop: 4 }]}>
+              <Text style={[ty.label, { color: t.amber, fontSize: 14 }]}>The one non-negotiable</Text>
+              <Text style={[ty.body, { color: t.amber, fontSize: 15, lineHeight: 21, marginTop: 5 }]}>
                 Every visit discloses who paid for the meal. Comped is fine. Hidden is not.
               </Text>
             </View>
