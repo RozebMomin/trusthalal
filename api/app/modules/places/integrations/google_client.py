@@ -58,6 +58,7 @@ _DEFAULT_FIELDS = ",".join(
         "geometry/location",
         "types",
         "business_status",
+        "formatted_phone_number",
     )
 )
 
@@ -78,6 +79,7 @@ _DEFAULT_FIELDS_NEW = ",".join(
         "primaryType",
         "types",
         "businessStatus",
+        "nationalPhoneNumber",
     )
 )
 

@@ -135,6 +135,7 @@ def ingest_google_place(
         country_code=fields.country_code,
         postal_code=fields.postal_code,
         timezone=fields.timezone,
+        phone=fields.phone,
         canonical_source=ExternalIdProvider.GOOGLE,
         lat=fields.lat,
         lng=fields.lng,
@@ -211,6 +212,7 @@ _BACKFILLABLE_CANONICAL_FIELDS: tuple[str, ...] = (
     "country_code",
     "postal_code",
     "timezone",
+    "phone",
 )
 
 
@@ -455,7 +457,7 @@ def resync_google_place(
     # 5. Backfill null canonical columns only. Same whitelist as link;
     # identity columns (lat/lng/name/address) are intentionally excluded.
     fields_updated: list[str] = []
-    for column in ("city", "region", "country_code", "postal_code", "timezone"):
+    for column in ("city", "region", "country_code", "postal_code", "timezone", "phone"):
         current = getattr(place, column)
         if current is None:
             incoming = getattr(fields, column)

@@ -29,6 +29,11 @@ class Place(Base):
     postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
+    # Business phone (E.164 or national format as Google returns it),
+    # populated from the canonical provider on ingest. NULL for hand-entered
+    # places or ones ingested before phone capture — backfilled on resync.
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
     # Which external provider's data is authoritative for the canonical fields
     # above. NULL = hand-entered, no sync source. Enforced by CHECK constraint
     # ck_places_canonical_source_allowed (mirrors ExternalIdProvider enum).

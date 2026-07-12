@@ -209,6 +209,7 @@ def patch_owned_place(
             "country_code": place.country_code,
             "postal_code": place.postal_code,
             "timezone": place.timezone,
+            "phone": place.phone,
             "cuisine_types": list(place.cuisine_types or []),
             "updated_at": place.updated_at,
             "halal_profile": halal_embed,
@@ -633,6 +634,7 @@ def get_place_by_id(
             "country_code": place.country_code,
             "postal_code": place.postal_code,
             "timezone": place.timezone,
+            "phone": place.phone,
             # Curated cuisine tags. Cast through list() because the
             # column may come back as a tuple/array depending on the
             # SQLAlchemy dialect on the connection.

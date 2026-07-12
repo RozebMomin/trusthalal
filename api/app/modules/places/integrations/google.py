@@ -65,6 +65,9 @@ class CanonicalPlaceFields:
     # mapped to a known cuisine — the place still ingests fine, just
     # without auto-tags. See ``_GOOGLE_TYPE_TO_CUISINE`` below.
     cuisine_types: list[Cuisine] = field(default_factory=list)
+    # Business phone. Default keeps existing constructors (tests, fixtures)
+    # working without passing it. Set by ``extract_from_google_place``.
+    phone: str | None = None
 
 
 # Map Google Place types (from the New API ``primaryType`` and the legacy
@@ -350,6 +353,17 @@ def extract_from_google_place(payload: dict[str, Any]) -> CanonicalPlaceFields:
         or None
     )
 
+    # Phone: prefer national display format; accept both New API
+    # (nationalPhoneNumber/internationalPhoneNumber) and legacy
+    # (formatted_phone_number/international_phone_number) keys.
+    phone = (
+        root.get("nationalPhoneNumber")
+        or root.get("internationalPhoneNumber")
+        or root.get("formatted_phone_number")
+        or root.get("international_phone_number")
+        or None
+    )
+
     return CanonicalPlaceFields(
         name=_extract_name(root),
         address=address if isinstance(address, str) else None,
@@ -361,6 +375,7 @@ def extract_from_google_place(payload: dict[str, Any]) -> CanonicalPlaceFields:
         postal_code=postal_code if isinstance(postal_code, str) else None,
         timezone=_extract_timezone(root),
         cuisine_types=_extract_cuisines(root),
+        phone=phone if isinstance(phone, str) else None,
     )
 
 

@@ -156,6 +156,9 @@ class PlaceDetail(BaseModel):
     country_code: str | None = None
     postal_code: str | None = None
     timezone: str | None = None
+    # Business phone (from Google ingest); null for hand-entered places or
+    # ones ingested before phone capture. Powers the "Call" action.
+    phone: str | None = None
     # Curated cuisine tags. See PlaceSearchResult.cuisine_types.
     cuisine_types: list[Cuisine] = Field(default_factory=list)
     # We intentionally skip a ``created_at`` field: the CREATED row on
