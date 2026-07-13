@@ -321,9 +321,9 @@ export function Sheet({
             borderTopLeftRadius: 28,
             borderTopRightRadius: 28,
             paddingHorizontal: space.lg,
-            // Clear the device's bottom safe area (Android on-screen nav /
-            // iOS home indicator) so the sheet's actions aren't hidden.
-            paddingBottom: Math.max(insets.bottom, 10) + 24,
+            // Just enough to clear the device's bottom safe area (Android
+            // on-screen nav / iOS home indicator) — a snug gap, not a void.
+            paddingBottom: insets.bottom + 8,
           }}
         >
           <View style={{ alignSelf: "center", width: 36, height: 4, borderRadius: 4, backgroundColor: t.line, marginVertical: 12 }} />

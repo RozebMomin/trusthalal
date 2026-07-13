@@ -361,8 +361,12 @@ export function MapResults({
           const i = Math.round(e.nativeEvent.contentOffset.x / (CARD_W + 12));
           if (i !== selected) focus(Math.max(0, Math.min(i, results.length - 1)), false);
         }}
-        contentContainerStyle={{ paddingHorizontal: space.lg, gap: 12 }}
-        style={{ position: "absolute", left: 0, right: 0, bottom: 100 + lift }}
+        // Vertical padding gives the cards' drop shadow room inside the list's
+        // frame so a horizontal FlatList doesn't crop it (the harsh cut-off
+        // line). The bottom anchor is dropped by the same paddingBottom so the
+        // cards stay put visually.
+        contentContainerStyle={{ paddingHorizontal: space.lg, gap: 12, paddingTop: 8, paddingBottom: 24 }}
+        style={{ position: "absolute", left: 0, right: 0, bottom: 76 + lift }}
         renderItem={({ item }) => {
           const signal = primaryHalalSignal(item.place.halal_profile);
           const mi = item.distanceMeters !== undefined ? `${(item.distanceMeters / 1609.34).toFixed(1)} mi` : null;
