@@ -73,6 +73,16 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    // Same-origin API proxy. The browser calls halalfoodnearme.com/api/*
+    // (first-party); Next proxies to the real API server-to-server and
+    // relays Set-Cookie back, so the tht_session cookie is scoped to the
+    // consumer domain. Without this the cookie is cross-site (the API is
+    // on api.trusthalal.org) and SameSite=Lax drops it on every fetch —
+    // which made sign-in silently fail to persist.
+    const apiOrigin = API_ORIGIN || "http://localhost:8000";
+    return [{ source: "/api/:path*", destination: `${apiOrigin}/:path*` }];
+  },
   env: {
     // See apps/admin/next.config.mjs for the long version. Short
     // version: Vercel doesn't expand $VARs in env-var values, so we

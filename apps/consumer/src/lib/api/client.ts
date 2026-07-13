@@ -107,10 +107,17 @@ export type RequestOptions = Omit<RequestInit, "body"> & {
 };
 
 function buildUrl(path: string, searchParams?: RequestOptions["searchParams"]) {
-  const url = new URL(
-    path.startsWith("/") ? path : `/${path}`,
-    config.apiBaseUrl,
-  );
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  // In the browser, call our OWN origin under `/api` and let the Next
+  // rewrite (next.config) proxy through to the real API. This keeps the
+  // session cookie first-party to the consumer domain — a cross-site
+  // SameSite=Lax cookie (api.trusthalal.org ↔ halalfoodnearme.com) would
+  // otherwise never be sent on fetch, so sign-in wouldn't "take". On the
+  // server there's no same-origin proxy, so hit the API directly.
+  const inBrowser = typeof window !== "undefined";
+  const url = inBrowser
+    ? new URL(`/api${normalized}`, window.location.origin)
+    : new URL(normalized, config.apiBaseUrl);
   if (searchParams) {
     for (const [key, value] of Object.entries(searchParams)) {
       if (value === undefined || value === null) continue;
