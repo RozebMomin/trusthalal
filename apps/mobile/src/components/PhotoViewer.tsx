@@ -1,9 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { useRef, useState } from "react";
-import { FlatList, Image, Modal, Pressable, Text, View } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { FlatList, Image, Modal, Pressable, Text, View, useWindowDimensions } from "react-native";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Gallery, { type GalleryRef } from "react-native-awesome-gallery";
 import type { PlacePhoto } from "@/lib/api/types";
 
 /** Human label per upload source — mirrors the mockup's "verifier visit" credit. */
@@ -15,14 +15,107 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const THUMB = 48;
 const THUMB_GAP = 8;
+const MAX_ZOOM = 6;
+const DOUBLE_TAP_ZOOM = 2.5;
 
 /**
- * Full-screen photo viewer. The image area is `react-native-awesome-gallery`
- * (gesture-handler + reanimated), so pinch-to-zoom, double-tap zoom, pan, and
- * swipe-between work on BOTH iOS and Android — the old iOS-only ScrollView
- * `maximumZoomScale` never zoomed on Android. Our chrome (counter, close,
- * credit row, thumbnail strip) is layered on top as overlays. Swipe down
- * dismisses. Rendered as a Modal over the place detail screen.
+ * One pinch/pan/double-tap-zoomable image. Hand-rolled on gesture-handler +
+ * reanimated (works on iOS AND Android — the old ScrollView maximumZoomScale
+ * only zoomed on iOS). `panEnabled` is driven by the parent's zoom state:
+ * while zoomed, the horizontal pager is disabled and one-finger pan moves the
+ * image; at 1x, pan is off so swipes fall through to the pager.
+ */
+function ZoomableImage({
+  uri,
+  width,
+  height,
+  panEnabled,
+  onZoomChange,
+}: {
+  uri: string;
+  width: number;
+  height: number;
+  panEnabled: boolean;
+  onZoomChange: (zoomed: boolean) => void;
+}) {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const savedTx = useSharedValue(0);
+  const savedTy = useSharedValue(0);
+
+  const pinch = Gesture.Pinch()
+    .onUpdate((e: { scale: number }) => {
+      scale.value = Math.min(MAX_ZOOM, Math.max(1, savedScale.value * e.scale));
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      if (scale.value <= 1) {
+        scale.value = withTiming(1);
+        tx.value = withTiming(0);
+        ty.value = withTiming(0);
+        savedScale.value = 1;
+        savedTx.value = 0;
+        savedTy.value = 0;
+        runOnJS(onZoomChange)(false);
+      } else {
+        runOnJS(onZoomChange)(true);
+      }
+    });
+
+  const pan = Gesture.Pan()
+    .enabled(panEnabled)
+    .onUpdate((e: { translationX: number; translationY: number }) => {
+      if (scale.value > 1) {
+        tx.value = savedTx.value + e.translationX;
+        ty.value = savedTy.value + e.translationY;
+      }
+    })
+    .onEnd(() => {
+      savedTx.value = tx.value;
+      savedTy.value = ty.value;
+    });
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > 1) {
+        scale.value = withTiming(1);
+        tx.value = withTiming(0);
+        ty.value = withTiming(0);
+        savedScale.value = 1;
+        savedTx.value = 0;
+        savedTy.value = 0;
+        runOnJS(onZoomChange)(false);
+      } else {
+        scale.value = withTiming(DOUBLE_TAP_ZOOM);
+        savedScale.value = DOUBLE_TAP_ZOOM;
+        runOnJS(onZoomChange)(true);
+      }
+    });
+
+  const composed = Gesture.Simultaneous(pinch, pan, doubleTap);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
+  }));
+
+  return (
+    <GestureDetector gesture={composed}>
+      <View style={{ width, height, alignItems: "center", justifyContent: "center" }}>
+        <Animated.View style={[{ width, height }, style]}>
+          <Image source={{ uri }} style={{ width, height }} resizeMode="contain" />
+        </Animated.View>
+      </View>
+    </GestureDetector>
+  );
+}
+
+/**
+ * Full-screen, swipeable photo viewer with cross-platform pinch-to-zoom.
+ * Chrome (counter, close, credit row, thumbnail strip) sits over a paging
+ * FlatList of zoomable images. Rendered as a Modal over the place detail.
  */
 export function PhotoViewer({
   photos,
@@ -33,41 +126,56 @@ export function PhotoViewer({
   initialIndex: number;
   onClose: () => void;
 }) {
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const listRef = useRef<FlatList<PlacePhoto>>(null);
   const stripRef = useRef<FlatList<PlacePhoto>>(null);
-  const galleryRef = useRef<GalleryRef>(null);
   const [index, setIndex] = useState(initialIndex);
+  const [zoomed, setZoomed] = useState(false);
   const current = photos[index];
   const many = photos.length > 1;
   const dateStr = current
     ? new Date(current.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })
     : "";
 
-  const uris = photos.map((p) => p.url);
-
   function goTo(i: number) {
-    galleryRef.current?.setIndex(i, true);
     setIndex(i);
+    setZoomed(false);
+    listRef.current?.scrollToIndex({ index: i, animated: true });
     stripRef.current?.scrollToIndex({ index: i, animated: true, viewPosition: 0.5 });
   }
 
   return (
     <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       {/* A RN Modal is a separate native root on Android, so gesture-handler
-          needs its own root here for the gallery's pinch/pan to register. */}
+          needs its own root here for pinch/pan to register. */}
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#000" }}>
-        <Gallery
-          ref={galleryRef}
-          data={uris}
-          initialIndex={initialIndex}
-          onIndexChange={(i: number) => {
+        <FlatList
+          ref={listRef}
+          data={photos}
+          keyExtractor={(p) => p.id}
+          horizontal
+          pagingEnabled
+          // Disable paging while an image is zoomed so pan moves the image.
+          scrollEnabled={!zoomed}
+          showsHorizontalScrollIndicator={false}
+          initialScrollIndex={initialIndex}
+          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+          onMomentumScrollEnd={(e) => {
+            const i = Math.round(e.nativeEvent.contentOffset.x / width);
             setIndex(i);
+            setZoomed(false);
             if (many) stripRef.current?.scrollToIndex({ index: i, animated: true, viewPosition: 0.5 });
           }}
-          onSwipeToClose={onClose}
-          doubleTapScale={3}
-          maxScale={6}
-          style={{ flex: 1 }}
+          renderItem={({ item }) => (
+            <ZoomableImage
+              uri={item.url}
+              width={width}
+              height={height}
+              panEnabled={zoomed}
+              onZoomChange={setZoomed}
+            />
+          )}
         />
 
         {/* Close */}
