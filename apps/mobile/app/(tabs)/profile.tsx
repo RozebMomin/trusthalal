@@ -100,11 +100,22 @@ export default function Profile() {
           />
         ) : null}
         {me?.role !== "VERIFIER" ? (
-          <Cell
-            onPress={() => router.push("/become-a-verifier")}
-            left={<><IcBox icon="shield" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Become a verifier</Text></>}
-            right={chev}
-          />
+          __DEV__ ? (
+            // Local dev only — keep it live so the verifier flow can be tested
+            // end-to-end before it's opened to the public.
+            <Cell
+              onPress={() => router.push("/become-a-verifier")}
+              left={<><IcBox icon="shield" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Become a verifier</Text></>}
+              right={chev}
+            />
+          ) : (
+            // Public/beta builds: show as coming soon (no tap-through) until the
+            // flow is validated.
+            <Cell
+              left={<><IcBox icon="shield" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Become a verifier</Text></>}
+              right={<Tag label="SOON" tone="dashed" />}
+            />
+          )
         ) : null}
         <Cell
           onPress={() => Linking.openURL("https://trusthalal.org/ethics")}
