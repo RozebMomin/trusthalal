@@ -6,6 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Sentry from "@sentry/react-native";
 import { router, Stack } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as SplashScreen from "expo-splash-screen";
@@ -17,11 +18,24 @@ import { dark, light } from "@/lib/theme";
 
 SplashScreen.preventAutoHideAsync();
 
+// Crash/error reporting. No-op without a DSN, and disabled in local dev so we
+// don't flood the project while iterating. The DSN is a public value (safe to
+// embed). Source-map upload for readable stack traces needs org/project + a
+// SENTRY_AUTH_TOKEN at EAS build time — configured later.
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    enabled: !__DEV__,
+    tracesSampleRate: 0.2,
+  });
+}
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
 });
 
-export default function RootLayout() {
+function RootLayout() {
   const scheme = useColorScheme();
   const t = scheme === "dark" ? dark : light;
   const [loaded] = useFonts({
@@ -60,3 +74,6 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap enables navigation/perf instrumentation + error boundaries.
+export default Sentry.wrap(RootLayout);
