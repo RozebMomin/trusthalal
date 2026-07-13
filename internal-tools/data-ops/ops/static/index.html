@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trust Halal · data-ops</title>
+<style>
+  :root { --bg:#0b1220; --panel:#131c2e; --line:#243049; --ink:#e6ecf7; --muted:#8ea0be;
+          --emerald:#10b981; --emerald-d:#0e9f74; --amber:#f59e0b; --red:#ef4444; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  header { padding:18px 22px; border-bottom:1px solid var(--line); display:flex;
+           align-items:center; gap:10px; }
+  header h1 { font-size:16px; margin:0; font-weight:650; }
+  header .pill { font-size:11px; color:var(--muted); border:1px solid var(--line);
+                 padding:2px 8px; border-radius:999px; }
+  main { max-width:960px; margin:0 auto; padding:22px; display:grid; gap:22px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .card h2 { margin:0 0 14px; font-size:13px; text-transform:uppercase; letter-spacing:.06em;
+             color:var(--muted); font-weight:650; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+  .row > div { flex:1; min-width:120px; }
+  input, select { width:100%; background:#0c1424; border:1px solid var(--line); color:var(--ink);
+                  border-radius:8px; padding:8px 10px; font-size:13px; }
+  .check { display:flex; align-items:center; gap:8px; }
+  .check input { width:auto; }
+  button { background:var(--emerald); color:#052015; border:0; border-radius:8px; padding:9px 16px;
+           font-weight:650; font-size:13px; cursor:pointer; }
+  button:hover { background:var(--emerald-d); }
+  button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:650; }
+  .s-queued { background:#1e293b; color:var(--muted); }
+  .s-running { background:#0e2a3f; color:#38bdf8; }
+  .s-succeeded { background:#0e2f22; color:var(--emerald); }
+  .s-failed { background:#33161a; color:var(--red); }
+  .prog { height:6px; background:#0c1424; border-radius:999px; overflow:hidden; min-width:80px; }
+  .prog > i { display:block; height:100%; background:var(--emerald); }
+  code { color:#9fb4d6; }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  details summary { cursor:pointer; color:var(--muted); }
+  pre { white-space:pre-wrap; background:#0c1424; border:1px solid var(--line); border-radius:8px;
+        padding:10px; max-height:260px; overflow:auto; font-size:11.5px; }
+  .warn { color:var(--amber); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Trust Halal · data-ops</h1>
+  <span class="pill">desktop only · direct to prod</span>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Backfill field from Google</h2>
+    <div class="row">
+      <div>
+        <label>Field</label>
+        <select id="field">
+          <option value="phone" selected>phone</option>
+          <option value="city">city</option>
+          <option value="region">region</option>
+          <option value="country_code">country_code</option>
+          <option value="postal_code">postal_code</option>
+          <option value="timezone">timezone</option>
+        </select>
+      </div>
+      <div>
+        <label>Limit (blank = all)</label>
+        <input id="limit" type="number" min="1" placeholder="all" />
+      </div>
+      <div>
+        <label>Throttle (s)</label>
+        <input id="throttle" type="number" min="0" step="0.1" value="0.5" />
+      </div>
+      <div class="check" style="flex:0 0 auto; padding-bottom:8px;">
+        <input id="dryrun" type="checkbox" checked />
+        <label for="dryrun" style="margin:0;">Dry run</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button class="ghost" onclick="preview()">Preview count</button>
+      <button onclick="enqueue()">Run job</button>
+      <span id="previewOut" class="hint"></span>
+    </div>
+    <p class="hint">Dry run resolves candidates and logs what it <em>would</em> do without
+      calling Google or writing anything. Uncheck to actually resync + backfill.
+      Only Google-linked places whose field is NULL are touched (never clobbers existing values).</p>
+  </div>
+
+  <div class="card">
+    <h2>Jobs</h2>
+    <table>
+      <thead>
+        <tr><th>kind</th><th>status</th><th>progress</th><th>result</th><th>created</th></tr>
+      </thead>
+      <tbody id="jobs"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function params() {
+  const p = { field: $("field").value, dry_run: $("dryrun").checked };
+  const lim = $("limit").value.trim();
+  if (lim) p.limit = parseInt(lim, 10);
+  const th = $("throttle").value.trim();
+  if (th !== "") p.throttle_seconds = parseFloat(th);
+  return p;
+}
+
+async function preview() {
+  $("previewOut").textContent = "counting…";
+  const p = params();
+  const q = new URLSearchParams({ field: p.field });
+  if (p.limit) q.set("limit", p.limit);
+  try {
+    const r = await fetch("/api/preview?" + q.toString());
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "error");
+    $("previewOut").textContent = `${d.candidates} place(s) missing '${d.field}'.`;
+  } catch (e) { $("previewOut").innerHTML = `<span class="warn">${e.message}</span>`; }
+}
+
+async function enqueue() {
+  const p = params();
+  const label = p.dry_run ? "dry run" : "LIVE backfill";
+  if (!p.dry_run && !confirm(`Run a ${label} on prod for '${p.field}'? This writes to the production DB.`)) return;
+  const r = await fetch("/api/jobs", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind: "backfill_field", params: p }),
+  });
+  const d = await r.json();
+  if (!r.ok) { alert(d.detail || "error"); return; }
+  refresh();
+}
+
+function statusTag(s) { return `<span class="tag s-${s}">${s}</span>`; }
+function esc(x) { return (x ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+async function refresh() {
+  const r = await fetch("/api/jobs?limit=50");
+  const jobs = await r.json();
+  $("jobs").innerHTML = jobs.map(j => {
+    const total = j.total ?? 0, done = j.done ?? 0;
+    const pct = total ? Math.round(100 * done / total) : (j.status === "succeeded" ? 100 : 0);
+    let result = "";
+    if (j.error) result = `<span class="warn">${esc(j.error)}</span>`;
+    else if (j.result) {
+      const rr = j.result;
+      result = `<code>${rr.dry_run ? "dry · " : ""}upd ${rr.updated ?? 0} · unchg ${rr.unchanged ?? 0} · err ${(rr.errors||[]).length}</code>`;
+    }
+    const logs = (j.logs && j.logs.length)
+      ? `<details><summary>${j.logs.length} log line(s)</summary><pre>${esc(j.logs.join("\n"))}</pre></details>` : "";
+    return `<tr>
+      <td class="mono">${esc(j.kind)}<br><span style="color:var(--muted);font-size:11px;">${esc((j.params&&j.params.field)||"")}</span></td>
+      <td>${statusTag(j.status)}</td>
+      <td><div class="prog"><i style="width:${pct}%"></i></div>
+          <span style="color:var(--muted);font-size:11px;">${done}/${total || "?"}</span></td>
+      <td>${result}${logs}</td>
+      <td style="color:var(--muted);white-space:nowrap;">${esc((j.created_at||"").toString().slice(0,19).replace("T"," "))}</td>
+    </tr>`;
+  }).join("");
+}
+
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

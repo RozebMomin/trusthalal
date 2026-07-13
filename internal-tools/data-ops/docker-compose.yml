@@ -1,0 +1,58 @@
+# Trust Halal — internal data-ops tool. Desktop-only; never deployed.
+#   docker compose up -d --build     # bring it up
+#   open http://localhost:8090
+#   docker compose down              # take it down
+#
+# The `jobs-db` Postgres holds the local job queue only. The *data* work
+# (resync/backfill) targets your PRODUCTION database via PROD_DATABASE_URL in
+# .env — the worker reuses the API's own ingestion code against it.
+name: trusthalal-data-ops
+
+services:
+  jobs-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ops
+      POSTGRES_PASSWORD: ops
+      POSTGRES_DB: ops
+    volumes:
+      - jobs-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ops"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ops-api:
+    build:
+      context: ../..
+      dockerfile: internal-tools/data-ops/Dockerfile
+    environment:
+      OPS_JOBS_DATABASE_URL: postgresql+psycopg://ops:ops@jobs-db:5432/ops
+      # The API code reads these from settings — point it at PROD.
+      DATABASE_URL: ${PROD_DATABASE_URL}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+      OPS_THROTTLE_SECONDS: ${OPS_THROTTLE_SECONDS:-0.5}
+    command: uvicorn ops.server:app --host 0.0.0.0 --port 8090
+    ports:
+      - "8090:8090"
+    depends_on:
+      jobs-db:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: internal-tools/data-ops/Dockerfile
+    environment:
+      OPS_JOBS_DATABASE_URL: postgresql+psycopg://ops:ops@jobs-db:5432/ops
+      DATABASE_URL: ${PROD_DATABASE_URL}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+      OPS_THROTTLE_SECONDS: ${OPS_THROTTLE_SECONDS:-0.5}
+    command: python -m ops.worker
+    depends_on:
+      jobs-db:
+        condition: service_healthy
+
+volumes:
+  jobs-data:
