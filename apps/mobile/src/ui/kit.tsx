@@ -14,6 +14,7 @@
 import { Feather } from "@expo/vector-icons";
 import type { ReactNode } from "react";
 import { Pressable, Text, View, type ViewStyle } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { radii, space, type as ty, type Palette } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 
@@ -281,6 +282,7 @@ export function Sheet({
   children: ReactNode;
 }) {
   const t = useTheme();
+  const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
 
@@ -319,7 +321,9 @@ export function Sheet({
             borderTopLeftRadius: 28,
             borderTopRightRadius: 28,
             paddingHorizontal: space.lg,
-            paddingBottom: 34,
+            // Clear the device's bottom safe area (Android on-screen nav /
+            // iOS home indicator) so the sheet's actions aren't hidden.
+            paddingBottom: Math.max(insets.bottom, 10) + 24,
           }}
         >
           <View style={{ alignSelf: "center", width: 36, height: 4, borderRadius: 4, backgroundColor: t.line, marginVertical: 12 }} />

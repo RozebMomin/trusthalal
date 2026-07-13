@@ -73,6 +73,11 @@ export function MapResults({
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  // The floating tab bar was lifted into the bottom safe area (see
+  // (tabs)/_layout). Lift the bottom map cluster (carousel + controls) by the
+  // same amount so the raised nav pill no longer overlaps the cards and clips
+  // their drop shadow.
+  const lift = Math.max(insets.bottom, 8) - 6;
   const mapRef = useRef<MapView>(null);
   const listRef = useRef<FlatList>(null);
   const [selected, setSelected] = useState(0);
@@ -216,7 +221,7 @@ export function MapResults({
         accessibilityLabel="Show all results"
         onPress={fitAll}
         style={{
-          position: "absolute", right: space.lg, bottom: 264,
+          position: "absolute", right: space.lg, bottom: 264 + lift,
           width: 40, height: 40, borderRadius: 999, backgroundColor: t.card,
           alignItems: "center", justifyContent: "center",
           shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 5,
@@ -230,7 +235,7 @@ export function MapResults({
         accessibilityLabel="Recenter on my location"
         onPress={onRecenter}
         style={{
-          position: "absolute", right: space.lg, bottom: 216,
+          position: "absolute", right: space.lg, bottom: 216 + lift,
           width: 40, height: 40, borderRadius: 999, backgroundColor: t.card,
           alignItems: "center", justifyContent: "center",
           shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 5,
@@ -357,7 +362,7 @@ export function MapResults({
           if (i !== selected) focus(Math.max(0, Math.min(i, results.length - 1)), false);
         }}
         contentContainerStyle={{ paddingHorizontal: space.lg, gap: 12 }}
-        style={{ position: "absolute", left: 0, right: 0, bottom: 100 }}
+        style={{ position: "absolute", left: 0, right: 0, bottom: 100 + lift }}
         renderItem={({ item }) => {
           const signal = primaryHalalSignal(item.place.halal_profile);
           const mi = item.distanceMeters !== undefined ? `${(item.distanceMeters / 1609.34).toFixed(1)} mi` : null;
