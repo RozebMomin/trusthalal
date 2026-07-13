@@ -29,6 +29,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.analytics import track
 from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.verifiers.enums import VerifierApplicationStatus
 from app.modules.verifiers.models import VerifierApplication
@@ -127,6 +128,11 @@ def submit_application(
     db.add(application)
     db.commit()
     db.refresh(application)
+    track(
+        "verifier_application_submitted",
+        distinct_id=applicant_user_id,
+        properties={"application_id": str(application.id)},
+    )
     return application
 
 

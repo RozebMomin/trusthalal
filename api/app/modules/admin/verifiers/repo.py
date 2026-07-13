@@ -30,6 +30,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.analytics import track
 from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.users.enums import UserRole
 from app.modules.users.models import User
@@ -149,6 +150,14 @@ def admin_decide_application(
 
     db.commit()
     db.refresh(application)
+    # Attribute the decision to the applicant so it joins their funnel.
+    track(
+        "verifier_application_approved"
+        if decision == VerifierApplicationStatus.APPROVED
+        else "verifier_application_rejected",
+        distinct_id=application.applicant_user_id,
+        properties={"application_id": str(application.id)},
+    )
     return application
 
 

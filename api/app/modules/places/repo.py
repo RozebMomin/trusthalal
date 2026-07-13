@@ -9,6 +9,7 @@ from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Select
 
+from app.core.analytics import track
 from app.modules.halal_profiles.enums import (
     MenuPosture,
     SlaughterMethod,
@@ -234,7 +235,18 @@ def log_place_event(
             message=message,
         )
     )
-    
+    _name = _PLACE_EVENT_TRACK.get(event_type)
+    if _name:
+        track(_name, distinct_id=actor_user_id, properties={"place_id": str(place_id)})
+
+
+# Place lifecycle milestones surfaced to product analytics.
+_PLACE_EVENT_TRACK: dict[PlaceEventType, str] = {
+    PlaceEventType.CREATED: "place_added",
+    PlaceEventType.OWNERSHIP_GRANTED: "place_claimed",
+}
+
+
 
 def _apply_cuisine_filter(
     stmt: Select, cuisines: Sequence[Cuisine]

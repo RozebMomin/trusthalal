@@ -34,6 +34,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.analytics import track
 from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.halal_profiles.enums import (
     HalalProfileEventType,
@@ -259,6 +260,11 @@ def _apply_acceptance(
         event_type=PlaceEventType.VERIFIER_VISIT_ACCEPTED,
         actor_user_id=decided_by_user_id,
         message=description,
+    )
+    track(
+        "verifier_visit_filed",
+        distinct_id=visit.verifier_user_id,
+        properties={"place_id": str(visit.place_id), "visit_id": str(visit.id)},
     )
 
 

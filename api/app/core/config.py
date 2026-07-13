@@ -128,6 +128,13 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
     SUPABASE_STORAGE_BUCKET: str = "evidence"
 
+    # Server-side product analytics (PostHog). The project API key is the
+    # SAME public key the web/mobile clients use — sharing it keeps all
+    # events in one project so a user's server + client activity unify.
+    # Unset ⇒ server-side analytics no-op (local dev / preview).
+    POSTHOG_API_KEY: str | None = None
+    POSTHOG_HOST: str = "https://us.i.posthog.com"
+
     # Public-readable bucket for owner + consumer uploaded place
     # photos. Configured public in the Supabase dashboard so the
     # consumer site can render images via the bucket's public URL

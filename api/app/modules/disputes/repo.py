@@ -55,6 +55,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.analytics import track
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.modules.disputes.enums import DisputeStatus, DisputedAttribute
 from app.modules.disputes.models import ConsumerDispute
@@ -128,6 +129,11 @@ def _flip_profile_to_disputed(
             ),
         )
     )
+    track(
+        "dispute_opened",
+        distinct_id=actor_user_id,
+        properties={"place_id": str(place_id), "attribute": dispute.disputed_attribute},
+    )
     return profile
 
 
@@ -183,6 +189,7 @@ def _maybe_clear_profile_dispute_state(
             description=description,
         )
     )
+    track("dispute_resolved", distinct_id=actor_user_id, properties={"place_id": str(place_id)})
 
 
 # ---------------------------------------------------------------------------

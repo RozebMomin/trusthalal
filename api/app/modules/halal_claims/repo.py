@@ -36,6 +36,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.analytics import track
 from app.core.exceptions import (
     BadRequestError,
     ConflictError,
@@ -95,6 +96,27 @@ def log_halal_claim_event(
             description=description,
         )
     )
+    _track_claim_event(claim_id, event_type, actor_user_id)
+
+
+# Claim lifecycle milestones we surface to product analytics. Internal
+# workflow noise (drafts, attachments, superseded) is intentionally omitted.
+_CLAIM_EVENT_TRACK: dict[HalalClaimEventType, str] = {
+    HalalClaimEventType.SUBMITTED: "claim_submitted",
+    HalalClaimEventType.APPROVED: "claim_approved",
+    HalalClaimEventType.REJECTED: "claim_rejected",
+    HalalClaimEventType.INFO_REQUESTED: "claim_needs_info",
+}
+
+
+def _track_claim_event(
+    claim_id: UUID,
+    event_type: HalalClaimEventType,
+    actor_user_id: Optional[UUID],
+) -> None:
+    name = _CLAIM_EVENT_TRACK.get(event_type)
+    if name:
+        track(name, distinct_id=actor_user_id, properties={"claim_id": str(claim_id)})
 
 
 # ---------------------------------------------------------------------------
