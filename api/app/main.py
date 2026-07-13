@@ -102,9 +102,11 @@ from fastapi import HTTPException  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
 
 from app.core.exceptions import AppError  # noqa: E402
+from app.core.storage import StorageError  # noqa: E402
 from app.core.exception_handlers import (  # noqa: E402
     app_error_handler,
     http_exception_handler,
+    storage_error_handler,
     validation_error_handler,
 )
 
@@ -463,6 +465,7 @@ app.include_router(admin_verifiers_router)
 app.include_router(admin_verification_visits_router)
 
 app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(StorageError, storage_error_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 
