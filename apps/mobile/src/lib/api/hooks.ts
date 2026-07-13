@@ -181,7 +181,7 @@ export function useToggleFavorite() {
     // Optimistic: the heart fills the instant you tap, the list updates
     // immediately, and we roll back if the server disagrees.
     onMutate: async ({ placeId, saved, place }) => {
-      capture("favorite_toggled", { place_id: placeId, action: saved ? "removed" : "added" });
+      capture("favorite_toggled", { place_id: placeId, place_name: place?.name ?? null, action: saved ? "removed" : "added" });
       await qc.cancelQueries({ queryKey: ["me", "favorites"] });
       const previous = qc.getQueryData<FavoriteRead[]>(["me", "favorites"]);
       qc.setQueryData<FavoriteRead[]>(["me", "favorites"], (old = []) =>

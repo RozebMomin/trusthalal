@@ -186,7 +186,7 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
                     {p.certificate_url ? (
                       <Pressable
                         onPress={() => {
-                          capture("certificate_viewed", { place_id: place.id });
+                          capture("certificate_viewed", { place_id: place.id, place_name: place.name });
                           setCertOpen(true);
                         }}
                         style={{ backgroundColor: t.bg, borderRadius: 999, borderWidth: 1, borderColor: t.line, paddingHorizontal: 18, paddingVertical: 10 }}

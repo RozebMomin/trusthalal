@@ -81,7 +81,7 @@ export default function PlaceDetail() {
 
   // Funnel: a place detail was viewed (once per place load).
   useEffect(() => {
-    if (place) capture("place_viewed", { place_id: place.id, tier: place.halal_profile?.validation_tier ?? null });
+    if (place) capture("place_viewed", { place_id: place.id, place_name: place.name, city: place.city ?? null, tier: place.halal_profile?.validation_tier ?? null });
   }, [place?.id]);
 
   return (
@@ -102,7 +102,7 @@ export default function PlaceDetail() {
                 accessibilityLabel={photoCount > 0 ? `View ${photoCount} photos` : place.name}
                 onPress={() => {
                   if (photoCount > 0) {
-                    capture("photo_viewed", { place_id: place.id, source: "hero" });
+                    capture("photo_viewed", { place_id: place.id, place_name: place.name, source: "hero" });
                     setViewerIndex(0);
                   }
                 }}
@@ -166,7 +166,7 @@ export default function PlaceDetail() {
                     variant="accent"
                     icon="navigation"
                     onPress={() => {
-                      capture("directions_tapped", { place_id: place.id, has_distance: distanceMi != null });
+                      capture("directions_tapped", { place_id: place.id, place_name: place.name, has_distance: distanceMi != null });
                       Linking.openURL(
                         `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
                       );
@@ -179,7 +179,7 @@ export default function PlaceDetail() {
                     variant="secondary"
                     icon="phone"
                     onPress={() => {
-                      capture("call_tapped", { place_id: place.id });
+                      capture("call_tapped", { place_id: place.id, place_name: place.name });
                       Linking.openURL(`tel:${place.phone}`);
                     }}
                   />
@@ -202,7 +202,7 @@ export default function PlaceDetail() {
                 <TrustCard
                   profile={place.halal_profile}
                   onDetails={() => {
-                    capture("trust_profile_opened", { place_id: place.id });
+                    capture("trust_profile_opened", { place_id: place.id, place_name: place.name });
                     setTrustOpen(true);
                   }}
                 />
