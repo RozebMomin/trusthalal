@@ -306,6 +306,8 @@ export default function Explore() {
           onRecenter={locate}
           onList={() => toggleView("list")}
           onLocation={() => setLocOpen(true)}
+          onFilters={() => setFiltersOpen(true)}
+          filterCount={countFilters(filters)}
           radiusMi={coords ? radiusMi : undefined}
           onRadius={coords ? setRadiusMi : undefined}
           onClearFilters={

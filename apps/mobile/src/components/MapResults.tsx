@@ -34,6 +34,8 @@ export function MapResults({
   onRecenter,
   onList,
   onLocation,
+  onFilters,
+  filterCount,
   radiusMi,
   onRadius,
   onClearFilters,
@@ -52,6 +54,9 @@ export function MapResults({
   onRecenter: () => void;
   onList: () => void;
   onLocation: () => void;
+  /** Open the filters sheet, and how many filters are active (badge). */
+  onFilters: () => void;
+  filterCount?: number;
   /** Active radius in miles; undefined for text-only searches (no
    *  radius pill, no circle). */
   radiusMi?: number;
@@ -168,11 +173,27 @@ export function MapResults({
         >
           <Feather name="search" size={16} color={t.sub} />
           <Pressable onPress={onLocation} accessibilityLabel="Change location" style={{ flex: 1, paddingVertical: countLabel ? 7 : 13 }}>
-            <Text numberOfLines={1} style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold" }]}>
-              {cityLabel}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Text numberOfLines={1} style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold", flexShrink: 1 }]}>
+                {cityLabel}
+              </Text>
+              <Feather name="chevron-down" size={15} color={t.accent} />
+            </View>
             {countLabel ? (
               <Text numberOfLines={1} style={[ty.small, { color: t.sub, marginTop: 1 }]}>{countLabel}</Text>
+            ) : null}
+          </Pressable>
+          {/* Filters — mirrors the list view's filter pill, with active count. */}
+          <Pressable
+            onPress={onFilters}
+            accessibilityLabel="Open filters"
+            style={{ width: 34, height: 34, borderRadius: 999, borderWidth: 1, borderColor: t.line, backgroundColor: t.bg, alignItems: "center", justifyContent: "center" }}
+          >
+            <Feather name="sliders" size={15} color={t.ink} />
+            {filterCount ? (
+              <View style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 }}>
+                <Text style={{ color: t.onAccent, fontFamily: "Inter_700Bold", fontSize: 9 }}>{filterCount}</Text>
+              </View>
             ) : null}
           </Pressable>
           <Pressable
