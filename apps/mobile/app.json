@@ -47,7 +47,13 @@
       ],
       "expo-font",
       "expo-asset",
-      "@sentry/react-native"
+      [
+        "@sentry/react-native",
+        {
+          "organization": "trust-halal-llc",
+          "project": "trusthalal-api"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
