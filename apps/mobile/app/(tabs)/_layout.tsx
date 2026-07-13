@@ -3,6 +3,7 @@ import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { Platform, StyleSheet, useColorScheme } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/theme/useTheme";
 
 /**
@@ -43,6 +44,13 @@ function GlassNativeTabs() {
 function FrostedPillTabs() {
   const t = useTheme();
   const dark = useColorScheme() === "dark";
+  const insets = useSafeAreaInsets();
+  // Lift the floating pill above the device's bottom safe area. On Android
+  // with on-screen nav buttons insets.bottom is ~48; with gesture nav it's
+  // small — either way, sit a fixed gap above it instead of a hardcoded
+  // margin that the system nav overlaps. iOS keeps its tuned home-indicator gap.
+  const barMarginBottom =
+    Platform.OS === "ios" ? 28 : Math.max(insets.bottom, 8) + 10;
   return (
     <Tabs
       screenOptions={{
@@ -56,7 +64,7 @@ function FrostedPillTabs() {
           // container ignores edge offsets, which stretched the pill
           // full-width. Margins inset it reliably on both platforms.
           marginHorizontal: 18,
-          marginBottom: Platform.OS === "ios" ? 28 : 16,
+          marginBottom: barMarginBottom,
           height: 62,
           borderRadius: 999,
           overflow: "hidden",
