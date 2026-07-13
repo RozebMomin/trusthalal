@@ -10,6 +10,8 @@ import { CertViewer } from "@/components/CertViewer";
 import { TierTag } from "@/components/TierTag";
 import type { HalalHistoryEvent, PlaceDetail } from "@/lib/api/types";
 
+const TEST_FORCE_PORK = false;
+
 const POSTURE_LABELS: Record<string, string> = {
   FULLY_HALAL: "Fully halal",
   MIXED_SEPARATE_KITCHENS: "Separate kitchen",
@@ -100,6 +102,10 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
     ["Goat", methodLabel(p?.goat_slaughter)],
   ].filter(([, m]) => m) as Array<[string, string]>;
 
+  // Pork is only surfaced when actually served (a red alert), not as a
+  // "not served" row on the majority of places.
+  const servesPork = TEST_FORCE_PORK || !!p?.has_pork;
+
   return (
     <Modal visible transparent animationType="none" onRequestClose={handleClose} statusBarTranslucent>
       <Animated.View
@@ -143,12 +149,19 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
 
           {p ? (
             <>
-              {meats.length > 0 ? (
+              {meats.length > 0 || servesPork ? (
                 <Section title="Sourcing · per meat">
-                  {meats.map(([meat, m]) => (
-                    <SheetRow key={meat} label={meat} right={<Pill label={m.toUpperCase()} />} />
+                  {meats.map(([meat, m], i) => (
+                    <SheetRow
+                      key={meat}
+                      label={meat}
+                      last={!servesPork && i === meats.length - 1}
+                      right={<Pill label={m.toUpperCase()} />}
+                    />
                   ))}
-                  <SheetRow label="Pork" last right={<Pill label={p.has_pork ? "ON THE MENU" : "NOT SERVED"} tone={p.has_pork ? "danger" : "zinc"} />} />
+                  {servesPork ? (
+                    <SheetRow label="Pork" last right={<Pill label="ON THE MENU" tone="danger" />} />
+                  ) : null}
                 </Section>
               ) : null}
 

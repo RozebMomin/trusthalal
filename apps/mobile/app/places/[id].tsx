@@ -16,6 +16,8 @@ import { TierTag } from "@/components/TierTag";
 import { ErrorState, Loading } from "@/components/States";
 import type { HalalProfileEmbed } from "@/lib/api/types";
 
+const TEST_FORCE_PORK = false;
+
 function titleCaseCuisine(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase().replaceAll("_", " ");
 }
@@ -365,19 +367,23 @@ function TrustCard({ profile, onDetails }: { profile: HalalProfileEmbed | null; 
         {profile.menu_posture === "FULLY_HALAL" ? <Wash label="Fully halal menu" /> : null}
         {zabihah.some(([, m]) => m === "ZABIHAH") ? <Wash label={zabihahLabel} /> : null}
         {profile.alcohol_policy === "NONE" ? <Wash label="No alcohol" /> : null}
-        {!profile.has_pork ? <Wash label="Pork-free" /> : null}
+        {/* Pork is only surfaced when it's actually served — a red alert, not a
+            "pork-free" reassurance on every (majority) place. */}
+        {(TEST_FORCE_PORK || profile.has_pork) ? <Wash label="Serves pork" danger /> : null}
         {profile.has_certification ? <Wash label={certLabel} neutral /> : null}
       </View>
     </View>
   );
 }
 
-function Wash({ label, neutral }: { label: string; neutral?: boolean }) {
+function Wash({ label, neutral, danger }: { label: string; neutral?: boolean; danger?: boolean }) {
   const t = useTheme();
+  const bg = danger ? t.dangerSoft : neutral ? t.zincSoft : t.accentSoft;
+  const fg = danger ? t.danger : neutral ? t.zinc : t.accentDeep;
   return (
     <View
       style={{
-        backgroundColor: neutral ? t.zincSoft : t.accentSoft,
+        backgroundColor: bg,
         borderRadius: 999,
         paddingHorizontal: 11,
         paddingVertical: 5,
@@ -385,7 +391,7 @@ function Wash({ label, neutral }: { label: string; neutral?: boolean }) {
     >
       <Text
         style={{
-          color: neutral ? t.zinc : t.accentDeep,
+          color: fg,
           fontFamily: "Inter_700Bold",
           fontSize: 11.5,
         }}
