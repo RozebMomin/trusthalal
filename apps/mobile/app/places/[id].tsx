@@ -15,6 +15,7 @@ import { TrustProfileSheet } from "@/components/TrustProfileSheet";
 import { TierTag } from "@/components/TierTag";
 import { ErrorState, Loading } from "@/components/States";
 import type { HalalProfileEmbed } from "@/lib/api/types";
+import { capture } from "@/lib/analytics";
 
 const TEST_FORCE_PORK = false;
 
@@ -78,6 +79,11 @@ export default function PlaceDetail() {
   const distLabel =
     distanceMi != null ? ` · ${distanceMi < 10 ? distanceMi.toFixed(1) : Math.round(distanceMi)} mi` : "";
 
+  // Funnel: a place detail was viewed (once per place load).
+  useEffect(() => {
+    if (place) capture("place_viewed", { place_id: place.id, tier: place.halal_profile?.validation_tier ?? null });
+  }, [place?.id]);
+
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
@@ -94,7 +100,12 @@ export default function PlaceDetail() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={photoCount > 0 ? `View ${photoCount} photos` : place.name}
-                onPress={() => photoCount > 0 && setViewerIndex(0)}
+                onPress={() => {
+                  if (photoCount > 0) {
+                    capture("photo_viewed", { place_id: place.id, source: "hero" });
+                    setViewerIndex(0);
+                  }
+                }}
               >
                 <Image
                   source={{ uri: place.hero_photo_url }}
@@ -154,11 +165,12 @@ export default function PlaceDetail() {
                     title={`Directions${distLabel}`}
                     variant="accent"
                     icon="navigation"
-                    onPress={() =>
+                    onPress={() => {
+                      capture("directions_tapped", { place_id: place.id, has_distance: distanceMi != null });
                       Linking.openURL(
                         `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
-                      )
-                    }
+                      );
+                    }}
                   />
                 </View>
                 {place.phone ? (
@@ -166,7 +178,10 @@ export default function PlaceDetail() {
                     title="Call"
                     variant="secondary"
                     icon="phone"
-                    onPress={() => Linking.openURL(`tel:${place.phone}`)}
+                    onPress={() => {
+                      capture("call_tapped", { place_id: place.id });
+                      Linking.openURL(`tel:${place.phone}`);
+                    }}
                   />
                 ) : null}
               </View>
@@ -184,7 +199,13 @@ export default function PlaceDetail() {
                 </View>
               ) : null}
               <View style={{ opacity: place.halal_profile?.dispute_state === "DISPUTED" ? 0.75 : 1 }}>
-                <TrustCard profile={place.halal_profile} onDetails={() => setTrustOpen(true)} />
+                <TrustCard
+                  profile={place.halal_profile}
+                  onDetails={() => {
+                    capture("trust_profile_opened", { place_id: place.id });
+                    setTrustOpen(true);
+                  }}
+                />
               </View>
 
               <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>

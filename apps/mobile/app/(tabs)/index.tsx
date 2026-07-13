@@ -18,6 +18,7 @@ import { useTheme } from "@/lib/theme/useTheme";
 import { PlaceCard } from "@/components/PlaceCard";
 import { countFilters, FiltersSheet, type Filters } from "@/components/FiltersSheet";
 import { LocationSheet, type PickedLocation } from "@/components/LocationSheet";
+import { capture } from "@/lib/analytics";
 import { MapResults } from "@/components/MapResults";
 import { EmptyState, ErrorState, Loading } from "@/components/States";
 
@@ -72,6 +73,7 @@ export default function Explore() {
   // fade back in. Dependency-free and Fabric-safe (vs LayoutAnimation).
   const fade = useRef(new Animated.Value(1)).current;
   function toggleView(next: "list" | "map") {
+    capture("map_list_toggled", { to: next });
     Animated.timing(fade, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => {
       setView(next);
       Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
@@ -85,6 +87,13 @@ export default function Explore() {
     : {};
   const search = useSearchPlaces({ q: q || undefined, ...geo, ...filters, cuisines: cuisines.length ? cuisines : undefined });
   const city = useReverseGeocode(coords?.lat, coords?.lng);
+
+  // Fire on the debounced text query so we capture intentional searches
+  // (not the geo auto-search on load).
+  useEffect(() => {
+    if (q) capture("search_performed", { query_len: q.length, filter_count: countFilters(filters), cuisine_count: cuisines.length });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
   async function locate() {
     setLocError(null);
@@ -373,13 +382,17 @@ export default function Explore() {
         onClose={() => setLocOpen(false)}
         onUseMyLocation={locate}
         onPick={(loc: PickedLocation) => {
+          capture("location_changed", { label: loc.label, source: "picker" });
           setManualLabel(loc.label);
           setCoords({ lat: loc.lat, lng: loc.lng });
         }}
       />
       <FiltersSheet
         visible={filtersOpen}
-        onClose={() => setFiltersOpen(false)}
+        onClose={() => {
+          if (countFilters(filters) > 0) capture("filters_applied", { count: countFilters(filters), ...filters });
+          setFiltersOpen(false);
+        }}
         filters={filters}
         onChange={setFilters}
         resultCount={hasActiveSearch ? results.length : undefined}

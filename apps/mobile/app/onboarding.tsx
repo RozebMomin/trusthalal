@@ -9,10 +9,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
+import { capture } from "@/lib/analytics";
 
 export const ONBOARDED_KEY = "onboarded_v1";
 
 async function finish() {
+  capture("onboarding_completed");
   await SecureStore.setItemAsync(ONBOARDED_KEY, "1");
   router.replace("/(tabs)");
 }

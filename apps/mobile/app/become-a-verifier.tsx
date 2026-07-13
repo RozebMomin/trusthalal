@@ -8,6 +8,7 @@ import { useCurrentUser, useMyVerifierApplications, useSubmitVerifierApplication
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
+import { capture } from "@/lib/analytics";
 import { Card, Seg, Tag } from "@/ui/kit";
 
 /** Mockup 27, wired: pitch → short application → status tracking.
@@ -42,6 +43,7 @@ export default function BecomeAVerifier() {
         background: background.trim() || undefined,
         social_links: instagram.trim() ? { instagram: instagram.trim() } : undefined,
       });
+      capture("verifier_application_submitted");
       setFormOpen(false);
     } catch (e) {
       setError(
@@ -144,7 +146,7 @@ export default function BecomeAVerifier() {
               </View>
             ) : !formOpen ? (
               <View style={{ marginTop: 16 }}>
-                <Button title="Apply — takes 5 minutes" variant="accent" onPress={() => setFormOpen(true)} />
+                <Button title="Apply — takes 5 minutes" variant="accent" onPress={() => { capture("verifier_application_started"); setFormOpen(true); }} />
               </View>
             ) : (
               <View style={{ marginTop: 14, gap: space.sm }}>

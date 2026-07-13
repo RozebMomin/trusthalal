@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHalalHistory } from "@/lib/api/hooks";
+import { capture } from "@/lib/analytics";
 import { primaryHalalSignal } from "@/lib/halal-display";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -184,7 +185,10 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
                     </View>
                     {p.certificate_url ? (
                       <Pressable
-                        onPress={() => setCertOpen(true)}
+                        onPress={() => {
+                          capture("certificate_viewed", { place_id: place.id });
+                          setCertOpen(true);
+                        }}
                         style={{ backgroundColor: t.bg, borderRadius: 999, borderWidth: 1, borderColor: t.line, paddingHorizontal: 18, paddingVertical: 10 }}
                       >
                         <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 13 }}>View cert</Text>

@@ -5,6 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
+import { capture, identify, resetAnalytics } from "@/lib/analytics";
 import { tokenStore } from "@/lib/auth/token-store";
 import type {
   FavoriteRead,
@@ -44,7 +45,11 @@ export function useLogin() {
         method: "POST",
         body: JSON.stringify(input),
       }).then(storeAuth),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: (data) => {
+      identify(data.user.id, { role: data.user.role });
+      capture("logged_in", { method: "password" });
+      void qc.invalidateQueries();
+    },
   });
 }
 
@@ -56,7 +61,11 @@ export function useSignup() {
         method: "POST",
         body: JSON.stringify(input),
       }).then(storeAuth),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: (data) => {
+      identify(data.user.id, { role: data.user.role });
+      capture("signed_up");
+      void qc.invalidateQueries();
+    },
   });
 }
 
@@ -73,7 +82,11 @@ export function useLogout() {
       }
       await tokenStore.clear();
     },
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      capture("logged_out");
+      resetAnalytics();
+      void qc.invalidateQueries();
+    },
   });
 }
 
@@ -168,6 +181,7 @@ export function useToggleFavorite() {
     // Optimistic: the heart fills the instant you tap, the list updates
     // immediately, and we roll back if the server disagrees.
     onMutate: async ({ placeId, saved, place }) => {
+      capture("favorite_toggled", { place_id: placeId, action: saved ? "removed" : "added" });
       await qc.cancelQueries({ queryKey: ["me", "favorites"] });
       const previous = qc.getQueryData<FavoriteRead[]>(["me", "favorites"]);
       qc.setQueryData<FavoriteRead[]>(["me", "favorites"], (old = []) =>
