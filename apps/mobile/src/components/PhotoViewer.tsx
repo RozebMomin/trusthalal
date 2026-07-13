@@ -1,16 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { useRef, useState } from "react";
-import {
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { FlatList, Image, Modal, Pressable, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Gallery, { type GalleryRef } from "react-native-awesome-gallery";
 import type { PlacePhoto } from "@/lib/api/types";
 
 /** Human label per upload source — mirrors the mockup's "verifier visit" credit. */
@@ -24,9 +17,12 @@ const THUMB = 48;
 const THUMB_GAP = 8;
 
 /**
- * Full-screen, swipeable photo viewer with pinch-to-zoom (iOS-native via a
- * zoomable ScrollView per page) and a thumbnail filmstrip. Rendered as a
- * Modal over the place detail screen; reads real `place.photos`.
+ * Full-screen photo viewer. The image area is `react-native-awesome-gallery`
+ * (gesture-handler + reanimated), so pinch-to-zoom, double-tap zoom, pan, and
+ * swipe-between work on BOTH iOS and Android — the old iOS-only ScrollView
+ * `maximumZoomScale` never zoomed on Android. Our chrome (counter, close,
+ * credit row, thumbnail strip) is layered on top as overlays. Swipe down
+ * dismisses. Rendered as a Modal over the place detail screen.
  */
 export function PhotoViewer({
   photos,
@@ -37,10 +33,9 @@ export function PhotoViewer({
   initialIndex: number;
   onClose: () => void;
 }) {
-  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const listRef = useRef<FlatList<PlacePhoto>>(null);
   const stripRef = useRef<FlatList<PlacePhoto>>(null);
+  const galleryRef = useRef<GalleryRef>(null);
   const [index, setIndex] = useState(initialIndex);
   const current = photos[index];
   const many = photos.length > 1;
@@ -48,44 +43,31 @@ export function PhotoViewer({
     ? new Date(current.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })
     : "";
 
+  const uris = photos.map((p) => p.url);
+
   function goTo(i: number) {
+    galleryRef.current?.setIndex(i, true);
     setIndex(i);
-    listRef.current?.scrollToIndex({ index: i, animated: true });
     stripRef.current?.scrollToIndex({ index: i, animated: true, viewPosition: 0.5 });
   }
 
   return (
     <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: "#000" }}>
-        <FlatList
-          ref={listRef}
-          data={photos}
-          keyExtractor={(p) => p.id}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          initialScrollIndex={initialIndex}
-          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-          onMomentumScrollEnd={(e) => {
-            const i = Math.round(e.nativeEvent.contentOffset.x / width);
+      {/* A RN Modal is a separate native root on Android, so gesture-handler
+          needs its own root here for the gallery's pinch/pan to register. */}
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#000" }}>
+        <Gallery
+          ref={galleryRef}
+          data={uris}
+          initialIndex={initialIndex}
+          onIndexChange={(i: number) => {
             setIndex(i);
             if (many) stripRef.current?.scrollToIndex({ index: i, animated: true, viewPosition: 0.5 });
           }}
-          renderItem={({ item }) => (
-            // Zoomable page — iOS ScrollView gives native pinch-zoom; at min
-            // zoom, horizontal swipes fall through to the pager above.
-            <ScrollView
-              style={{ width, height }}
-              contentContainerStyle={{ width, height }}
-              maximumZoomScale={3}
-              minimumZoomScale={1}
-              centerContent
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-            >
-              <Image source={{ uri: item.url }} style={{ width, height }} resizeMode="contain" />
-            </ScrollView>
-          )}
+          onSwipeToClose={onClose}
+          doubleTapScale={3}
+          maxScale={6}
+          style={{ flex: 1 }}
         />
 
         {/* Close */}
@@ -164,7 +146,7 @@ export function PhotoViewer({
             />
           ) : null}
         </View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
