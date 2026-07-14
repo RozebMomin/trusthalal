@@ -192,20 +192,6 @@ export default function PlaceDetail() {
                     }}
                   />
                 ) : null}
-                {place.website_url ? (
-                  <Button
-                    title="Website"
-                    variant="secondary"
-                    icon="globe"
-                    onPress={() => {
-                      capture("website_tapped", { place_id: place.id, place_name: place.name });
-                      const url = place.website_url!.startsWith("http")
-                        ? place.website_url!
-                        : `https://${place.website_url}`;
-                      Linking.openURL(url);
-                    }}
-                  />
-                ) : null}
               </View>
 
               {place.halal_profile?.dispute_state === "DISPUTED" ||
