@@ -83,6 +83,19 @@ class Settings(BaseSettings):
     # so it should not sit valid for long.
     PASSWORD_RESET_TTL_MINUTES: int = 60
 
+    # ------------------------------------------------------------------
+    # Notifications
+    # ------------------------------------------------------------------
+    # Public base URL of THIS API — used to build one-click unsubscribe
+    # links in outbound emails (they hit an API endpoint, not a frontend).
+    # Override in prod (e.g. https://api.trusthalal.org).
+    API_PUBLIC_BASE_URL: str = "http://localhost:8000"
+
+    # HMAC secret for signing stateless unsubscribe tokens. Low-stakes
+    # (worst case: someone unsubscribes someone else from optional emails),
+    # but still override with a real random value in prod.
+    NOTIFICATION_UNSUBSCRIBE_SECRET: str = "dev-insecure-change-me"
+
     # How long an invite token is valid. 7 days is the common default
     # for admin-onboarding links — long enough that a new hire can
     # complete setup on their own schedule, short enough that an

@@ -26,12 +26,14 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, require_roles
+from app.core.config import settings
 from app.core.exceptions import BadRequestError, NotFoundError
+from app.core.notifications import NotificationCategory, notify
 from app.core.storage import (
     StorageClient,
     StorageError,
@@ -62,13 +64,63 @@ from app.modules.halal_claims.schemas import (
     HalalClaimAttachmentRead,
     HalalClaimEventRead,
 )
+from app.modules.places.models import Place
 from app.modules.users.enums import UserRole
+from app.modules.users.models import User
 
 
 router = APIRouter(
     prefix="/admin/halal-claims",
     tags=["admin: halal-claims"],
 )
+
+
+_TIER_LABELS = {
+    "SELF_ATTESTED": "Self-attested",
+    "CERTIFICATE_ON_FILE": "Certificate on file",
+    "TRUST_HALAL_VERIFIED": "Trust Halal Verified",
+}
+
+
+def _notify_claim_approved(
+    background: BackgroundTasks, db: Session, *, claim, tier_value: str
+) -> None:
+    """Email the owner who submitted the claim that it's approved + live.
+
+    Best-effort and transactional (CLAIM_DECISION) — the owner needs to know
+    an action on their own place succeeded. Silently skips if the submitter
+    was deleted or has no email.
+    """
+    if claim.submitted_by_user_id is None:
+        return
+    owner = db.execute(
+        select(User).where(User.id == claim.submitted_by_user_id)
+    ).scalar_one_or_none()
+    if owner is None or not owner.email:
+        return
+    place = db.execute(
+        select(Place).where(Place.id == claim.place_id)
+    ).scalar_one_or_none()
+    place_name = place.name if place else "Your place"
+    portal_url = (
+        f"{settings.OWNER_PORTAL_ORIGIN.rstrip('/')}/my-halal-claims/{claim.id}"
+    )
+    notify(
+        background,
+        db=db,
+        user_id=owner.id,
+        email=owner.email,
+        display_name=owner.display_name,
+        category=NotificationCategory.CLAIM_DECISION,
+        subject=f"{place_name} is approved on Trust Halal",
+        template="claim_approved",
+        context={
+            "preheader": f"{place_name} is now live on Trust Halal.",
+            "place_name": place_name,
+            "tier_label": _TIER_LABELS.get(tier_value, "verified"),
+            "portal_url": portal_url,
+        },
+    )
 
 
 # Match the existing admin-attachment signed-URL TTL across modules
@@ -157,6 +209,7 @@ def get_claim_admin(
 def approve_claim_admin(
     claim_id: UUID,
     payload: HalalClaimApprove,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
     evidence_storage: StorageClient | None = Depends(
@@ -192,6 +245,9 @@ def approve_claim_admin(
         payload=payload,
         evidence_storage=evidence_storage,
         certs_storage=certs_storage,
+    )
+    _notify_claim_approved(
+        background, db, claim=claim, tier_value=str(payload.validation_tier)
     )
     return HalalClaimAdminRead.model_validate(claim)
 

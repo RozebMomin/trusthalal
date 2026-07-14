@@ -39,6 +39,9 @@ from app.modules.consumer_preferences.models import (  # noqa: F401
 from app.modules.favorites.models import (  # noqa: F401
     ConsumerFavorite,
 )
+from app.modules.notifications.models import (  # noqa: F401
+    NotificationUnsubscribe,
+)
 from app.modules.verifiers.models import (  # noqa: F401
     VerificationVisit,
     VerificationVisitAttachment,

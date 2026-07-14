@@ -1,0 +1,14 @@
+{% extends "_base.txt.jinja" %}
+
+{% block content %}
+{% if display_name %}Good news, {{ display_name }}.{% else %}Your halal claim was approved.{% endif %}
+
+{{ place_name }} is now live on Trust Halal as {{ tier_label }}. Diners
+searching for halal food can see its trust profile.
+
+View your listing:
+  {{ portal_url }}
+
+Keep your profile current — hours, photos, and certificates — so diners
+always see the latest.
+{% endblock %}
