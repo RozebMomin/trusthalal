@@ -8,10 +8,11 @@ ingestion code so behavior is identical to a real resync.
 from __future__ import annotations
 
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 from uuid import UUID, uuid4
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, or_, select
 
 # Registers EVERY model on Base.metadata in one place. Without this, only the
 # Place models get imported and SQLAlchemy can't resolve cross-model foreign
@@ -264,22 +265,37 @@ def run_import_google_hero(job_id: str, params: dict[str, Any]) -> dict:
     }
 
 
-def _all_google_linked(db, limit: int | None) -> list[UUID]:
+def _all_google_linked(
+    db, limit: int | None, stale_days: int | None = None
+) -> list[UUID]:
     stmt = (
         select(Place.id)
         .join(PlaceExternalId, PlaceExternalId.place_id == Place.id)
         .where(PlaceExternalId.provider == ExternalIdProvider.GOOGLE)
         .order_by(Place.id)
     )
+    # Only refresh rows that are stale: never synced, or last synced more than
+    # `stale_days` ago. Lets a monthly cadence skip fresh rows and spread the
+    # (Enterprise-tier) Google call cost — and naturally resume mid-batch.
+    if stale_days is not None:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=stale_days)
+        stmt = stmt.where(
+            or_(
+                Place.google_synced_at.is_(None),
+                Place.google_synced_at < cutoff,
+            )
+        )
     if limit:
         stmt = stmt.limit(limit)
     return [row[0] for row in db.execute(stmt).all()]
 
 
-def count_google_linked(limit: int | None = None) -> int:
+def count_google_linked(
+    limit: int | None = None, stale_days: int | None = None
+) -> int:
     db = SessionLocal()
     try:
-        return len(_all_google_linked(db, limit))
+        return len(_all_google_linked(db, limit, stale_days))
     finally:
         db.close()
 
@@ -288,27 +304,32 @@ def run_sync_google_data(job_id: str, params: dict[str, Any]) -> dict:
     """Refresh volatile Google data (rating, hours, website) for every
     Google-linked place — the weekly/biweekly sync.
 
-    params: { limit?: int, dry_run?: bool = true, throttle_seconds?: float }
+    params: { limit?: int, dry_run?: bool = true, throttle_seconds?: float,
+              stale_days?: int }
 
     Reuses resync_google_place, which now overwrites rating/hours and stamps
-    google_synced_at on each call (website stays additive). Every Google-linked
-    place is refreshed, not just ones with null fields.
+    google_synced_at on each call (website stays additive). When ``stale_days``
+    is set, only places never synced or last synced more than that many days
+    ago are touched — the lever for a cheap monthly cadence.
     """
     limit = params.get("limit")
     dry_run = bool(params.get("dry_run", True))
     throttle = float(params.get("throttle_seconds", THROTTLE_SECONDS))
+    stale_days = params.get("stale_days")
+    stale_days = int(stale_days) if stale_days not in (None, "") else None
 
     synced = 0
     errors: list[dict] = []
 
     db = SessionLocal()
     try:
-        ids = _all_google_linked(db, limit)
+        ids = _all_google_linked(db, limit, stale_days)
         jobsdb.set_total(job_id, len(ids))
+        stale_note = f", stale>{stale_days}d" if stale_days is not None else ""
         jobsdb.add_log(
             job_id,
             f"{'DRY RUN — ' if dry_run else ''}{len(ids)} Google-linked place(s) "
-            f"(throttle {throttle}s).",
+            f"(throttle {throttle}s{stale_note}).",
         )
         for pid in ids:
             try:

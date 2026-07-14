@@ -58,9 +58,9 @@ def hero_preview(limit: int | None = None) -> dict:
 
 
 @app.get("/api/google-sync-preview")
-def google_sync_preview(limit: int | None = None) -> dict:
+def google_sync_preview(limit: int | None = None, stale_days: int | None = None) -> dict:
     """Count of Google-linked places the volatile-data sync would refresh."""
-    return {"candidates": count_google_linked(limit)}
+    return {"candidates": count_google_linked(limit, stale_days)}
 
 
 @app.post("/api/jobs")

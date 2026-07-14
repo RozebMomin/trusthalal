@@ -135,6 +135,10 @@
         <label>Throttle (s)</label>
         <input id="s_throttle" type="number" min="0" step="0.1" value="0.5" />
       </div>
+      <div>
+        <label>Only if older than (days)</label>
+        <input id="s_stale" type="number" min="1" placeholder="all" />
+      </div>
       <div class="check" style="flex:0 0 auto; padding-bottom:8px;">
         <input id="s_dryrun" type="checkbox" checked />
         <label for="s_dryrun" style="margin:0;">Dry run</label>
@@ -146,9 +150,10 @@
       <span id="syncPreviewOut" class="hint"></span>
     </div>
     <p class="hint">Refreshes volatile Google fields (rating, review count, opening hours,
-      and <code>google_synced_at</code>) for every Google-linked place; website fills only if empty.
-      Meant to run weekly/biweekly. Note: these fields are Google's pricier SKU tiers, so a full run
-      has real API cost — throttle and mind the cadence.</p>
+      and <code>google_synced_at</code>) for Google-linked places; website fills only if empty.
+      Set <em>Only if older than</em> to skip rows synced recently — e.g. <code>30</code> for a
+      monthly cadence. These fields are Google's Enterprise SKU (1,000 free calls/month), so each
+      place refreshed = one Enterprise call; throttle and mind the cadence.</p>
   </div>
 
   <div class="card">
@@ -245,6 +250,8 @@ function syncParams() {
   if (lim) p.limit = parseInt(lim, 10);
   const th = $("s_throttle").value.trim();
   if (th !== "") p.throttle_seconds = parseFloat(th);
+  const st = $("s_stale").value.trim();
+  if (st) p.stale_days = parseInt(st, 10);
   return p;
 }
 
@@ -253,6 +260,7 @@ async function syncPreview() {
   const p = syncParams();
   const q = new URLSearchParams();
   if (p.limit) q.set("limit", p.limit);
+  if (p.stale_days) q.set("stale_days", p.stale_days);
   try {
     const r = await fetch("/api/google-sync-preview?" + q.toString());
     const d = await r.json();
