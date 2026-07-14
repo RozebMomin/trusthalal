@@ -17,6 +17,7 @@ const items: NavItem[] = [
   { href: "/", label: "Dashboard" },
   { href: "/places", label: "Places" },
   { href: "/halal-claims", label: "Halal claims" },
+  { href: "/verifier-applications", label: "Verifier applications" },
   { href: "/disputes", label: "Disputes" },
   { href: "/ownership-requests", label: "Ownership requests" },
   { href: "/users", label: "Users" },

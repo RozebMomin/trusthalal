@@ -1528,6 +1528,91 @@ export function useRequestOwnerReconciliation() {
 }
 
 // ---------------------------------------------------------------------------
+// Verifier applications (admin)
+// ---------------------------------------------------------------------------
+// Read + decision shapes come straight from the generated OpenAPI
+// schema, so contract drift with the FastAPI backend is caught at
+// compile time.
+
+export type VerifierApplicationRead =
+  components["schemas"]["VerifierApplicationRead"];
+export type VerifierApplicationDecision =
+  components["schemas"]["VerifierApplicationDecision"];
+export type VerifierApplicationStatus =
+  components["schemas"]["VerifierApplicationStatus"];
+
+// ---- Query keys ----------------------------------------------------------
+
+export const verifierApplicationsQk = {
+  list: (params: { status?: string }) =>
+    ["verifier-applications", "list", params] as const,
+  detail: (id: string) => ["verifier-applications", "detail", id] as const,
+};
+
+function invalidateVerifierApplications(
+  qc: ReturnType<typeof useQueryClient>,
+) {
+  return qc.invalidateQueries({ queryKey: ["verifier-applications"] });
+}
+
+// ---- Read hooks ----------------------------------------------------------
+
+/**
+ * Admin verifier-application review queue. ``status`` defaults to
+ * PENDING on the page-level filter (the work queue), but the hook stays
+ * generic so callers can ask for the full history when auditing.
+ */
+export function useVerifierApplications(
+  params: { status?: VerifierApplicationStatus | string } = {},
+) {
+  return useQuery<VerifierApplicationRead[]>({
+    queryKey: verifierApplicationsQk.list({ status: params.status }),
+    queryFn: () =>
+      apiFetch<VerifierApplicationRead[]>("/admin/verifier-applications", {
+        searchParams: {
+          status: params.status,
+        },
+      }),
+  });
+}
+
+export function useVerifierApplication(id: string | null | undefined) {
+  return useQuery<VerifierApplicationRead>({
+    queryKey: verifierApplicationsQk.detail(id ?? "__nil__"),
+    queryFn: () =>
+      apiFetch<VerifierApplicationRead>(
+        `/admin/verifier-applications/${id}`,
+      ),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+// ---- Mutations -----------------------------------------------------------
+
+/**
+ * POST /admin/verifier-applications/{id}/decide — APPROVED or REJECTED.
+ * Rejection requires a ``decision_note`` (server enforces). Invalidates
+ * both the list and this detail query so the UI reflects the new status
+ * without an extra round-trip.
+ */
+export function useDecideVerifierApplication() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: VerifierApplicationDecision }) =>
+      apiFetch<VerifierApplicationRead>(
+        `/admin/verifier-applications/${args.id}/decide`,
+        { method: "POST", json: args.payload },
+      ),
+    onSuccess: (_data, args) => {
+      void invalidateVerifierApplications(qc);
+      void qc.invalidateQueries({
+        queryKey: verifierApplicationsQk.detail(args.id),
+      });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Password reset (self-service)
 // ---------------------------------------------------------------------------
 
