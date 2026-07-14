@@ -1,0 +1,21 @@
+{% extends "_base.html.jinja" %}
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if display_name %}Hi {{ display_name }},{% else %}A diner reported an issue{% endif %}
+</h1>
+<p style="margin: 0 0 16px 0;">
+  A diner reported that the halal information for
+  <strong>{{ place_name }}</strong> may be out of date or incorrect. While it&rsquo;s
+  under review, your listing shows a &ldquo;conflicting reports&rdquo; note to diners.
+</p>
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ portal_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Review your listing
+  </a>
+</p>
+<p style="margin: 0; font-size: 13px; color: #888;">
+  If your halal posture changed, submit an updated claim so diners see the
+  latest. Trust Halal staff will help resolve it.
+</p>
+{% endblock %}

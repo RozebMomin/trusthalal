@@ -133,3 +133,48 @@ def test_unsubscribe_post_opts_out(api, db_session, factories):
 def test_unsubscribe_invalid_token_400(api):
     resp = api.get("/notifications/unsubscribe", params={"token": "nope.nope"})
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Recipient resolution + fan-out (events.py)
+# ---------------------------------------------------------------------------
+def test_owner_users_for_place_returns_active_owner(db_session, factories):
+    from app.modules.notifications.events import owner_users_for_place
+
+    owner = factories.owner()
+    place, _org = factories.managed_place(owner=owner)
+    db_session.commit()
+
+    owners = owner_users_for_place(db_session, place.id)
+    assert owner.id in {u.id for u in owners}
+
+
+def test_place_verified_fanout_notifies_savers(db_session, factories):
+    from app.modules.favorites.models import ConsumerFavorite
+    from app.modules.notifications.events import notify_place_verified_savers
+
+    place = factories.place()
+    saver = factories.consumer(email="saver@example.com")
+    db_session.add(ConsumerFavorite(user_id=saver.id, place_id=place.id))
+    db_session.commit()
+
+    bg = BackgroundTasks()
+    sent = notify_place_verified_savers(bg, db_session, place_id=place.id)
+    assert sent == 1
+    assert len(bg.tasks) == 1
+
+
+def test_place_verified_fanout_respects_optout(db_session, factories):
+    from app.modules.favorites.models import ConsumerFavorite
+    from app.modules.notifications.events import notify_place_verified_savers
+
+    place = factories.place()
+    saver = factories.consumer(email="optout-saver@example.com")
+    db_session.add(ConsumerFavorite(user_id=saver.id, place_id=place.id))
+    unsubscribe(db_session, user_id=saver.id, category="PLACE_VERIFIED")
+    db_session.commit()
+
+    bg = BackgroundTasks()
+    sent = notify_place_verified_savers(bg, db_session, place_id=place.id)
+    assert sent == 0
+    assert len(bg.tasks) == 0

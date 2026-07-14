@@ -1,0 +1,18 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if accepted %}
+{% if display_name %}Thank you, {{ display_name }}.{% else %}Your visit was accepted{% endif %}
+
+Your verification visit to {{ place_name }} was accepted. {{ place_name }} is
+now Trust Halal Verified thanks to you.
+{% else %}
+{% if display_name %}Hi {{ display_name }},{% else %}An update on your visit{% endif %}
+
+Your verification visit to {{ place_name }} wasn't accepted this time.
+{% if decision_note %}
+Trust Halal said: {{ decision_note }}
+{% endif %}
+{% endif %}
+View the place:
+  {{ place_url }}
+{% endblock %}

@@ -19,10 +19,20 @@ from io import BytesIO
 from typing import Optional
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, get_current_user
+from app.modules.notifications.events import notify_dispute_filed
 from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
 from app.core.rate_limit import limiter, user_or_ip_key
 from app.core.storage import StorageClient, StorageError, get_storage_client
@@ -89,6 +99,7 @@ def file_place_dispute(
     request: Request,
     place_id: UUID,
     payload: ConsumerDisputeCreate,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> ConsumerDisputeReporterRead:
@@ -99,6 +110,7 @@ def file_place_dispute(
         reporter_user_id=user.id,
         payload=payload,
     )
+    notify_dispute_filed(background, db, place_id=place_id)
     return ConsumerDisputeReporterRead.model_validate(dispute)
 
 

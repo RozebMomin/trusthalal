@@ -1,0 +1,14 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if display_name %}Hi {{ display_name }},{% else %}An update on your halal claim{% endif %}
+
+We reviewed your halal claim for {{ place_name }} and couldn't approve it as
+submitted.
+{% if decision_note %}
+Trust Halal said: {{ decision_note }}
+{% endif %}
+View your claim:
+  {{ portal_url }}
+
+You can submit a new claim with updated information any time.
+{% endblock %}

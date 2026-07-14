@@ -19,13 +19,21 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, require_roles
 from app.core.exceptions import BadRequestError
 from app.core.storage import StorageClient, StorageError, get_storage_client
 from app.db.deps import get_db
+from app.modules.notifications.events import (
+    notify_place_verified_savers,
+    notify_verifier_application_decided,
+    notify_verifier_visit_decided,
+    place_is_verified,
+)
+from app.modules.verifiers.models import VerificationVisit
 from app.modules.admin.verifiers.repo import (
     admin_decide_application,
     admin_get_application,
@@ -135,6 +143,7 @@ def admin_get_verifier_application(
 def admin_decide_verifier_application(
     application_id: UUID,
     payload: VerifierApplicationDecision,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> VerifierApplicationRead:
@@ -143,6 +152,14 @@ def admin_decide_verifier_application(
         application_id=application_id,
         payload=payload,
         decided_by_user_id=user.id,
+    )
+    notify_verifier_application_decided(
+        background,
+        db,
+        applicant_user_id=row.applicant_user_id,
+        applicant_email=row.applicant_email,
+        approved="APPROVED" in str(payload.decision),
+        decision_note=payload.decision_note,
     )
     return VerifierApplicationRead.model_validate(row)
 
@@ -247,15 +264,36 @@ def admin_mark_visit_under_review(
 def admin_decide_verification_visit(
     visit_id: UUID,
     payload: VerificationVisitDecision,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> VerificationVisitRead:
+    # Capture the place's verified state before the decision so the saver
+    # fan-out only fires on a genuine transition into verified.
+    prior_place_id = db.execute(
+        select(VerificationVisit.place_id).where(VerificationVisit.id == visit_id)
+    ).scalar_one_or_none()
+    was_verified = (
+        place_is_verified(db, prior_place_id) if prior_place_id else False
+    )
+
     visit = admin_decide_visit(
         db,
         visit_id=visit_id,
         payload=payload,
         decided_by_user_id=user.id,
     )
+    accepted = "ACCEPT" in str(payload.decision).upper()
+    notify_verifier_visit_decided(
+        background,
+        db,
+        verifier_user_id=visit.verifier_user_id,
+        place_id=visit.place_id,
+        accepted=accepted,
+        decision_note=payload.decision_note,
+    )
+    if accepted and not was_verified:
+        notify_place_verified_savers(background, db, place_id=visit.place_id)
     return VerificationVisitRead.model_validate(visit)
 
 

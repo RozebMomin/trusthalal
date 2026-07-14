@@ -1,0 +1,22 @@
+{% extends "_base.html.jinja" %}
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  A place you saved is now verified
+</h1>
+<p style="margin: 0 0 16px 0;">
+  <strong>{{ place_name }}</strong> — one of your saved places — is now
+  <strong>Trust Halal Verified</strong>: confirmed in person by someone from
+  the community.
+</p>
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ place_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    See the trust profile
+  </a>
+</p>
+{% if unsubscribe_url %}
+<p style="margin: 24px 0 0 0; font-size: 12px; color: #aaa;">
+  Don&rsquo;t want these? <a href="{{ unsubscribe_url }}" style="color: #aaa;">Unsubscribe</a>.
+</p>
+{% endif %}
+{% endblock %}

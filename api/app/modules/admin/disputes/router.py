@@ -17,11 +17,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, require_roles
+from app.modules.notifications.events import notify_dispute_resolved
 from app.core.exceptions import BadRequestError, NotFoundError
 from app.core.storage import StorageClient, StorageError, get_storage_client
 from app.db.deps import get_db
@@ -117,6 +118,7 @@ def get_dispute_admin(
 def resolve_dispute_admin(
     dispute_id: UUID,
     payload: DisputeResolve,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> ConsumerDisputeAdminRead:
@@ -126,6 +128,13 @@ def resolve_dispute_admin(
         actor_user_id=user.id,
         decision=payload.decision,
         admin_decision_note=payload.admin_decision_note,
+    )
+    notify_dispute_resolved(
+        background,
+        db,
+        reporter_user_id=dispute.reporter_user_id,
+        place_id=dispute.place_id,
+        upheld="UPHELD" in str(payload.decision),
     )
     return ConsumerDisputeAdminRead.model_validate(dispute)
 

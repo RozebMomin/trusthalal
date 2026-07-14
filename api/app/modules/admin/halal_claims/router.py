@@ -58,11 +58,15 @@ from app.modules.admin.halal_claims.schemas import (
     HalalClaimRequestInfo,
     HalalClaimRevoke,
 )
-from app.modules.halal_claims.models import HalalClaimAttachment
+from app.modules.halal_claims.models import HalalClaim, HalalClaimAttachment
 from app.modules.halal_claims.schemas import (
     HalalClaimAdminRead,
     HalalClaimAttachmentRead,
     HalalClaimEventRead,
+)
+from app.modules.notifications.events import (
+    notify_place_verified_savers,
+    place_is_verified,
 )
 from app.modules.places.models import Place
 from app.modules.users.enums import UserRole
@@ -118,6 +122,48 @@ def _notify_claim_approved(
             "preheader": f"{place_name} is now live on Trust Halal.",
             "place_name": place_name,
             "tier_label": _TIER_LABELS.get(tier_value, "verified"),
+            "portal_url": portal_url,
+        },
+    )
+
+
+def _notify_claim_decision(
+    background: BackgroundTasks,
+    db: Session,
+    *,
+    claim,
+    template: str,
+    subject_tpl: str,
+    decision_note: str | None,
+) -> None:
+    """Email the submitting owner about a rejected / needs-info decision."""
+    if claim.submitted_by_user_id is None:
+        return
+    owner = db.execute(
+        select(User).where(User.id == claim.submitted_by_user_id)
+    ).scalar_one_or_none()
+    if owner is None or not owner.email:
+        return
+    place = db.execute(
+        select(Place).where(Place.id == claim.place_id)
+    ).scalar_one_or_none()
+    place_name = place.name if place else "your place"
+    portal_url = (
+        f"{settings.OWNER_PORTAL_ORIGIN.rstrip('/')}/my-halal-claims/{claim.id}"
+    )
+    notify(
+        background,
+        db=db,
+        user_id=owner.id,
+        email=owner.email,
+        display_name=owner.display_name,
+        category=NotificationCategory.CLAIM_DECISION,
+        subject=subject_tpl.format(place=place_name),
+        template=template,
+        context={
+            "preheader": subject_tpl.format(place=place_name),
+            "place_name": place_name,
+            "decision_note": decision_note or "",
             "portal_url": portal_url,
         },
     )
@@ -238,6 +284,16 @@ def approve_claim_admin(
     approval. The copy is best-effort — failure is logged but the
     approval still commits with ``certificate_url=NULL``.
     """
+    # Capture the place's verified state BEFORE approval so the saver
+    # fan-out only fires on a real transition into verified (not a re-approval
+    # of an already-verified place).
+    prior_place_id = db.execute(
+        select(HalalClaim.place_id).where(HalalClaim.id == claim_id)
+    ).scalar_one_or_none()
+    was_verified = (
+        place_is_verified(db, prior_place_id) if prior_place_id else False
+    )
+
     claim = admin_approve_halal_claim(
         db,
         claim_id=claim_id,
@@ -249,6 +305,11 @@ def approve_claim_admin(
     _notify_claim_approved(
         background, db, claim=claim, tier_value=str(payload.validation_tier)
     )
+    if (
+        str(payload.validation_tier) == "TRUST_HALAL_VERIFIED"
+        and not was_verified
+    ):
+        notify_place_verified_savers(background, db, place_id=claim.place_id)
     return HalalClaimAdminRead.model_validate(claim)
 
 
@@ -267,6 +328,7 @@ def approve_claim_admin(
 def reject_claim_admin(
     claim_id: UUID,
     payload: HalalClaimReject,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> HalalClaimAdminRead:
@@ -281,6 +343,14 @@ def reject_claim_admin(
         claim_id=claim_id,
         actor_user_id=user.id,
         payload=payload,
+    )
+    _notify_claim_decision(
+        background,
+        db,
+        claim=claim,
+        template="claim_rejected",
+        subject_tpl="An update on your halal claim for {place}",
+        decision_note=payload.decision_note,
     )
     return HalalClaimAdminRead.model_validate(claim)
 
@@ -301,6 +371,7 @@ def reject_claim_admin(
 def request_info_claim_admin(
     claim_id: UUID,
     payload: HalalClaimRequestInfo,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> HalalClaimAdminRead:
@@ -316,6 +387,14 @@ def request_info_claim_admin(
         claim_id=claim_id,
         actor_user_id=user.id,
         payload=payload,
+    )
+    _notify_claim_decision(
+        background,
+        db,
+        claim=claim,
+        template="claim_needs_info",
+        subject_tpl="{place}: a bit more info needed",
+        decision_note=payload.decision_note,
     )
     return HalalClaimAdminRead.model_validate(claim)
 

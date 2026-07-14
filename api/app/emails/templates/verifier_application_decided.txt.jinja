@@ -1,0 +1,20 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if approved %}
+{% if display_name %}Welcome to the team, {{ display_name }}.{% else %}You're a Trust Halal verifier{% endif %}
+
+Your verifier application was approved. You can now file in-person verification
+visits from the Trust Halal app — the visits you confirm are what earns places
+the highest tier of trust.
+{% else %}
+{% if display_name %}Hi {{ display_name }},{% else %}An update on your application{% endif %}
+
+Thanks for applying to be a Trust Halal verifier. We're not able to approve
+your application right now.
+{% if decision_note %}
+Trust Halal said: {{ decision_note }}
+{% endif %}
+{% endif %}
+Open Trust Halal:
+  {{ site_url }}
+{% endblock %}

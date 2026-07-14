@@ -1,0 +1,32 @@
+{% extends "_base.html.jinja" %}
+{% block content %}
+{% if approved %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if display_name %}Welcome to the team, {{ display_name }}.{% else %}You're a Trust Halal verifier{% endif %}
+</h1>
+<p style="margin: 0 0 16px 0;">
+  Your verifier application was approved. You can now file in-person
+  verification visits from the Trust Halal app — the visits you confirm are
+  what earns places the highest tier of trust.
+</p>
+{% else %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if display_name %}Hi {{ display_name }},{% else %}An update on your application{% endif %}
+</h1>
+<p style="margin: 0 0 16px 0;">
+  Thanks for applying to be a Trust Halal verifier. We&rsquo;re not able to
+  approve your application right now.
+</p>
+{% if decision_note %}
+<p style="margin: 0 0 16px 0; padding: 12px 14px; background: #f6f6f7; border-radius: 8px; color: #444;">
+  <strong>Trust Halal said:</strong> {{ decision_note }}
+</p>
+{% endif %}
+{% endif %}
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ site_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Open Trust Halal
+  </a>
+</p>
+{% endblock %}

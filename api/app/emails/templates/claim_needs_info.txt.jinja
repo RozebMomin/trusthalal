@@ -1,0 +1,12 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if display_name %}Hi {{ display_name }},{% else %}We need a bit more info{% endif %}
+
+We're reviewing your halal claim for {{ place_name }} and need a little more
+before we can approve it.
+{% if decision_note %}
+What we need: {{ decision_note }}
+{% endif %}
+Add what's needed, then re-submit from the same page:
+  {{ portal_url }}
+{% endblock %}

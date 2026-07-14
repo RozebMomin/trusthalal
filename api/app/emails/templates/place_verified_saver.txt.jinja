@@ -1,0 +1,14 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+A place you saved is now verified
+
+{{ place_name }} — one of your saved places — is now Trust Halal Verified:
+confirmed in person by someone from the community.
+
+See the trust profile:
+  {{ place_url }}
+{% if unsubscribe_url %}
+---
+Don't want these? Unsubscribe: {{ unsubscribe_url }}
+{% endif %}
+{% endblock %}

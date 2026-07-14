@@ -1,0 +1,15 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if display_name %}Thanks, {{ display_name }}.{% else %}Thanks for your report{% endif %}
+
+Trust Halal reviewed your report about {{ place_name }}.
+{% if upheld %}
+You were right — we've flagged the profile for correction. Thank you for
+helping keep Trust Halal accurate.
+{% else %}
+After review, the current halal information stands. We appreciate you flagging
+it — reports like yours are how we stay trustworthy.
+{% endif %}
+View the place:
+  {{ place_url }}
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if display_name %}Hi {{ display_name }},{% else %}A diner reported an issue{% endif %}
+
+A diner reported that the halal information for {{ place_name }} may be out of
+date or incorrect. While it's under review, your listing shows a "conflicting
+reports" note to diners.
+
+Review your listing:
+  {{ portal_url }}
+
+If your halal posture changed, submit an updated claim so diners see the
+latest. Trust Halal staff will help resolve it.
+{% endblock %}

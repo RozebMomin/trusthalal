@@ -1,0 +1,22 @@
+{% extends "_base.html.jinja" %}
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if display_name %}Thanks, {{ display_name }}.{% else %}Thanks for your report{% endif %}
+</h1>
+<p style="margin: 0 0 16px 0;">
+  Trust Halal reviewed your report about <strong>{{ place_name }}</strong>.
+  {% if upheld %}
+    You were right — we&rsquo;ve flagged the profile for correction. Thank you
+    for helping keep Trust Halal accurate.
+  {% else %}
+    After review, the current halal information stands. We appreciate you
+    flagging it — reports like yours are how we stay trustworthy.
+  {% endif %}
+</p>
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ place_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    View the place
+  </a>
+</p>
+{% endblock %}
