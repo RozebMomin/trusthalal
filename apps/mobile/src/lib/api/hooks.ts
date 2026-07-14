@@ -69,6 +69,20 @@ export function useSignup() {
   });
 }
 
+/** POST /auth/forgot-password with audience=consumer — the reset link
+ *  opens the consumer web page. Always resolves generically (no
+ *  enumeration), so the screen shows the same "check your email" either
+ *  way. */
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (input: { email: string }) =>
+      apiFetch<{ ok: boolean; message: string }>("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email: input.email, audience: "consumer" }),
+      }),
+  });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({

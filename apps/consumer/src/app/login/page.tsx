@@ -47,6 +47,7 @@ function LoginPageInner() {
   const login = useLogin();
 
   const nextPath = safeNextPath(searchParams?.get("next") ?? null);
+  const justReset = searchParams?.get("reset") === "1";
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -108,6 +109,15 @@ function LoginPageInner() {
           <p className="text-sm text-muted-foreground">Trust Halal</p>
         </div>
 
+        {justReset && (
+          <p
+            className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground"
+            role="status"
+          >
+            Password updated. Sign in with your new password.
+          </p>
+        )}
+
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="login-email">Email</Label>
@@ -144,6 +154,14 @@ function LoginPageInner() {
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
+            </div>
+            <div className="text-right">
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Forgot password?
+              </Link>
             </div>
           </div>
 

@@ -104,6 +104,15 @@ export default function SignIn() {
         </Pressable>
       </View>
 
+      <Pressable
+        onPress={() => router.push("/(auth)/forgot-password")}
+        style={{ alignSelf: "flex-end" }}
+      >
+        <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_600SemiBold" }]}>
+          Forgot password?
+        </Text>
+      </Pressable>
+
       {error ? <Text style={[ty.small, { color: t.danger }]}>{error}</Text> : null}
 
       <Button

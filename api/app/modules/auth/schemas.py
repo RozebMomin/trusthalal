@@ -159,6 +159,67 @@ class SignupResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Self-service password reset (POST /auth/forgot-password, /auth/reset-password)
+# ---------------------------------------------------------------------------
+
+
+class ForgotPasswordRequest(BaseModel):
+    """POST /auth/forgot-password body.
+
+    ``audience`` picks which frontend hosts the reset page the email
+    links to (consumer / owner / admin). The API maps it to a configured
+    origin from an allowlist — a raw URL is never accepted. Mobile passes
+    ``consumer`` (its reset happens on the consumer web page).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr
+    audience: Literal["consumer", "owner", "admin"] = "consumer"
+
+
+class ForgotPasswordResponse(BaseModel):
+    """Deliberately generic — identical whether or not the email matches
+    an account, so the endpoint can't be used to enumerate users."""
+
+    ok: Literal[True] = True
+    message: str = (
+        "If an account exists for that email, a reset link is on its way."
+    )
+
+
+class ResetInfoResponse(BaseModel):
+    """Prefetch for GET /auth/reset/{token} — lets the reset page show
+    whose password is being reset. Gated behind a valid single-use token,
+    so exposing the email here is safe (only the link holder sees it)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    email: EmailStr
+    display_name: str | None = None
+
+
+class ResetPasswordRequest(BaseModel):
+    """POST /auth/reset-password body. ``password`` bounds mirror
+    signup / set-password (8–256)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(..., min_length=16, max_length=128)
+    password: str = Field(..., min_length=8, max_length=256)
+
+
+class ResetPasswordResponse(BaseModel):
+    """No auto-login on reset (unlike invite set-password): the user is
+    routed to the login page to sign in with the new password. Returns the
+    email so the client can prefill the login form."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    email: EmailStr
+
+
+# ---------------------------------------------------------------------------
 # Mobile bearer-token auth (POST /auth/mobile/*)
 # ---------------------------------------------------------------------------
 

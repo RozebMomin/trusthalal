@@ -12,7 +12,7 @@
  */
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -22,9 +22,24 @@ import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import { useLogin } from "@/lib/api/hooks";
 
+/**
+ * `useSearchParams` needs a Suspense boundary above it during the
+ * production prerender pass.
+ */
 export default function LoginPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <LoginPageInner />
+    </React.Suspense>
+  );
+}
+
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useLogin();
+
+  const justReset = searchParams?.get("reset") === "1";
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -80,6 +95,15 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {justReset && (
+          <p
+            className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground"
+            role="status"
+          >
+            Password updated. Sign in with your new password.
+          </p>
+        )}
+
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="login-email">Email</Label>
@@ -106,6 +130,14 @@ export default function LoginPage() {
               autoComplete="current-password"
               disabled={login.isPending}
             />
+            <div className="text-right">
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           {errorMsg && (

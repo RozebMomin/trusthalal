@@ -513,6 +513,59 @@ export function useSignup() {
 }
 
 // ---------------------------------------------------------------------------
+// Password reset (self-service)
+// ---------------------------------------------------------------------------
+
+export type ForgotPasswordRequest = {
+  email: string;
+  /** Which app's reset page the email links to. Consumer site sends
+   * "consumer"; the API maps it to the configured origin. */
+  audience: "consumer" | "owner" | "admin";
+};
+export type ForgotPasswordResponse = { ok: true; message: string };
+export type ResetInfoResponse = { email: string; display_name: string | null };
+export type ResetPasswordRequest = { token: string; password: string };
+export type ResetPasswordResponse = { email: string };
+
+/** POST /auth/forgot-password. Always resolves (generic success) even for
+ * unknown emails — the UI shows the same "check your inbox" either way. */
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (payload: ForgotPasswordRequest) =>
+      apiFetch<ForgotPasswordResponse>("/auth/forgot-password", {
+        method: "POST",
+        json: payload,
+      }),
+  });
+}
+
+/** GET /auth/reset/{token} — prefetch to show whose password is being
+ * reset. 400s on an invalid/expired/used token; no retry. */
+export function useResetInfo(token: string | null) {
+  return useQuery<ResetInfoResponse>({
+    queryKey: ["auth", "reset", token],
+    queryFn: () =>
+      apiFetch<ResetInfoResponse>(
+        `/auth/reset/${encodeURIComponent(token as string)}`,
+      ),
+    enabled: Boolean(token),
+    retry: false,
+  });
+}
+
+/** POST /auth/reset-password. On success the account is signed out
+ * everywhere; the client routes to /login (no auto-login). */
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (payload: ResetPasswordRequest) =>
+      apiFetch<ResetPasswordResponse>("/auth/reset-password", {
+        method: "POST",
+        json: payload,
+      }),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Verifier application (public apply form)
 // ---------------------------------------------------------------------------
 

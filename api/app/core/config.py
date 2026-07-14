@@ -69,6 +69,20 @@ class Settings(BaseSettings):
     # in staging/prod env files.
     ADMIN_PANEL_ORIGIN: str = "http://localhost:3001"
 
+    # Origins for the other password-facing frontends, used to compose
+    # password-reset links per audience. Like ADMIN_PANEL_ORIGIN, the API
+    # never serves these pages — it just builds the URL the reset email
+    # points at. Defaults match the local dev stack (owner :3002,
+    # consumer :3003). Override in staging/prod (owner.trusthalal.org,
+    # halalfoodnearme.com). The mobile app reuses the consumer page.
+    OWNER_PORTAL_ORIGIN: str = "http://localhost:3002"
+    CONSUMER_ORIGIN: str = "http://localhost:3003"
+
+    # Password-reset token lifetime. Deliberately short (unlike the 7-day
+    # invite): a reset link is a bearer credential to an existing account,
+    # so it should not sit valid for long.
+    PASSWORD_RESET_TTL_MINUTES: int = 60
+
     # How long an invite token is valid. 7 days is the common default
     # for admin-onboarding links — long enough that a new hire can
     # complete setup on their own schedule, short enough that an

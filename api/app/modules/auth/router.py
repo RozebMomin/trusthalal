@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Cookie, Depends, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -17,8 +17,16 @@ from app.modules.auth.invite_repo import (
 )
 from app.modules.auth.mobile_tokens import (
     issue_token_pair,
+    revoke_all_mobile_tokens_for_user,
     revoke_by_refresh_token,
     rotate_refresh_token,
+)
+from app.modules.auth.password_reset import (
+    EmailError,
+    build_reset_url,
+    mint_reset_token,
+    resolve_reset_token,
+    send_password_reset_email,
 )
 from app.modules.auth.repo import (
     create_session,
@@ -26,6 +34,8 @@ from app.modules.auth.repo import (
     revoke_session,
 )
 from app.modules.auth.schemas import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     InviteInfoResponse,
     LoginRequest,
     LoginResponse,
@@ -34,6 +44,9 @@ from app.modules.auth.schemas import (
     MobileRefreshRequest,
     MobileSignupRequest,
     MobileUser,
+    ResetInfoResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     SetPasswordRequest,
     SetPasswordResponse,
     SignupRequest,
@@ -500,6 +513,137 @@ def set_password_with_invite(
         display_name=user.display_name,
         redirect_path=_redirect_path_for(role),
     )
+
+
+# ---------------------------------------------------------------------------
+# Self-service password reset
+# ---------------------------------------------------------------------------
+
+_RESET_INVALID_MESSAGE = (
+    "This reset link is invalid, expired, or already used. "
+    "Request a new one."
+)
+
+
+@auth_router.post(
+    "/forgot-password",
+    response_model=ForgotPasswordResponse,
+    summary="Request a password-reset email",
+    description=(
+        "Emails a single-use reset link to the address if an account "
+        "exists. The response is always the same generic success, so it "
+        "can't be used to tell whether an email is registered. `audience` "
+        "selects which frontend (consumer/owner/admin) the link points at; "
+        "mobile passes `consumer`. Rate-limited per IP."
+    ),
+)
+@limiter.limit("5/minute", key_func=ip_key)
+@limiter.limit("20/hour", key_func=ip_key)
+def forgot_password(
+    request: Request,
+    payload: ForgotPasswordRequest,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> ForgotPasswordResponse:
+    """Mint a reset token + email it — only when a matching active user
+    exists. Same response either way (no enumeration). The email send runs
+    in the background so the response time doesn't leak account existence.
+    """
+    normalized_email = payload.email.strip().lower()
+    user = db.execute(
+        select(User).where(func.lower(User.email) == normalized_email)
+    ).scalar_one_or_none()
+
+    if user is not None and user.is_active:
+        _, plaintext = mint_reset_token(db, user_id=user.id)
+        db.commit()
+        reset_url = build_reset_url(payload.audience, plaintext)
+        # Best-effort, off the request path. A Resend outage must not
+        # change the response (which would leak "this email exists").
+        background.add_task(
+            _send_reset_email_safe,
+            to=user.email,
+            display_name=user.display_name,
+            reset_url=reset_url,
+        )
+
+    return ForgotPasswordResponse()
+
+
+def _send_reset_email_safe(*, to: str, display_name: str | None, reset_url: str) -> None:
+    try:
+        send_password_reset_email(
+            to=to, display_name=display_name, reset_url=reset_url
+        )
+    except EmailError:
+        # Swallowed intentionally — the user already got a generic 200.
+        pass
+
+
+@auth_router.get(
+    "/reset/{token}",
+    response_model=ResetInfoResponse,
+    summary="Look up a reset token's target email",
+    description=(
+        "Pre-fetched by the reset page so it can show whose password is "
+        "being reset before submit. 400 (`RESET_INVALID`) on an invalid, "
+        "expired, or already-used token — same generic surface as the "
+        "actual reset."
+    ),
+)
+@limiter.limit("30/minute", key_func=ip_key)
+def get_reset_info(
+    request: Request,
+    token: str,
+    db: Session = Depends(get_db),
+) -> ResetInfoResponse:
+    row = resolve_reset_token(db, token_plain=token)
+    if row is None:
+        raise BadRequestError("RESET_INVALID", _RESET_INVALID_MESSAGE)
+    user = db.execute(
+        select(User).where(User.id == row.user_id)
+    ).scalar_one_or_none()
+    if user is None or not user.is_active:
+        raise BadRequestError("RESET_INVALID", _RESET_INVALID_MESSAGE)
+    return ResetInfoResponse(email=user.email, display_name=user.display_name)
+
+
+@auth_router.post(
+    "/reset-password",
+    response_model=ResetPasswordResponse,
+    summary="Set a new password using a reset token",
+    description=(
+        "Burns the token, sets the new password, and revokes every "
+        "existing web session and mobile token for the account (sign out "
+        "everywhere). Does NOT auto-login — the client routes to the login "
+        "page. 400 (`RESET_INVALID`) on a bad/expired/used token."
+    ),
+)
+@limiter.limit("10/minute", key_func=ip_key)
+def reset_password(
+    request: Request,
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+) -> ResetPasswordResponse:
+    row = resolve_reset_token(db, token_plain=payload.token)
+    if row is None:
+        raise BadRequestError("RESET_INVALID", _RESET_INVALID_MESSAGE)
+    user = db.execute(
+        select(User).where(User.id == row.user_id)
+    ).scalar_one_or_none()
+    if user is None or not user.is_active:
+        raise BadRequestError("RESET_INVALID", _RESET_INVALID_MESSAGE)
+
+    user.password_hash = hash_password(payload.password)
+    db.add(user)
+    # Single transaction: burn the token + sign the user out everywhere so
+    # a compromised old session can't outlive the reset.
+    consume_invite(db, token=row)
+    revoke_all_sessions_for_user(db, user_id=user.id)
+    revoke_all_mobile_tokens_for_user(db, user_id=user.id)
+    db.commit()
+
+    return ResetPasswordResponse(email=user.email)
 
 
 # ``/auth/dev-login`` lived here previously — a shortcut that looked
