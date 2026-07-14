@@ -18,6 +18,7 @@ from ops import jobsdb
 from ops.runners import (
     JOB_KINDS,
     count_backfill_candidates,
+    count_google_linked,
     count_hero_candidates,
 )
 
@@ -54,6 +55,12 @@ def preview(field: str = "phone", limit: int | None = None) -> dict:
 def hero_preview(limit: int | None = None) -> dict:
     """Count of photo-less Google-linked places a hero import would touch."""
     return {"candidates": count_hero_candidates(limit)}
+
+
+@app.get("/api/google-sync-preview")
+def google_sync_preview(limit: int | None = None) -> dict:
+    """Count of Google-linked places the volatile-data sync would refresh."""
+    return {"candidates": count_google_linked(limit)}
 
 
 @app.post("/api/jobs")

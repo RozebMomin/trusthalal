@@ -65,6 +65,14 @@ class PlaceSearchResult(BaseModel):
     # the detail page is where the gallery lives.
     hero_photo_url: str | None = None
 
+    # Google rating + count for the result-card star. Null until synced.
+    google_rating: float | None = None
+    google_rating_count: int | None = None
+    # Server-computed against stored hours + place timezone. True/False when
+    # hours are known, null when the place has no hours on file. Drives the
+    # "Open now" badge on the card and the ?open_now= filter.
+    open_now: bool | None = None
+
     # Embedded halal profile so consumer-site search results can render
     # validation tier + menu posture badges without an N+1 fetch per
     # row. Null when the place has no approved halal claim, or when its
@@ -159,6 +167,19 @@ class PlaceDetail(BaseModel):
     # Business phone (from Google ingest); null for hand-entered places or
     # ones ingested before phone capture. Powers the "Call" action.
     phone: str | None = None
+    # Listing website (from Google ingest). Powers the "Website" link.
+    website_url: str | None = None
+    # Google rating (1.0–5.0) + number of user ratings, and when they were
+    # last refreshed — surfaces to consumers as "4.6 (312) · as of <date>".
+    google_rating: float | None = None
+    google_rating_count: int | None = None
+    google_synced_at: datetime | None = None
+    # Human-readable opening hours for display, one string per day, e.g.
+    # ["Monday: 9 AM–9 PM", ...]. Null when Google has no hours on file.
+    opening_hours_weekday_text: list[str] | None = None
+    # Server-computed "open now" against stored hours + timezone. Null when
+    # hours are unknown.
+    open_now: bool | None = None
     # Curated cuisine tags. See PlaceSearchResult.cuisine_types.
     cuisine_types: list[Cuisine] = Field(default_factory=list)
     # We intentionally skip a ``created_at`` field: the CREATED row on

@@ -68,6 +68,19 @@ class CanonicalPlaceFields:
     # Business phone. Default keeps existing constructors (tests, fixtures)
     # working without passing it. Set by ``extract_from_google_place``.
     phone: str | None = None
+    # Listing website (``websiteUri`` new / ``website`` legacy).
+    website_url: str | None = None
+    # Google star rating (1.0–5.0) + number of user ratings. Volatile.
+    rating: float | None = None
+    rating_count: int | None = None
+    # Normalized opening hours:
+    #   {"periods": [{"open": {"day","hour","minute"},
+    #                 "close": {"day","hour","minute"} | None}, ...]}
+    # ``day`` is Google's 0=Sunday..6=Saturday. None for places Google
+    # doesn't publish hours for. ``opening_hours_weekday_text`` is the
+    # parallel human-readable list for display.
+    opening_hours: dict | None = None
+    opening_hours_weekday_text: list | None = None
 
 
 # Map Google Place types (from the New API ``primaryType`` and the legacy
@@ -315,6 +328,74 @@ def _as_float(v: Any) -> float | None:
         return None
 
 
+def _as_int(v: Any) -> int | None:
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_hour_point(point: Any) -> dict | None:
+    """Coerce a Google open/close point into ``{day, hour, minute}``.
+
+    New API: ``{"day": 0, "hour": 9, "minute": 0}``.
+    Legacy API: ``{"day": 0, "time": "0900"}``.
+    """
+    if not isinstance(point, dict):
+        return None
+    day = _as_int(point.get("day"))
+    if day is None:
+        return None
+    hour = _as_int(point.get("hour"))
+    minute = _as_int(point.get("minute"))
+    if hour is None:
+        # Legacy "HHMM" string.
+        t = point.get("time")
+        if isinstance(t, str) and len(t) == 4 and t.isdigit():
+            hour = int(t[:2])
+            minute = int(t[2:])
+    return {"day": day, "hour": hour or 0, "minute": minute or 0}
+
+
+def _extract_hours(root: dict[str, Any]) -> tuple[dict | None, list | None]:
+    """Normalize Google opening hours to ``(opening_hours, weekday_text)``.
+
+    Reads ``regularOpeningHours`` (New API) or ``opening_hours`` (legacy).
+    Returns ``(None, None)`` when Google didn't publish hours. Only the
+    canonical weekly schedule (periods) + human weekday strings are kept;
+    Google's point-in-time ``openNow`` is intentionally dropped — we compute
+    "open now" ourselves against the place timezone so it stays correct
+    between syncs.
+    """
+    hours = root.get("regularOpeningHours") or root.get("opening_hours")
+    if not isinstance(hours, dict):
+        return (None, None)
+
+    periods_out: list[dict] = []
+    for p in hours.get("periods") or []:
+        if not isinstance(p, dict):
+            continue
+        open_pt = _normalize_hour_point(p.get("open"))
+        if open_pt is None:
+            continue
+        close_pt = _normalize_hour_point(p.get("close"))
+        periods_out.append({"open": open_pt, "close": close_pt})
+
+    weekday_text = (
+        hours.get("weekdayDescriptions")
+        or hours.get("weekday_text")
+        or None
+    )
+    if not isinstance(weekday_text, list):
+        weekday_text = None
+
+    if not periods_out and weekday_text is None:
+        return (None, None)
+    return ({"periods": periods_out}, weekday_text)
+
+
 def extract_from_google_place(payload: dict[str, Any]) -> CanonicalPlaceFields:
     """Map a Google Place Details response into canonical Place fields.
 
@@ -364,6 +445,15 @@ def extract_from_google_place(payload: dict[str, Any]) -> CanonicalPlaceFields:
         or None
     )
 
+    website = root.get("websiteUri") or root.get("website") or None
+    rating = _as_float(root.get("rating"))
+    rating_count = _as_int(
+        root.get("userRatingCount")
+        if root.get("userRatingCount") is not None
+        else root.get("user_ratings_total")
+    )
+    opening_hours, weekday_text = _extract_hours(root)
+
     return CanonicalPlaceFields(
         name=_extract_name(root),
         address=address if isinstance(address, str) else None,
@@ -376,6 +466,11 @@ def extract_from_google_place(payload: dict[str, Any]) -> CanonicalPlaceFields:
         timezone=_extract_timezone(root),
         cuisine_types=_extract_cuisines(root),
         phone=phone if isinstance(phone, str) else None,
+        website_url=website if isinstance(website, str) else None,
+        rating=rating,
+        rating_count=rating_count,
+        opening_hours=opening_hours,
+        opening_hours_weekday_text=weekday_text,
     )
 
 

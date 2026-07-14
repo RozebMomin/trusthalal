@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, Boolean, text
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func, Boolean, text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -33,6 +33,31 @@ class Place(Base):
     # populated from the canonical provider on ingest. NULL for hand-entered
     # places or ones ingested before phone capture — backfilled on resync.
     phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+    # Listing website. Additive on sync (only filled when NULL) so a future
+    # owner override isn't clobbered by the weekly refresh.
+    website_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Google star rating + count. Volatile — refreshed (overwritten) on every
+    # resync. ``google_synced_at`` records when rating/hours were last pulled
+    # so consumer surfaces can show "as of <date>".
+    google_rating: Mapped[float | None] = mapped_column(Numeric(2, 1), nullable=True)
+    google_rating_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Structured weekly opening hours from Google's ``regularOpeningHours``:
+    #   {"periods": [{"open": {"day": 0, "hour": 9, "minute": 0},
+    #                 "close": {"day": 0, "hour": 21, "minute": 0}}, ...]}
+    # ``day`` is 0=Sunday .. 6=Saturday (Google's convention). Used with the
+    # place timezone to compute "open now" server-side. Human strings live in
+    # ``opening_hours_weekday_text`` for display.
+    opening_hours: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    opening_hours_weekday_text: Mapped[list | None] = mapped_column(
+        JSONB, nullable=True
+    )
+
+    google_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Which external provider's data is authoritative for the canonical fields
     # above. NULL = hand-entered, no sync source. Enforced by CHECK constraint

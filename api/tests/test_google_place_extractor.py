@@ -163,3 +163,80 @@ def test_malformed_latlng_does_not_raise():
     out = extract_from_google_place(payload)
     assert out.lat is None
     assert out.lng is None
+
+
+# ---------------------------------------------------------------------------
+# Website / rating / hours (new API shape)
+# ---------------------------------------------------------------------------
+def test_new_api_website_rating_hours_extracted():
+    payload = {
+        "displayName": {"text": "Hours Test"},
+        "location": {"latitude": 1.0, "longitude": 2.0},
+        "websiteUri": "https://example.com",
+        "rating": 4.6,
+        "userRatingCount": 312,
+        "regularOpeningHours": {
+            "openNow": True,  # intentionally ignored by the extractor
+            "periods": [
+                {
+                    "open": {"day": 1, "hour": 9, "minute": 0},
+                    "close": {"day": 1, "hour": 21, "minute": 30},
+                }
+            ],
+            "weekdayDescriptions": ["Monday: 9:00 AM – 9:30 PM"],
+        },
+    }
+    out = extract_from_google_place(payload)
+    assert out.website_url == "https://example.com"
+    assert out.rating == pytest.approx(4.6)
+    assert out.rating_count == 312
+    assert out.opening_hours == {
+        "periods": [
+            {
+                "open": {"day": 1, "hour": 9, "minute": 0},
+                "close": {"day": 1, "hour": 21, "minute": 30},
+            }
+        ]
+    }
+    assert out.opening_hours_weekday_text == ["Monday: 9:00 AM – 9:30 PM"]
+
+
+def test_legacy_website_rating_hours_extracted():
+    payload = {
+        "result": {
+            "name": "Legacy Hours",
+            "geometry": {"location": {"lat": 1.0, "lng": 2.0}},
+            "website": "https://legacy.example",
+            "rating": 3.9,
+            "user_ratings_total": 40,
+            "opening_hours": {
+                "periods": [
+                    {
+                        "open": {"day": 0, "time": "0800"},
+                        "close": {"day": 0, "time": "1400"},
+                    }
+                ],
+                "weekday_text": ["Sunday: 8:00 AM – 2:00 PM"],
+            },
+        }
+    }
+    out = extract_from_google_place(payload)
+    assert out.website_url == "https://legacy.example"
+    assert out.rating == pytest.approx(3.9)
+    assert out.rating_count == 40
+    assert out.opening_hours == {
+        "periods": [
+            {
+                "open": {"day": 0, "hour": 8, "minute": 0},
+                "close": {"day": 0, "hour": 14, "minute": 0},
+            }
+        ]
+    }
+
+
+def test_missing_hours_yields_none():
+    out = extract_from_google_place({"displayName": {"text": "No Hours"}})
+    assert out.opening_hours is None
+    assert out.opening_hours_weekday_text is None
+    assert out.rating is None
+    assert out.website_url is None

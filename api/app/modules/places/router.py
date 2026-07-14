@@ -62,6 +62,7 @@ from app.modules.places.schemas import (
 )
 from app.modules.places.models import Place, PlaceEvent
 from app.modules.places.enums import PlaceEventType
+from app.modules.places.hours import is_open_now
 from app.modules.places.photos.repo import serialize_photos_for_place
 from app.modules.organizations.deps import assert_can_manage_place
 from app.core.auth import CurrentUser, get_current_user
@@ -640,6 +641,16 @@ def get_place_by_id(
             "postal_code": place.postal_code,
             "timezone": place.timezone,
             "phone": place.phone,
+            "website_url": place.website_url,
+            "google_rating": (
+                float(place.google_rating)
+                if place.google_rating is not None
+                else None
+            ),
+            "google_rating_count": place.google_rating_count,
+            "google_synced_at": place.google_synced_at,
+            "opening_hours_weekday_text": place.opening_hours_weekday_text,
+            "open_now": is_open_now(place.opening_hours, place.timezone),
             # Curated cuisine tags. Cast through list() because the
             # column may come back as a tuple/array depending on the
             # SQLAlchemy dialect on the connection.
@@ -880,6 +891,15 @@ def search_places(
     has_certification: bool | None = Query(default=None),
     no_pork: bool | None = Query(default=None),
     no_alcohol_served: bool | None = Query(default=None),
+    open_now: bool = Query(
+        default=False,
+        description=(
+            "When true, only return places open right now (computed from "
+            "stored Google hours + place timezone). Places with no hours on "
+            "file are excluded. Applied after the DB query over a capped scan "
+            "of matches, so pagination is honored within that cap."
+        ),
+    ),
     # Multi-value: ?cuisine=PAKISTANI&cuisine=INDIAN. Result is the
     # union — places matching ANY of the requested cuisines (overlap),
     # not the intersection. That matches how users think about cuisine
@@ -934,12 +954,21 @@ def search_places(
     )
 
     cuisines = tuple(cuisine or ())
+
+    # "Open now" is computed in Python from stored hours (there's no clean
+    # SQL expression for a JSONB weekly schedule across midnight + timezone).
+    # To keep pagination correct we over-fetch a capped, unoffset scan when
+    # the filter is on, then filter + slice below.
+    _OPEN_NOW_SCAN_CAP = 200
+    scan_limit = _OPEN_NOW_SCAN_CAP if open_now else limit
+    scan_offset = 0 if open_now else offset
+
     if has_text:
         rows = search_by_text(
             db,
             q=q.strip(),
-            limit=limit,
-            offset=offset,
+            limit=scan_limit,
+            offset=scan_offset,
             halal_filters=halal_filters,
             cuisines=cuisines,
             # When the caller also has geo context, constrain the
@@ -956,8 +985,8 @@ def search_places(
             lat=lat,
             lng=lng,
             radius_m=radius,
-            limit=limit,
-            offset=offset,
+            limit=scan_limit,
+            offset=scan_offset,
             halal_filters=halal_filters,
             cuisines=cuisines,
         )
@@ -985,7 +1014,7 @@ def search_places(
                 return photos_storage.public_url(p.storage_path)
         return None
 
-    return [
+    results = [
         PlaceSearchResult.model_validate(
             {
                 "id": place.id,
@@ -998,6 +1027,13 @@ def search_places(
                 "country_code": place.country_code,
                 "cuisine_types": list(place.cuisine_types or []),
                 "hero_photo_url": _hero_url_for(place),
+                "google_rating": (
+                    float(place.google_rating)
+                    if place.google_rating is not None
+                    else None
+                ),
+                "google_rating_count": place.google_rating_count,
+                "open_now": is_open_now(place.opening_hours, place.timezone),
                 "halal_profile": (
                     HalalProfileEmbed.model_validate(profile)
                     if profile is not None
@@ -1007,3 +1043,12 @@ def search_places(
         )
         for place, profile in rows
     ]
+
+    if open_now:
+        # Keep only places we can confirm are open right now (excludes
+        # unknown-hours places), then apply the caller's page window over
+        # the filtered set.
+        results = [r for r in results if r.open_now is True]
+        results = results[offset : offset + limit]
+
+    return results

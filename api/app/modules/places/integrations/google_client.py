@@ -59,6 +59,10 @@ _DEFAULT_FIELDS = ",".join(
         "types",
         "business_status",
         "formatted_phone_number",
+        "website",
+        "rating",
+        "user_ratings_total",
+        "opening_hours",
     )
 )
 
@@ -80,6 +84,15 @@ _DEFAULT_FIELDS_NEW = ",".join(
         "types",
         "businessStatus",
         "nationalPhoneNumber",
+        # Added for the website/rating/hours capture. NOTE: websiteUri,
+        # rating, userRatingCount, and regularOpeningHours push the call
+        # into Google's pricier Pro/Enterprise/Atmosphere SKU tiers — the
+        # weekly volatile-field sync is intentionally low-frequency for
+        # this reason.
+        "websiteUri",
+        "rating",
+        "userRatingCount",
+        "regularOpeningHours",
     )
 )
 

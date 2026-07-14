@@ -264,8 +264,82 @@ def run_import_google_hero(job_id: str, params: dict[str, Any]) -> dict:
     }
 
 
+def _all_google_linked(db, limit: int | None) -> list[UUID]:
+    stmt = (
+        select(Place.id)
+        .join(PlaceExternalId, PlaceExternalId.place_id == Place.id)
+        .where(PlaceExternalId.provider == ExternalIdProvider.GOOGLE)
+        .order_by(Place.id)
+    )
+    if limit:
+        stmt = stmt.limit(limit)
+    return [row[0] for row in db.execute(stmt).all()]
+
+
+def count_google_linked(limit: int | None = None) -> int:
+    db = SessionLocal()
+    try:
+        return len(_all_google_linked(db, limit))
+    finally:
+        db.close()
+
+
+def run_sync_google_data(job_id: str, params: dict[str, Any]) -> dict:
+    """Refresh volatile Google data (rating, hours, website) for every
+    Google-linked place — the weekly/biweekly sync.
+
+    params: { limit?: int, dry_run?: bool = true, throttle_seconds?: float }
+
+    Reuses resync_google_place, which now overwrites rating/hours and stamps
+    google_synced_at on each call (website stays additive). Every Google-linked
+    place is refreshed, not just ones with null fields.
+    """
+    limit = params.get("limit")
+    dry_run = bool(params.get("dry_run", True))
+    throttle = float(params.get("throttle_seconds", THROTTLE_SECONDS))
+
+    synced = 0
+    errors: list[dict] = []
+
+    db = SessionLocal()
+    try:
+        ids = _all_google_linked(db, limit)
+        jobsdb.set_total(job_id, len(ids))
+        jobsdb.add_log(
+            job_id,
+            f"{'DRY RUN — ' if dry_run else ''}{len(ids)} Google-linked place(s) "
+            f"(throttle {throttle}s).",
+        )
+        for pid in ids:
+            try:
+                if dry_run:
+                    jobsdb.add_log(job_id, f"[dry-run] would sync {pid}")
+                else:
+                    resync_google_place(db, place_id=pid)
+                    synced += 1
+                    jobsdb.add_log(job_id, f"synced {pid}")
+            except Exception as exc:
+                db.rollback()
+                errors.append({"place_id": str(pid), "error": str(exc)})
+                jobsdb.add_log(job_id, f"ERROR {pid}: {exc}")
+            finally:
+                jobsdb.bump_done(job_id, 1)
+                if throttle:
+                    time.sleep(throttle)
+    finally:
+        db.close()
+
+    return {
+        "dry_run": dry_run,
+        "candidates": synced + len(errors),
+        "synced": synced,
+        "errors": errors,
+    }
+
+
 # Registry of runnable job kinds. Add new ops here.
 JOB_KINDS: dict[str, Callable[[str, dict[str, Any]], dict]] = {
     "backfill_field": run_backfill_field,
     "import_google_hero": run_import_google_hero,
+    "sync_google_data": run_sync_google_data,
 }

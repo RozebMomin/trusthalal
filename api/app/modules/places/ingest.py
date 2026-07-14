@@ -136,6 +136,12 @@ def ingest_google_place(
         postal_code=fields.postal_code,
         timezone=fields.timezone,
         phone=fields.phone,
+        website_url=fields.website_url,
+        google_rating=fields.rating,
+        google_rating_count=fields.rating_count,
+        opening_hours=fields.opening_hours,
+        opening_hours_weekday_text=fields.opening_hours_weekday_text,
+        google_synced_at=now,
         canonical_source=ExternalIdProvider.GOOGLE,
         lat=fields.lat,
         lng=fields.lng,
@@ -477,6 +483,22 @@ def resync_google_place(
     if place.canonical_source is None:
         place.canonical_source = ExternalIdProvider.GOOGLE
         fields_updated.append("canonical_source")
+
+    # Volatile Google-owned fields: refresh (overwrite) on every resync —
+    # this is what the weekly sync exists for. Unlike the additive canonical
+    # columns above, rating/hours are Google's live data with no admin-edit
+    # semantics, so we always take the latest. ``website_url`` stays additive
+    # (only filled when NULL) so a future owner override isn't clobbered.
+    if place.website_url is None and fields.website_url:
+        place.website_url = fields.website_url
+        fields_updated.append("website_url")
+
+    place.google_rating = fields.rating
+    place.google_rating_count = fields.rating_count
+    place.opening_hours = fields.opening_hours
+    place.opening_hours_weekday_text = fields.opening_hours_weekday_text
+    place.google_synced_at = now
+    db.add(place)
 
     # 6. Audit event. Message is explicit about what happened so the
     # event history distinguishes resync-that-backfilled from

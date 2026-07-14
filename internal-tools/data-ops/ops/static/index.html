@@ -125,6 +125,33 @@
   </div>
 
   <div class="card">
+    <h2>Sync Google data (rating · hours · website)</h2>
+    <div class="row">
+      <div>
+        <label>Limit (blank = all)</label>
+        <input id="s_limit" type="number" min="1" placeholder="all" />
+      </div>
+      <div>
+        <label>Throttle (s)</label>
+        <input id="s_throttle" type="number" min="0" step="0.1" value="0.5" />
+      </div>
+      <div class="check" style="flex:0 0 auto; padding-bottom:8px;">
+        <input id="s_dryrun" type="checkbox" checked />
+        <label for="s_dryrun" style="margin:0;">Dry run</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button class="ghost" onclick="syncPreview()">Preview count</button>
+      <button onclick="enqueueSync()">Run sync</button>
+      <span id="syncPreviewOut" class="hint"></span>
+    </div>
+    <p class="hint">Refreshes volatile Google fields (rating, review count, opening hours,
+      and <code>google_synced_at</code>) for every Google-linked place; website fills only if empty.
+      Meant to run weekly/biweekly. Note: these fields are Google's pricier SKU tiers, so a full run
+      has real API cost — throttle and mind the cadence.</p>
+  </div>
+
+  <div class="card">
     <div style="display:flex; align-items:center; justify-content:space-between;">
       <h2 style="margin:0;">Jobs</h2>
       <button class="ghost" onclick="clearFinished()">Clear finished</button>
@@ -212,6 +239,40 @@ async function enqueueHero() {
   refresh();
 }
 
+function syncParams() {
+  const p = { dry_run: $("s_dryrun").checked };
+  const lim = $("s_limit").value.trim();
+  if (lim) p.limit = parseInt(lim, 10);
+  const th = $("s_throttle").value.trim();
+  if (th !== "") p.throttle_seconds = parseFloat(th);
+  return p;
+}
+
+async function syncPreview() {
+  $("syncPreviewOut").textContent = "counting…";
+  const p = syncParams();
+  const q = new URLSearchParams();
+  if (p.limit) q.set("limit", p.limit);
+  try {
+    const r = await fetch("/api/google-sync-preview?" + q.toString());
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "error");
+    $("syncPreviewOut").textContent = `${d.candidates} Google-linked place(s).`;
+  } catch (e) { $("syncPreviewOut").innerHTML = `<span class="warn">${e.message}</span>`; }
+}
+
+async function enqueueSync() {
+  const p = syncParams();
+  if (!p.dry_run && !confirm("Refresh Google data for these places in prod? Writes to the production DB and calls Google (billed).")) return;
+  const r = await fetch("/api/jobs", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind: "sync_google_data", params: p }),
+  });
+  const d = await r.json();
+  if (!r.ok) { alert(d.detail || "error"); return; }
+  refresh();
+}
+
 function statusTag(s) { return `<span class="tag s-${s}">${s}</span>`; }
 function esc(x) { return (x ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
@@ -242,6 +303,8 @@ async function refresh() {
       const errs = (rr.errors || []).length;
       if (j.kind === "import_google_hero") {
         result = `<code>${dry}imported ${rr.imported ?? 0} · no-photo ${rr.no_photo ?? 0} · err ${errs}</code>`;
+      } else if (j.kind === "sync_google_data") {
+        result = `<code>${dry}synced ${rr.synced ?? 0} · err ${errs}</code>`;
       } else {
         result = `<code>${dry}upd ${rr.updated ?? 0} · unchg ${rr.unchanged ?? 0} · err ${errs}</code>`;
       }
