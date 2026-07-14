@@ -14,7 +14,7 @@ import { PhotoViewer } from "@/components/PhotoViewer";
 import { TrustProfileSheet } from "@/components/TrustProfileSheet";
 import { TierTag } from "@/components/TierTag";
 import { ErrorState, Loading } from "@/components/States";
-import type { HalalProfileEmbed } from "@/lib/api/types";
+import type { HalalProfileEmbed, PlaceDetail as PlaceDetailType } from "@/lib/api/types";
 import { capture } from "@/lib/analytics";
 
 const TEST_FORCE_PORK = false;
@@ -157,6 +157,32 @@ export default function PlaceDetail() {
                 {place.address ? (
                   <Text style={[ty.small, { color: t.sub }]}>{place.address}</Text>
                 ) : null}
+                {place.google_rating != null || place.open_now != null ? (
+                  <Text style={[ty.small, { marginTop: 3 }]} numberOfLines={1}>
+                    {place.google_rating != null ? (
+                      <Text style={{ color: t.ink, fontFamily: "Inter_700Bold" }}>
+                        <Text style={{ color: "#F59E0B" }}>★ </Text>
+                        {place.google_rating.toFixed(1)}
+                        {place.google_rating_count != null ? (
+                          <Text style={{ color: t.sub, fontFamily: "Inter_500Medium" }}>
+                            {`  ·  ${place.google_rating_count} reviews`}
+                          </Text>
+                        ) : null}
+                      </Text>
+                    ) : null}
+                    {place.open_now != null ? (
+                      <Text
+                        style={{
+                          color: place.open_now ? t.accentDeep : t.sub,
+                          fontFamily: "Inter_600SemiBold",
+                        }}
+                      >
+                        {place.google_rating != null ? "  ·  " : ""}
+                        {place.open_now ? "Open now" : "Closed"}
+                      </Text>
+                    ) : null}
+                  </Text>
+                ) : null}
               </View>
 
               <View style={{ flexDirection: "row", gap: space.sm, marginTop: 2 }}>
@@ -207,6 +233,8 @@ export default function PlaceDetail() {
                   }}
                 />
               </View>
+
+              <HoursAndContact place={place} />
 
               <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
                 Spot something wrong? Reporting arrives in the next build — for now, report on
@@ -328,6 +356,124 @@ function Glass({
         <Feather name={icon!} size={17} color={active ? t.danger : "#0B0B0E"} />
       )}
     </Pressable>
+  );
+}
+
+/** Google-sourced hours + website, styled as calm grouped rows. Hours sit
+ *  collapsed as one line and expand to the full week; a quiet "from Google"
+ *  line sets freshness. Renders nothing when there's neither hours nor a site. */
+function HoursAndContact({ place }: { place: PlaceDetailType }) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+
+  const week = place.opening_hours_weekday_text ?? null;
+  const hasHours = !!week && week.length > 0;
+  const hasWebsite = !!place.website_url;
+  if (!hasHours && !hasWebsite) return null;
+
+  // Google's weekdayDescriptions are Monday-first; JS getDay() is Sunday=0.
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  const splitLine = (line: string): [string, string] => {
+    const m = line.match(/^(.*?):\s(.+)$/);
+    return m ? [m[1], m[2]] : [line, ""];
+  };
+  const todayTime = hasHours && week[todayIdx] ? splitLine(week[todayIdx])[1] : null;
+
+  const status = place.open_now == null ? null : place.open_now ? "Open now" : "Closed";
+  const host = hasWebsite
+    ? place.website_url!.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "")
+    : null;
+  const syncedLabel = place.google_synced_at
+    ? new Date(place.google_synced_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : null;
+
+  return (
+    <View
+      style={{
+        backgroundColor: t.card,
+        borderRadius: radii.xl,
+        paddingHorizontal: space.lg,
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
+      }}
+    >
+      {hasHours ? (
+        <>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={status ? `${status}. Show weekly hours` : "Show weekly hours"}
+            onPress={() => setOpen((o) => !o)}
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14 }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+              <Feather name="clock" size={18} color={t.accentDeep} />
+              <View style={{ flex: 1 }}>
+                <Text style={[ty.label, { color: t.ink, fontSize: 13 }]}>
+                  {status ? (
+                    <Text style={{ color: place.open_now ? t.accentDeep : t.sub }}>{status}</Text>
+                  ) : (
+                    "Hours"
+                  )}
+                </Text>
+                {todayTime ? (
+                  <Text style={[ty.small, { color: t.sub, marginTop: 1 }]}>{`Today · ${todayTime}`}</Text>
+                ) : null}
+              </View>
+            </View>
+            <Feather name={open ? "chevron-up" : "chevron-down"} size={18} color={t.sub} />
+          </Pressable>
+          {open ? (
+            <View style={{ paddingLeft: 30, paddingBottom: 12, gap: 8 }}>
+              {week!.map((line, i) => {
+                const [day, time] = splitLine(line);
+                const isToday = i === todayIdx;
+                const color = isToday ? t.accentDeep : t.sub;
+                const font = isToday ? "Inter_700Bold" : "Inter_500Medium";
+                return (
+                  <View key={i} style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={[ty.small, { color, fontFamily: font }]}>{isToday ? "Today" : day}</Text>
+                    <Text style={[ty.small, { color, fontFamily: font }]}>{time}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+        </>
+      ) : null}
+
+      {hasHours && hasWebsite ? <View style={{ height: 1, backgroundColor: t.line }} /> : null}
+
+      {hasWebsite ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={`Open website ${host}`}
+          onPress={() => {
+            const url = place.website_url!.startsWith("http")
+              ? place.website_url!
+              : `https://${place.website_url}`;
+            Linking.openURL(url);
+          }}
+          style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14 }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+            <Feather name="globe" size={18} color={t.sub} />
+            <Text numberOfLines={1} style={[ty.label, { color: t.ink, fontSize: 13, flex: 1 }]}>
+              {host}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={t.sub} />
+        </Pressable>
+      ) : null}
+
+      {syncedLabel && (hasHours || place.google_rating != null) ? (
+        <Text style={[ty.small, { color: t.sub, textAlign: "center", paddingBottom: 12, fontSize: 10.5 }]}>
+          {`Ratings & hours from Google · updated ${syncedLabel}`}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 

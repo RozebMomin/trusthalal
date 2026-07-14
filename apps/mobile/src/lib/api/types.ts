@@ -76,6 +76,12 @@ export type PlaceSearchResult = {
   cuisine_types: string[];
   hero_photo_url: string | null;
   halal_profile: HalalProfileEmbed | null;
+  /** Google star rating (1.0–5.0) + number of ratings. Null until synced.
+   *  Optional so fixtures and older cached payloads stay valid. */
+  google_rating?: number | null;
+  google_rating_count?: number | null;
+  /** Computed open/closed from stored hours + place tz. Null when unknown. */
+  open_now?: boolean | null;
 };
 
 export type PlacePhoto = {
@@ -95,6 +101,12 @@ export type PlaceDetail = PlaceSearchResult & {
   is_deleted: boolean;
   phone: string | null;
   photos: PlacePhoto[];
+  /** Listing website (from Google ingest). */
+  website_url?: string | null;
+  /** When the volatile Google fields (rating/hours) were last refreshed. */
+  google_synced_at?: string | null;
+  /** Human-readable weekly hours, Monday-first, e.g. ["Monday: 11 AM – 11 PM"]. */
+  opening_hours_weekday_text?: string[] | null;
 };
 
 export type SearchPlacesParams = {

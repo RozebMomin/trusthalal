@@ -46,7 +46,13 @@ export function PlaceCard({
             <Text numberOfLines={1} style={[ty.label, { color: t.ink, fontSize: 15 }]}>
               {place.name}
             </Text>
-            <Text style={[ty.small, { color: t.sub, marginTop: 3 }]}>
+            <Text style={[ty.small, { color: t.sub, marginTop: 3 }]} numberOfLines={1}>
+              {place.google_rating != null ? (
+                <Text style={{ color: "#F59E0B", fontFamily: "Inter_700Bold" }}>
+                  {`★ ${place.google_rating.toFixed(1)}`}
+                </Text>
+              ) : null}
+              {place.google_rating != null && (dist || meta) ? " · " : null}
               {[dist, meta].filter(Boolean).join(" · ")}
             </Text>
           </View>
@@ -96,8 +102,16 @@ export function PlaceCard({
           <Text numberOfLines={1} style={[ty.label, { color: "#fff", fontSize: 16 }]}>
             {place.name}
           </Text>
-          {meta ? (
-            <Text style={[ty.small, { color: "rgba(255,255,255,0.85)" }]}>{meta}</Text>
+          {place.google_rating != null || meta ? (
+            <Text style={[ty.small, { color: "rgba(255,255,255,0.85)" }]} numberOfLines={1}>
+              {place.google_rating != null ? (
+                <Text style={{ color: "#FCD34D", fontFamily: "Inter_700Bold" }}>
+                  {`★ ${place.google_rating.toFixed(1)}`}
+                </Text>
+              ) : null}
+              {place.google_rating != null && meta ? " · " : null}
+              {meta}
+            </Text>
           ) : null}
         </View>
       </ImageBackground>

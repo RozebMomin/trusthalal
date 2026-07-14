@@ -414,6 +414,11 @@ export function MapResults({
                   {item.place.name}
                 </Text>
                 <Text numberOfLines={1} style={[ty.small, { color: t.sub }]}>
+                  {item.place.google_rating != null ? (
+                    <Text style={{ color: "#F59E0B", fontFamily: "Inter_700Bold" }}>
+                      {`★ ${item.place.google_rating.toFixed(1)} · `}
+                    </Text>
+                  ) : null}
                   {[mi, item.place.cuisine_types[0] && titleCase(item.place.cuisine_types[0]), item.place.city].filter(Boolean).join(" · ")}
                 </Text>
               </View>
