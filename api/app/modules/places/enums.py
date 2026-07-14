@@ -124,6 +124,14 @@ class PlacePhotoSource(StrEnum):
 
     OWNER = "OWNER"
     CONSUMER = "CONSUMER"
+    # Imported server-side from the Google Places Photo API (e.g. the
+    # internal data-ops hero-image backfill). Eligible to be hero — it's
+    # a stand-in cover image until an owner uploads their own. The
+    # required Google author attribution is stored on the photo's
+    # ``caption``. Not user-uploadable: the upload route only ever sets
+    # OWNER or CONSUMER, so this value originates solely from the
+    # backfill tool.
+    GOOGLE = "GOOGLE"
 
 
 class PlaceEventType(StrEnum):

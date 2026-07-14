@@ -15,7 +15,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from ops import jobsdb
-from ops.runners import JOB_KINDS, count_backfill_candidates
+from ops.runners import (
+    JOB_KINDS,
+    count_backfill_candidates,
+    count_hero_candidates,
+)
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -44,6 +48,12 @@ def preview(field: str = "phone", limit: int | None = None) -> dict:
         return {"field": field, "candidates": count_backfill_candidates(field, limit)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/hero-preview")
+def hero_preview(limit: int | None = None) -> dict:
+    """Count of photo-less Google-linked places a hero import would touch."""
+    return {"candidates": count_hero_candidates(limit)}
 
 
 @app.post("/api/jobs")

@@ -33,6 +33,10 @@ services:
       DATABASE_URL: ${PROD_DATABASE_URL}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
       OPS_THROTTLE_SECONDS: ${OPS_THROTTLE_SECONDS:-0.5}
+      # Needed by the hero-image import to write photo bytes to prod storage.
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_PHOTOS_BUCKET: ${SUPABASE_PHOTOS_BUCKET:-place-photos}
     command: uvicorn ops.server:app --host 0.0.0.0 --port 8090
     ports:
       - "8090:8090"
@@ -53,6 +57,10 @@ services:
       DATABASE_URL: ${PROD_DATABASE_URL}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
       OPS_THROTTLE_SECONDS: ${OPS_THROTTLE_SECONDS:-0.5}
+      # Needed by the hero-image import to write photo bytes to prod storage.
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_PHOTOS_BUCKET: ${SUPABASE_PHOTOS_BUCKET:-place-photos}
     command: python -m ops.worker
     extra_hosts:
       - "host.docker.internal:host-gateway"

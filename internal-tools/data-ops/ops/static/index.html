@@ -94,6 +94,37 @@
   </div>
 
   <div class="card">
+    <h2>Import hero image from Google</h2>
+    <div class="row">
+      <div>
+        <label>Limit (blank = all)</label>
+        <input id="h_limit" type="number" min="1" placeholder="all" />
+      </div>
+      <div>
+        <label>Throttle (s)</label>
+        <input id="h_throttle" type="number" min="0" step="0.1" value="0.5" />
+      </div>
+      <div>
+        <label>Max width (px)</label>
+        <input id="h_maxpx" type="number" min="200" step="100" value="1600" />
+      </div>
+      <div class="check" style="flex:0 0 auto; padding-bottom:8px;">
+        <input id="h_dryrun" type="checkbox" checked />
+        <label for="h_dryrun" style="margin:0;">Dry run</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button class="ghost" onclick="heroPreview()">Preview count</button>
+      <button onclick="enqueueHero()">Run import</button>
+      <span id="heroPreviewOut" class="hint"></span>
+    </div>
+    <p class="hint">Only touches Google-linked places with <em>zero</em> photos — pure gap-fill,
+      never clobbers an owner's curated photo. Pulls the listing's headline photo via the official
+      Google Place Photos API, stores it as the hero (source <code>GOOGLE</code>), and records Google's
+      required attribution in the caption.</p>
+  </div>
+
+  <div class="card">
     <div style="display:flex; align-items:center; justify-content:space-between;">
       <h2 style="margin:0;">Jobs</h2>
       <button class="ghost" onclick="clearFinished()">Clear finished</button>
@@ -145,6 +176,42 @@ async function enqueue() {
   refresh();
 }
 
+function heroParams() {
+  const p = { dry_run: $("h_dryrun").checked };
+  const lim = $("h_limit").value.trim();
+  if (lim) p.limit = parseInt(lim, 10);
+  const th = $("h_throttle").value.trim();
+  if (th !== "") p.throttle_seconds = parseFloat(th);
+  const mp = $("h_maxpx").value.trim();
+  if (mp) p.max_px = parseInt(mp, 10);
+  return p;
+}
+
+async function heroPreview() {
+  $("heroPreviewOut").textContent = "counting…";
+  const p = heroParams();
+  const q = new URLSearchParams();
+  if (p.limit) q.set("limit", p.limit);
+  try {
+    const r = await fetch("/api/hero-preview?" + q.toString());
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "error");
+    $("heroPreviewOut").textContent = `${d.candidates} place(s) with no photos.`;
+  } catch (e) { $("heroPreviewOut").innerHTML = `<span class="warn">${e.message}</span>`; }
+}
+
+async function enqueueHero() {
+  const p = heroParams();
+  if (!p.dry_run && !confirm("Import Google hero photos into prod? This writes images to storage and rows to the production DB.")) return;
+  const r = await fetch("/api/jobs", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind: "import_google_hero", params: p }),
+  });
+  const d = await r.json();
+  if (!r.ok) { alert(d.detail || "error"); return; }
+  refresh();
+}
+
 function statusTag(s) { return `<span class="tag s-${s}">${s}</span>`; }
 function esc(x) { return (x ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
@@ -171,7 +238,13 @@ async function refresh() {
     if (j.error) result = `<span class="warn">${esc(j.error)}</span>`;
     else if (j.result) {
       const rr = j.result;
-      result = `<code>${rr.dry_run ? "dry · " : ""}upd ${rr.updated ?? 0} · unchg ${rr.unchanged ?? 0} · err ${(rr.errors||[]).length}</code>`;
+      const dry = rr.dry_run ? "dry · " : "";
+      const errs = (rr.errors || []).length;
+      if (j.kind === "import_google_hero") {
+        result = `<code>${dry}imported ${rr.imported ?? 0} · no-photo ${rr.no_photo ?? 0} · err ${errs}</code>`;
+      } else {
+        result = `<code>${dry}upd ${rr.updated ?? 0} · unchg ${rr.unchanged ?? 0} · err ${errs}</code>`;
+      }
     }
     const logs = (j.logs && j.logs.length)
       ? `<details><summary>${j.logs.length} log line(s)</summary><pre>${esc(j.logs.join("\n"))}</pre></details>` : "";
