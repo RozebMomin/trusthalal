@@ -148,9 +148,22 @@ async function enqueue() {
 function statusTag(s) { return `<span class="tag s-${s}">${s}</span>`; }
 function esc(x) { return (x ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
+let lastJobsJson = "";
+
 async function refresh() {
+  // Don't re-render while the user is interacting with a form control — a DOM
+  // mutation dismisses an open native <select> dropdown.
+  const el = document.activeElement;
+  if (el && (el.tagName === "SELECT" || el.tagName === "INPUT")) return;
+
   const r = await fetch("/api/jobs?limit=50");
   const jobs = await r.json();
+
+  // Only touch the DOM when the data actually changed.
+  const json = JSON.stringify(jobs);
+  if (json === lastJobsJson) return;
+  lastJobsJson = json;
+
   $("jobs").innerHTML = jobs.map(j => {
     const total = j.total ?? 0, done = j.done ?? 0;
     const pct = total ? Math.round(100 * done / total) : (j.status === "succeeded" ? 100 : 0);
