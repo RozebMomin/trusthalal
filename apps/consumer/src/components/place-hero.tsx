@@ -23,7 +23,7 @@
  * stacked above so the visitor sees the status before reading the
  * profile.
  */
-import { Utensils } from "lucide-react";
+import { Star, Utensils } from "lucide-react";
 import * as React from "react";
 
 import type { Cuisine, PlaceDetail } from "@/lib/api/hooks";
@@ -157,6 +157,18 @@ export function PlaceHero({ place }: { place: PlaceDetail }) {
         >
           {place.name}
         </h1>
+
+        {place.google_rating != null && (
+          <div className="flex items-center gap-1.5 text-sm font-medium text-white drop-shadow">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
+            <span>{place.google_rating.toFixed(1)}</span>
+            {place.google_rating_count != null && (
+              <span className="text-white/75">
+                ({place.google_rating_count})
+              </span>
+            )}
+          </div>
+        )}
 
         {visibleCuisines.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">

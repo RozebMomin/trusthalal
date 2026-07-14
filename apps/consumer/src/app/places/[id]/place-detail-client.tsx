@@ -26,7 +26,7 @@
  * so this view doesn't depend on ``useParams``.
  */
 
-import { ChevronLeft, ExternalLink, Flag, MapPin } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronUp, Clock, ExternalLink, Flag, Globe, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -43,6 +43,7 @@ import { PreferenceMatchBanner } from "@/components/preference-match-banner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 import {
   type ConsumerDisputeReporter,
   type DisputeStatus,
@@ -211,6 +212,8 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
             <PlaceNoTrustSummary />
           )}
 
+          <PlaceHoursCard place={place.data} />
+
           <PlacePhotoGallery
             photos={place.data.photos}
             placeName={place.data.name}
@@ -270,16 +273,127 @@ function PlaceAddressLine({ place }: { place: PlaceDetail }) {
           {addressParts.join(" · ")}
         </span>
       </a>
-      <a
-        href={directionsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
-      >
-        Get directions
-        <ExternalLink className="h-3 w-3" aria-hidden />
-      </a>
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
+        >
+          Get directions
+          <ExternalLink className="h-3 w-3" aria-hidden />
+        </a>
+        {place.website_url && (
+          <a
+            href={
+              place.website_url.startsWith("http")
+                ? place.website_url
+                : `https://${place.website_url}`
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
+          >
+            <Globe className="h-3 w-3" aria-hidden />
+            Visit website
+          </a>
+        )}
+      </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Google-sourced opening hours — a calm card with an Open/Closed status
+// line over the full week, expanded by default. A quiet "from Google" line
+// sets freshness. Renders nothing when the place has no hours on file.
+// ---------------------------------------------------------------------------
+function PlaceHoursCard({ place }: { place: PlaceDetail }) {
+  const week = place.opening_hours_weekday_text ?? null;
+  const hasHours = Boolean(week && week.length > 0);
+  const [open, setOpen] = React.useState(true);
+  if (!hasHours || !week) return null;
+
+  // Google's weekdayDescriptions are Monday-first; JS getDay() is Sunday=0.
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  const splitLine = (line: string): [string, string] => {
+    const m = line.match(/^(.*?):\s(.+)$/);
+    return m ? [m[1], m[2]] : [line, ""];
+  };
+  const todayTime = week[todayIdx] ? splitLine(week[todayIdx])[1] : null;
+  const status =
+    place.open_now == null ? null : place.open_now ? "Open now" : "Closed";
+  const synced = place.google_synced_at
+    ? new Date(place.google_synced_at).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+
+  return (
+    <section className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <span className="flex items-center gap-2.5">
+          <Clock className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <span className="text-sm">
+            {status ? (
+              <span
+                className={cn(
+                  "font-semibold",
+                  place.open_now ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                {status}
+              </span>
+            ) : (
+              <span className="font-semibold">Hours</span>
+            )}
+            {todayTime && (
+              <span className="text-muted-foreground">{` · Today ${todayTime}`}</span>
+            )}
+          </span>
+        </span>
+        {open ? (
+          <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        ) : (
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        )}
+      </button>
+
+      {open && (
+        <ul className="mt-3 space-y-1.5 pl-[26px]">
+          {week.map((line, i) => {
+            const [day, time] = splitLine(line);
+            const isToday = i === todayIdx;
+            return (
+              <li
+                key={i}
+                className={cn(
+                  "flex justify-between text-sm",
+                  isToday
+                    ? "font-semibold text-foreground"
+                    : "text-muted-foreground",
+                )}
+              >
+                <span>{isToday ? "Today" : day}</span>
+                <span>{time}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {synced && (
+        <p className="mt-3 text-center text-[11px] text-muted-foreground">
+          Ratings &amp; hours from Google · updated {synced}
+        </p>
+      )}
+    </section>
   );
 }
 

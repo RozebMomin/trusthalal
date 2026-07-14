@@ -27,7 +27,7 @@
  * a corner badge — the corner is now reserved for the primary halal
  * signal which is more important to scan first.
  */
-import { Navigation } from "lucide-react";
+import { Navigation, Star } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -152,6 +152,8 @@ export function PlaceResultCard({
             <MetadataStrip
               cuisines={place.cuisine_types}
               distanceMeters={distanceMeters}
+              rating={place.google_rating}
+              ratingCount={place.google_rating_count}
             />
 
             {facts.length > 0 && <FactsStrip facts={facts} />}
@@ -246,22 +248,41 @@ function PrimaryPill({ signal }: { signal: PrimaryHalalSignal }) {
 function MetadataStrip({
   cuisines,
   distanceMeters,
+  rating,
+  ratingCount,
 }: {
   cuisines: ReadonlyArray<Cuisine>;
   distanceMeters?: number;
+  rating?: number | null;
+  ratingCount?: number | null;
 }) {
   const visibleCuisines = cuisines.slice(0, MAX_CUISINE_CHIPS);
   const cuisineOverflow = cuisines.length - visibleCuisines.length;
+  const hasRating = rating != null;
 
   if (
     visibleCuisines.length === 0 &&
-    distanceMeters === undefined
+    distanceMeters === undefined &&
+    !hasRating
   ) {
     return null;
   }
 
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+      {hasRating && (
+        <span className="inline-flex items-center gap-1 font-medium text-amber-600">
+          <Star className="h-3 w-3 fill-amber-500 text-amber-500" aria-hidden />
+          {rating.toFixed(1)}
+          {ratingCount != null && (
+            <span className="text-muted-foreground/80">({ratingCount})</span>
+          )}
+        </span>
+      )}
+      {hasRating &&
+        (distanceMeters !== undefined || visibleCuisines.length > 0) && (
+          <span aria-hidden>·</span>
+        )}
       {distanceMeters !== undefined && (
         <span className="inline-flex items-center gap-1 font-medium text-primary">
           <Navigation className="h-3 w-3" aria-hidden />

@@ -263,6 +263,13 @@ export type PlaceSearchResult = {
    * claim or the profile was revoked. The search result row renders
    * a "no halal profile yet" affordance in that case. */
   halal_profile: HalalProfileEmbed | null;
+  /** Google star rating (1.0–5.0) + number of ratings. Null until
+   * synced. Optional so cached payloads and fixtures stay valid. */
+  google_rating?: number | null;
+  google_rating_count?: number | null;
+  /** Computed open/closed from stored hours + place tz. Null when
+   * hours are unknown. */
+  open_now?: boolean | null;
 };
 
 /**
@@ -292,6 +299,18 @@ export type PlaceDetail = {
   /** Convenience shortcut: the URL of the photo with is_hero=true,
    * or null when no hero is set. */
   hero_photo_url: string | null;
+  /** Listing website (from Google ingest). Null when unknown. */
+  website_url?: string | null;
+  /** Google star rating (1.0–5.0) + count, and when the volatile
+   * Google fields were last refreshed (for a "from Google" line). */
+  google_rating?: number | null;
+  google_rating_count?: number | null;
+  google_synced_at?: string | null;
+  /** Human-readable weekly hours, Monday-first, e.g.
+   * ["Monday: 11 AM – 11 PM", …]. Null when Google has no hours. */
+  opening_hours_weekday_text?: string[] | null;
+  /** Computed open/closed from stored hours + place tz. */
+  open_now?: boolean | null;
 };
 
 // ---------------------------------------------------------------------------

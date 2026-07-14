@@ -118,7 +118,7 @@ import { capturePostHog } from "@/lib/analytics";
 import { useMyPreferences } from "@/lib/api/preferences";
 import { haversineDistanceMeters } from "@/lib/geo";
 
-type DistanceSort = "closest" | "farthest";
+type SortMode = "closest" | "farthest" | "rating";
 
 const DEBOUNCE_MS = 250;
 
@@ -398,8 +398,7 @@ function HomePageInner() {
   // local state (not the URL) because it's a pure presentation
   // choice — sharing a near-me link shouldn't surprise the recipient
   // with a non-default sort.
-  const [distanceSort, setDistanceSort] =
-    React.useState<DistanceSort>("closest");
+  const [sortMode, setSortMode] = React.useState<SortMode>("closest");
 
   // Decorate every result with its distance from the geo center so
   // each row can render a "X.X mi away" badge and the list can be
@@ -422,12 +421,24 @@ function HomePageInner() {
       }),
     }));
     withDistance.sort((a, b) => {
+      if (sortMode === "rating") {
+        // Highest rated first; unrated places sink to the bottom. Break
+        // ties by review count (more ratings = more confidence), then by
+        // distance so the nearer of two equal places wins.
+        const ra = a.place.google_rating ?? -1;
+        const rb = b.place.google_rating ?? -1;
+        if (rb !== ra) return rb - ra;
+        const ca = a.place.google_rating_count ?? 0;
+        const cb = b.place.google_rating_count ?? 0;
+        if (cb !== ca) return cb - ca;
+        return (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0);
+      }
       const da = a.distanceMeters ?? 0;
       const db = b.distanceMeters ?? 0;
-      return distanceSort === "closest" ? da - db : db - da;
+      return sortMode === "closest" ? da - db : db - da;
     });
     return withDistance;
-  }, [search.data, nearMeActive, distanceSort]);
+  }, [search.data, nearMeActive, sortMode]);
 
   // Filter sheet open/close state. Lives here (not in the URL) — a
   // shareable link with ``?filters_open=true`` would be confusing
@@ -574,14 +585,15 @@ function HomePageInner() {
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
                   Sort
                   <select
-                    value={distanceSort}
+                    value={sortMode}
                     onChange={(e) =>
-                      setDistanceSort(e.target.value as DistanceSort)
+                      setSortMode(e.target.value as SortMode)
                     }
                     className="flex h-8 cursor-pointer appearance-none rounded-full border border-input bg-card px-3 pr-7 text-xs font-medium text-foreground shadow-sm transition [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] [background-position:right_0.6rem_center] [background-repeat:no-repeat] hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="closest">Closest first</option>
                     <option value="farthest">Farthest first</option>
+                    <option value="rating">Highest rated</option>
                   </select>
                 </label>
               </div>
