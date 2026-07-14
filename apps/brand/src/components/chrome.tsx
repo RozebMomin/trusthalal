@@ -13,6 +13,8 @@ import {
   CONTACT_EMAIL,
   ETHICS_PATH,
   OWNER_URL,
+  PRIVACY_PATH,
+  SUPPORT_PATH,
   VERIFIER_URL,
 } from "@/lib/links";
 
@@ -135,6 +137,8 @@ export function Footer() {
             title="Company"
             links={[
               { label: "AI ethics", href: ETHICS_PATH },
+              { label: "Privacy", href: PRIVACY_PATH },
+              { label: "Support", href: SUPPORT_PATH },
               {
                 label: CONTACT_EMAIL,
                 href: `mailto:${CONTACT_EMAIL}`,

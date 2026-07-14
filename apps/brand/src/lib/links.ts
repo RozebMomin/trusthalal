@@ -10,8 +10,15 @@ export const OWNER_URL = "https://owner.trusthalal.org";
 export const VERIFIER_URL = "https://halalfoodnearme.com/become-a-verifier";
 export const ADMIN_URL = "https://admin.trusthalal.org";
 export const ETHICS_PATH = "/ethics";
+export const PRIVACY_PATH = "/privacy";
+export const SUPPORT_PATH = "/support";
 export const CONTACT_EMAIL = "hello@trusthalal.org";
 export const ETHICS_CONTACT_EMAIL = "ethics@trusthalal.org";
+// App Store + Play Store require a working support contact and a privacy
+// contact. Create these as aliases forwarding to your real inbox before
+// submitting (e.g. both → hello@trusthalal.org).
+export const SUPPORT_CONTACT_EMAIL = "support@trusthalal.org";
+export const PRIVACY_CONTACT_EMAIL = "privacy@trusthalal.org";
 
 /**
  * Alpha test-build invite links, used by the /get download page.
