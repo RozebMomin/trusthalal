@@ -13,6 +13,12 @@ from uuid import UUID
 
 from sqlalchemy import select
 
+# Registers EVERY model on Base.metadata in one place. Without this, only the
+# Place models get imported and SQLAlchemy can't resolve cross-model foreign
+# keys (e.g. places.deleted_by_user_id -> app.users) when it configures mappers
+# for the write path. The read-only dry run never triggers that; a live resync
+# does. Import for the side effect only.
+import app.db.models  # noqa: F401
 from app.db.session import SessionLocal
 from app.modules.places.ingest import resync_google_place
 from app.modules.places.models import (
