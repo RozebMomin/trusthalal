@@ -70,6 +70,18 @@ def get_job(job_id: str) -> dict:
     return job
 
 
+@app.delete("/api/jobs/{job_id}")
+def delete_job(job_id: str) -> dict:
+    if not jobsdb.delete_job(job_id):
+        raise HTTPException(status_code=404, detail="job not found")
+    return {"deleted": job_id}
+
+
+@app.post("/api/jobs/clear-finished")
+def clear_finished() -> dict:
+    return {"deleted": jobsdb.clear_finished()}
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")

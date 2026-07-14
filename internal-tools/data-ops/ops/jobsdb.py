@@ -97,9 +97,40 @@ def bump_done(job_id: str, n: int = 1) -> None:
 def add_log(job_id: str, line: str) -> None:
     with engine.begin() as c:
         c.execute(
-            text("UPDATE ops_jobs SET logs = logs || to_jsonb(:l::text) WHERE id = :id"),
+            text("UPDATE ops_jobs SET logs = logs || to_jsonb(CAST(:l AS text)) WHERE id = :id"),
             {"l": line, "id": job_id},
         )
+
+
+def delete_job(job_id: str) -> bool:
+    with engine.begin() as c:
+        r = c.execute(text("DELETE FROM ops_jobs WHERE id = :id"), {"id": job_id})
+        return r.rowcount > 0
+
+
+def clear_finished() -> int:
+    """Delete all jobs that are no longer active (succeeded/failed)."""
+    with engine.begin() as c:
+        r = c.execute(
+            text("DELETE FROM ops_jobs WHERE status IN ('succeeded', 'failed')")
+        )
+        return r.rowcount
+
+
+def fail_orphaned() -> int:
+    """Any job still 'running' at startup was orphaned by a worker crash/restart.
+
+    Nothing is executing it, so mark it failed rather than leaving it stuck.
+    """
+    with engine.begin() as c:
+        r = c.execute(
+            text(
+                "UPDATE ops_jobs SET status = 'failed', finished_at = now(), "
+                "error = COALESCE(error, 'orphaned: worker restarted before completion') "
+                "WHERE status = 'running'"
+            )
+        )
+        return r.rowcount
 
 
 def finish(job_id: str, status: str, result: Optional[dict] = None, error: Optional[str] = None) -> None:

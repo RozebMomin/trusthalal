@@ -36,6 +36,10 @@ services:
     command: uvicorn ops.server:app --host 0.0.0.0 --port 8090
     ports:
       - "8090:8090"
+    # Lets a PROD_DATABASE_URL pointed at host.docker.internal reach a DB/tunnel
+    # running on your Mac (works on Linux too via host-gateway).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       jobs-db:
         condition: service_healthy
@@ -50,6 +54,8 @@ services:
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
       OPS_THROTTLE_SECONDS: ${OPS_THROTTLE_SECONDS:-0.5}
     command: python -m ops.worker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       jobs-db:
         condition: service_healthy

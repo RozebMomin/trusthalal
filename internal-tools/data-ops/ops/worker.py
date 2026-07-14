@@ -16,6 +16,9 @@ POLL_SECONDS = 2.0
 
 def run_forever() -> None:
     jobsdb.init_schema()
+    orphaned = jobsdb.fail_orphaned()
+    if orphaned:
+        print(f"[worker] marked {orphaned} orphaned running job(s) as failed", flush=True)
     print("[worker] up — polling for jobs", flush=True)
     while True:
         job = jobsdb.claim_one()
@@ -40,9 +43,18 @@ def run_forever() -> None:
             print(f"[worker] {job_id} succeeded", flush=True)
         except Exception as exc:
             tb = traceback.format_exc()
-            jobsdb.add_log(job_id, tb)
-            jobsdb.finish(job_id, "failed", error=str(exc))
             print(f"[worker] {job_id} FAILED: {exc}", flush=True)
+            print(tb, flush=True)
+            # Mark the job failed FIRST so it never gets stuck in 'running'.
+            # Logging is best-effort — a logging failure must not crash the worker.
+            try:
+                jobsdb.finish(job_id, "failed", error=str(exc))
+            except Exception as fin_exc:
+                print(f"[worker] could not mark {job_id} failed: {fin_exc}", flush=True)
+            try:
+                jobsdb.add_log(job_id, tb)
+            except Exception as log_exc:
+                print(f"[worker] could not write logs for {job_id}: {log_exc}", flush=True)
 
 
 if __name__ == "__main__":

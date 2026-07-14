@@ -94,10 +94,13 @@
   </div>
 
   <div class="card">
-    <h2>Jobs</h2>
-    <table>
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <h2 style="margin:0;">Jobs</h2>
+      <button class="ghost" onclick="clearFinished()">Clear finished</button>
+    </div>
+    <table style="margin-top:14px;">
       <thead>
-        <tr><th>kind</th><th>status</th><th>progress</th><th>result</th><th>created</th></tr>
+        <tr><th>kind</th><th>status</th><th>progress</th><th>result</th><th>created</th><th></th></tr>
       </thead>
       <tbody id="jobs"></tbody>
     </table>
@@ -166,8 +169,20 @@ async function refresh() {
           <span style="color:var(--muted);font-size:11px;">${done}/${total || "?"}</span></td>
       <td>${result}${logs}</td>
       <td style="color:var(--muted);white-space:nowrap;">${esc((j.created_at||"").toString().slice(0,19).replace("T"," "))}</td>
+      <td><button class="ghost" style="padding:4px 9px;" title="Delete" onclick="del('${j.id}')">✕</button></td>
     </tr>`;
   }).join("");
+}
+
+async function del(id) {
+  await fetch("/api/jobs/" + id, { method: "DELETE" });
+  refresh();
+}
+
+async function clearFinished() {
+  if (!confirm("Delete all succeeded/failed jobs?")) return;
+  await fetch("/api/jobs/clear-finished", { method: "POST" });
+  refresh();
 }
 
 refresh();
