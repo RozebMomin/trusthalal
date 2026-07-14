@@ -1,65 +1,27 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ApiError } from "@/lib/api/client";
-import { useCurrentUser, useMyVerifierApplications, useSubmitVerifierApplication } from "@/lib/api/hooks";
+import { useCurrentUser, useMyVerifierApplications } from "@/lib/api/hooks";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
 import { capture } from "@/lib/analytics";
 import { Card, Seg, Tag } from "@/ui/kit";
 
-/** Mockup 27, wired: pitch → short application → status tracking.
- *  Anonymous applications are allowed by the API, but the app asks
- *  for sign-in first so status tracking works — one account, one
- *  identity across diner and verifier life. */
+/** Mockup 27, wired: pitch → status tracking. Tapping "Apply" pushes the
+ *  dedicated /verifier-apply screen (the questions live there); this screen
+ *  stays a clean pitch + status surface. Applications are tied to an
+ *  account so status tracking works — one identity across diner and
+ *  verifier life. */
 export default function BecomeAVerifier() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { data: me } = useCurrentUser();
   const apps = useMyVerifierApplications(Boolean(me));
-  const submit = useSubmitVerifierApplication();
-
-  const [formOpen, setFormOpen] = useState(false);
-  const [motivation, setMotivation] = useState("");
-  const [background, setBackground] = useState("");
-  const [instagram, setInstagram] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
   const pending = apps.data?.find((a) => a.status === "PENDING");
   const rejected = apps.data?.find((a) => a.status === "REJECTED");
-  const tooShort = motivation.trim().length > 0 && motivation.trim().length < 20;
-
-  async function onSubmit() {
-    if (!me) return;
-    setError(null);
-    try {
-      await submit.mutateAsync({
-        applicant_email: me.email,
-        applicant_name: me.display_name ?? me.email,
-        motivation: motivation.trim(),
-        background: background.trim() || undefined,
-        social_links: instagram.trim() ? { instagram: instagram.trim() } : undefined,
-      });
-      capture("verifier_application_submitted");
-      setFormOpen(false);
-    } catch (e) {
-      setError(
-        e instanceof ApiError && e.status === 429
-          ? "Too many applications from this network — try again in an hour."
-          : e instanceof ApiError
-            ? e.message
-            : "Something went wrong. Try again in a moment.",
-      );
-    }
-  }
-
-  const field = {
-    backgroundColor: t.card, borderRadius: radii.lg, paddingHorizontal: space.lg,
-    paddingVertical: 12, color: t.ink, ...ty.body,
-  } as const;
 
   const PitchRow = ({ emoji, text, last }: { emoji: string; text: string; last?: boolean }) => (
     <View
@@ -77,7 +39,6 @@ export default function BecomeAVerifier() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView
-        scrollEnabled={formOpen}
         alwaysBounceVertical={false}
         contentContainerStyle={{ paddingTop: insets.top + space.md, padding: space.lg, paddingBottom: 60 }}
       >
@@ -144,58 +105,13 @@ export default function BecomeAVerifier() {
                   Applications are tied to your account so you can track the result.
                 </Text>
               </View>
-            ) : !formOpen ? (
-              <View style={{ marginTop: 16 }}>
-                <Button title="Apply — takes 5 minutes" variant="accent" onPress={() => { capture("verifier_application_started"); setFormOpen(true); }} />
-              </View>
             ) : (
-              <View style={{ marginTop: 14, gap: space.sm }}>
-                <Seg>Why do you want to do this?</Seg>
-                <TextInput
-                  style={[field, { minHeight: 100, textAlignVertical: "top" }]}
-                  multiline
-                  maxLength={2000}
-                  placeholder="A few honest sentences. Where you're based, what you eat, why this matters to you."
-                  placeholderTextColor={t.sub}
-                  value={motivation}
-                  onChangeText={setMotivation}
-                />
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <Text style={[ty.small, { color: tooShort ? t.danger : t.sub }]}>
-                    {tooShort ? "At least 20 characters." : "Honest beats polished."}
-                  </Text>
-                  <Text style={[ty.small, { color: t.sub }]}>{motivation.trim().length}/2000</Text>
-                </View>
-                <Seg>Anything else about you? (optional)</Seg>
-                <TextInput
-                  style={[field, { minHeight: 70, textAlignVertical: "top" }]}
-                  multiline
-                  maxLength={2000}
-                  placeholder="Food-writing, mosque involvement, community organizing — anything relevant."
-                  placeholderTextColor={t.sub}
-                  value={background}
-                  onChangeText={setBackground}
-                />
-                <Seg>Instagram (optional)</Seg>
-                <TextInput
-                  style={field}
-                  autoCapitalize="none"
-                  placeholder="@yourhandle"
-                  placeholderTextColor={t.sub}
-                  value={instagram}
-                  onChangeText={setInstagram}
-                />
-                {error ? <Text style={[ty.small, { color: t.danger }]}>{error}</Text> : null}
+              <View style={{ marginTop: 16 }}>
                 <Button
-                  title="Submit application"
+                  title="Apply — takes 5 minutes"
                   variant="accent"
-                  loading={submit.isPending}
-                  disabled={motivation.trim().length < 20}
-                  onPress={onSubmit}
+                  onPress={() => { capture("verifier_application_started"); router.push("/verifier-apply"); }}
                 />
-                <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
-                  Applying as {me.display_name ?? me.email} · we may contact you at {me.email}
-                </Text>
               </View>
             )}
             <Text style={[ty.small, { color: t.sub, fontSize: 13, textAlign: "center", marginTop: 14 }]}>
