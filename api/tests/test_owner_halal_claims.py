@@ -346,6 +346,49 @@ def test_patch_blocked_after_submit(api, factories, db_session):
     assert patch_resp.json()["error"]["code"] == "HALAL_CLAIM_NOT_EDITABLE"
 
 
+def test_patch_and_resubmit_allowed_in_needs_more_info(
+    api, factories, db_session
+):
+    """After admin flips a claim to NEEDS_MORE_INFO, the owner can
+    edit the questionnaire AND re-submit — the whole point of the
+    NEEDS_MORE_INFO status. Regression for the guards that only
+    allowed DRAFT."""
+    owner = factories.owner()
+    place, org = factories.managed_place(owner=owner)
+    db_session.commit()
+
+    create_resp = api.as_user(owner).post(
+        "/me/halal-claims",
+        json=_create_claim_payload(
+            place.id, org.id, structured=COMPLETE_QUESTIONNAIRE
+        ),
+    )
+    claim_id = create_resp.json()["id"]
+    api.as_user(owner).post(f"/me/halal-claims/{claim_id}/submit")
+
+    # Simulate admin requesting more info.
+    claim = db_session.execute(
+        select(HalalClaim).where(HalalClaim.id == claim_id)
+    ).scalar_one()
+    claim.status = HalalClaimStatus.NEEDS_MORE_INFO.value
+    db_session.add(claim)
+    db_session.commit()
+
+    # Owner edits the questionnaire — allowed.
+    patch_resp = api.as_user(owner).patch(
+        f"/me/halal-claims/{claim_id}",
+        json={"structured_response": COMPLETE_QUESTIONNAIRE},
+    )
+    assert patch_resp.status_code == 200, patch_resp.text
+
+    # Owner re-submits — back to PENDING_REVIEW.
+    resubmit_resp = api.as_user(owner).post(
+        f"/me/halal-claims/{claim_id}/submit"
+    )
+    assert resubmit_resp.status_code == 200, resubmit_resp.text
+    assert resubmit_resp.json()["status"] == "PENDING_REVIEW"
+
+
 
 # ---------------------------------------------------------------------------
 # Delete (DRAFT-only, with attachment cleanup)

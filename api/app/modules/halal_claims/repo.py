@@ -469,7 +469,13 @@ def patch_halal_claim_for_user(
         db, claim_id=claim_id, user_id=user_id
     )
 
-    if claim.status != HalalClaimStatus.DRAFT.value:
+    # Editable during DRAFT (owner iterating) and NEEDS_MORE_INFO
+    # (admin asked for more) — same rule as the attachment-upload path
+    # in the router. Any other status is frozen against owner edits.
+    if claim.status not in (
+        HalalClaimStatus.DRAFT.value,
+        HalalClaimStatus.NEEDS_MORE_INFO.value,
+    ):
         raise ConflictError(
             "HALAL_CLAIM_NOT_EDITABLE",
             (
@@ -598,7 +604,13 @@ def submit_halal_claim_for_user(
         # Already submitted — return as-is. Avoids spurious 409s on
         # double-clicks or stale-cache resubmits.
         return claim
-    if claim.status != HalalClaimStatus.DRAFT.value:
+    # Submittable from DRAFT (first submit) and NEEDS_MORE_INFO
+    # (re-submit after admin asked for more). The event + place-timeline
+    # logic below already distinguishes the two via prior_status.
+    if claim.status not in (
+        HalalClaimStatus.DRAFT.value,
+        HalalClaimStatus.NEEDS_MORE_INFO.value,
+    ):
         raise ConflictError(
             "HALAL_CLAIM_NOT_SUBMITTABLE",
             (
