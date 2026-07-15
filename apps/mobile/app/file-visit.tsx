@@ -23,7 +23,7 @@ import {
 import type { PlaceSearchResult, VisitDisclosure } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card, Seg, Steps, Tag } from "@/ui/kit";
+import { Card, IcBox, Seg, Steps, Tag } from "@/ui/kit";
 
 /** Stepped "file a visit" wizard, wired to POST /me/verification-visits.
  *  Mirrors the mockup flow (docs/2026-07-06-mobile-app-mockups.html,
@@ -53,7 +53,9 @@ function milesAway(
 }
 
 function distanceLabel(mi: number): string {
-  if (mi < 0.1) return "You're here";
+  // Within a block or so, read it as "you're here" with a feet estimate,
+  // matching the mockup's "You're here · 40 ft away".
+  if (mi < 0.1) return `You're here · ${Math.round((mi * 5280) / 10) * 10} ft away`;
   if (mi < 10) return `${mi.toFixed(1)} mi away`;
   return `${Math.round(mi)} mi away`;
 }
@@ -223,74 +225,66 @@ export default function FileVisit() {
         {/* --- Step 0 · Place --------------------------------------------- */}
         {step === 0 ? (
           <>
-            <Text style={[ty.title, { color: t.ink }]}>Where did you{"\n"}eat?</Text>
-            {selected ? (
-              <Card style={{ padding: space.lg, borderWidth: 2, borderColor: t.accent }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[ty.label, { color: t.ink, fontSize: 14 }]}>{selected.name}</Text>
-                    <Text style={[ty.small, { color: t.sub }]}>
-                      {[selected.city, selected.region].filter(Boolean).join(", ") || selected.address || ""}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      setSelected(null);
-                      setQuery("");
-                    }}
-                    hitSlop={8}
-                  >
-                    <Text style={[ty.label, { color: t.accentDeep, fontSize: 13 }]}>Change</Text>
-                  </Pressable>
-                </View>
-              </Card>
+            <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
+              Where did you{"\n"}eat?
+            </Text>
+            <TextInput
+              style={field}
+              placeholder="Search by restaurant name"
+              placeholderTextColor={t.sub}
+              value={query}
+              onChangeText={setQuery}
+              autoCorrect={false}
+            />
+            {showingNearby ? <Seg>Near you</Seg> : null}
+            {search.isFetching ? (
+              <View style={{ paddingVertical: 12, alignItems: "center" }}>
+                <ActivityIndicator color={t.accent} />
+              </View>
+            ) : typed && suggestions.length === 0 ? (
+              <Text style={[ty.small, { color: t.sub, paddingVertical: 6 }]}>
+                No matches. Try the exact restaurant name.
+              </Text>
+            ) : !typed && !coords ? (
+              <Text style={[ty.small, { color: t.sub, paddingVertical: 6 }]}>
+                Turn on location for nearby suggestions, or search by name.
+              </Text>
             ) : (
-              <>
-                <TextInput
-                  style={field}
-                  placeholder="Search by restaurant name"
-                  placeholderTextColor={t.sub}
-                  value={query}
-                  onChangeText={setQuery}
-                  autoCorrect={false}
-                />
-                {showingNearby ? <Seg>Near you</Seg> : null}
-                {search.isFetching ? (
-                  <View style={{ paddingVertical: 12, alignItems: "center" }}>
-                    <ActivityIndicator color={t.accent} />
-                  </View>
-                ) : typed && suggestions.length === 0 ? (
-                  <Text style={[ty.small, { color: t.sub, paddingVertical: 6 }]}>
-                    No matches. Try the exact restaurant name.
-                  </Text>
-                ) : !typed && !coords ? (
-                  <Text style={[ty.small, { color: t.sub, paddingVertical: 6 }]}>
-                    Turn on location for nearby suggestions, or search by name.
-                  </Text>
-                ) : (
-                  suggestions.slice(0, 6).map(({ p, mi }) => {
-                    const sub =
-                      mi !== null
-                        ? distanceLabel(mi)
-                        : [p.city, p.region].filter(Boolean).join(", ") || p.address || "";
-                    return (
-                      <Pressable key={p.id} onPress={() => setSelected(p)}>
-                        <Card style={{ padding: space.lg }}>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
-                            {mi !== null ? (
-                              <Feather name="map-pin" size={16} color={t.accentDeep} />
-                            ) : null}
-                            <View style={{ flex: 1 }}>
-                              <Text style={[ty.label, { color: t.ink, fontSize: 13.5 }]}>{p.name}</Text>
-                              {sub ? <Text style={[ty.small, { color: t.sub }]}>{sub}</Text> : null}
-                            </View>
+              suggestions.slice(0, 6).map(({ p, mi }) => {
+                const on = selected?.id === p.id;
+                const sub =
+                  mi !== null
+                    ? distanceLabel(mi)
+                    : [p.city, p.region].filter(Boolean).join(", ") || p.address || "";
+                return (
+                  <Pressable key={p.id} onPress={() => setSelected(on ? null : p)}>
+                    <Card
+                      style={{
+                        padding: space.lg,
+                        borderWidth: 2,
+                        borderColor: on ? t.accent : "transparent",
+                      }}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                        <IcBox
+                          icon="map-pin"
+                          bg={on ? t.accentSoft : t.zincSoft}
+                          fg={on ? t.accentDeep : t.zinc}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[ty.label, { color: t.ink, fontSize: 15 }]}>{p.name}</Text>
+                          {sub ? <Text style={[ty.small, { color: t.sub, marginTop: 1 }]}>{sub}</Text> : null}
+                        </View>
+                        {on ? (
+                          <View style={{ width: 22, height: 22, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+                            <Feather name="check" size={13} color={t.onAccent} />
                           </View>
-                        </Card>
-                      </Pressable>
-                    );
-                  })
-                )}
-              </>
+                        ) : null}
+                      </View>
+                    </Card>
+                  </Pressable>
+                );
+              })
             )}
             <Button title="Continue" onPress={next} disabled={!selected} />
           </>
@@ -299,7 +293,9 @@ export default function FileVisit() {
         {/* --- Step 1 · Observe ------------------------------------------- */}
         {step === 1 ? (
           <>
-            <Text style={[ty.title, { color: t.ink }]}>What did you{"\n"}observe?</Text>
+            <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
+              What did you{"\n"}observe?
+            </Text>
             <Text style={[ty.body, { color: t.sub }]}>
               What the reviewer should know — cert on the wall, halal menu, staff confirmed
               sourcing. Optional, but it's what your visit is worth.
@@ -331,7 +327,9 @@ export default function FileVisit() {
         {/* --- Step 2 · Disclosure ---------------------------------------- */}
         {step === 2 ? (
           <>
-            <Text style={[ty.title, { color: t.ink }]}>Who paid for{"\n"}the meal?</Text>
+            <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
+              Who paid for{"\n"}the meal?
+            </Text>
             <Text style={[ty.body, { color: t.sub }]}>
               Nothing here disqualifies your visit — hiding it does. This shows on the public
               report.
@@ -373,7 +371,9 @@ export default function FileVisit() {
         {/* --- Step 3 · Review -------------------------------------------- */}
         {step === 3 ? (
           <>
-            <Text style={[ty.title, { color: t.ink }]}>Review &{"\n"}submit</Text>
+            <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
+              Review &{"\n"}submit
+            </Text>
             <Card style={{ padding: space.lg, gap: 12 }}>
               <Row label="Restaurant" value={selected?.name ?? "—"} t={t} />
               <Row
