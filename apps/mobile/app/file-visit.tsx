@@ -83,7 +83,9 @@ export default function FileVisit() {
         notes_for_admin: notes.trim() || undefined,
         public_review_url: reviewUrl.trim() || undefined,
       });
-      router.replace("/verify");
+      // Pop back to the Verify tab; the submit mutation already invalidated
+      // the visits query, so the new "In review" row is there on return.
+      router.back();
     } catch (e) {
       setError(
         e instanceof ApiError && e.status === 429

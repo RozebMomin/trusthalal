@@ -11,9 +11,9 @@ import { useTheme } from "@/lib/theme/useTheme";
 import { Card, Cell, Seg, Tag } from "@/ui/kit";
 
 /** Real verifier home — the verifier's own visit history + stats, wired
- *  to /me/verification-visits. Reached from Profile's "My verifier
- *  profile" row (VERIFIER role only). The old /ui/verifier-profile was a
- *  fixture mockup; this is the live surface. */
+ *  to /me/verification-visits. Lives as a bottom-nav tab that only shows
+ *  for VERIFIER accounts (see (tabs)/_layout.tsx). The old
+ *  /ui/verifier-profile was a fixture mockup; this is the live surface. */
 
 type Tone = "solid" | "wash" | "amber" | "zinc" | "danger" | "dashed" | "glass";
 
@@ -49,8 +49,9 @@ export default function Verify() {
   const isVerifier = me?.role === "VERIFIER";
   const { data: visits, isLoading, isError, refetch } = useMyVerificationVisits(isVerifier);
 
-  // Signed-out → sign-in. Signed-in non-verifier → the pitch. This screen
-  // is verifier-only; the API would 403 anyway, so don't even render it.
+  // Signed-out → sign-in. Signed-in non-verifier → the pitch. The tab is
+  // hidden for non-verifiers, but a deep link could still land here; the
+  // API would 403 anyway, so don't render the surface.
   useEffect(() => {
     if (me === null) router.replace("/(auth)/sign-in");
     else if (me && me.role !== "VERIFIER") router.replace("/become-a-verifier");
@@ -79,19 +80,10 @@ export default function Verify() {
       contentContainerStyle={{
         paddingTop: insets.top + space.md,
         paddingHorizontal: space.lg,
-        paddingBottom: 60,
+        paddingBottom: 120,
         gap: space.md,
       }}
     >
-      <Pressable
-        onPress={() => router.back()}
-        accessibilityLabel="Back"
-        style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-      >
-        <Feather name="chevron-left" size={20} color={t.sub} />
-        <Text style={[ty.label, { color: t.sub, fontSize: 14 }]}>Back</Text>
-      </Pressable>
-
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <Text style={[ty.title, { color: t.ink }]}>Verify</Text>
         <Tag label="✓ VERIFIER" tone="solid" />

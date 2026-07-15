@@ -4,6 +4,7 @@ import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { Platform, StyleSheet, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useCurrentUser } from "@/lib/api/hooks";
 import { useTheme } from "@/lib/theme/useTheme";
 
 /**
@@ -19,10 +20,18 @@ const IOS_26 =
   Platform.OS === "ios" && parseInt(String(Platform.Version), 10) >= 26;
 
 export default function TabsLayout() {
-  return IOS_26 ? <GlassNativeTabs /> : <FrostedPillTabs />;
+  // The Verify tab is verifier-only. Read the role once here so both the
+  // native and frosted bars can add/hide it.
+  const { data: me } = useCurrentUser();
+  const isVerifier = me?.role === "VERIFIER";
+  return IOS_26 ? (
+    <GlassNativeTabs isVerifier={isVerifier} />
+  ) : (
+    <FrostedPillTabs isVerifier={isVerifier} />
+  );
 }
 
-function GlassNativeTabs() {
+function GlassNativeTabs({ isVerifier }: { isVerifier: boolean }) {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -33,6 +42,12 @@ function GlassNativeTabs() {
         <Icon sf="heart.fill" drawable="ic_saved" />
         <Label>Saved</Label>
       </NativeTabs.Trigger>
+      {isVerifier ? (
+        <NativeTabs.Trigger name="verify">
+          <Icon sf="checkmark.seal.fill" drawable="ic_verify" />
+          <Label>Verify</Label>
+        </NativeTabs.Trigger>
+      ) : null}
       <NativeTabs.Trigger name="profile">
         <Icon sf="person.fill" drawable="ic_profile" />
         <Label>Profile</Label>
@@ -41,7 +56,7 @@ function GlassNativeTabs() {
   );
 }
 
-function FrostedPillTabs() {
+function FrostedPillTabs({ isVerifier }: { isVerifier: boolean }) {
   const t = useTheme();
   const dark = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
@@ -96,6 +111,18 @@ function FrostedPillTabs() {
           and it mirrors what SF Symbols do on the iOS 26 native bar. */}
       <Tabs.Screen name="index" options={{ title: "Explore", tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? "compass" : "compass-outline"} color={color} size={22} /> }} />
       <Tabs.Screen name="saved" options={{ title: "Saved", tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? "heart" : "heart-outline"} color={color} size={22} /> }} />
+      {/* Verifier-only. href:null hides the tab (and its route) for everyone
+          else — the badge only appears once the account is a VERIFIER. */}
+      <Tabs.Screen
+        name="verify"
+        options={{
+          title: "Verify",
+          href: isVerifier ? undefined : null,
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={focused ? "shield-checkmark" : "shield-checkmark-outline"} color={color} size={22} />
+          ),
+        }}
+      />
       <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? "person" : "person-outline"} color={color} size={22} /> }} />
     </Tabs>
   );

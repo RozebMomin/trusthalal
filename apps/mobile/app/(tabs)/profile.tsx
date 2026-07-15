@@ -94,7 +94,7 @@ export default function Profile() {
       <Card>
         {me?.role === "VERIFIER" ? (
           <Cell
-            onPress={() => router.push("/verify")}
+            onPress={() => router.navigate("/verify")}
             left={<><IcBox icon="shield" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Verify — my visits</Text></>}
             right={chev}
           />
