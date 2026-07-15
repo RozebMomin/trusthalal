@@ -299,7 +299,7 @@ export function useSubmitVerificationVisit() {
  *  react-query mutation — it's called in a loop and we don't cache per-file. */
 export async function uploadVisitAttachment(
   visitId: string,
-  photo: { uri: string; name: string; type: string },
+  photo: { uri: string; name: string; type: string; tag?: string },
 ): Promise<VerificationVisitAttachment> {
   const form = new FormData();
   // RN's fetch accepts this {uri,name,type} shape as a file part.
@@ -308,6 +308,7 @@ export async function uploadVisitAttachment(
     name: photo.name,
     type: photo.type,
   } as unknown as Blob);
+  if (photo.tag) form.append("caption", photo.tag);
   return apiFetch<VerificationVisitAttachment>(
     `/me/verification-visits/${encodeURIComponent(visitId)}/attachments`,
     { method: "POST", body: form },

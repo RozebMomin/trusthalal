@@ -29,6 +29,7 @@ from fastapi import (
     APIRouter,
     Depends,
     File,
+    Form,
     Query,
     Request,
     UploadFile,
@@ -397,6 +398,7 @@ def upload_verification_visit_attachment(
     request: Request,
     visit_id: UUID,
     file: UploadFile = File(...),
+    caption: str | None = Form(default=None, max_length=120),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.VERIFIER)),
     storage: StorageClient = Depends(get_storage_client),
@@ -468,6 +470,8 @@ def upload_verification_visit_attachment(
     if len(original_filename) > 512:
         original_filename = original_filename[:512]
 
+    clean_caption = (caption or "").strip() or None
+
     attachment = VerificationVisitAttachment(
         id=object_uuid,
         visit_id=visit.id,
@@ -475,6 +479,7 @@ def upload_verification_visit_attachment(
         original_filename=original_filename,
         content_type=content_type,
         size_bytes=size_bytes,
+        caption=clean_caption,
     )
     db.add(attachment)
     db.commit()

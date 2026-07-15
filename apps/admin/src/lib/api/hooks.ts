@@ -1691,6 +1691,199 @@ export function useSetVerifierStatus() {
 }
 
 // ---------------------------------------------------------------------------
+// Verification visits (admin)
+// ---------------------------------------------------------------------------
+// Hand-typed shapes mirror the server-side Pydantic models for the
+// verifier verification-visit review surface (schema.d.ts isn't
+// regenerated for this route yet — same convention as the verifier
+// applications above). Swap to ``components["schemas"][...]`` after the
+// next ``make export-openapi && npm run codegen``.
+
+export type VisitDisclosure =
+  | "SELF_FUNDED"
+  | "MEAL_COMPED"
+  | "PAID_PARTNERSHIP"
+  | "OTHER_DISCLOSURE";
+
+export type VerificationVisitStatus =
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN";
+
+export type CheckResult = "YES" | "NO" | "PARTIAL";
+
+export type VisitObservations = {
+  ordered_items: string[];
+  checks: Record<string, CheckResult>;
+};
+
+export type VisitPlaceSummary = {
+  id: string;
+  name: string;
+  city: string | null;
+  region: string | null;
+};
+
+export type VerificationVisitAttachmentAdmin = {
+  id: string;
+  visit_id: string;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  caption: string | null;
+  uploaded_at: string;
+};
+
+export type VerificationVisitAttachmentSignedUrl = {
+  url: string;
+  expires_in_seconds: number;
+};
+
+export type VerificationVisitAdmin = {
+  id: string;
+  verifier_user_id: string;
+  place_id: string;
+  place: VisitPlaceSummary | null;
+  visited_at: string;
+  structured_findings: unknown | null;
+  observations: VisitObservations | null;
+  notes_for_admin: string | null;
+  public_review_url: string | null;
+  disclosure: VisitDisclosure;
+  disclosure_note: string | null;
+  status: VerificationVisitStatus;
+  attachments: VerificationVisitAttachmentAdmin[];
+  decided_at: string | null;
+  decision_note: string | null;
+  submitted_at: string;
+  updated_at: string;
+};
+
+/** POST /admin/verification-visits/{id}/decide. REJECTED requires a
+ * ``decision_note`` (server 409s without it). */
+export type VerificationVisitDecision = {
+  decision: "ACCEPTED" | "REJECTED";
+  decision_note?: string | null;
+};
+
+// ---- Query keys ----------------------------------------------------------
+
+export const verificationVisitsQk = {
+  list: (params: { status?: string }) =>
+    ["verification-visits", "list", params] as const,
+  detail: (id: string) => ["verification-visits", "detail", id] as const,
+  attachments: (id: string) =>
+    ["verification-visits", "attachments", id] as const,
+};
+
+function invalidateVerificationVisits(qc: ReturnType<typeof useQueryClient>) {
+  return qc.invalidateQueries({ queryKey: ["verification-visits"] });
+}
+
+// ---- Read hooks ----------------------------------------------------------
+
+/**
+ * Admin verification-visit review queue. ``status`` defaults to
+ * SUBMITTED on the page-level filter (the work queue), but the hook
+ * stays generic so callers can ask for the full history when auditing.
+ */
+export function useVerificationVisits(
+  status?: VerificationVisitStatus | string,
+) {
+  return useQuery<VerificationVisitAdmin[]>({
+    queryKey: verificationVisitsQk.list({ status }),
+    queryFn: () =>
+      apiFetch<VerificationVisitAdmin[]>("/admin/verification-visits", {
+        searchParams: { status },
+      }),
+  });
+}
+
+export function useVerificationVisit(id: string | null | undefined) {
+  return useQuery<VerificationVisitAdmin>({
+    queryKey: verificationVisitsQk.detail(id ?? "__nil__"),
+    queryFn: () =>
+      apiFetch<VerificationVisitAdmin>(`/admin/verification-visits/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+export function useVisitAttachments(id: string | null | undefined) {
+  return useQuery<VerificationVisitAttachmentAdmin[]>({
+    queryKey: verificationVisitsQk.attachments(id ?? "__nil__"),
+    queryFn: () =>
+      apiFetch<VerificationVisitAttachmentAdmin[]>(
+        `/admin/verification-visits/${id}/attachments`,
+      ),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+/**
+ * Mint a short-lived (60s) signed URL for a single visit attachment.
+ * Called on click — mirrors the halal-claims attachment view flow so a
+ * stale browser tab can't replay a URL later.
+ */
+export function fetchVisitAttachmentUrl(
+  visitId: string,
+  attachmentId: string,
+) {
+  return apiFetch<VerificationVisitAttachmentSignedUrl>(
+    `/admin/verification-visits/${visitId}/attachments/${attachmentId}/url`,
+  );
+}
+
+// ---- Mutations -----------------------------------------------------------
+
+/**
+ * POST /admin/verification-visits/{id}/under-review — SUBMITTED →
+ * UNDER_REVIEW. Invalidates the visit + list queries so the UI reflects
+ * the new status without an extra round-trip.
+ */
+export function useMarkVisitUnderReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string }) =>
+      apiFetch<VerificationVisitAdmin>(
+        `/admin/verification-visits/${args.id}/under-review`,
+        { method: "POST" },
+      ),
+    onSuccess: (_data, args) => {
+      void invalidateVerificationVisits(qc);
+      void qc.invalidateQueries({
+        queryKey: verificationVisitsQk.detail(args.id),
+      });
+    },
+  });
+}
+
+/**
+ * POST /admin/verification-visits/{id}/decide — ACCEPTED or REJECTED.
+ * REJECTED requires a ``decision_note`` (server enforces). ACCEPTED can
+ * 409 with VERIFICATION_VISIT_NO_PROFILE if the place has no halal
+ * profile — callers surface that message inline. Invalidates the visit +
+ * list queries.
+ */
+export function useDecideVerificationVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: VerificationVisitDecision }) =>
+      apiFetch<VerificationVisitAdmin>(
+        `/admin/verification-visits/${args.id}/decide`,
+        { method: "POST", json: args.payload },
+      ),
+    onSuccess: (_data, args) => {
+      void invalidateVerificationVisits(qc);
+      void qc.invalidateQueries({
+        queryKey: verificationVisitsQk.detail(args.id),
+      });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Password reset (self-service)
 // ---------------------------------------------------------------------------
 

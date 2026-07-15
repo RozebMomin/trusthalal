@@ -39,7 +39,11 @@ const TOTAL = 5; // decision steps; step 5 is the success screen
 const MAX_PHOTOS = 10; // matches the API's per-visit attachment cap
 const M_PER_MI = 1609.34;
 
-type VisitPhoto = { uri: string; name: string; type: string };
+type VisitPhoto = { uri: string; name: string; type: string; tag?: string };
+
+// Quick evidence labels a verifier can stick on a photo — surfaces on the
+// admin review card as the attachment caption. Tap a photo to cycle.
+const PHOTO_TAGS = ["Cert", "Menu", "Meal", "Other"] as const;
 
 /** Turn an ImagePicker asset into the {uri,name,type} shape our upload
  *  helper + RN fetch expect. */
@@ -164,6 +168,17 @@ export default function FileVisit() {
 
   const addPhotos = (assets: ImagePicker.ImagePickerAsset[]) =>
     setPhotos((ps) => [...ps, ...assets.map(assetToPhoto)].slice(0, MAX_PHOTOS));
+
+  // Cycle a photo's evidence tag: none → Cert → Menu → Meal → Other → none.
+  const cyclePhotoTag = (i: number) =>
+    setPhotos((ps) =>
+      ps.map((p, j) => {
+        if (j !== i) return p;
+        const idx = p.tag ? PHOTO_TAGS.indexOf(p.tag as (typeof PHOTO_TAGS)[number]) : -1;
+        const next = PHOTO_TAGS[idx + 1]; // undefined when past the end → clears
+        return { ...p, tag: next };
+      }),
+    );
 
   const takePhoto = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -524,7 +539,12 @@ export default function FileVisit() {
                 </Pressable>
               ) : null}
               {photos.map((p, i) => (
-                <View key={p.uri + i} style={{ width: 100, height: 100, borderRadius: radii.lg, overflow: "hidden" }}>
+                // Tap the photo to cycle its evidence tag; the X removes it.
+                <Pressable
+                  key={p.uri + i}
+                  onPress={() => cyclePhotoTag(i)}
+                  style={{ width: 100, height: 100, borderRadius: radii.lg, overflow: "hidden" }}
+                >
                   <Image source={{ uri: p.uri }} style={{ width: "100%", height: "100%" }} />
                   <Pressable
                     onPress={() => setPhotos((ps) => ps.filter((_, j) => j !== i))}
@@ -538,12 +558,25 @@ export default function FileVisit() {
                   >
                     <Feather name="x" size={13} color="#fff" />
                   </Pressable>
-                </View>
+                  {/* Tag pill (or a "Tag" prompt) along the bottom edge. */}
+                  <View
+                    style={{
+                      position: "absolute", left: 0, right: 0, bottom: 0,
+                      paddingHorizontal: 6, paddingVertical: 4,
+                      backgroundColor: p.tag ? t.accent : "rgba(11,11,14,0.55)",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: mockupPx(8.5), letterSpacing: 0.3 }}>
+                      {p.tag ? p.tag.toUpperCase() : "TAP TO TAG"}
+                    </Text>
+                  </View>
+                </Pressable>
               ))}
             </View>
             <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10) }]}>
               {photos.length > 0
-                ? `${photos.length} photo${photos.length === 1 ? "" : "s"} attached · aim for the cert, the menu, and what you ordered.`
+                ? `${photos.length} photo${photos.length === 1 ? "" : "s"} attached · tap a photo to label it (Cert / Menu / Meal).`
                 : "Aim for the cert on the wall, the menu, and what you ordered."}
             </Text>
             <Button title="Continue" onPress={next} />
