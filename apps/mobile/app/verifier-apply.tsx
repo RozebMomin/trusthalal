@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError } from "@/lib/api/client";
 import { useCurrentUser, useSubmitVerifierApplication } from "@/lib/api/hooks";
@@ -67,11 +67,12 @@ export default function VerifierApply() {
   } as const;
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingTop: insets.top + space.md, padding: space.lg, paddingBottom: 60 }}
-      >
+    <ScrollView
+      style={{ flex: 1, backgroundColor: t.bg }}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+      contentContainerStyle={{ paddingTop: insets.top + space.md, padding: space.lg, paddingBottom: 60 }}
+    >
         <Pressable onPress={() => router.back()} accessibilityLabel="Back" style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
           <Feather name="chevron-left" size={20} color={t.sub} />
           <Text style={[ty.label, { color: t.sub, fontSize: 14 }]}>Back</Text>
@@ -154,7 +155,6 @@ export default function VerifierApply() {
             </Text>
           ) : null}
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </ScrollView>
   );
 }

@@ -6,8 +6,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -356,10 +354,7 @@ export default function FileVisit() {
   const isSuccess = step === TOTAL;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, backgroundColor: t.bg }}
-    >
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       {/* Sticky header — cancel/back, step counter, progress bar stay put
           while only the step content below scrolls. */}
       {!isSuccess ? (
@@ -394,6 +389,7 @@ export default function FileVisit() {
 
       <ScrollView
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={{
           paddingTop: isSuccess ? insets.top + space.md : space.md,
           paddingHorizontal: space.lg,
@@ -777,6 +773,6 @@ export default function FileVisit() {
           </View>
         ) : null}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

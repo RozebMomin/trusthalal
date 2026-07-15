@@ -27,6 +27,7 @@
     },
     "android": {
       "package": "org.trusthalal.consumer",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0E9F6E"

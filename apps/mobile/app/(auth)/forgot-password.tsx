@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError } from "@/lib/api/client";
 import { useForgotPassword } from "@/lib/api/hooks";
@@ -49,15 +49,16 @@ export default function ForgotPassword() {
   } as const;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{
-        flex: 1,
-        backgroundColor: t.bg,
+    <ScrollView
+      style={{ flex: 1, backgroundColor: t.bg }}
+      contentContainerStyle={{
         paddingTop: insets.top + space.lg,
         paddingHorizontal: space.lg,
+        paddingBottom: space.xl,
         gap: space.md,
       }}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
     >
       <Pressable accessibilityLabel="Back" onPress={() => router.back()}>
         <Text style={[ty.label, { color: t.sub }]}>✕</Text>
@@ -122,6 +123,6 @@ export default function ForgotPassword() {
           </Pressable>
         </>
       )}
-    </KeyboardAvoidingView>
+    </ScrollView>
   );
 }
