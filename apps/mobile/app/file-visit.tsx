@@ -23,7 +23,7 @@ import {
 import type { PlaceSearchResult, VisitDisclosure } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card, IcBox, Seg, Steps, Tag } from "@/ui/kit";
+import { Card, Cell, Chip, IcBox, Seg, Steps, Tag } from "@/ui/kit";
 
 /** Stepped "file a visit" wizard, wired to POST /me/verification-visits.
  *  Mirrors the mockup flow (docs/2026-07-06-mobile-app-mockups.html,
@@ -71,6 +71,24 @@ function disclosureLabel(v: VisitDisclosure): string {
   return DISCLOSURES.find((d) => d.value === v)?.label ?? "";
 }
 
+// The four at-a-glance observations from the mockup. Free-form findings go
+// in Notes; these are the quick structured signals a reviewer scans first.
+const CHECK_ITEMS = [
+  "Halal cert visible on premises",
+  "Menu is fully halal",
+  "Alcohol on premises",
+  "Staff confirmed sourcing",
+] as const;
+type CheckItem = (typeof CHECK_ITEMS)[number];
+type CheckVal = "YES" | "NO" | "PARTIAL";
+const CHECK_CYCLE: (CheckVal | undefined)[] = [undefined, "YES", "NO", "PARTIAL"];
+
+function checkTone(v: CheckVal | undefined): "wash" | "amber" | "zinc" {
+  if (v === "PARTIAL") return "amber";
+  if (v === "YES" || v === "NO") return "wash";
+  return "zinc";
+}
+
 export default function FileVisit() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -86,6 +104,37 @@ export default function FileVisit() {
   const [reviewUrl, setReviewUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [ordered, setOrdered] = useState<string[]>([]);
+  const [addingItem, setAddingItem] = useState(false);
+  const [itemDraft, setItemDraft] = useState("");
+  const [checks, setChecks] = useState<Partial<Record<CheckItem, CheckVal>>>({});
+
+  const addItem = () => {
+    const v = itemDraft.trim();
+    if (v) setOrdered((xs) => (xs.includes(v) ? xs : [...xs, v]));
+    setItemDraft("");
+    setAddingItem(false);
+  };
+  const cycleCheck = (item: CheckItem) =>
+    setChecks((c) => {
+      const i = CHECK_CYCLE.indexOf(c[item]);
+      const nextVal = CHECK_CYCLE[(i + 1) % CHECK_CYCLE.length];
+      const copy = { ...c };
+      if (nextVal) copy[item] = nextVal;
+      else delete copy[item];
+      return copy;
+    });
+
+  // Fold the quick observations into the reviewer notes — there's no
+  // dedicated field, and this is what the admin reads on review.
+  const composeNotes = (): string | undefined => {
+    const parts: string[] = [];
+    if (ordered.length) parts.push(`Ordered: ${ordered.join(", ")}`);
+    const lines = CHECK_ITEMS.filter((c) => checks[c]).map((c) => `• ${c} — ${checks[c]}`);
+    if (lines.length) parts.push(`Checks:\n${lines.join("\n")}`);
+    if (notes.trim()) parts.push(notes.trim());
+    return parts.join("\n\n") || undefined;
+  };
 
   const typed = query.trim();
   // Text query wins; otherwise fall back to nearby suggestions from the
@@ -168,7 +217,7 @@ export default function FileVisit() {
           disclosure !== "SELF_FUNDED" && disclosureNote.trim()
             ? disclosureNote.trim()
             : undefined,
-        notes_for_admin: notes.trim() || undefined,
+        notes_for_admin: composeNotes(),
         public_review_url: reviewUrl.trim() || undefined,
       });
       setStep(TOTAL); // → success screen
@@ -206,15 +255,15 @@ export default function FileVisit() {
               {step === 0 ? (
                 <Pressable onPress={() => router.back()} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
                   <Feather name="x" size={15} color={t.sub} />
-                  <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_700Bold" }]}>Cancel</Text>
+                  <Text style={[ty.body, { color: t.sub, fontFamily: "Inter_700Bold" }]}>Cancel</Text>
                 </Pressable>
               ) : (
                 <Pressable onPress={prev} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
                   <Feather name="chevron-left" size={16} color={t.sub} />
-                  <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_700Bold" }]}>Back</Text>
+                  <Text style={[ty.body, { color: t.sub, fontFamily: "Inter_700Bold" }]}>Back</Text>
                 </Pressable>
               )}
-              <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_600SemiBold" }]}>
+              <Text style={[ty.body, { color: t.sub, fontFamily: "Inter_600SemiBold" }]}>
                 Step {step + 1} of {TOTAL}
               </Text>
             </View>
@@ -226,7 +275,7 @@ export default function FileVisit() {
         {step === 0 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
-              Where did you{"\n"}eat?
+              Where are you{"\n"}eating?
             </Text>
             <TextInput
               style={field}
@@ -272,8 +321,8 @@ export default function FileVisit() {
                           fg={on ? t.accentDeep : t.zinc}
                         />
                         <View style={{ flex: 1 }}>
-                          <Text style={[ty.label, { color: t.ink, fontSize: 16.5, fontFamily: "Inter_700Bold" }]}>{p.name}</Text>
-                          {sub ? <Text style={[ty.small, { color: t.sub, fontSize: 13, marginTop: 2 }]}>{sub}</Text> : null}
+                          <Text style={[ty.label, { color: t.ink, fontSize: 18, fontFamily: "Inter_700Bold" }]}>{p.name}</Text>
+                          {sub ? <Text style={[ty.small, { color: t.sub, fontSize: 15, marginTop: 4 }]}>{sub}</Text> : null}
                         </View>
                         {on ? (
                           <View style={{ width: 22, height: 22, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
@@ -296,30 +345,60 @@ export default function FileVisit() {
             <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
               What did you{"\n"}observe?
             </Text>
-            <Text style={[ty.body, { color: t.sub }]}>
-              What the reviewer should know — cert on the wall, halal menu, staff confirmed
-              sourcing. Optional, but it's what your visit is worth.
-            </Text>
-            <Seg>Notes for the reviewer</Seg>
+
+            <Seg>You ordered</Seg>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+              {ordered.map((item) => (
+                <Chip key={item} label={item} on onPress={() => setOrdered((xs) => xs.filter((x) => x !== item))} />
+              ))}
+              {addingItem ? (
+                <TextInput
+                  style={[field, { paddingVertical: 8, minWidth: 140 }]}
+                  placeholder="Dish name"
+                  placeholderTextColor={t.sub}
+                  value={itemDraft}
+                  onChangeText={setItemDraft}
+                  onSubmitEditing={addItem}
+                  onBlur={addItem}
+                  autoFocus
+                  returnKeyType="done"
+                />
+              ) : (
+                <Chip label="+ Add item" ghost onPress={() => setAddingItem(true)} />
+              )}
+            </View>
+            <Text style={[ty.small, { color: t.sub }]}>Tap a dish to remove it.</Text>
+
+            <Seg>Checks</Seg>
+            <Card>
+              {CHECK_ITEMS.map((item, i) => (
+                <Cell
+                  key={item}
+                  last={i === CHECK_ITEMS.length - 1}
+                  onPress={() => cycleCheck(item)}
+                  left={<Text style={[ty.label, { color: t.ink, fontSize: 13.5 }]}>{item}</Text>}
+                  right={
+                    checks[item] ? (
+                      <Tag label={checks[item] as string} tone={checkTone(checks[item])} />
+                    ) : (
+                      <Tag label="TAP" tone="dashed" />
+                    )
+                  }
+                />
+              ))}
+            </Card>
+
+            <Seg>Notes</Seg>
             <TextInput
-              style={[field, { minHeight: 120, textAlignVertical: "top" }]}
+              style={[field, { minHeight: 110, textAlignVertical: "top" }]}
               multiline
               maxLength={4000}
-              placeholder="Kitchen manager showed the supplier invoice for the chicken…"
+              placeholder="Kitchen manager showed the supplier invoice for the chicken — Crescent Foods…"
               placeholderTextColor={t.sub}
               value={notes}
               onChangeText={setNotes}
             />
-            <Seg>Public review link (optional)</Seg>
-            <TextInput
-              style={field}
-              autoCapitalize="none"
-              keyboardType="url"
-              placeholder="Instagram, TikTok, or blog post about this visit"
-              placeholderTextColor={t.sub}
-              value={reviewUrl}
-              onChangeText={setReviewUrl}
-            />
+
             <Button title="Continue" onPress={next} />
           </>
         ) : null}
@@ -364,6 +443,16 @@ export default function FileVisit() {
                 onChangeText={setDisclosureNote}
               />
             ) : null}
+            <Seg>Public review link (optional)</Seg>
+            <TextInput
+              style={field}
+              autoCapitalize="none"
+              keyboardType="url"
+              placeholder="Instagram, TikTok, or blog post about this visit"
+              placeholderTextColor={t.sub}
+              value={reviewUrl}
+              onChangeText={setReviewUrl}
+            />
             <Button title="Review & submit" onPress={next} />
           </>
         ) : null}
@@ -386,6 +475,16 @@ export default function FileVisit() {
                 t={t}
               />
               <Row label="Who paid" value={disclosureLabel(disclosure)} t={t} />
+              {ordered.length ? <Row label="Ordered" value={ordered.join(", ")} t={t} /> : null}
+              {CHECK_ITEMS.some((c) => checks[c]) ? (
+                <Row
+                  label="Checks"
+                  value={CHECK_ITEMS.filter((c) => checks[c])
+                    .map((c) => `${c}: ${checks[c]}`)
+                    .join(" · ")}
+                  t={t}
+                />
+              ) : null}
               {notes.trim() ? <Row label="Notes" value={notes.trim()} t={t} /> : null}
               {reviewUrl.trim() ? <Row label="Review link" value={reviewUrl.trim()} t={t} /> : null}
             </Card>
