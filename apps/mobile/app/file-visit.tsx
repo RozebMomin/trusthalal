@@ -72,22 +72,26 @@ function disclosureLabel(v: VisitDisclosure): string {
   return DISCLOSURES.find((d) => d.value === v)?.label ?? "";
 }
 
-// The four at-a-glance observations from the mockup. Free-form findings go
-// in Notes; these are the quick structured signals a reviewer scans first.
-const CHECK_ITEMS = [
-  "Halal cert visible on premises",
-  "Menu is fully halal",
-  "Alcohol on premises",
-  "Staff confirmed sourcing",
-] as const;
-type CheckItem = (typeof CHECK_ITEMS)[number];
 type CheckVal = "YES" | "NO" | "PARTIAL";
+
+// The four at-a-glance observations from the mockup. `good` is the answer
+// that reads as reassuring for that prompt — so the tag goes green when the
+// answer matches it, red when it doesn't. e.g. "cert visible? NO" is bad
+// (red), but "alcohol on premises? NO" is good (green). Free-form findings
+// go in Notes; these are the quick structured signals a reviewer scans.
+const CHECK_ITEMS = [
+  { label: "Halal cert visible on premises", good: "YES" },
+  { label: "Menu is fully halal", good: "YES" },
+  { label: "Alcohol on premises", good: "NO" },
+  { label: "Staff confirmed sourcing", good: "YES" },
+] as const satisfies readonly { label: string; good: CheckVal }[];
+type CheckItem = (typeof CHECK_ITEMS)[number]["label"];
 const CHECK_CYCLE: (CheckVal | undefined)[] = [undefined, "YES", "NO", "PARTIAL"];
 
-function checkTone(v: CheckVal | undefined): "wash" | "amber" | "zinc" {
+function checkTone(v: CheckVal | undefined, good: CheckVal): "wash" | "danger" | "amber" | "zinc" {
+  if (!v) return "zinc";
   if (v === "PARTIAL") return "amber";
-  if (v === "YES" || v === "NO") return "wash";
-  return "zinc";
+  return v === good ? "wash" : "danger";
 }
 
 export default function FileVisit() {
@@ -128,7 +132,7 @@ export default function FileVisit() {
 
   // Structured observations for the API — only send when non-empty.
   const buildObservations = () => {
-    const hasChecks = CHECK_ITEMS.some((c) => checks[c]);
+    const hasChecks = CHECK_ITEMS.some((c) => checks[c.label]);
     if (!ordered.length && !hasChecks) return undefined;
     return { ordered_items: ordered, checks: { ...checks } };
   };
@@ -430,13 +434,13 @@ export default function FileVisit() {
             <Card>
               {CHECK_ITEMS.map((item, i) => (
                 <Cell
-                  key={item}
+                  key={item.label}
                   last={i === CHECK_ITEMS.length - 1}
-                  onPress={() => cycleCheck(item)}
-                  left={<Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{item}</Text>}
+                  onPress={() => cycleCheck(item.label)}
+                  left={<Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{item.label}</Text>}
                   right={
-                    checks[item] ? (
-                      <Tag label={checks[item] as string} tone={checkTone(checks[item])} size={mockupPx(9.5)} />
+                    checks[item.label] ? (
+                      <Tag label={checks[item.label] as string} tone={checkTone(checks[item.label], item.good)} size={mockupPx(9.5)} />
                     ) : (
                       <Tag label="TAP" tone="dashed" size={mockupPx(9.5)} />
                     )
@@ -536,11 +540,11 @@ export default function FileVisit() {
               />
               <Row label="Who paid" value={disclosureLabel(disclosure)} t={t} />
               {ordered.length ? <Row label="Ordered" value={ordered.join(", ")} t={t} /> : null}
-              {CHECK_ITEMS.some((c) => checks[c]) ? (
+              {CHECK_ITEMS.some((c) => checks[c.label]) ? (
                 <Row
                   label="Checks"
-                  value={CHECK_ITEMS.filter((c) => checks[c])
-                    .map((c) => `${c}: ${checks[c]}`)
+                  value={CHECK_ITEMS.filter((c) => checks[c.label])
+                    .map((c) => `${c.label}: ${checks[c.label]}`)
                     .join(" · ")}
                   t={t}
                 />
