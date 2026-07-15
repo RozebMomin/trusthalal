@@ -36,10 +36,13 @@ export default function Profile() {
   );
 
   return (
+    // Safe-area gap is a fixed outer padding so re-tapping the tab can't let
+    // iOS re-apply the inset and drift the content down each time.
+    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
     <ScrollView
       style={{ flex: 1, backgroundColor: t.bg }}
       contentInsetAdjustmentBehavior="never"
-      contentContainerStyle={{ paddingTop: insets.top + space.sm, paddingHorizontal: space.lg, paddingBottom: 120, gap: space.md }}
+      contentContainerStyle={{ paddingTop: space.sm, paddingHorizontal: space.lg, paddingBottom: 120, gap: space.md }}
     >
       <Text style={[ty.title, { color: t.ink }]}>Profile</Text>
 
@@ -164,5 +167,6 @@ export default function Profile() {
         Trust Halal · v0.1.0{"\n"}Community-built · Muslim-led
       </Text>
     </ScrollView>
+    </View>
   );
 }
