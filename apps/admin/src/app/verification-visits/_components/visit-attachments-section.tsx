@@ -1,19 +1,25 @@
 "use client";
 
 /**
- * Click-to-view photo grid for a verification visit.
+ * Inline photo grid for a verification visit.
  *
- * Closely modeled on the halal-claims AttachmentsSection: short-lived
- * (60s) signed URLs minted on click, opened in a new tab, errors
- * surfaced inline next to the offending photo so one broken file
- * doesn't tank the whole panel. Photos carry a ``caption`` tag
- * (e.g. "Cert" / "Menu" / "Meal") which we render as a label.
+ * Signed URLs (60s TTL) are minted for every attachment on load and
+ * rendered straight into <img> thumbnails so the reviewer sees the
+ * evidence at a glance — no click-to-fetch. Clicking a thumbnail opens a
+ * larger version in a modal (a fresh URL is minted on open so a lingering
+ * page never hits an expired link). Photos carry a ``caption`` tag
+ * (e.g. "Cert" / "Menu" / "Meal") shown as an overlay chip.
  */
 import * as React from "react";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
-import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   fetchVisitAttachmentUrl,
   useVisitAttachments,
@@ -26,33 +32,58 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function TagChip({ caption }: { caption: string | null }) {
+  if (!caption) {
+    return (
+      <span className="rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white/90 backdrop-blur">
+        Untagged
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
+      {caption}
+    </span>
+  );
+}
+
 export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
   const { data, isLoading, error } = useVisitAttachments(visitId);
-  const [pendingId, setPendingId] = React.useState<string | null>(null);
-  const [errorId, setErrorId] = React.useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
-  async function onView(attachment: VerificationVisitAttachmentAdmin) {
-    setPendingId(attachment.id);
-    setErrorId(null);
-    setErrorMsg(null);
+  // Signed URL per attachment, resolved on load. `null` = failed.
+  const [urls, setUrls] = React.useState<Record<string, string | null>>({});
+  const [active, setActive] =
+    React.useState<VerificationVisitAttachmentAdmin | null>(null);
+  const [activeUrl, setActiveUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!data) return;
+    let alive = true;
+    setUrls({});
+    void Promise.all(
+      data.map(async (a) => {
+        try {
+          const resp = await fetchVisitAttachmentUrl(visitId, a.id);
+          if (alive) setUrls((prev) => ({ ...prev, [a.id]: resp.url }));
+        } catch {
+          if (alive) setUrls((prev) => ({ ...prev, [a.id]: null }));
+        }
+      }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [data, visitId]);
+
+  async function openModal(a: VerificationVisitAttachmentAdmin) {
+    setActive(a);
+    setActiveUrl(null);
     try {
-      const resp = await fetchVisitAttachmentUrl(visitId, attachment.id);
-      // Open the signed URL in a new tab. URL is short-lived (60s); a
-      // fresh one is minted on each click, so a stale tab can't replay.
-      window.open(resp.url, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      const { description } = friendlyApiError(err, {
-        defaultTitle: "Couldn't open the photo",
-      });
-      setErrorId(attachment.id);
-      setErrorMsg(
-        err instanceof ApiError && err.status >= 500
-          ? "Storage is temporarily unavailable. Try again in a moment."
-          : description,
-      );
-    } finally {
-      setPendingId(null);
+      // Mint a fresh URL on open — the load-time one may have aged out.
+      const resp = await fetchVisitAttachmentUrl(visitId, a.id);
+      setActiveUrl(resp.url);
+    } catch {
+      setActiveUrl(urls[a.id] ?? null);
     }
   }
 
@@ -70,7 +101,7 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
       {isLoading && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full" />
+            <Skeleton key={i} className="h-32 w-full" />
           ))}
         </div>
       )}
@@ -91,50 +122,93 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
       {!isLoading && !error && data && data.length > 0 && (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {data.map((a) => {
-            const isPending = pendingId === a.id;
-            const isError = errorId === a.id;
+            const url = urls[a.id];
+            const isImage = a.content_type.startsWith("image/");
             return (
               <li
                 key={a.id}
-                className="flex flex-col overflow-hidden rounded-md border bg-background"
+                className="overflow-hidden rounded-md border bg-background"
               >
                 <button
                   type="button"
-                  onClick={() => void onView(a)}
-                  disabled={isPending}
-                  className="flex h-28 items-center justify-center bg-muted text-xs font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-                  title="Open photo"
+                  onClick={() => void openModal(a)}
+                  className="group relative block h-32 w-full bg-muted"
+                  title="Open larger"
                 >
-                  {isPending ? "Opening…" : "View photo"}
-                </button>
-                <div className="space-y-0.5 px-2 py-2">
-                  {a.caption ? (
-                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                      {a.caption}
-                    </span>
+                  {url === undefined ? (
+                    <Skeleton className="h-full w-full" />
+                  ) : url && isImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={url}
+                      alt={a.caption ?? a.original_filename}
+                      className="h-full w-full object-cover transition group-hover:opacity-90"
+                    />
                   ) : (
-                    <span className="text-xs italic text-muted-foreground">
-                      Untagged
+                    <span className="flex h-full w-full items-center justify-center px-2 text-center text-xs text-muted-foreground">
+                      {url === null ? "Preview unavailable" : "Open file"}
                     </span>
                   )}
-                  <p className="truncate text-xs text-muted-foreground">
-                    {a.content_type} · {formatBytes(a.size_bytes)}
-                  </p>
-                  {isError && errorMsg && (
-                    <p
-                      role="alert"
-                      aria-live="polite"
-                      className="text-xs text-destructive"
-                    >
-                      {errorMsg}
-                    </p>
-                  )}
-                </div>
+                  <span className="absolute left-1.5 top-1.5">
+                    <TagChip caption={a.caption} />
+                  </span>
+                </button>
+                <p className="truncate px-2 py-1.5 text-xs text-muted-foreground">
+                  {a.content_type} · {formatBytes(a.size_bytes)}
+                </p>
               </li>
             );
           })}
         </ul>
       )}
+
+      <Dialog
+        open={active !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setActive(null);
+            setActiveUrl(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              {active?.caption ? (
+                <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
+                  {active.caption}
+                </span>
+              ) : null}
+              <span className="truncate font-normal text-muted-foreground">
+                {active?.original_filename}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex max-h-[70vh] items-center justify-center overflow-auto rounded-md bg-muted">
+            {activeUrl ? (
+              active?.content_type.startsWith("image/") ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={activeUrl}
+                  alt={active?.caption ?? active?.original_filename ?? "photo"}
+                  className="max-h-[70vh] w-auto object-contain"
+                />
+              ) : (
+                <a
+                  href={activeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-8 text-sm font-medium text-primary underline"
+                >
+                  Open file in new tab
+                </a>
+              )
+            ) : (
+              <Skeleton className="h-72 w-full" />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
