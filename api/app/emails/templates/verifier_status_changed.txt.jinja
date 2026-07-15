@@ -1,0 +1,22 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if reinstated %}Welcome back{% elif suspended %}Your verifier access is paused{% else %}An update on your verifier access{% endif %}
+
+{% if reinstated %}
+Your Trust Halal verifier access has been reinstated — you can file
+verification visits again.
+{% elif suspended %}
+Your Trust Halal verifier access has been temporarily paused. You can't file
+new verification visits while it's on hold.
+{% else %}
+Your Trust Halal verifier access has been removed. You can no longer file
+verification visits.
+{% endif %}
+{% if note %}
+Note from Trust Halal: {{ note }}
+{% endif %}
+Open Trust Halal:
+  {{ site_url }}
+
+Questions? Just reply to this email.
+{% endblock %}

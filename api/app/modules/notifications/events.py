@@ -222,6 +222,47 @@ def notify_verifier_application_decided(
     )
 
 
+def notify_verifier_status_changed(
+    background: BackgroundTasks,
+    db: Session,
+    *,
+    user_id: UUID,
+    status: str,
+    note: str | None = None,
+) -> None:
+    """Tell a verifier their access was revoked / suspended / reinstated."""
+    user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+    if user is None or not user.email:
+        return
+    revoked = status == "REVOKED"
+    suspended = status == "SUSPENDED"
+    reinstated = status == "ACTIVE"
+    if revoked:
+        subject = "Your Trust Halal verifier access was removed"
+    elif suspended:
+        subject = "Your Trust Halal verifier access is paused"
+    else:
+        subject = "Your Trust Halal verifier access is active again"
+    notify(
+        background,
+        db=db,
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        category=NotificationCategory.VERIFIER,
+        subject=subject,
+        template="verifier_status_changed",
+        context={
+            "preheader": subject,
+            "revoked": revoked,
+            "suspended": suspended,
+            "reinstated": reinstated,
+            "note": note or "",
+            "site_url": settings.CONSUMER_ORIGIN.rstrip("/"),
+        },
+    )
+
+
 def notify_verifier_visit_decided(
     background: BackgroundTasks,
     db: Session,

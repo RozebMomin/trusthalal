@@ -221,6 +221,75 @@ def _approve_into_verifier_profile(
     return profile
 
 
+def admin_get_verifier_profile(
+    db: Session, *, user_id: UUID
+) -> VerifierProfile:
+    """Fetch a verifier's profile by user id. 404 if the user was never a
+    verifier."""
+    profile = db.execute(
+        select(VerifierProfile).where(VerifierProfile.user_id == user_id)
+    ).scalar_one_or_none()
+    if profile is None:
+        raise NotFoundError(
+            "VERIFIER_PROFILE_NOT_FOUND",
+            "No verifier profile for this user.",
+        )
+    return profile
+
+
+def admin_set_verifier_status(
+    db: Session,
+    *,
+    user_id: UUID,
+    new_status: VerifierProfileStatus,
+    actor_user_id: UUID,
+) -> VerifierProfile:
+    """Admin transition of a verifier's profile status, with the matching
+    user-role change.
+
+    Policy:
+      * REVOKED    — permanent removal. Profile → REVOKED; if the user is
+        still VERIFIER, drop them back to CONSUMER (they lose the badge and
+        the ability to file visits).
+      * SUSPENDED  — temporary hold. Profile → SUSPENDED; role stays VERIFIER
+        (visit-filing already gates on status=ACTIVE, so suspension blocks
+        new visits without a role change).
+      * ACTIVE     — reinstate. Profile → ACTIVE; if the user was dropped to
+        CONSUMER by a prior revoke, promote them back to VERIFIER.
+
+    Idempotent: setting the status it already has is a no-op.
+    """
+    profile = admin_get_verifier_profile(db, user_id=user_id)
+    user = db.execute(
+        select(User).where(User.id == user_id)
+    ).scalar_one_or_none()
+    if user is None:
+        raise NotFoundError("USER_NOT_FOUND", "User not found.")
+
+    if profile.status == new_status.value:
+        return profile
+
+    profile.status = new_status.value
+    if new_status == VerifierProfileStatus.REVOKED:
+        if user.role == UserRole.VERIFIER.value:
+            user.role = UserRole.CONSUMER.value
+    elif new_status == VerifierProfileStatus.ACTIVE:
+        if user.role == UserRole.CONSUMER.value:
+            user.role = UserRole.VERIFIER.value
+    # SUSPENDED keeps the VERIFIER role by design.
+
+    db.add(profile)
+    db.add(user)
+    db.commit()
+    db.refresh(profile)
+    track(
+        "verifier_status_changed",
+        distinct_id=user_id,
+        properties={"status": new_status.value},
+    )
+    return profile
+
+
 def _resolve_applicant_user(
     db: Session, *, application: VerifierApplication
 ) -> User | None:

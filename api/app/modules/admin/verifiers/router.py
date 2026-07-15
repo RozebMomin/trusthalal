@@ -20,6 +20,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,7 @@ from app.db.deps import get_db
 from app.modules.notifications.events import (
     notify_place_verified_savers,
     notify_verifier_application_decided,
+    notify_verifier_status_changed,
     notify_verifier_visit_decided,
     place_is_verified,
 )
@@ -37,7 +39,9 @@ from app.modules.verifiers.models import VerificationVisit
 from app.modules.admin.verifiers.repo import (
     admin_decide_application,
     admin_get_application,
+    admin_get_verifier_profile,
     admin_list_applications,
+    admin_set_verifier_status,
 )
 from app.modules.admin.verifiers.visits_repo import (
     admin_decide_visit,
@@ -49,12 +53,14 @@ from app.modules.users.enums import UserRole
 from app.modules.verifiers.enums import (
     VerificationVisitStatus,
     VerifierApplicationStatus,
+    VerifierProfileStatus,
 )
 from app.modules.verifiers.schemas import (
     VerificationVisitDecision,
     VerificationVisitRead,
     VerifierApplicationDecision,
     VerifierApplicationRead,
+    VerifierProfileRead,
 )
 
 
@@ -365,4 +371,134 @@ def admin_visit_attachment_signed_url(
     return {"url": url, "expires_in_seconds": _VISIT_ATTACHMENT_SIGNED_URL_TTL}
 
 
-__all__ = ["router", "visits_router"]
+# ---------------------------------------------------------------------------
+# /admin/verifiers — verifier profile management (revoke / suspend / reinstate)
+# ---------------------------------------------------------------------------
+# The "follow-up slice" the application-decide docstring anticipated: once a
+# CONSUMER is promoted to VERIFIER, this is how staff walk it back.
+
+profiles_router = APIRouter(prefix="/admin/verifiers", tags=["admin: verifiers"])
+
+
+class VerifierStatusChange(BaseModel):
+    """Optional context for a status change, shown to the verifier in the
+    notification email."""
+
+    note: str | None = Field(default=None, max_length=2000)
+
+
+@profiles_router.get(
+    "/{user_id}",
+    response_model=VerifierProfileRead,
+    summary="Get a verifier's profile + current status",
+)
+def admin_get_verifier(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> VerifierProfileRead:
+    return VerifierProfileRead.model_validate(
+        admin_get_verifier_profile(db, user_id=user_id)
+    )
+
+
+def _apply_status(
+    *,
+    user_id: UUID,
+    new_status: VerifierProfileStatus,
+    note: str | None,
+    background: BackgroundTasks,
+    db: Session,
+    actor_id: UUID,
+) -> VerifierProfileRead:
+    profile = admin_set_verifier_status(
+        db, user_id=user_id, new_status=new_status, actor_user_id=actor_id
+    )
+    notify_verifier_status_changed(
+        background, db, user_id=user_id, status=new_status.value, note=note
+    )
+    return VerifierProfileRead.model_validate(profile)
+
+
+@profiles_router.post(
+    "/{user_id}/revoke",
+    response_model=VerifierProfileRead,
+    summary="Revoke verifier access",
+    description=(
+        "Permanently removes verifier access: profile → REVOKED and the "
+        "user's role drops from VERIFIER back to CONSUMER. They can no "
+        "longer file verification visits. Idempotent."
+    ),
+)
+def admin_revoke_verifier(
+    user_id: UUID,
+    background: BackgroundTasks,
+    body: VerifierStatusChange | None = None,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> VerifierProfileRead:
+    return _apply_status(
+        user_id=user_id,
+        new_status=VerifierProfileStatus.REVOKED,
+        note=body.note if body else None,
+        background=background,
+        db=db,
+        actor_id=user.id,
+    )
+
+
+@profiles_router.post(
+    "/{user_id}/suspend",
+    response_model=VerifierProfileRead,
+    summary="Suspend verifier access (temporary)",
+    description=(
+        "Temporarily pauses a verifier: profile → SUSPENDED. The VERIFIER "
+        "role is kept, but visit-filing is blocked (it requires ACTIVE). "
+        "Reinstate to restore. Idempotent."
+    ),
+)
+def admin_suspend_verifier(
+    user_id: UUID,
+    background: BackgroundTasks,
+    body: VerifierStatusChange | None = None,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> VerifierProfileRead:
+    return _apply_status(
+        user_id=user_id,
+        new_status=VerifierProfileStatus.SUSPENDED,
+        note=body.note if body else None,
+        background=background,
+        db=db,
+        actor_id=user.id,
+    )
+
+
+@profiles_router.post(
+    "/{user_id}/reinstate",
+    response_model=VerifierProfileRead,
+    summary="Reinstate a revoked/suspended verifier",
+    description=(
+        "Restores verifier access: profile → ACTIVE. If the user was "
+        "dropped to CONSUMER by a prior revoke, they're promoted back to "
+        "VERIFIER. Idempotent."
+    ),
+)
+def admin_reinstate_verifier(
+    user_id: UUID,
+    background: BackgroundTasks,
+    body: VerifierStatusChange | None = None,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> VerifierProfileRead:
+    return _apply_status(
+        user_id=user_id,
+        new_status=VerifierProfileStatus.ACTIVE,
+        note=body.note if body else None,
+        background=background,
+        db=db,
+        actor_id=user.id,
+    )
+
+
+__all__ = ["router", "visits_router", "profiles_router"]

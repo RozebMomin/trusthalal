@@ -1,0 +1,32 @@
+{% extends "_base.html.jinja" %}
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if reinstated %}Welcome back{% elif suspended %}Your verifier access is paused{% else %}An update on your verifier access{% endif %}
+</h1>
+<p style="margin: 0 0 16px 0;">
+  {% if reinstated %}
+    Your Trust Halal verifier access has been reinstated — you can file
+    verification visits again.
+  {% elif suspended %}
+    Your Trust Halal verifier access has been temporarily paused. You
+    can&rsquo;t file new verification visits while it&rsquo;s on hold.
+  {% else %}
+    Your Trust Halal verifier access has been removed. You can no longer file
+    verification visits.
+  {% endif %}
+</p>
+{% if note %}
+<p style="margin: 0 0 16px 0; padding: 12px 14px; background: #f6f6f7; border-radius: 8px; color: #444;">
+  <strong>Note from Trust Halal:</strong> {{ note }}
+</p>
+{% endif %}
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ site_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Open Trust Halal
+  </a>
+</p>
+<p style="margin: 0; font-size: 13px; color: #888;">
+  Questions? Just reply to this email.
+</p>
+{% endblock %}

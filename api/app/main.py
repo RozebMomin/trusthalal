@@ -95,6 +95,7 @@ from app.modules.admin.organizations.router import router as admin_organizations
 from app.modules.admin.halal_claims.router import router as admin_halal_claims_router  # noqa: E402
 from app.modules.admin.disputes.router import router as admin_disputes_router  # noqa: E402
 from app.modules.admin.verifiers.router import (  # noqa: E402
+    profiles_router as admin_verifier_profiles_router,
     router as admin_verifiers_router,
     visits_router as admin_verification_visits_router,
 )
@@ -465,6 +466,7 @@ app.include_router(admin_halal_claims_router)
 app.include_router(admin_disputes_router)
 app.include_router(admin_verifiers_router)
 app.include_router(admin_verification_visits_router)
+app.include_router(admin_verifier_profiles_router)
 
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(StorageError, storage_error_handler)
