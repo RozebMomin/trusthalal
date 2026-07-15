@@ -245,6 +245,7 @@ class VerificationVisitRead(BaseModel):
     id: UUID
     verifier_user_id: UUID
     place_id: UUID
+    place: Optional[VerifierPublicVisitPlace] = None
     visited_at: datetime
     structured_findings: Optional[HalalQuestionnaireResponse]
     notes_for_admin: Optional[str]

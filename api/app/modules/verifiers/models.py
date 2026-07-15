@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -37,6 +37,9 @@ from app.modules.verifiers.enums import (
     VerifierProfileStatus,
     VisitDisclosure,
 )
+
+if TYPE_CHECKING:
+    from app.modules.places.models import Place
 
 
 class VerifierApplication(Base):
@@ -292,6 +295,14 @@ class VerificationVisit(Base):
 
     # --- relationships --------------------------------------------------
     verifier: Mapped["VerifierProfile"] = relationship(back_populates="visits")
+    # Read-only join to the visited place. Lets the read schema embed a
+    # slim place summary (name/city) so clients don't need an N+1 lookup
+    # per visit row. viewonly — the visit never mutates the place.
+    place: Mapped["Place"] = relationship(
+        "Place",
+        viewonly=True,
+        lazy="selectin",
+    )
     attachments: Mapped[list["VerificationVisitAttachment"]] = relationship(
         back_populates="visit",
         cascade="all, delete-orphan",

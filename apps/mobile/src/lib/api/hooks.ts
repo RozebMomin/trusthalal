@@ -15,6 +15,9 @@ import type {
   PlaceDetail,
   PlaceSearchResult,
   SearchPlacesParams,
+  SubmitVisitInput,
+  VerificationVisit,
+  VerificationVisitStatus,
 } from "./types";
 
 export function useCurrentUser() {
@@ -248,5 +251,58 @@ export function useSubmitVerifierApplication() {
       }),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["me", "verifier-applications"] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Verification visits — the verifier's own site-visit records
+// ---------------------------------------------------------------------------
+
+/** GET /me/verification-visits — newest-first, optional status filter.
+ *  VERIFIER-only on the server; gate with `enabled` on role so a
+ *  demoted user doesn't fire a doomed request. */
+export function useMyVerificationVisits(
+  enabled: boolean,
+  status?: VerificationVisitStatus,
+) {
+  return useQuery({
+    queryKey: ["me", "verification-visits", status ?? "all"],
+    queryFn: () =>
+      apiFetch<VerificationVisit[]>(
+        `/me/verification-visits${status ? `?status=${status}` : ""}`,
+      ),
+    enabled,
+  });
+}
+
+export function useSubmitVerificationVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SubmitVisitInput) =>
+      apiFetch<VerificationVisit>("/me/verification-visits", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: (visit) => {
+      capture("verification_visit_submitted", {
+        place_id: visit.place_id,
+        disclosure: visit.disclosure,
+      });
+      void qc.invalidateQueries({ queryKey: ["me", "verification-visits"] });
+    },
+  });
+}
+
+/** POST /me/verification-visits/{id}/withdraw — pull a SUBMITTED visit. */
+export function useWithdrawVerificationVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (visitId: string) =>
+      apiFetch<VerificationVisit>(
+        `/me/verification-visits/${encodeURIComponent(visitId)}/withdraw`,
+        { method: "POST" },
+      ),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["me", "verification-visits"] }),
   });
 }

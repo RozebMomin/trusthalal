@@ -123,3 +123,65 @@ export type SearchPlacesParams = {
 };
 
 export type FavoriteRead = { saved_at: string; place: PlaceSearchResult };
+
+// ---------------------------------------------------------------------------
+// Verification visits (verifier surface)
+// ---------------------------------------------------------------------------
+export type VisitDisclosure =
+  | "SELF_FUNDED"
+  | "MEAL_COMPED"
+  | "PAID_PARTNERSHIP"
+  | "OTHER_DISCLOSURE";
+
+export type VerificationVisitStatus =
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN";
+
+/** Slim place summary embedded on a visit row so the list can show the
+ *  restaurant name without an N+1 lookup. */
+export type VisitPlace = {
+  id: string;
+  name: string;
+  city: string | null;
+  region: string | null;
+};
+
+export type VerificationVisitAttachment = {
+  id: string;
+  visit_id: string;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  caption: string | null;
+  uploaded_at: string;
+};
+
+export type VerificationVisit = {
+  id: string;
+  verifier_user_id: string;
+  place_id: string;
+  place: VisitPlace | null;
+  visited_at: string;
+  notes_for_admin: string | null;
+  public_review_url: string | null;
+  disclosure: VisitDisclosure;
+  disclosure_note: string | null;
+  status: VerificationVisitStatus;
+  attachments: VerificationVisitAttachment[];
+  decided_at: string | null;
+  decision_note: string | null;
+  submitted_at: string;
+  updated_at: string;
+};
+
+export type SubmitVisitInput = {
+  place_id: string;
+  visited_at: string;
+  notes_for_admin?: string;
+  public_review_url?: string;
+  disclosure: VisitDisclosure;
+  disclosure_note?: string;
+};

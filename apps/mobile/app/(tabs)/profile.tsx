@@ -94,9 +94,9 @@ export default function Profile() {
       <Card>
         {me?.role === "VERIFIER" ? (
           <Cell
-            onPress={() => router.push("/ui/verifier-profile")}
-            left={<><IcBox icon="shield" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>My verifier profile</Text></>}
-            right={rightText("public")}
+            onPress={() => router.push("/verify")}
+            left={<><IcBox icon="shield" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Verify — my visits</Text></>}
+            right={chev}
           />
         ) : null}
         {me?.role !== "VERIFIER" ? (
