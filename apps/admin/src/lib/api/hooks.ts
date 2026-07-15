@@ -1613,6 +1613,84 @@ export function useDecideVerifierApplication() {
 }
 
 // ---------------------------------------------------------------------------
+// Verifier profile (admin)
+// ---------------------------------------------------------------------------
+// The revoke / suspend / reinstate endpoints are newer than the last
+// codegen pass, so the read shape is hand-typed here. Mirror the
+// server-side ``VerifierProfileAdminRead`` model; swap to
+// ``components["schemas"][...]`` after the next
+// ``make export-openapi && npm run codegen``.
+
+export type VerifierProfileAdminRead = {
+  user_id: string;
+  public_handle: string | null;
+  bio: string | null;
+  social_links: Record<string, unknown> | null;
+  is_public: boolean;
+  status: "ACTIVE" | "SUSPENDED" | "REVOKED";
+  joined_as_verifier_at: string;
+  updated_at: string;
+};
+
+export type VerifierStatusAction = "revoke" | "suspend" | "reinstate";
+
+// ---- Query keys ----------------------------------------------------------
+
+export const verifierProfileQk = {
+  detail: (userId: string) => ["admin", "verifier-profile", userId] as const,
+};
+
+// ---- Read hooks ----------------------------------------------------------
+
+/**
+ * GET /admin/verifiers/{user_id} — the verifier profile for an approved
+ * applicant. 404s with ``VERIFIER_PROFILE_NOT_FOUND`` when the user was
+ * never provisioned as a verifier, so ``retry: false`` keeps that
+ * expected miss from spamming the API. Stays disabled until a user id is
+ * present.
+ */
+export function useVerifierProfile(userId: string | undefined) {
+  return useQuery<VerifierProfileAdminRead>({
+    queryKey: verifierProfileQk.detail(userId ?? ""),
+    queryFn: () =>
+      apiFetch<VerifierProfileAdminRead>(`/admin/verifiers/${userId}`),
+    enabled: !!userId,
+    retry: false,
+  });
+}
+
+// ---- Mutations -----------------------------------------------------------
+
+/**
+ * POST /admin/verifiers/{user_id}/{action} where action is one of
+ * revoke (permanent — role drops to CONSUMER), suspend (temporary hold),
+ * or reinstate (back to ACTIVE, re-promoting to VERIFIER if needed). The
+ * optional ``note`` lands on the audit record. On success we refresh the
+ * profile query for that user AND the verifier-applications queries so
+ * any status surfaced there reflects the change.
+ */
+export function useSetVerifierStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      userId: string;
+      action: VerifierStatusAction;
+      note?: string;
+    }) =>
+      apiFetch<VerifierProfileAdminRead>(
+        `/admin/verifiers/${args.userId}/${args.action}`,
+        { method: "POST", json: { note: args.note } },
+      ),
+    onSuccess: (_data, args) => {
+      void qc.invalidateQueries({
+        queryKey: verifierProfileQk.detail(args.userId),
+      });
+      void invalidateVerifierApplications(qc);
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Password reset (self-service)
 // ---------------------------------------------------------------------------
 
