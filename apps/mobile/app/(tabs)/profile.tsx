@@ -38,6 +38,7 @@ export default function Profile() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: t.bg }}
+      contentInsetAdjustmentBehavior="never"
       contentContainerStyle={{ paddingTop: insets.top + space.sm, paddingHorizontal: space.lg, paddingBottom: 120, gap: space.md }}
     >
       <Text style={[ty.title, { color: t.ink }]}>Profile</Text>

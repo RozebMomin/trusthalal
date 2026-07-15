@@ -77,6 +77,7 @@ export default function Verify() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: t.bg }}
+      contentInsetAdjustmentBehavior="never"
       contentContainerStyle={{
         paddingTop: insets.top + space.md,
         paddingHorizontal: space.lg,
