@@ -272,8 +272,8 @@ export default function FileVisit() {
                           fg={on ? t.accentDeep : t.zinc}
                         />
                         <View style={{ flex: 1 }}>
-                          <Text style={[ty.label, { color: t.ink, fontSize: 15 }]}>{p.name}</Text>
-                          {sub ? <Text style={[ty.small, { color: t.sub, marginTop: 1 }]}>{sub}</Text> : null}
+                          <Text style={[ty.label, { color: t.ink, fontSize: 16.5, fontFamily: "Inter_700Bold" }]}>{p.name}</Text>
+                          {sub ? <Text style={[ty.small, { color: t.sub, fontSize: 13, marginTop: 2 }]}>{sub}</Text> : null}
                         </View>
                         {on ? (
                           <View style={{ width: 22, height: 22, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
