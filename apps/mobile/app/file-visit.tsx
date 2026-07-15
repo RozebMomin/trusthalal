@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -33,6 +34,29 @@ import { Card, Seg, Steps, Tag } from "@/ui/kit";
  *  camera picker ships. */
 
 const TOTAL = 4; // decision steps; step 4 is the success screen
+const M_PER_MI = 1609.34;
+const NEARBY_RADIUS_M = 10 * M_PER_MI; // suggest places within ~10 mi
+
+function milesAway(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) *
+      Math.cos((b.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return (R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s))) / M_PER_MI;
+}
+
+function distanceLabel(mi: number): string {
+  if (mi < 0.1) return "You're here";
+  if (mi < 10) return `${mi.toFixed(1)} mi away`;
+  return `${Math.round(mi)} mi away`;
+}
 
 const DISCLOSURES: { value: VisitDisclosure; label: string }[] = [
   { value: "SELF_FUNDED", label: "I paid for it myself" },
@@ -59,13 +83,64 @@ export default function FileVisit() {
   const [notes, setNotes] = useState("");
   const [reviewUrl, setReviewUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  const search = useSearchPlaces({ q: selected ? "" : query.trim() });
+  const typed = query.trim();
+  // Text query wins; otherwise fall back to nearby suggestions from the
+  // device location. When a place is already picked, don't search at all.
+  const search = useSearchPlaces(
+    selected
+      ? {}
+      : typed
+        ? { q: typed }
+        : coords
+          ? { lat: coords.lat, lng: coords.lng, radius: NEARBY_RADIUS_M }
+          : {},
+  );
 
   useEffect(() => {
     if (me === null) router.replace("/(auth)/sign-in");
     else if (me && me.role !== "VERIFIER") router.replace("/become-a-verifier");
   }, [me]);
+
+  // Grab the device location so step 1 can suggest places you're near.
+  // Silent when permission was already granted (e.g. from Explore); we
+  // only read a coarse position and never block the flow on it.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const existing = await Location.getForegroundPermissionsAsync();
+        const status =
+          existing.status === "granted"
+            ? existing.status
+            : (await Location.requestForegroundPermissionsAsync()).status;
+        if (status !== "granted") return;
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (!cancelled) {
+          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        }
+      } catch {
+        // Location is a nicety here — search-by-name always works.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Picker rows: text-search results as-is, or nearby suggestions sorted by
+  // distance (closest first) with a mileage label. Normalized to one shape.
+  const suggestions = useMemo(() => {
+    const rows = search.data ?? [];
+    if (typed || !coords) return rows.map((p) => ({ p, mi: null as number | null }));
+    return rows
+      .map((p) => ({ p, mi: milesAway(coords, { lat: p.lat, lng: p.lng }) }))
+      .sort((a, b) => (a.mi ?? 0) - (b.mi ?? 0));
+  }, [search.data, typed, coords]);
+  const showingNearby = !typed && coords !== null;
 
   const field = {
     backgroundColor: t.card,
@@ -106,7 +181,6 @@ export default function FileVisit() {
     }
   }
 
-  const results = search.data ?? [];
   const isSuccess = step === TOTAL;
 
   return (
@@ -128,7 +202,8 @@ export default function FileVisit() {
           <>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               {step === 0 ? (
-                <Pressable onPress={() => router.back()} hitSlop={8}>
+                <Pressable onPress={() => router.back()} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                  <Feather name="x" size={15} color={t.sub} />
                   <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_700Bold" }]}>Cancel</Text>
                 </Pressable>
               ) : (
@@ -178,27 +253,42 @@ export default function FileVisit() {
                   value={query}
                   onChangeText={setQuery}
                   autoCorrect={false}
-                  autoFocus
                 />
+                {showingNearby ? <Seg>Near you</Seg> : null}
                 {search.isFetching ? (
                   <View style={{ paddingVertical: 12, alignItems: "center" }}>
                     <ActivityIndicator color={t.accent} />
                   </View>
-                ) : query.trim().length > 0 && results.length === 0 ? (
+                ) : typed && suggestions.length === 0 ? (
                   <Text style={[ty.small, { color: t.sub, paddingVertical: 6 }]}>
                     No matches. Try the exact restaurant name.
                   </Text>
+                ) : !typed && !coords ? (
+                  <Text style={[ty.small, { color: t.sub, paddingVertical: 6 }]}>
+                    Turn on location for nearby suggestions, or search by name.
+                  </Text>
                 ) : (
-                  results.slice(0, 6).map((p) => (
-                    <Pressable key={p.id} onPress={() => setSelected(p)}>
-                      <Card style={{ padding: space.lg }}>
-                        <Text style={[ty.label, { color: t.ink, fontSize: 13.5 }]}>{p.name}</Text>
-                        <Text style={[ty.small, { color: t.sub }]}>
-                          {[p.city, p.region].filter(Boolean).join(", ") || p.address || ""}
-                        </Text>
-                      </Card>
-                    </Pressable>
-                  ))
+                  suggestions.slice(0, 6).map(({ p, mi }) => {
+                    const sub =
+                      mi !== null
+                        ? distanceLabel(mi)
+                        : [p.city, p.region].filter(Boolean).join(", ") || p.address || "";
+                    return (
+                      <Pressable key={p.id} onPress={() => setSelected(p)}>
+                        <Card style={{ padding: space.lg }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+                            {mi !== null ? (
+                              <Feather name="map-pin" size={16} color={t.accentDeep} />
+                            ) : null}
+                            <View style={{ flex: 1 }}>
+                              <Text style={[ty.label, { color: t.ink, fontSize: 13.5 }]}>{p.name}</Text>
+                              {sub ? <Text style={[ty.small, { color: t.sub }]}>{sub}</Text> : null}
+                            </View>
+                          </View>
+                        </Card>
+                      </Pressable>
+                    );
+                  })
                 )}
               </>
             )}
