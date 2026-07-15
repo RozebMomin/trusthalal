@@ -17,6 +17,7 @@ import type {
   SearchPlacesParams,
   SubmitVisitInput,
   VerificationVisit,
+  VerificationVisitAttachment,
   VerificationVisitStatus,
 } from "./types";
 
@@ -291,6 +292,26 @@ export function useSubmitVerificationVisit() {
       void qc.invalidateQueries({ queryKey: ["me", "verification-visits"] });
     },
   });
+}
+
+/** Upload one photo to a SUBMITTED visit (multipart). Used in the wizard's
+ *  submit flow: create the visit, then upload each on-device photo. Not a
+ *  react-query mutation — it's called in a loop and we don't cache per-file. */
+export async function uploadVisitAttachment(
+  visitId: string,
+  photo: { uri: string; name: string; type: string },
+): Promise<VerificationVisitAttachment> {
+  const form = new FormData();
+  // RN's fetch accepts this {uri,name,type} shape as a file part.
+  form.append("file", {
+    uri: photo.uri,
+    name: photo.name,
+    type: photo.type,
+  } as unknown as Blob);
+  return apiFetch<VerificationVisitAttachment>(
+    `/me/verification-visits/${encodeURIComponent(visitId)}/attachments`,
+    { method: "POST", body: form },
+  );
 }
 
 /** POST /me/verification-visits/{id}/withdraw — pull a SUBMITTED visit. */

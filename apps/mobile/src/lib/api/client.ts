@@ -79,7 +79,9 @@ export async function apiFetch<T>(
   const headers = new Headers(opts.headers);
   if (access) headers.set("Authorization", `Bearer ${access}`);
   headers.set("Accept", "application/json");
-  if (opts.body && !headers.has("Content-Type")) {
+  // Don't force JSON on multipart uploads — fetch must set the multipart
+  // boundary itself, so leave Content-Type unset when the body is FormData.
+  if (opts.body && !(opts.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 

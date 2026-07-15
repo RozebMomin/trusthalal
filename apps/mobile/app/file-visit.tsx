@@ -1,9 +1,11 @@
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { ApiError } from "@/lib/api/client";
 import {
+  uploadVisitAttachment,
   useCurrentUser,
   useSearchPlaces,
   useSubmitVerificationVisit,
@@ -34,8 +37,21 @@ import { Card, Cell, Chip, IcBox, Seg, Steps, Tag } from "@/ui/kit";
  *  Photo evidence (the API supports it) joins as its own step once the
  *  camera picker ships. */
 
-const TOTAL = 4; // decision steps; step 4 is the success screen
+const TOTAL = 5; // decision steps; step 5 is the success screen
+const MAX_PHOTOS = 10; // matches the API's per-visit attachment cap
 const M_PER_MI = 1609.34;
+
+type VisitPhoto = { uri: string; name: string; type: string };
+
+/** Turn an ImagePicker asset into the {uri,name,type} shape our upload
+ *  helper + RN fetch expect. */
+function assetToPhoto(a: ImagePicker.ImagePickerAsset): VisitPhoto {
+  const uri = a.uri;
+  const guessedExt = (a.fileName?.split(".").pop() || uri.split(".").pop() || "jpg").toLowerCase();
+  const type = a.mimeType || (guessedExt === "png" ? "image/png" : "image/jpeg");
+  const name = a.fileName || `visit-${Date.now()}.${guessedExt}`;
+  return { uri, name, type };
+}
 const NEARBY_RADIUS_M = 10 * M_PER_MI; // suggest places within ~10 mi
 
 function milesAway(
@@ -113,6 +129,27 @@ export default function FileVisit() {
   const [addingItem, setAddingItem] = useState(false);
   const [itemDraft, setItemDraft] = useState("");
   const [checks, setChecks] = useState<Partial<Record<CheckItem, CheckVal>>>({});
+  const [photos, setPhotos] = useState<VisitPhoto[]>([]);
+
+  const addPhotos = (assets: ImagePicker.ImagePickerAsset[]) =>
+    setPhotos((ps) => [...ps, ...assets.map(assetToPhoto)].slice(0, MAX_PHOTOS));
+
+  const takePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) return;
+    const res = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    if (!res.canceled) addPhotos(res.assets);
+  };
+
+  const pickPhotos = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - photos.length,
+      quality: 0.7,
+    });
+    if (!res.canceled) addPhotos(res.assets);
+  };
 
   const addItem = () => {
     const v = itemDraft.trim();
@@ -149,6 +186,7 @@ export default function FileVisit() {
         setSelected(d.selected ?? null);
         setOrdered(d.ordered ?? []);
         setChecks(d.checks ?? {});
+        setPhotos(d.photos ?? []);
         setDisclosure(d.disclosure ?? "SELF_FUNDED");
         setDisclosureNote(d.disclosureNote ?? "");
         setNotes(d.notes ?? "");
@@ -165,12 +203,13 @@ export default function FileVisit() {
       selected,
       ordered,
       checks,
+      photos,
       disclosure,
       disclosureNote,
       notes,
       reviewUrl,
     });
-  }, [step, selected, ordered, checks, disclosure, disclosureNote, notes, reviewUrl]);
+  }, [step, selected, ordered, checks, photos, disclosure, disclosureNote, notes, reviewUrl]);
 
   const typed = query.trim();
   // Text query wins; otherwise fall back to nearby suggestions from the
@@ -246,7 +285,7 @@ export default function FileVisit() {
     if (!selected) return;
     setError(null);
     try {
-      await submit.mutateAsync({
+      const visit = await submit.mutateAsync({
         place_id: selected.id,
         visited_at: new Date().toISOString(),
         disclosure,
@@ -258,6 +297,16 @@ export default function FileVisit() {
         notes_for_admin: notes.trim() || undefined,
         public_review_url: reviewUrl.trim() || undefined,
       });
+      // Photos stay on-device until submit, then upload to the created
+      // visit. Best-effort per file — a failed photo doesn't undo a filed
+      // visit; the verifier can add more from the visit later.
+      for (const photo of photos) {
+        try {
+          await uploadVisitAttachment(visit.id, photo);
+        } catch {
+          // skip this file
+        }
+      }
       clearDraft();
       setStep(TOTAL); // → success screen
     } catch (e) {
@@ -400,8 +449,75 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 1 · Observe ------------------------------------------- */}
+        {/* --- Step 1 · Photos -------------------------------------------- */}
         {step === 1 ? (
+          <>
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              Snap it while{"\n"}you're there.
+            </Text>
+            <Text style={[ty.body, { color: t.sub }]}>
+              Photos are your evidence — the cert on the wall, the menu, your meal. Optional, but
+              a couple of good shots make a visit far stronger.
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {photos.length < MAX_PHOTOS ? (
+                <Pressable
+                  onPress={takePhoto}
+                  style={{
+                    width: 100, height: 100, borderRadius: radii.lg, backgroundColor: t.accentSoft,
+                    alignItems: "center", justifyContent: "center", gap: 4,
+                    borderWidth: 2, borderColor: t.accent,
+                  }}
+                >
+                  <Feather name="camera" size={22} color={t.accentDeep} />
+                  <Text style={[ty.seg, { color: t.accentDeep, fontSize: mockupPx(8.5) }]}>Camera</Text>
+                </Pressable>
+              ) : null}
+              {photos.length < MAX_PHOTOS ? (
+                <Pressable
+                  onPress={pickPhotos}
+                  style={{
+                    width: 100, height: 100, borderRadius: radii.lg,
+                    borderWidth: 1.5, borderStyle: "dashed", borderColor: t.line,
+                    alignItems: "center", justifyContent: "center", gap: 4,
+                  }}
+                >
+                  <Feather name="image" size={20} color={t.sub} />
+                  <Text style={[ty.seg, { color: t.sub, fontSize: mockupPx(8.5) }]}>Library</Text>
+                </Pressable>
+              ) : null}
+              {photos.map((p, i) => (
+                <View key={p.uri + i} style={{ width: 100, height: 100, borderRadius: radii.lg, overflow: "hidden" }}>
+                  <Image source={{ uri: p.uri }} style={{ width: "100%", height: "100%" }} />
+                  <Pressable
+                    onPress={() => setPhotos((ps) => ps.filter((_, j) => j !== i))}
+                    hitSlop={6}
+                    style={{
+                      position: "absolute", top: 4, right: 4,
+                      width: 22, height: 22, borderRadius: 999,
+                      backgroundColor: "rgba(11,11,14,0.6)",
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Feather name="x" size={13} color="#fff" />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10) }]}>
+              {photos.length > 0
+                ? `${photos.length} photo${photos.length === 1 ? "" : "s"} attached · aim for the cert, the menu, and what you ordered.`
+                : "Aim for the cert on the wall, the menu, and what you ordered."}
+            </Text>
+            <Button title="Continue" onPress={next} />
+            <Text style={[ty.small, { color: t.sub, textAlign: "center", fontSize: mockupPx(9.5) }]}>
+              Photos stay on-device until you submit.
+            </Text>
+          </>
+        ) : null}
+
+        {/* --- Step 2 · Observe ------------------------------------------- */}
+        {step === 2 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               What did you{"\n"}observe?
@@ -467,8 +583,8 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 2 · Disclosure ---------------------------------------- */}
-        {step === 2 ? (
+        {/* --- Step 3 · Disclosure ---------------------------------------- */}
+        {step === 3 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Who paid for{"\n"}the meal?
@@ -521,8 +637,8 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 3 · Review -------------------------------------------- */}
-        {step === 3 ? (
+        {/* --- Step 4 · Review -------------------------------------------- */}
+        {step === 4 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Review &{"\n"}submit
@@ -539,6 +655,9 @@ export default function FileVisit() {
                 t={t}
               />
               <Row label="Who paid" value={disclosureLabel(disclosure)} t={t} />
+              {photos.length ? (
+                <Row label="Photos" value={`${photos.length} attached`} t={t} />
+              ) : null}
               {ordered.length ? <Row label="Ordered" value={ordered.join(", ")} t={t} /> : null}
               {CHECK_ITEMS.some((c) => checks[c.label]) ? (
                 <Row

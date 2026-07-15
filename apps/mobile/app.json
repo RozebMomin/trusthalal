@@ -48,6 +48,13 @@
       "expo-font",
       "expo-asset",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "So you can attach photos of your visit — the cert on the wall, the menu, your meal.",
+          "cameraPermission": "So you can snap photos of your visit while you're there."
+        }
+      ],
+      [
         "@sentry/react-native",
         {
           "organization": "trust-halal-llc",

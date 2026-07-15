@@ -19,6 +19,7 @@ export type VisitDraft = {
   selected: PlaceSearchResult | null;
   ordered: string[];
   checks: Record<string, CheckResult>;
+  photos: { uri: string; name: string; type: string }[];
   disclosure: VisitDisclosure;
   disclosureNote: string;
   notes: string;
