@@ -19,7 +19,9 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "So we can show halal restaurants near you."
+        "NSLocationWhenInUseUsageDescription": "So we can show halal restaurants near you.",
+        "NSCameraUsageDescription": "So you can snap photos of your visit while you're there.",
+        "NSPhotoLibraryUsageDescription": "So you can attach photos of your visit — the cert on the wall, the menu, your meal."
       },
       "appleTeamId": "3623JG9XS4"
     },

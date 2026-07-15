@@ -84,9 +84,6 @@ const DISCLOSURES: { value: VisitDisclosure; label: string }[] = [
   { value: "OTHER_DISCLOSURE", label: "Something else" },
 ];
 
-function disclosureLabel(v: VisitDisclosure): string {
-  return DISCLOSURES.find((d) => d.value === v)?.label ?? "";
-}
 
 type CheckVal = "YES" | "NO" | "PARTIAL";
 
@@ -96,11 +93,31 @@ type CheckVal = "YES" | "NO" | "PARTIAL";
 // (red), but "alcohol on premises? NO" is good (green). Free-form findings
 // go in Notes; these are the quick structured signals a reviewer scans.
 const CHECK_ITEMS = [
-  { label: "Halal cert visible on premises", good: "YES" },
-  { label: "Menu is fully halal", good: "YES" },
-  { label: "Alcohol on premises", good: "NO" },
-  { label: "Staff confirmed sourcing", good: "YES" },
-] as const satisfies readonly { label: string; good: CheckVal }[];
+  {
+    label: "Halal cert visible on premises",
+    good: "YES",
+    pill: { YES: "Cert sighted", NO: "No cert seen", PARTIAL: "Cert unclear" },
+  },
+  {
+    label: "Menu is fully halal",
+    good: "YES",
+    pill: { YES: "Fully halal", NO: "Not fully halal", PARTIAL: "Partly halal" },
+  },
+  {
+    label: "Alcohol on premises",
+    good: "NO",
+    pill: { YES: "Alcohol served", NO: "No alcohol", PARTIAL: "Some alcohol" },
+  },
+  {
+    label: "Staff confirmed sourcing",
+    good: "YES",
+    pill: { YES: "Sourcing confirmed", NO: "Sourcing unconfirmed", PARTIAL: "Sourcing partial" },
+  },
+] as const satisfies readonly {
+  label: string;
+  good: CheckVal;
+  pill: Record<CheckVal, string>;
+}[];
 type CheckItem = (typeof CHECK_ITEMS)[number]["label"];
 const CHECK_CYCLE: (CheckVal | undefined)[] = [undefined, "YES", "NO", "PARTIAL"];
 
@@ -108,6 +125,20 @@ function checkTone(v: CheckVal | undefined, good: CheckVal): "wash" | "danger" |
   if (!v) return "zinc";
   if (v === "PARTIAL") return "amber";
   return v === good ? "wash" : "danger";
+}
+
+const DISCLOSURE_SHORT: Record<VisitDisclosure, string> = {
+  SELF_FUNDED: "Meal self-paid",
+  MEAL_COMPED: "Meal comped",
+  PAID_PARTNERSHIP: "Paid partnership",
+  OTHER_DISCLOSURE: "Other arrangement",
+};
+
+/** "Jul 6 · 6:40 PM" — the visit stamp shown on the report card. */
+function whenLabel(d: Date): string {
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${date} · ${time}`;
 }
 
 export default function FileVisit() {
@@ -130,6 +161,8 @@ export default function FileVisit() {
   const [itemDraft, setItemDraft] = useState("");
   const [checks, setChecks] = useState<Partial<Record<CheckItem, CheckVal>>>({});
   const [photos, setPhotos] = useState<VisitPhoto[]>([]);
+  // Stamp the visit at open time — shown on the report card and sent as visited_at.
+  const [visitedAt] = useState(() => new Date());
 
   const addPhotos = (assets: ImagePicker.ImagePickerAsset[]) =>
     setPhotos((ps) => [...ps, ...assets.map(assetToPhoto)].slice(0, MAX_PHOTOS));
@@ -287,7 +320,7 @@ export default function FileVisit() {
     try {
       const visit = await submit.mutateAsync({
         place_id: selected.id,
-        visited_at: new Date().toISOString(),
+        visited_at: visitedAt.toISOString(),
         disclosure,
         disclosure_note:
           disclosure !== "SELF_FUNDED" && disclosureNote.trim()
@@ -641,45 +674,81 @@ export default function FileVisit() {
         {step === 4 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
-              Review &{"\n"}submit
+              Review your{"\n"}report
             </Text>
+
+            {/* Report card — a preview of how this reads once accepted. */}
             <Card style={{ padding: space.lg, gap: 12 }}>
-              <Row label="Restaurant" value={selected?.name ?? "—"} t={t} />
-              <Row
-                label="Where"
-                value={
-                  [selected?.city, selected?.region].filter(Boolean).join(", ") ||
-                  selected?.address ||
-                  "—"
-                }
-                t={t}
-              />
-              <Row label="Who paid" value={disclosureLabel(disclosure)} t={t} />
-              {photos.length ? (
-                <Row label="Photos" value={`${photos.length} attached`} t={t} />
-              ) : null}
-              {ordered.length ? <Row label="Ordered" value={ordered.join(", ")} t={t} /> : null}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(15), fontFamily: "Inter_800ExtraBold", flex: 1 }]}>
+                  {selected?.name ?? "Your visit"}
+                </Text>
+                <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10) }]}>{whenLabel(visitedAt)}</Text>
+              </View>
+
               {CHECK_ITEMS.some((c) => checks[c.label]) ? (
-                <Row
-                  label="Checks"
-                  value={CHECK_ITEMS.filter((c) => checks[c.label])
-                    .map((c) => `${c.label}: ${checks[c.label]}`)
-                    .join(" · ")}
-                  t={t}
-                />
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {CHECK_ITEMS.filter((c) => checks[c.label]).map((c) => (
+                    <Tag
+                      key={c.label}
+                      label={c.pill[checks[c.label] as CheckVal]}
+                      tone={checkTone(checks[c.label], c.good)}
+                      size={mockupPx(9.5)}
+                    />
+                  ))}
+                </View>
               ) : null}
-              {notes.trim() ? <Row label="Notes" value={notes.trim()} t={t} /> : null}
-              {reviewUrl.trim() ? <Row label="Review link" value={reviewUrl.trim()} t={t} /> : null}
+
+              {ordered.length ? (
+                <Text style={[ty.small, { color: t.zinc, fontSize: mockupPx(11) }]}>
+                  Ordered: {ordered.join(", ")}
+                </Text>
+              ) : null}
+
+              {notes.trim() ? (
+                <Text style={[ty.body, { color: t.ink, fontSize: mockupPx(12.5) }]} numberOfLines={3}>
+                  &ldquo;{notes.trim()}&rdquo;
+                </Text>
+              ) : null}
+
+              {photos.length ? (
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  {photos.slice(0, 3).map((p, i) => (
+                    <Image
+                      key={p.uri + i}
+                      source={{ uri: p.uri }}
+                      style={{ width: 54, height: 54, borderRadius: radii.md }}
+                    />
+                  ))}
+                  {photos.length > 3 ? (
+                    <View style={{ width: 54, height: 54, borderRadius: radii.md, backgroundColor: t.zincSoft, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={[ty.label, { color: t.sub, fontSize: mockupPx(11) }]}>+{photos.length - 3}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
+              <View style={{ height: 1, backgroundColor: t.line }} />
+
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                <Feather name="shield" size={mockupPx(13)} color={t.accentDeep} />
+                <Text style={[ty.small, { color: t.accentDeep, fontSize: mockupPx(11), fontFamily: "Inter_600SemiBold" }]}>
+                  {DISCLOSURE_SHORT[disclosure]} · will be shown publicly
+                </Text>
+              </View>
             </Card>
-            <View style={{ flexDirection: "row", gap: 8, backgroundColor: t.accentSoft, borderRadius: radii.md, padding: space.md }}>
-              <Feather name="shield" size={15} color={t.accentDeep} />
-              <Text style={[ty.small, { color: t.accentDeep, flex: 1, fontFamily: "Inter_600SemiBold" }]}>
-                Trust Halal reviews every visit. You'll be notified when it's accepted — usually
-                within a few days.
-              </Text>
-            </View>
+
+            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(11), lineHeight: mockupPx(16) }]}>
+              Your report goes to Trust Halal review. If accepted, it appears on the restaurant&apos;s
+              page and your public profile.
+            </Text>
+
             {error ? <Text style={[ty.small, { color: t.danger }]}>{error}</Text> : null}
-            <Button title="Submit visit" variant="accent" loading={submit.isPending} onPress={onSubmit} />
+
+            <Button title="Submit report" variant="accent" loading={submit.isPending} onPress={onSubmit} />
+            <Pressable onPress={() => router.back()} hitSlop={8} style={{ alignItems: "center", paddingVertical: 4 }}>
+              <Text style={[ty.label, { color: t.sub, fontSize: mockupPx(12) }]}>Save as draft</Text>
+            </Pressable>
           </>
         ) : null}
 
@@ -709,22 +778,5 @@ export default function FileVisit() {
         ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-}
-
-function Row({
-  label,
-  value,
-  t,
-}: {
-  label: string;
-  value: string;
-  t: ReturnType<typeof useTheme>;
-}) {
-  return (
-    <View style={{ gap: 2 }}>
-      <Text style={[ty.seg, { color: t.sub, fontSize: 9 }]}>{label.toUpperCase()}</Text>
-      <Text style={[ty.body, { color: t.ink }]}>{value}</Text>
-    </View>
   );
 }
