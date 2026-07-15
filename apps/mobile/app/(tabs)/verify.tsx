@@ -9,7 +9,7 @@ import type { VerificationVisitStatus } from "@/lib/api/types";
 import { visitDraft, type VisitDraft } from "@/lib/visit-draft";
 import { space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card, Cell, Seg, Tag } from "@/ui/kit";
+import { Card, Cell, Chip, Seg, Tag } from "@/ui/kit";
 
 /** Real verifier home — the verifier's own visit history + stats, wired
  *  to /me/verification-visits. Lives as a bottom-nav tab that only shows
@@ -27,6 +27,20 @@ const STATUS_TAG: Record<VerificationVisitStatus, { label: string; tone: Tone }>
 };
 
 const TOTAL_STEPS = 5;
+
+// Status filters for the "My visits" list. Grouped so SUBMITTED + UNDER_REVIEW
+// read as one "In review" bucket to the verifier.
+const VISIT_FILTERS: {
+  key: string;
+  label: string;
+  match: (s: VerificationVisitStatus) => boolean;
+}[] = [
+  { key: "all", label: "All", match: () => true },
+  { key: "in_review", label: "In review", match: (s) => s === "SUBMITTED" || s === "UNDER_REVIEW" },
+  { key: "accepted", label: "Accepted", match: (s) => s === "ACCEPTED" },
+  { key: "rejected", label: "Not accepted", match: (s) => s === "REJECTED" },
+  { key: "withdrawn", label: "Withdrawn", match: (s) => s === "WITHDRAWN" },
+];
 
 function shortDate(iso: string): string {
   const d = new Date(iso);
@@ -105,6 +119,10 @@ export default function Verify() {
     setDraft(null);
   };
 
+  const [filterKey, setFilterKey] = useState("all");
+  const activeFilter = VISIT_FILTERS.find((f) => f.key === filterKey) ?? VISIT_FILTERS[0];
+  const shown = rows.filter((v) => activeFilter.match(v.status));
+
   return (
     // The safe-area gap is a fixed OUTER padding, not part of the scroll
     // content — otherwise re-tapping the tab lets iOS re-apply the inset and
@@ -176,6 +194,24 @@ export default function Verify() {
 
         <Seg>My visits</Seg>
 
+        {/* Status filter — only worth showing once there's more than one visit. */}
+        {!isLoading && !isError && rows.length > 1 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 6, paddingRight: space.lg }}
+          >
+            {VISIT_FILTERS.map((f) => (
+              <Chip
+                key={f.key}
+                label={f.label}
+                on={f.key === filterKey}
+                onPress={() => setFilterKey(f.key)}
+              />
+            ))}
+          </ScrollView>
+        ) : null}
+
         {isLoading ? (
           <Card style={{ padding: space.xl, alignItems: "center" }}>
             <ActivityIndicator color={t.accent} />
@@ -197,9 +233,15 @@ export default function Verify() {
               File your first visit after eating somewhere halal.
             </Text>
           </Card>
+        ) : shown.length === 0 ? (
+          <Card style={{ padding: space.xl, alignItems: "center", gap: 6 }}>
+            <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
+              No {activeFilter.label.toLowerCase()} visits.
+            </Text>
+          </Card>
         ) : (
           <Card>
-            {rows.map((v, i) => {
+            {shown.map((v, i) => {
               const tag = STATUS_TAG[v.status];
               const place = v.place?.name ?? "Restaurant";
               const meta = [v.place?.city, shortDate(v.visited_at)]
@@ -208,7 +250,7 @@ export default function Verify() {
               return (
                 <Cell
                   key={v.id}
-                  last={i === rows.length - 1}
+                  last={i === shown.length - 1}
                   onPress={() => router.push(`/visit/${v.id}`)}
                   left={
                     <View>
