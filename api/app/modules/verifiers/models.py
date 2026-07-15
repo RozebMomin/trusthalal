@@ -236,6 +236,13 @@ class VerificationVisit(Base):
         JSONB, nullable=True
     )
 
+    # Lightweight on-the-spot observations from the mobile observe step:
+    # {"ordered_items": [...], "checks": {"<prompt>": "YES|NO|PARTIAL"}}.
+    # Distinct from the heavy structured_findings questionnaire.
+    observations: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=True
+    )
+
     notes_for_admin: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Optional public link to the verifier's published review

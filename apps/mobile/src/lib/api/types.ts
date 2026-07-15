@@ -149,6 +149,15 @@ export type VisitPlace = {
   region: string | null;
 };
 
+export type CheckResult = "YES" | "NO" | "PARTIAL";
+
+/** Lightweight structured observations from the observe step — kept
+ *  separate from the heavy owner-style questionnaire. */
+export type VisitObservations = {
+  ordered_items: string[];
+  checks: Record<string, CheckResult>;
+};
+
 export type VerificationVisitAttachment = {
   id: string;
   visit_id: string;
@@ -165,6 +174,7 @@ export type VerificationVisit = {
   place_id: string;
   place: VisitPlace | null;
   visited_at: string;
+  observations: VisitObservations | null;
   notes_for_admin: string | null;
   public_review_url: string | null;
   disclosure: VisitDisclosure;
@@ -180,6 +190,7 @@ export type VerificationVisit = {
 export type SubmitVisitInput = {
   place_id: string;
   visited_at: string;
+  observations?: VisitObservations;
   notes_for_admin?: string;
   public_review_url?: string;
   disclosure: VisitDisclosure;

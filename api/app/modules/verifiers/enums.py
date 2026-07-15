@@ -64,6 +64,20 @@ class VisitDisclosure(StrEnum):
     disclosure_note."""
 
 
+class CheckResult(StrEnum):
+    """Quick at-a-glance observation result for a verification visit.
+
+    The mobile "Checks" card records these for a fixed set of prompts
+    (halal cert visible, menu fully halal, alcohol on premises, staff
+    confirmed sourcing). Distinct from the full HalalQuestionnaireResponse
+    — these are the verifier's on-the-spot signals, not the owner's claim.
+    """
+
+    YES = "YES"
+    NO = "NO"
+    PARTIAL = "PARTIAL"
+
+
 class VerificationVisitStatus(StrEnum):
     SUBMITTED = "SUBMITTED"
     """Verifier submitted; awaiting admin review."""

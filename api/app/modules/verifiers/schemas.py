@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.modules.halal_claims.schemas import HalalQuestionnaireResponse
 from app.modules.verifiers.enums import (
+    CheckResult,
     VerificationVisitStatus,
     VerifierApplicationStatus,
     VerifierProfileStatus,
@@ -217,6 +218,31 @@ class VerificationVisitAttachmentRead(BaseModel):
     uploaded_at: datetime
 
 
+class VisitObservations(BaseModel):
+    """Lightweight structured observations a verifier logs on the spot.
+
+    Separate from ``structured_findings`` (the heavy owner-style
+    questionnaire): these are the quick "you ordered / tappable checks"
+    signals from the mobile observe step. Stored so they can be
+    surfaced/filtered later rather than buried in free-text notes.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    ordered_items: list[str] = Field(
+        default_factory=list,
+        max_length=40,
+        description="Dishes the verifier ordered, as free-text chips.",
+    )
+    checks: dict[str, CheckResult] = Field(
+        default_factory=dict,
+        description=(
+            "Prompt → YES/NO/PARTIAL. Keys are the check labels shown in "
+            "the app (e.g. 'Halal cert visible on premises')."
+        ),
+    )
+
+
 class VerificationVisitCreate(BaseModel):
     """Verifier submitting a site-visit record.
 
@@ -229,6 +255,7 @@ class VerificationVisitCreate(BaseModel):
     place_id: UUID
     visited_at: datetime
     structured_findings: Optional[HalalQuestionnaireResponse] = None
+    observations: Optional[VisitObservations] = None
     notes_for_admin: Optional[str] = Field(default=None, max_length=4000)
     public_review_url: Optional[str] = Field(
         default=None, max_length=2048
@@ -248,6 +275,7 @@ class VerificationVisitRead(BaseModel):
     place: Optional[VerifierPublicVisitPlace] = None
     visited_at: datetime
     structured_findings: Optional[HalalQuestionnaireResponse]
+    observations: Optional[VisitObservations] = None
     notes_for_admin: Optional[str]
     public_review_url: Optional[str]
     disclosure: VisitDisclosure

@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -21,6 +21,7 @@ import {
   useSubmitVerificationVisit,
 } from "@/lib/api/hooks";
 import type { PlaceSearchResult, VisitDisclosure } from "@/lib/api/types";
+import { visitDraft } from "@/lib/visit-draft";
 import { mockupPx, radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Card, Cell, Chip, IcBox, Seg, Steps, Tag } from "@/ui/kit";
@@ -125,16 +126,47 @@ export default function FileVisit() {
       return copy;
     });
 
-  // Fold the quick observations into the reviewer notes — there's no
-  // dedicated field, and this is what the admin reads on review.
-  const composeNotes = (): string | undefined => {
-    const parts: string[] = [];
-    if (ordered.length) parts.push(`Ordered: ${ordered.join(", ")}`);
-    const lines = CHECK_ITEMS.filter((c) => checks[c]).map((c) => `• ${c} — ${checks[c]}`);
-    if (lines.length) parts.push(`Checks:\n${lines.join("\n")}`);
-    if (notes.trim()) parts.push(notes.trim());
-    return parts.join("\n\n") || undefined;
+  // Structured observations for the API — only send when non-empty.
+  const buildObservations = () => {
+    const hasChecks = CHECK_ITEMS.some((c) => checks[c]);
+    if (!ordered.length && !hasChecks) return undefined;
+    return { ordered_items: ordered, checks: { ...checks } };
   };
+
+  // --- On-device draft: hydrate once, then autosave on every change -------
+  const hydrated = useRef(false);
+  const clearDraft = () => void visitDraft.clear();
+
+  useEffect(() => {
+    (async () => {
+      const d = await visitDraft.load();
+      if (d) {
+        setStep(Math.min(d.step ?? 0, TOTAL - 1)); // never resume onto success
+        setSelected(d.selected ?? null);
+        setOrdered(d.ordered ?? []);
+        setChecks(d.checks ?? {});
+        setDisclosure(d.disclosure ?? "SELF_FUNDED");
+        setDisclosureNote(d.disclosureNote ?? "");
+        setNotes(d.notes ?? "");
+        setReviewUrl(d.reviewUrl ?? "");
+      }
+      hydrated.current = true;
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated.current || step >= TOTAL) return;
+    void visitDraft.save({
+      step,
+      selected,
+      ordered,
+      checks,
+      disclosure,
+      disclosureNote,
+      notes,
+      reviewUrl,
+    });
+  }, [step, selected, ordered, checks, disclosure, disclosureNote, notes, reviewUrl]);
 
   const typed = query.trim();
   // Text query wins; otherwise fall back to nearby suggestions from the
@@ -218,9 +250,11 @@ export default function FileVisit() {
           disclosure !== "SELF_FUNDED" && disclosureNote.trim()
             ? disclosureNote.trim()
             : undefined,
-        notes_for_admin: composeNotes(),
+        observations: buildObservations(),
+        notes_for_admin: notes.trim() || undefined,
         public_review_url: reviewUrl.trim() || undefined,
       });
+      clearDraft();
       setStep(TOTAL); // → success screen
     } catch (e) {
       setError(
@@ -240,52 +274,74 @@ export default function FileVisit() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1, backgroundColor: t.bg }}
     >
+      {/* Sticky header — cancel/back, step counter, progress bar stay put
+          while only the step content below scrolls. */}
+      {!isSuccess ? (
+        <View
+          style={{
+            paddingTop: insets.top + space.md,
+            paddingHorizontal: space.lg,
+            paddingBottom: space.md,
+            backgroundColor: t.bg,
+            gap: space.md,
+          }}
+        >
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            {step === 0 ? (
+              <Pressable onPress={() => router.back()} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                <Feather name="x" size={15} color={t.sub} />
+                <Text style={[ty.body, { color: t.sub, fontFamily: "Inter_700Bold" }]}>Cancel</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={prev} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                <Feather name="chevron-left" size={16} color={t.sub} />
+                <Text style={[ty.body, { color: t.sub, fontFamily: "Inter_700Bold" }]}>Back</Text>
+              </Pressable>
+            )}
+            <Text style={[ty.body, { color: t.sub, fontFamily: "Inter_600SemiBold" }]}>
+              Step {step + 1} of {TOTAL}
+            </Text>
+          </View>
+          <Steps total={TOTAL} done={step + 1} />
+        </View>
+      ) : null}
+
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingTop: insets.top + space.md,
-          padding: space.lg,
+          paddingTop: isSuccess ? insets.top + space.md : space.md,
+          paddingHorizontal: space.lg,
           paddingBottom: 80,
           gap: space.md,
         }}
       >
-        {/* --- Wizard chrome (hidden on the success screen) ---------------- */}
-        {!isSuccess ? (
-          <>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              {step === 0 ? (
-                <Pressable onPress={() => router.back()} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                  <Feather name="x" size={15} color={t.sub} />
-                  <Text style={[ty.body, { color: t.sub, fontFamily: "Inter_700Bold" }]}>Cancel</Text>
-                </Pressable>
-              ) : (
-                <Pressable onPress={prev} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-                  <Feather name="chevron-left" size={16} color={t.sub} />
-                  <Text style={[ty.body, { color: t.sub, fontFamily: "Inter_700Bold" }]}>Back</Text>
-                </Pressable>
-              )}
-              <Text style={[ty.body, { color: t.sub, fontFamily: "Inter_600SemiBold" }]}>
-                Step {step + 1} of {TOTAL}
-              </Text>
-            </View>
-            <Steps total={TOTAL} done={step + 1} />
-          </>
-        ) : null}
-
         {/* --- Step 0 · Place --------------------------------------------- */}
         {step === 0 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Where are you{"\n"}eating?
             </Text>
-            <TextInput
-              style={field}
-              placeholder="Search by restaurant name"
-              placeholderTextColor={t.sub}
-              value={query}
-              onChangeText={setQuery}
-              autoCorrect={false}
-            />
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 9,
+                backgroundColor: t.card,
+                borderRadius: radii.lg,
+                paddingHorizontal: space.lg,
+                minHeight: 48,
+              }}
+            >
+              <Feather name="search" size={mockupPx(15)} color={t.sub} />
+              <TextInput
+                style={{ flex: 1, color: t.ink, ...ty.body, fontSize: mockupPx(13.5), paddingVertical: 12 }}
+                placeholder="Search by restaurant name"
+                placeholderTextColor={t.sub}
+                value={query}
+                onChangeText={setQuery}
+                autoCorrect={false}
+              />
+            </View>
             {showingNearby ? <Seg size={mockupPx(10)}>Near you</Seg> : null}
             {search.isFetching ? (
               <View style={{ paddingVertical: 12, alignItems: "center" }}>
@@ -300,7 +356,7 @@ export default function FileVisit() {
                 Turn on location for nearby suggestions, or search by name.
               </Text>
             ) : (
-              suggestions.slice(0, 6).map(({ p, mi }) => {
+              suggestions.slice(0, 3).map(({ p, mi }) => {
                 const on = selected?.id === p.id;
                 const sub =
                   mi !== null
@@ -401,6 +457,9 @@ export default function FileVisit() {
             />
 
             <Button title="Continue" onPress={next} />
+            <Text style={[ty.small, { color: t.sub, textAlign: "center", fontSize: mockupPx(9.5) }]}>
+              Draft auto-saves on device
+            </Text>
           </>
         ) : null}
 

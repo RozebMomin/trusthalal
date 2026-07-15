@@ -107,6 +107,11 @@ def submit_visit(
             if payload.structured_findings is not None
             else None
         ),
+        observations=(
+            payload.observations.model_dump(mode="json")
+            if payload.observations is not None
+            else None
+        ),
         notes_for_admin=payload.notes_for_admin,
         public_review_url=payload.public_review_url,
         disclosure=payload.disclosure.value,
