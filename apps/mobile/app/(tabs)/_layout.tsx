@@ -32,8 +32,11 @@ export default function TabsLayout() {
 }
 
 function GlassNativeTabs({ isVerifier }: { isVerifier: boolean }) {
+  const t = useTheme();
   return (
-    <NativeTabs>
+    // tintColor drives the selected-tab color on the system bar — without
+    // it iOS falls back to its default blue. Match the brand deep emerald.
+    <NativeTabs tintColor={t.accentDeep}>
       <NativeTabs.Trigger name="index">
         <Icon sf="safari.fill" drawable="ic_explore" />
         <Label>Explore</Label>
