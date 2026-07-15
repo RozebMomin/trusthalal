@@ -225,7 +225,7 @@ export default function VisitDetail() {
         <View style={{ marginTop: space.md }}>
           <Button
             title="Withdraw this visit"
-            variant="secondary"
+            variant="danger"
             icon="trash-2"
             loading={withdraw.isPending}
             onPress={onWithdraw}
