@@ -45,12 +45,12 @@ function GlassNativeTabs({ isVerifier }: { isVerifier: boolean }) {
         <Icon sf="heart.fill" drawable="ic_saved" />
         <Label>Saved</Label>
       </NativeTabs.Trigger>
-      {isVerifier ? (
-        <NativeTabs.Trigger name="verify">
-          <Icon sf="checkmark.seal.fill" drawable="ic_verify" />
-          <Label>Verify</Label>
-        </NativeTabs.Trigger>
-      ) : null}
+      {/* Always declared so the route has a trigger; `hidden` (not a
+          conditional null child) keeps it out of the bar for non-verifiers. */}
+      <NativeTabs.Trigger name="verify" hidden={!isVerifier}>
+        <Icon sf="checkmark.seal.fill" drawable="ic_verify" />
+        <Label>Verify</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf="person.fill" drawable="ic_profile" />
         <Label>Profile</Label>
