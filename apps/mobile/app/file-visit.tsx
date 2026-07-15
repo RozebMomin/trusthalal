@@ -21,7 +21,7 @@ import {
   useSubmitVerificationVisit,
 } from "@/lib/api/hooks";
 import type { PlaceSearchResult, VisitDisclosure } from "@/lib/api/types";
-import { radii, space, type as ty } from "@/lib/theme";
+import { mockupPx, radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Card, Cell, Chip, IcBox, Seg, Steps, Tag } from "@/ui/kit";
 
@@ -200,6 +200,7 @@ export default function FileVisit() {
     paddingVertical: 12,
     color: t.ink,
     ...ty.body,
+    fontSize: mockupPx(13.5),
   } as const;
 
   const next = () => setStep((s) => Math.min(s + 1, TOTAL));
@@ -274,7 +275,7 @@ export default function FileVisit() {
         {/* --- Step 0 · Place --------------------------------------------- */}
         {step === 0 ? (
           <>
-            <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Where are you{"\n"}eating?
             </Text>
             <TextInput
@@ -285,7 +286,7 @@ export default function FileVisit() {
               onChangeText={setQuery}
               autoCorrect={false}
             />
-            {showingNearby ? <Seg>Near you</Seg> : null}
+            {showingNearby ? <Seg size={mockupPx(10)}>Near you</Seg> : null}
             {search.isFetching ? (
               <View style={{ paddingVertical: 12, alignItems: "center" }}>
                 <ActivityIndicator color={t.accent} />
@@ -321,8 +322,8 @@ export default function FileVisit() {
                           fg={on ? t.accentDeep : t.zinc}
                         />
                         <View style={{ flex: 1 }}>
-                          <Text style={[ty.label, { color: t.ink, fontSize: 18, fontFamily: "Inter_700Bold" }]}>{p.name}</Text>
-                          {sub ? <Text style={[ty.small, { color: t.sub, fontSize: 15, marginTop: 4 }]}>{sub}</Text> : null}
+                          <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(13), fontFamily: "Inter_700Bold" }]}>{p.name}</Text>
+                          {sub ? <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5), marginTop: 4 }]}>{sub}</Text> : null}
                         </View>
                         {on ? (
                           <View style={{ width: 22, height: 22, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
@@ -342,14 +343,14 @@ export default function FileVisit() {
         {/* --- Step 1 · Observe ------------------------------------------- */}
         {step === 1 ? (
           <>
-            <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               What did you{"\n"}observe?
             </Text>
 
-            <Seg>You ordered</Seg>
+            <Seg size={mockupPx(10)}>You ordered</Seg>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
               {ordered.map((item) => (
-                <Chip key={item} label={item} on onPress={() => setOrdered((xs) => xs.filter((x) => x !== item))} />
+                <Chip key={item} label={item} on size={mockupPx(11)} onPress={() => setOrdered((xs) => xs.filter((x) => x !== item))} />
               ))}
               {addingItem ? (
                 <TextInput
@@ -364,31 +365,31 @@ export default function FileVisit() {
                   returnKeyType="done"
                 />
               ) : (
-                <Chip label="+ Add item" ghost onPress={() => setAddingItem(true)} />
+                <Chip label="+ Add item" ghost size={mockupPx(11)} onPress={() => setAddingItem(true)} />
               )}
             </View>
-            <Text style={[ty.small, { color: t.sub }]}>Tap a dish to remove it.</Text>
+            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10) }]}>Tap a dish to remove it.</Text>
 
-            <Seg>Checks</Seg>
+            <Seg size={mockupPx(10)}>Checks</Seg>
             <Card>
               {CHECK_ITEMS.map((item, i) => (
                 <Cell
                   key={item}
                   last={i === CHECK_ITEMS.length - 1}
                   onPress={() => cycleCheck(item)}
-                  left={<Text style={[ty.label, { color: t.ink, fontSize: 13.5 }]}>{item}</Text>}
+                  left={<Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{item}</Text>}
                   right={
                     checks[item] ? (
-                      <Tag label={checks[item] as string} tone={checkTone(checks[item])} />
+                      <Tag label={checks[item] as string} tone={checkTone(checks[item])} size={mockupPx(9.5)} />
                     ) : (
-                      <Tag label="TAP" tone="dashed" />
+                      <Tag label="TAP" tone="dashed" size={mockupPx(9.5)} />
                     )
                   }
                 />
               ))}
             </Card>
 
-            <Seg>Notes</Seg>
+            <Seg size={mockupPx(10)}>Notes</Seg>
             <TextInput
               style={[field, { minHeight: 110, textAlignVertical: "top" }]}
               multiline
@@ -406,7 +407,7 @@ export default function FileVisit() {
         {/* --- Step 2 · Disclosure ---------------------------------------- */}
         {step === 2 ? (
           <>
-            <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Who paid for{"\n"}the meal?
             </Text>
             <Text style={[ty.body, { color: t.sub }]}>
@@ -419,7 +420,7 @@ export default function FileVisit() {
                 <Pressable key={d.value} onPress={() => setDisclosure(d.value)}>
                   <Card style={{ padding: space.lg, borderWidth: on ? 2 : 0, borderColor: t.accent }}>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <Text style={[ty.label, { color: on ? t.ink : t.zinc, fontSize: 13.5 }]}>{d.label}</Text>
+                      <Text style={[ty.label, { color: on ? t.ink : t.zinc, fontSize: mockupPx(13) }]}>{d.label}</Text>
                       {on ? (
                         <View style={{ width: 20, height: 20, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
                           <Feather name="check" size={12} color={t.onAccent} />
@@ -460,7 +461,7 @@ export default function FileVisit() {
         {/* --- Step 3 · Review -------------------------------------------- */}
         {step === 3 ? (
           <>
-            <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 35 }]}>
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Review &{"\n"}submit
             </Text>
             <Card style={{ padding: space.lg, gap: 12 }}>

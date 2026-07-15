@@ -46,6 +46,21 @@ export const dark: typeof light = {
 
 export type Palette = typeof light;
 
+import { Dimensions } from "react-native";
+
+/** The mockup screens (docs/2026-07-06-mobile-app-mockups.html) were drawn
+ *  on a 310px-wide phone frame. A raw px value from the mockup therefore
+ *  occupies a *smaller* fraction of a real 390–430pt screen and reads as
+ *  "too small". `mockupPx` scales a mockup measurement to the current device
+ *  width so type matches the design's visual size on any phone. (Sanity
+ *  check: a 13px mockup name on a 393pt device → ~16.5, the value that
+ *  looked right by hand.) */
+const MOCKUP_FRAME_W = 310;
+export function mockupPx(px: number): number {
+  const w = Dimensions.get("window").width;
+  return Math.round(px * (w / MOCKUP_FRAME_W) * 2) / 2; // nearest 0.5pt
+}
+
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 export const radii = { md: 14, lg: 16, xl: 22, pill: 999 } as const;
 

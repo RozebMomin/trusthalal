@@ -23,12 +23,15 @@ export function Tag({
   label,
   tone = "zinc",
   mini = false,
+  size,
 }: {
   label: string;
   tone?: "solid" | "wash" | "amber" | "zinc" | "danger" | "dashed" | "glass";
   /** Illustration-scale tag (~6.5px) — decoration inside mini cards,
    *  not a readable label. Matches the mockup-28 graphic. */
   mini?: boolean;
+  /** Override the label font size (e.g. mockupPx-scaled). */
+  size?: number;
 }) {
   const t = useTheme();
   const map: Record<string, { bg: string; fg: string; dashed?: boolean }> = {
@@ -54,7 +57,7 @@ export function Tag({
         borderStyle: s.dashed ? "dashed" : "solid",
       }}
     >
-      <Text style={{ color: s.fg, fontFamily: "Inter_700Bold", fontSize: mini ? 6.5 : 9.5, letterSpacing: 0.3 }}>
+      <Text style={{ color: s.fg, fontFamily: "Inter_700Bold", fontSize: size ?? (mini ? 6.5 : 9.5), letterSpacing: 0.3 }}>
         {label}
       </Text>
     </View>
@@ -68,12 +71,15 @@ export function Chip({
   ghost,
   icon,
   onPress,
+  size,
 }: {
   label: string;
   on?: boolean;
   ghost?: boolean;
   icon?: keyof typeof Feather.glyphMap;
   onPress?: () => void;
+  /** Override the label font size (e.g. mockupPx-scaled). */
+  size?: number;
 }) {
   const t = useTheme();
   return (
@@ -98,7 +104,7 @@ export function Chip({
       }}
     >
       {icon ? <Feather name={icon} size={12} color={on ? t.onInk : t.ink} /> : null}
-      <Text style={{ color: on ? t.onInk : t.ink, fontFamily: "Inter_600SemiBold", fontSize: 11.5 }}>
+      <Text style={{ color: on ? t.onInk : t.ink, fontFamily: "Inter_600SemiBold", fontSize: size ?? 11.5 }}>
         {label}
       </Text>
     </Pressable>
@@ -191,9 +197,22 @@ export function GlassBtn({
 }
 
 /** .seg — tracked uppercase section label. */
-export function Seg({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+export function Seg({
+  children,
+  style,
+  size,
+}: {
+  children: ReactNode;
+  style?: ViewStyle;
+  /** Override the label font size (e.g. mockupPx-scaled). */
+  size?: number;
+}) {
   const t = useTheme();
-  return <Text style={[ty.seg, { color: t.sub }, style as object]}>{children}</Text>;
+  return (
+    <Text style={[ty.seg, { color: t.sub }, size ? { fontSize: size } : null, style as object]}>
+      {children}
+    </Text>
+  );
 }
 
 /** .cell — settings/list row inside a Card. */
