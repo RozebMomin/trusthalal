@@ -2,27 +2,39 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Building2,
+  ClipboardCheck,
+  Flag,
+  KeyRound,
+  LayoutDashboard,
+  ShieldCheck,
+  Store,
+  UserPlus,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 import { useCurrentUser } from "@/lib/api/hooks";
 import { canAccess } from "@/lib/auth/panel-access";
 import { cn } from "@/lib/utils";
 
-type NavItem = { href: string; label: string };
+type NavItem = { href: string; label: string; icon: LucideIcon };
 
 // The full menu. Each item is filtered by ``canAccess`` below so
 // verifiers see only /claims and the dashboard, admins see everything.
 // Adding a new page here + the right entry in PATH_ALLOWED_ROLES
 // (panel-access.ts) is all it takes to surface or hide it for roles.
 const items: NavItem[] = [
-  { href: "/", label: "Dashboard" },
-  { href: "/places", label: "Places" },
-  { href: "/halal-claims", label: "Halal claims" },
-  { href: "/verifier-applications", label: "Verifier applications" },
-  { href: "/verification-visits", label: "Verification visits" },
-  { href: "/disputes", label: "Disputes" },
-  { href: "/ownership-requests", label: "Ownership requests" },
-  { href: "/users", label: "Users" },
-  { href: "/organizations", label: "Organizations" },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/places", label: "Places", icon: Store },
+  { href: "/halal-claims", label: "Halal claims", icon: ClipboardCheck },
+  { href: "/verifier-applications", label: "Verifier applications", icon: UserPlus },
+  { href: "/verification-visits", label: "Verification visits", icon: ShieldCheck },
+  { href: "/disputes", label: "Disputes", icon: Flag },
+  { href: "/ownership-requests", label: "Ownership requests", icon: KeyRound },
+  { href: "/users", label: "Users", icon: Users },
+  { href: "/organizations", label: "Organizations", icon: Building2 },
 ];
 
 export function AppNav() {
@@ -58,15 +70,17 @@ export function AppNav() {
           item.href === "/"
             ? pathname === "/"
             : pathname?.startsWith(item.href);
+        const Icon = item.icon;
         return (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
-              "rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+              "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
               active && "bg-accent text-accent-foreground",
             )}
           >
+            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
             {item.label}
           </Link>
         );
