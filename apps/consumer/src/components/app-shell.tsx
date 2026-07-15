@@ -122,8 +122,27 @@ function PortalHeader({
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 md:gap-4">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-3 transition hover:opacity-80"
+          className="flex shrink-0 items-center gap-2.5 transition hover:opacity-80"
         >
+          {/* Logo mark — emerald rounded square + white check, matching the
+              app icon and the brand site's BrandMark. */}
+          <span
+            aria-hidden="true"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
           <span className="text-lg font-semibold tracking-tight">
             {BRAND_NAME}
           </span>
