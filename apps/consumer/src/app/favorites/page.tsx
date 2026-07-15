@@ -38,7 +38,9 @@ import {
 export default function FavoritesPage() {
   const { data: me, isLoading: meLoading } = useCurrentUser();
   const isAuthenticated = Boolean(me);
-  const isConsumer = me?.role === "CONSUMER";
+  // Verifiers keep the diner surface (saved places) after approval — treat
+  // them like consumers here; only owner/admin see the "consumer-only" notice.
+  const isConsumer = me?.role === "CONSUMER" || me?.role === "VERIFIER";
 
   const favorites = useMyFavorites({
     enabled: isAuthenticated && isConsumer,

@@ -89,7 +89,13 @@ const MENU_POSTURE_OPTIONS: ReadonlyArray<{
 export default function PreferencesPage() {
   const { data: me, isLoading: meLoading } = useCurrentUser();
   const isAuthenticated = Boolean(me);
-  const isConsumerOrAnon = me === null || me === undefined || me?.role === "CONSUMER";
+  // Verifiers keep the consumer search surface (they were consumers before
+  // approval), so they get preferences too — only owner/admin are excluded.
+  const isConsumerOrAnon =
+    me === null ||
+    me === undefined ||
+    me?.role === "CONSUMER" ||
+    me?.role === "VERIFIER";
 
   const prefsQuery = useMyPreferences({ isAuthenticated });
   const updatePrefs = useUpdatePreferences({ isAuthenticated });

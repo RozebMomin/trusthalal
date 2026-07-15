@@ -110,8 +110,11 @@ function PortalHeader({
   // your portal" link in the header. The consumer site doesn't lock
   // them out (the public catalog is genuinely public), but the
   // pointer makes "this isn't for me" clear at a glance.
+  // VERIFIERS are consumers-plus: they browse and save on this surface
+  // exactly like a diner (they were consumers before approval), so they
+  // are NOT a wrong audience here.
   const wrongAudience =
-    me !== null && me.role !== "CONSUMER";
+    me !== null && me.role !== "CONSUMER" && me.role !== "VERIFIER";
 
   return (
     // Sticky so search + nav stay reachable on long result lists.
@@ -225,12 +228,11 @@ function PortalHeader({
                 >
                   {me.display_name || me.email || "Signed in"}
                 </span>
-                {/* Saved + Preferences links only shown to consumers
-                    — owner / admin / verifier roles don't have a
-                    personal favorites or saved-search surface, so
-                    these would dead-end on a "this isn't your
-                    portal" page. */}
-                {me.role === "CONSUMER" && (
+                {/* Saved + Preferences are the personal consumer-surface
+                    features. Consumers and verifiers both have them
+                    (verifiers keep their diner surface after approval);
+                    owner / admin roles don't, so they'd dead-end. */}
+                {(me.role === "CONSUMER" || me.role === "VERIFIER") && (
                   <>
                     <Link
                       href="/favorites"
