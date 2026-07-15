@@ -205,6 +205,13 @@ export default function FileVisit() {
     return { ordered_items: ordered, checks: { ...checks } };
   };
 
+  // Scroll a just-focused low input clear of the keyboard. automaticallyAdjust
+  // KeyboardInsets reveals the field's top but doesn't follow the caret as a
+  // multiline note grows, so nudge the whole tail above the keyboard.
+  const scrollRef = useRef<ScrollView>(null);
+  const revealInput = () =>
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+
   // --- On-device draft: hydrate once, then autosave on every change -------
   const hydrated = useRef(false);
   const clearDraft = () => void visitDraft.clear();
@@ -388,12 +395,13 @@ export default function FileVisit() {
       ) : null}
 
       <ScrollView
+        ref={scrollRef}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         contentContainerStyle={{
           paddingTop: isSuccess ? insets.top + space.md : space.md,
           paddingHorizontal: space.lg,
-          paddingBottom: 80,
+          paddingBottom: 160,
           gap: space.md,
         }}
       >
@@ -603,6 +611,7 @@ export default function FileVisit() {
               placeholderTextColor={t.sub}
               value={notes}
               onChangeText={setNotes}
+              onFocus={revealInput}
             />
 
             <Button title="Continue" onPress={next} />
@@ -650,6 +659,7 @@ export default function FileVisit() {
                 placeholderTextColor={t.sub}
                 value={disclosureNote}
                 onChangeText={setDisclosureNote}
+                onFocus={revealInput}
               />
             ) : null}
             <Seg>Public review link (optional)</Seg>
