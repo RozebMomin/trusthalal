@@ -9,7 +9,7 @@ import type { VerificationVisitStatus } from "@/lib/api/types";
 import { visitDraft, type VisitDraft } from "@/lib/visit-draft";
 import { space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card, Cell, Chip, Seg, Tag } from "@/ui/kit";
+import { Card, Cell, Seg, Tag } from "@/ui/kit";
 
 /** Real verifier home — the verifier's own visit history + stats, wired
  *  to /me/verification-visits. Lives as a bottom-nav tab that only shows
@@ -137,6 +137,7 @@ export default function Verify() {
           <Card
             style={{
               padding: space.lg,
+              gap: space.md,
               borderWidth: 1.5,
               borderStyle: "dashed",
               borderColor: t.line,
@@ -154,11 +155,13 @@ export default function Verify() {
                   {draft.photos?.length ? ` · ${draft.photos.length} photo${draft.photos.length === 1 ? "" : "s"}` : ""}
                 </Text>
               </View>
-              <View style={{ alignItems: "flex-end", gap: 8 }}>
-                <Chip label="Resume" on onPress={() => router.push("/file-visit")} />
-                <Pressable onPress={discardDraft} hitSlop={8}>
-                  <Text style={[ty.small, { color: t.sub }]}>Discard</Text>
-                </Pressable>
+            </View>
+            <View style={{ flexDirection: "row", gap: space.sm }}>
+              <View style={{ flex: 1 }}>
+                <Button title="Discard" variant="secondary" icon="trash-2" onPress={discardDraft} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button title="Resume" variant="accent" onPress={() => router.push("/file-visit")} />
               </View>
             </View>
           </Card>
