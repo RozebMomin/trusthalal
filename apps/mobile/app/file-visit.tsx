@@ -89,15 +89,15 @@ export default function FileVisit() {
 
   const typed = query.trim();
   // Text query wins; otherwise fall back to nearby suggestions from the
-  // device location. When a place is already picked, don't search at all.
+  // device location. Note: this must NOT depend on `selected` — selecting a
+  // place is a UI highlight, and gating the query on it would swap the query
+  // key to {} and blank the whole list.
   const search = useSearchPlaces(
-    selected
-      ? {}
-      : typed
-        ? { q: typed }
-        : coords
-          ? { lat: coords.lat, lng: coords.lng, radius: NEARBY_RADIUS_M }
-          : {},
+    typed
+      ? { q: typed }
+      : coords
+        ? { lat: coords.lat, lng: coords.lng, radius: NEARBY_RADIUS_M }
+        : {},
   );
 
   useEffect(() => {
