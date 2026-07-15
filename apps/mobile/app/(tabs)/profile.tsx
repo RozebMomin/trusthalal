@@ -4,7 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useCurrentUser, useLogout, useMyFavorites } from "@/lib/api/hooks";
+import { useCurrentUser, useLogout } from "@/lib/api/hooks";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
@@ -23,9 +23,7 @@ export default function Profile() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { data: me } = useCurrentUser();
-  const favorites = useMyFavorites(Boolean(me));
   const logout = useLogout();
-  const savedCount = favorites.data?.length ?? 0;
 
   const chev = <Feather name="chevron-right" size={16} color={t.sub} />;
   const rightText = (s: string) => (
@@ -83,26 +81,16 @@ export default function Profile() {
           right={<Tag label="SOON" tone="dashed" />}
         />
         <Cell
+          last
           left={<><IcBox icon="bell" bg="#EFF6FF" fg="#2563EB" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Notifications</Text></>}
           right={<Tag label="SOON" tone="dashed" />}
-        />
-        <Cell
-          last
-          onPress={() => router.push("/(tabs)/saved")}
-          left={<><IcBox icon="heart" bg="#FDF2F8" fg="#DB2777" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Saved places</Text></>}
-          right={me ? rightText(`${savedCount} place${savedCount === 1 ? "" : "s"}`) : chev}
         />
       </Card>
 
       <Seg>Trust Halal</Seg>
       <Card>
-        {me?.role === "VERIFIER" ? (
-          <Cell
-            onPress={() => router.navigate("/verify")}
-            left={<><IcBox icon="shield" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Verify — my visits</Text></>}
-            right={chev}
-          />
-        ) : null}
+        {/* Verifiers reach their visits from the dedicated Verify tab, so
+            there's no redundant row here. */}
         {me?.role !== "VERIFIER" ? (
           __DEV__ ? (
             // Local dev only — keep it live so the verifier flow can be tested
