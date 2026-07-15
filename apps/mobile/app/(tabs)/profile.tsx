@@ -103,7 +103,7 @@ export default function Profile() {
         <Cell
           onPress={() => Linking.openURL("https://trusthalal.org/ethics")}
           left={<><IcBox icon="info" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>How Trust Halal uses AI</Text></>}
-          right={chev}
+          right={rightText("web ↗")}
         />
         <Cell
           last={!SHOW_DEV_TOOLS}
