@@ -11,11 +11,12 @@ Three routes, all rooted at ``/me/favorites``:
                                          404 if not currently
                                          favorited.
 
-Auth: signed-in CONSUMER only — owners / admins / verifiers don't
-have a personal "places I want to come back to" surface; their
-relationship to places is through ownership / moderation, which has
-its own admin / owner-portal surfaces. The 403 keeps the data
-contract honest.
+Auth: any signed-in user. Favorites are a personal "places I want to
+come back to" list — a verifier or owner eats out and saves spots just
+like a consumer does, and the mobile Saved tab is shown to every
+signed-in user regardless of role. (Originally CONSUMER-only, which
+403'd verifiers the moment their role flipped on approval — a real
+lockout, since role is orthogonal to "I want to save this place.")
 
 The list response embeds the same ``PlaceSearchResult`` shape the
 public search list uses so the consumer site can reuse
@@ -32,7 +33,7 @@ from sqlalchemy.orm import Session
 
 from sqlalchemy import select
 
-from app.core.auth import CurrentUser, require_roles
+from app.core.auth import CurrentUser, get_current_user
 from app.core.exceptions import NotFoundError
 from app.core.storage import StorageClient, get_photos_storage_client
 from app.db.deps import get_db
@@ -45,7 +46,6 @@ from app.modules.favorites.schemas import FavoriteRead
 from app.modules.halal_profiles.models import HalalProfile
 from app.modules.places.models import Place, PlacePhoto
 from app.modules.places.schemas import HalalProfileEmbed, PlaceSearchResult
-from app.modules.users.enums import UserRole
 
 
 router = APIRouter(prefix="/me/favorites", tags=["consumer-favorites"])
@@ -66,7 +66,7 @@ router = APIRouter(prefix="/me/favorites", tags=["consumer-favorites"])
 )
 def list_my_favorites(
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(UserRole.CONSUMER)),
+    user: CurrentUser = Depends(get_current_user),
     photos_storage: StorageClient = Depends(get_photos_storage_client),
 ) -> list[FavoriteRead]:
     rows = list_favorites_for_user(db, user_id=user.id)
@@ -102,7 +102,7 @@ def add_my_favorite(
     place_id: UUID,
     response: Response,
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(UserRole.CONSUMER)),
+    user: CurrentUser = Depends(get_current_user),
     photos_storage: StorageClient = Depends(get_photos_storage_client),
 ) -> FavoriteRead:
     # Place existence check up front. Soft-deleted places are still
@@ -154,7 +154,7 @@ def add_my_favorite(
 def remove_my_favorite(
     place_id: UUID,
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(UserRole.CONSUMER)),
+    user: CurrentUser = Depends(get_current_user),
 ) -> Response:
     removed = remove_favorite(db, user_id=user.id, place_id=place_id)
     if not removed:

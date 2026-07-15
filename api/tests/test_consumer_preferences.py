@@ -6,8 +6,8 @@ Covers:
                             (update), reset semantics (PUT {} clears).
   * Auth:
        - Anonymous → 401
-       - Owner / admin / verifier → 403
-       - Consumer → 200 on both verbs
+       - Owner / admin → 403
+       - Consumer / verifier → 200 on both verbs
   * Validation:
        - Bad enum value → 422
        - Unknown field → 422 (extra="forbid")
@@ -172,10 +172,18 @@ def test_get_preferences_403s_for_admin(api, factories):
     assert resp.status_code == 403
 
 
-def test_get_preferences_403s_for_verifier(api, factories):
+def test_get_preferences_allowed_for_verifier(api, factories):
+    # Verifiers are diners too — they keep the consumer search surface and
+    # its preferences (they were consumers before approval).
     verifier = factories.verifier()
     resp = api.as_user(verifier).get("/me/preferences")
-    assert resp.status_code == 403
+    assert resp.status_code == 200, resp.text
+
+
+def test_put_preferences_allowed_for_verifier(api, factories):
+    verifier = factories.verifier()
+    resp = api.as_user(verifier).put("/me/preferences", json={})
+    assert resp.status_code in (200, 204), resp.text
 
 
 def test_put_preferences_403s_for_owner(api, factories):

@@ -8,12 +8,11 @@ Two routes only:
     of whether the user has customized anything.
   * ``PUT  /me/preferences`` — full-replace upsert.
 
-Auth: signed-in CONSUMER only. Owners / admins / verifiers don't
-have a consumer search surface, so saving consumer-search defaults
-on those roles would be misleading at best (we'd display them on a
-search page they never see). The 403 keeps the data model honest
-— if/when staff start using the consumer site too, the gate can
-loosen with a tested transition.
+Auth: signed-in CONSUMER or VERIFIER. Verifiers browse and search the
+consumer surface just like diners (they were consumers before approval),
+so they keep their search-preference defaults. Owners / admins are still
+excluded — they operate from the owner/admin surfaces, not the consumer
+search page, so saving search defaults there would be misleading.
 """
 from __future__ import annotations
 
@@ -51,7 +50,7 @@ _EMPTY_PREFERENCES = ConsumerPreferencesRead()
 )
 def get_my_preferences(
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(UserRole.CONSUMER)),
+    user: CurrentUser = Depends(require_roles(UserRole.CONSUMER, UserRole.VERIFIER)),
 ) -> ConsumerPreferencesRead:
     record = get_or_default(db, user_id=user.id)
     if record is None:
@@ -72,7 +71,7 @@ def get_my_preferences(
 def put_my_preferences(
     payload: ConsumerPreferencesUpdate,
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(UserRole.CONSUMER)),
+    user: CurrentUser = Depends(require_roles(UserRole.CONSUMER, UserRole.VERIFIER)),
 ) -> ConsumerPreferencesRead:
     record = upsert(db, user_id=user.id, payload=payload)
     return ConsumerPreferencesRead.model_validate(record)
