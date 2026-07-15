@@ -276,6 +276,18 @@ export function useMyVerificationVisits(
   });
 }
 
+/** GET /me/verification-visits/{id} — the verifier's own visit detail. */
+export function useVerificationVisit(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ["me", "verification-visits", "detail", id],
+    queryFn: () =>
+      apiFetch<VerificationVisit>(
+        `/me/verification-visits/${encodeURIComponent(String(id))}`,
+      ),
+    enabled: Boolean(id),
+  });
+}
+
 export function useSubmitVerificationVisit() {
   const qc = useQueryClient();
   return useMutation({

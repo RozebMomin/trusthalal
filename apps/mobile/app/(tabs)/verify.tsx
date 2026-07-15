@@ -209,7 +209,7 @@ export default function Verify() {
                 <Cell
                   key={v.id}
                   last={i === rows.length - 1}
-                  onPress={() => router.push(`/places/${v.place_id}`)}
+                  onPress={() => router.push(`/visit/${v.id}`)}
                   left={
                     <View>
                       <Text style={[ty.label, { color: t.ink, fontSize: 12.5 }]}>{place}</Text>
