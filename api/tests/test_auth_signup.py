@@ -37,7 +37,7 @@ def test_signup_creates_owner_and_logs_in(api, db_session):
         "/auth/signup",
         json={
             "email": "owner@example.com",
-            "password": "s3cure-passphrase",
+            "password": "S3cure-passphrase",
             "display_name": "Owner One",
         },
     )
@@ -61,7 +61,7 @@ def test_signup_creates_owner_and_logs_in(api, db_session):
     assert user.role == "OWNER"
     assert user.is_active is True
     assert user.password_hash is not None
-    assert verify_password("s3cure-passphrase", user.password_hash)
+    assert verify_password("S3cure-passphrase", user.password_hash)
     assert user.display_name == "Owner One"
 
 
@@ -72,7 +72,7 @@ def test_signup_session_cookie_authenticates_subsequent_requests(api):
         "/auth/signup",
         json={
             "email": "ownerme@example.com",
-            "password": "another-good-password",
+            "password": "Another-good-passw0rd",
             "display_name": "Owner Me",
         },
     )
@@ -94,7 +94,7 @@ def test_signup_strips_display_name_whitespace(api, db_session):
         "/auth/signup",
         json={
             "email": "trim@example.com",
-            "password": "passwordtrim",
+            "password": "Passwordtrim1",
             "display_name": "  Owner Trim  ",
         },
     )
@@ -118,7 +118,7 @@ def test_signup_existing_email_returns_409(api, factories):
         "/auth/signup",
         json={
             "email": "taken@example.com",
-            "password": "doesnotmatter",
+            "password": "Doesnotmatter1",
             "display_name": "Late Comer",
         },
     )
@@ -138,7 +138,7 @@ def test_signup_email_collision_is_case_insensitive(api, factories):
         "/auth/signup",
         json={
             "email": "mixedcase@example.com",
-            "password": "passwordmixed",
+            "password": "Passwordmixed1",
             "display_name": "Lower Case",
         },
     )
@@ -171,7 +171,7 @@ def test_signup_missing_display_name_is_validation_error(api):
         "/auth/signup",
         json={
             "email": "nodisplayname@example.com",
-            "password": "passwordnodn",
+            "password": "Passwordnodn1",
             "display_name": "",
         },
     )
@@ -186,7 +186,7 @@ def test_signup_invalid_email_is_validation_error(api):
         "/auth/signup",
         json={
             "email": "not-an-email",
-            "password": "passwordbademail",
+            "password": "Passwordbademail1",
             "display_name": "Bad Email",
         },
     )
@@ -204,7 +204,7 @@ def test_signup_extra_fields_rejected(api):
         "/auth/signup",
         json={
             "email": "sneaky@example.com",
-            "password": "passwordsneaky",
+            "password": "Passwordsneaky1",
             "display_name": "Sneaky Admin",
             "role": "ADMIN",
         },
@@ -220,7 +220,7 @@ def test_signup_role_verifier_rejected(api):
         "/auth/signup",
         json={
             "email": "verifier@example.com",
-            "password": "passwordverify",
+            "password": "Passwordverify1",
             "display_name": "Verifier Wannabe",
             "role": "VERIFIER",
         },
@@ -241,7 +241,7 @@ def test_signup_with_role_consumer_creates_consumer(api, db_session):
         "/auth/signup",
         json={
             "email": "consumer@example.com",
-            "password": "consumer-pass-1",
+            "password": "Consumer-pass-1",
             "display_name": "Consumer One",
             "role": "CONSUMER",
         },
@@ -268,7 +268,7 @@ def test_signup_role_omitted_defaults_to_owner(api, db_session):
         "/auth/signup",
         json={
             "email": "default-role@example.com",
-            "password": "defaultpassword",
+            "password": "Defaultpassw0rd",
             "display_name": "Default Role",
         },
     )

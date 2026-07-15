@@ -31,9 +31,11 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import { useSignup } from "@/lib/api/hooks";
-
-// Mirrors the server's SignupRequest min_length=8.
-const PASSWORD_MIN_LENGTH = 8;
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_RULES,
+  isPasswordValid,
+} from "@/lib/password-policy";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -48,8 +50,7 @@ export default function SignupPage() {
   // Cheap client-side guards so the user gets immediate feedback
   // instead of a server roundtrip. The server still enforces these
   // independently — never trust the client for security.
-  const passwordTooShort =
-    password.length > 0 && password.length < PASSWORD_MIN_LENGTH;
+  const passwordWeak = password.length > 0 && !isPasswordValid(password);
   const passwordMismatch =
     confirmPassword.length > 0 && password !== confirmPassword;
 
@@ -58,7 +59,7 @@ export default function SignupPage() {
     !email ||
     !password ||
     !confirmPassword ||
-    passwordTooShort ||
+    passwordWeak ||
     passwordMismatch;
 
   async function onSubmit(e: React.FormEvent) {
@@ -70,8 +71,8 @@ export default function SignupPage() {
       setErrorMsg("Passwords don't match.");
       return;
     }
-    if (passwordTooShort) {
-      setErrorMsg(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
+    if (!isPasswordValid(password)) {
+      setErrorMsg("Please meet all the password requirements.");
       return;
     }
 
@@ -183,11 +184,27 @@ export default function SignupPage() {
               minLength={PASSWORD_MIN_LENGTH}
               autoComplete="new-password"
               disabled={signup.isPending}
-              aria-invalid={passwordTooShort}
+              aria-invalid={passwordWeak}
             />
-            <p className="text-xs text-muted-foreground">
-              At least {PASSWORD_MIN_LENGTH} characters.
-            </p>
+            <ul className="space-y-0.5 text-xs">
+              {PASSWORD_RULES.map((rule) => {
+                const met = rule.ok(password);
+                return (
+                  <li
+                    key={rule.label}
+                    className={
+                      met
+                        ? "text-emerald-600"
+                        : password.length > 0
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                    }
+                  >
+                    {met ? "✓" : "•"} {rule.label}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
           <div className="space-y-2">

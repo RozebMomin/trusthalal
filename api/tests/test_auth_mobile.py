@@ -25,7 +25,7 @@ def _mobile_signup(api, email="amira@example.com"):
         "/auth/mobile/signup",
         json={
             "email": email,
-            "password": "s3cure-passphrase",
+            "password": "S3cure-passphrase",
             "display_name": "Amira K",
         },
     )
@@ -62,7 +62,7 @@ def test_mobile_signup_duplicate_email_conflicts(api):
         "/auth/mobile/signup",
         json={
             "email": "amira@example.com",
-            "password": "another-passphrase",
+            "password": "Another-passphrase1",
             "display_name": "Impostor",
         },
     )

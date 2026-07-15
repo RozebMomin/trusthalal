@@ -18,6 +18,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import { useResetInfo, useResetPassword } from "@/lib/api/hooks";
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_RULES,
+  isPasswordValid,
+} from "@/lib/password-policy";
 
 export default function ResetPasswordPage() {
   return (
@@ -87,6 +92,10 @@ function ResetPasswordInner() {
       setErrorMsg("Those passwords don't match.");
       return;
     }
+    if (!isPasswordValid(password)) {
+      setErrorMsg("Please meet all the password requirements.");
+      return;
+    }
     try {
       await reset.mutateAsync({ token: token as string, password });
       router.push("/login?reset=1");
@@ -132,7 +141,7 @@ function ResetPasswordInner() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={8}
+                minLength={PASSWORD_MIN_LENGTH}
                 autoFocus
                 autoComplete="new-password"
                 disabled={reset.isPending}
@@ -147,7 +156,25 @@ function ResetPasswordInner() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-            <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+            <ul className="space-y-0.5 text-xs">
+              {PASSWORD_RULES.map((rule) => {
+                const met = rule.ok(password);
+                return (
+                  <li
+                    key={rule.label}
+                    className={
+                      met
+                        ? "text-emerald-600"
+                        : password.length > 0
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                    }
+                  >
+                    {met ? "✓" : "•"} {rule.label}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
           <div className="space-y-2">
@@ -158,7 +185,7 @@ function ResetPasswordInner() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
-              minLength={8}
+              minLength={PASSWORD_MIN_LENGTH}
               autoComplete="new-password"
               disabled={reset.isPending}
             />

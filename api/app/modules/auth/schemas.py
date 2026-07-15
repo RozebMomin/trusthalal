@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.core.password_policy import NewPassword
 from app.modules.users.enums import UserRole
 
 
@@ -81,7 +82,7 @@ class SetPasswordRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     token: str = Field(..., min_length=16, max_length=128)
-    password: str = Field(..., min_length=8, max_length=256)
+    password: NewPassword
 
 
 class SetPasswordResponse(BaseModel):
@@ -129,7 +130,7 @@ class SignupRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=256)
+    password: NewPassword
     display_name: str = Field(..., min_length=1, max_length=120)
     role: Literal[UserRole.OWNER, UserRole.CONSUMER] = Field(
         default=UserRole.OWNER,
@@ -206,7 +207,7 @@ class ResetPasswordRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     token: str = Field(..., min_length=16, max_length=128)
-    password: str = Field(..., min_length=8, max_length=256)
+    password: NewPassword
 
 
 class ResetPasswordResponse(BaseModel):
@@ -269,7 +270,7 @@ class MobileSignupRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=256)
+    password: NewPassword
     display_name: str = Field(..., min_length=1, max_length=120)
 
 

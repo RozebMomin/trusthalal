@@ -171,7 +171,7 @@ def test_set_password_consumes_token_and_logs_user_in(
 
     resp = api.post(
         "/auth/set-password",
-        json={"token": token, "password": "s3cure-passphrase"},
+        json={"token": token, "password": "S3cure-passphrase"},
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -194,7 +194,7 @@ def test_set_password_consumes_token_and_logs_user_in(
         select(User).where(User.id == user_id)
     ).scalar_one()
     assert user.password_hash is not None
-    assert verify_password("s3cure-passphrase", user.password_hash)
+    assert verify_password("S3cure-passphrase", user.password_hash)
 
 
 def test_set_password_reuse_rejects(api, factories):
@@ -208,13 +208,13 @@ def test_set_password_reuse_rejects(api, factories):
 
     first = api.post(
         "/auth/set-password",
-        json={"token": token, "password": "first-password-123"},
+        json={"token": token, "password": "First-password-123"},
     )
     assert first.status_code == 200, first.text
 
     second = api.post(
         "/auth/set-password",
-        json={"token": token, "password": "second-password-123"},
+        json={"token": token, "password": "Second-password-123"},
     )
     assert second.status_code == 400, second.text
     assert second.json()["error"]["code"] == "INVITE_INVALID"
@@ -236,7 +236,7 @@ def test_set_password_expired_token_rejects(api, factories, db_session):
 
     resp = api.post(
         "/auth/set-password",
-        json={"token": plaintext, "password": "somepassword"},
+        json={"token": plaintext, "password": "Somepassword1"},
     )
     assert resp.status_code == 400, resp.text
     assert resp.json()["error"]["code"] == "INVITE_INVALID"
@@ -248,7 +248,7 @@ def test_set_password_invalid_token_rejects(api):
         "/auth/set-password",
         json={
             "token": "definitely-not-a-valid-token-string-abcdef",
-            "password": "anythingreally",
+            "password": "Anythingreally1",
         },
     )
     assert resp.status_code == 400, resp.text
@@ -349,12 +349,12 @@ def test_set_password_overwrites_existing_hash(api, factories, db_session):
 
     resp = api.post(
         "/auth/set-password",
-        json={"token": token, "password": "new-password-123"},
+        json={"token": token, "password": "New-password-123"},
     )
     assert resp.status_code == 200, resp.text
 
     db_session.refresh(user)
-    assert verify_password("new-password-123", user.password_hash)
+    assert verify_password("New-password-123", user.password_hash)
     assert not verify_password("old-password-123", user.password_hash)
 
     # Prior session is revoked.

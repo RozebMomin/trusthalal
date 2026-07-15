@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError } from "@/lib/api/client";
 import { useSignup } from "@/lib/api/hooks";
+import { PASSWORD_RULES, isPasswordValid } from "@/lib/password-policy";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
@@ -17,7 +18,7 @@ export default function SignUp() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const tooShort = password.length > 0 && password.length < 8;
+  const passwordOk = isPasswordValid(password);
 
   async function submit() {
     setError(null);
@@ -82,28 +83,34 @@ export default function SignUp() {
       />
       <TextInput
         style={field}
-        placeholder="Password (8+ characters)"
+        placeholder="Password"
         placeholderTextColor={t.sub}
         secureTextEntry
         autoComplete="new-password"
         value={password}
         onChangeText={setPassword}
       />
-      <View style={{ flexDirection: "row", gap: 6 }}>
-        <View style={{ backgroundColor: password.length >= 8 ? t.accentSoft : t.zincSoft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3.5 }}>
-          <Text style={{ color: password.length >= 8 ? t.accentDeep : t.sub, fontFamily: "Inter_700Bold", fontSize: 9.5 }}>
-            {password.length >= 8 ? "✓ " : ""}8+ characters
-          </Text>
-        </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {PASSWORD_RULES.map((rule) => {
+          const met = rule.ok(password);
+          const bg = met ? t.accentSoft : t.zincSoft;
+          const fg = met ? t.accentDeep : t.sub;
+          return (
+            <View key={rule.label} style={{ backgroundColor: bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3.5 }}>
+              <Text style={{ color: fg, fontFamily: "Inter_700Bold", fontSize: 9.5 }}>
+                {met ? "✓ " : ""}{rule.label}
+              </Text>
+            </View>
+          );
+        })}
       </View>
-      {tooShort ? null : null}
       {error ? <Text style={[ty.small, { color: t.danger }]}>{error}</Text> : null}
 
       <Button
         title="Create account"
         variant="accent"
         loading={signup.isPending}
-        disabled={!name.trim() || !email || password.length < 8}
+        disabled={!name.trim() || !email || !passwordOk}
         onPress={submit}
       />
       <View style={{ alignItems: "center" }}>

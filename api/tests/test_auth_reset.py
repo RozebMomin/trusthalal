@@ -144,7 +144,7 @@ def test_reset_password_sets_password_and_signs_out_everywhere(
 
     resp = api.post(
         "/auth/reset-password",
-        json={"token": token, "password": "brand-new-pass-123"},
+        json={"token": token, "password": "Brand-new-pass-123"},
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["email"] == "reset-happy@example.com"
@@ -152,7 +152,7 @@ def test_reset_password_sets_password_and_signs_out_everywhere(
     assert "tht_session" not in resp.cookies
 
     db_session.refresh(user)
-    assert verify_password("brand-new-pass-123", user.password_hash)
+    assert verify_password("Brand-new-pass-123", user.password_hash)
     assert not verify_password("old-password-123", user.password_hash)
 
     # Token burned.
@@ -181,13 +181,13 @@ def test_reset_password_reuse_rejects(api, factories, db_session):
 
     first = api.post(
         "/auth/reset-password",
-        json={"token": token, "password": "first-new-pass-123"},
+        json={"token": token, "password": "First-new-pass-123"},
     )
     assert first.status_code == 200, first.text
 
     second = api.post(
         "/auth/reset-password",
-        json={"token": token, "password": "second-new-pass-123"},
+        json={"token": token, "password": "Second-new-pass-123"},
     )
     assert second.status_code == 400, second.text
     assert second.json()["error"]["code"] == "RESET_INVALID"
@@ -202,7 +202,7 @@ def test_reset_password_expired_token_rejects(api, factories, db_session):
 
     resp = api.post(
         "/auth/reset-password",
-        json={"token": token, "password": "whatever-123"},
+        json={"token": token, "password": "Whatever-123"},
     )
     assert resp.status_code == 400, resp.text
     assert resp.json()["error"]["code"] == "RESET_INVALID"

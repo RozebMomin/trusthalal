@@ -32,10 +32,11 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import { useInviteInfo, useSetPassword } from "@/lib/api/hooks";
-
-// Matches the server-side Pydantic ``min_length=8`` check; kept in
-// sync so the UI can reject short passwords without a round-trip.
-const MIN_PASSWORD_LENGTH = 8;
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_RULES,
+  isPasswordValid,
+} from "@/lib/password-policy";
 
 // Next.js requires useSearchParams() to sit inside <Suspense>. The
 // outer default export wraps the interactive component.
@@ -88,16 +89,21 @@ function SetPasswordInner() {
 
   const invitee = inviteInfo.data;
   const mismatch = confirm.length > 0 && password !== confirm;
-  const tooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const passwordWeak = password.length > 0 && !isPasswordValid(password);
   const canSubmit =
     !setPassword.isPending &&
-    password.length >= MIN_PASSWORD_LENGTH &&
+    isPasswordValid(password) &&
     password === confirm;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit || !token) return;
     setErrorMsg(null);
+
+    if (!isPasswordValid(password)) {
+      setErrorMsg("Please meet all the password requirements.");
+      return;
+    }
 
     try {
       const result = await setPassword.mutateAsync({ token, password });
@@ -119,7 +125,7 @@ function SetPasswordInner() {
           },
           VALIDATION_ERROR: {
             title: "Password rejected",
-            description: `Your password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+            description: "Please meet all the password requirements.",
           },
         },
       });
@@ -158,18 +164,29 @@ function SetPasswordInner() {
               required
               autoFocus
               autoComplete="new-password"
-              minLength={MIN_PASSWORD_LENGTH}
+              minLength={PASSWORD_MIN_LENGTH}
               disabled={setPassword.isPending}
-              aria-describedby={tooShort ? "set-password-hint" : undefined}
+              aria-invalid={passwordWeak}
             />
-            {tooShort && (
-              <p
-                id="set-password-hint"
-                className="text-xs text-muted-foreground"
-              >
-                At least {MIN_PASSWORD_LENGTH} characters.
-              </p>
-            )}
+            <ul className="space-y-0.5 text-xs">
+              {PASSWORD_RULES.map((rule) => {
+                const met = rule.ok(password);
+                return (
+                  <li
+                    key={rule.label}
+                    className={
+                      met
+                        ? "text-emerald-600"
+                        : password.length > 0
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                    }
+                  >
+                    {met ? "✓" : "•"} {rule.label}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
           <div className="space-y-2">
@@ -181,7 +198,7 @@ function SetPasswordInner() {
               onChange={(e) => setConfirm(e.target.value)}
               required
               autoComplete="new-password"
-              minLength={MIN_PASSWORD_LENGTH}
+              minLength={PASSWORD_MIN_LENGTH}
               disabled={setPassword.isPending}
               aria-invalid={mismatch}
               aria-describedby={mismatch ? "set-password-confirm-error" : undefined}
