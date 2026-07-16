@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Owner portal — verification journey (desktop mockup)</title>
+<style>
+  :root{
+    --bg:#eef0ee; --card:#ffffff; --ink:#0b0f0d; --sub:#6b7280; --line:#e6e8e6;
+    --primary:#0e9f6e; --primary-deep:#057a55; --primary-soft:#e9f8f1;
+    --amber:#b45309; --amber-soft:#fef3e2; --danger:#e02424; --zinc-soft:#f3f4f3;
+    --rail:#fbfcfb; --lock:#9aa19c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;-webkit-font-smoothing:antialiased;}
+  .page{max-width:1200px;margin:0 auto;padding:40px 28px 90px}
+  .page h1{font-size:26px;letter-spacing:-.02em;margin:0 0 6px}
+  .page > p{color:var(--sub);margin:0;max-width:760px;line-height:1.55}
+  .cap{display:flex;align-items:baseline;gap:10px;margin:46px 0 12px}
+  .cap .n{font-size:12px;font-weight:800;letter-spacing:.05em;color:#fff;background:var(--primary-deep);border-radius:999px;padding:4px 11px;text-transform:uppercase;white-space:nowrap}
+  .cap .d{color:var(--sub);font-size:13.5px;line-height:1.5}
+
+  .win{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.08)}
+  .titlebar{height:38px;background:#f4f5f4;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:7px;padding:0 14px}
+  .titlebar i{width:11px;height:11px;border-radius:999px;background:#dcdfdc;display:block}
+  .titlebar .url{margin-left:14px;font-size:12px;color:var(--sub);background:#fff;border:1px solid var(--line);border-radius:7px;padding:3px 12px}
+  .topbar{height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+  .mark{width:28px;height:28px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center}
+  .brand small{color:var(--sub);font-weight:500}
+  .acct{display:flex;align-items:center;gap:9px;color:var(--sub);font-size:13px}
+  .avatar{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#34d399,#059669);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+
+  /* HUB — the roadmap */
+  .hub{padding:34px 40px 40px;max-width:820px}
+  .hub .kick{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--primary-deep)}
+  .hub h2{font-size:28px;letter-spacing:-.02em;margin:12px 0 6px}
+  .hub .lead{color:var(--sub);font-size:15px;line-height:1.55;margin:0 0 8px;max-width:620px}
+  .road{position:relative;margin-top:24px;padding-left:8px}
+  .stage{position:relative;display:flex;gap:18px;padding:0 0 22px}
+  .stage:last-child{padding-bottom:0}
+  .spine{position:relative;display:flex;flex-direction:column;align-items:center;flex:0 0 auto}
+  .node{width:36px;height:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:0 0 auto;z-index:1;border:2px solid var(--line);background:#fff;color:var(--sub)}
+  .node.done{background:var(--primary);border-color:var(--primary);color:#fff}
+  .node.now{border-color:var(--primary);color:var(--primary-deep);box-shadow:0 0 0 4px var(--primary-soft)}
+  .node.lock{background:#f4f5f4;border-color:var(--line);color:var(--lock)}
+  .line{flex:1;width:2px;background:var(--line);margin:4px 0}
+  .stage:last-child .line{display:none}
+  .scard{flex:1;border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:#fff;margin-bottom:0}
+  .stage.locked .scard{background:#fafbfa;border-style:dashed}
+  .scard .sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .scard h3{font-size:16.5px;margin:0}
+  .stage.locked .scard h3{color:var(--lock)}
+  .scard p{color:var(--sub);font-size:13px;line-height:1.5;margin:6px 0 0;max-width:520px}
+  .scard .docs{font-size:12px;color:var(--sub);margin-top:8px}
+  .scard .docs b{color:var(--ink)}
+  .scard .cta{margin-top:14px;display:flex;align-items:center;gap:12px}
+  .pill{font-size:11px;font-weight:800;border-radius:999px;padding:5px 11px;letter-spacing:.02em;white-space:nowrap}
+  .pill.action{background:var(--primary-soft);color:var(--primary-deep)}
+  .pill.review{background:var(--amber-soft);color:var(--amber)}
+  .pill.done{background:var(--primary);color:#fff}
+  .pill.lock{background:#eef0ee;color:var(--lock)}
+  .btn{border:0;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--primary);color:#fff}
+  .btn.ghost{background:transparent;color:var(--sub);border:1px solid var(--line)}
+  .btn.link{background:transparent;color:var(--primary-deep);font-weight:700;padding:10px 0}
+  .locknote{font-size:12.5px;color:var(--lock);display:flex;align-items:center;gap:6px;margin-top:12px}
+
+  /* FORM screens with left rail */
+  .shell{display:flex;min-height:540px}
+  .railL{width:280px;flex:0 0 280px;background:var(--rail);border-right:1px solid var(--line);padding:24px 20px}
+  .railL h4{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--sub);margin:0 0 14px}
+  .rstage{display:flex;gap:11px;padding:10px 9px;border-radius:10px;margin-bottom:3px}
+  .rstage.now{background:#fff;border:1px solid var(--line)}
+  .rstage .rn{width:24px;height:24px;flex:0 0 auto;border-radius:999px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--sub)}
+  .rstage.done .rn{background:var(--primary);border-color:var(--primary);color:#fff}
+  .rstage.now .rn{border-color:var(--primary);color:var(--primary-deep)}
+  .rstage.lock .rn{color:var(--lock)}
+  .rstage b{font-size:13px;display:block;line-height:1.2}
+  .rstage small{color:var(--sub);font-size:11.5px}
+  .rstage.lock b{color:var(--lock)}
+  .main{flex:1;display:flex;flex-direction:column}
+  .content{padding:32px 38px;flex:1}
+  .content h2{font-size:24px;letter-spacing:-.02em;margin:0 0 6px}
+  .content .lead{color:var(--sub);font-size:14.5px;line-height:1.55;margin:0 0 20px;max-width:560px}
+  .foot{border-top:1px solid var(--line);background:#fbfcfb;padding:15px 38px;display:flex;align-items:center;justify-content:space-between}
+  .foot .save{color:var(--sub);font-size:12.5px}
+  .foot .acts{display:flex;gap:10px;margin-left:auto}
+  .seg{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--sub);margin:20px 0 8px}
+  .field{width:100%;border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-size:14px;background:#fff;color:var(--ink)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:560px}
+  .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;max-width:560px}
+  .upload{border:1.5px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--sub);font-size:13.5px;max-width:560px}
+  .doc{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px;max-width:560px;font-size:13px}
+  .doc .x{margin-left:auto;color:var(--sub);cursor:pointer}
+  .req{font-size:12px;color:var(--amber);margin-top:8px}
+  .hint{font-size:12.5px;color:var(--sub);margin-top:10px;line-height:1.5;max-width:560px}
+  .search{position:relative;max-width:520px}
+  .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%)}
+  .search .field{padding-left:38px}
+  .result{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-top:8px;cursor:pointer;background:#fff;max-width:520px}
+  .result.sel{border-color:var(--primary);border-width:2px;background:var(--primary-soft)}
+  .pin{width:34px;height:34px;border-radius:9px;background:var(--zinc-soft);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .result.sel .pin{background:#fff}
+  .result b{font-size:14px;display:block}.result small{color:var(--sub);font-size:12px}
+  .check{margin-left:auto}
+  .opt{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-top:8px;cursor:pointer}
+  .opt.sel{border-color:var(--primary);border-width:2px}
+  .opt b{font-size:14px}.opt small{color:var(--sub);font-size:12px;display:block}
+  .radio{width:20px;height:20px;border-radius:999px;border:2px solid var(--line);flex:0 0 auto}
+  .opt.sel .radio{border-color:var(--primary);background:var(--primary);box-shadow:inset 0 0 0 3px #fff}
+  .note{display:flex;gap:9px;background:var(--primary-soft);border-radius:11px;padding:11px 13px;font-size:12.5px;color:var(--primary-deep);line-height:1.5;font-weight:600;max-width:560px}
+
+  /* waiting screen */
+  .wait{padding:52px 40px;max-width:620px;margin:0 auto;text-align:center}
+  .clock{width:78px;height:78px;border-radius:999px;background:var(--amber-soft);display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+
+  /* dashboard (steady state) */
+  .nav{display:flex;gap:2px;margin-left:24px}
+  .nav a{font-size:13px;color:var(--sub);padding:7px 12px;border-radius:8px;text-decoration:none}
+  .nav a.on{background:var(--zinc-soft);color:var(--ink);font-weight:600}
+  .dash{padding:30px 40px 40px;max-width:900px}
+  .dash h2{font-size:24px;letter-spacing:-.02em;margin:0 0 4px}
+  .dash .sub{color:var(--sub);font-size:14px;margin:0 0 22px;display:flex;align-items:center;gap:8px}
+  .banner{display:flex;gap:11px;align-items:center;background:var(--amber-soft);border:1px solid #f5d9ac;border-radius:12px;padding:12px 15px;font-size:13px;color:var(--amber);margin-bottom:20px}
+  .banner .bx{margin-left:auto;display:flex;gap:8px}
+  .sectionhead{display:flex;align-items:center;justify-content:space-between;margin:6px 0 12px}
+  .sectionhead h3{font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--sub);margin:0}
+  .place{border:1px solid var(--line);border-radius:14px;padding:18px 20px;display:flex;gap:18px;align-items:flex-start;background:#fff}
+  .place .pbody{flex:1}
+  .place .ptop{display:flex;align-items:center;gap:10px}
+  .place h4{font-size:17px;margin:0}
+  .place .addr{color:var(--sub);font-size:12.5px;margin:2px 0 0}
+  .vbadge{display:inline-flex;align-items:center;gap:5px;background:var(--primary);color:#fff;font-weight:800;font-size:11.5px;border-radius:999px;padding:5px 10px;letter-spacing:.02em}
+  .chips2{display:flex;flex-wrap:wrap;gap:6px;margin:13px 0 4px}
+  .chip{font-size:11.5px;font-weight:700;border-radius:8px;padding:4px 9px;background:var(--primary-soft);color:var(--primary-deep)}
+  .chip.muted{background:var(--zinc-soft);color:var(--sub)}
+  .qacts{display:flex;gap:10px;margin-top:14px}
+  .addcard{border:1.5px dashed var(--line);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-top:14px;background:#fafbfa}
+  .addcard b{font-size:14px}.addcard small{color:var(--sub);font-size:12.5px;display:block;margin-top:2px}
+  .statrow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:6px 0 24px}
+  .stat{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
+  .stat .v{font-size:22px;font-weight:800;letter-spacing:-.02em}
+  .stat .l{font-size:12px;color:var(--sub);margin-top:2px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Owner portal — the verification journey (desktop)</h1>
+  <p>Three gated stages, each with a document upload and a Trust Halal review in between: <b>register your business</b> →
+     we verify it → <b>claim your restaurant</b> → we approve it → <b>confirm halal details</b> → verified badge.
+     The wizard’s job is to make the gates obvious — always showing “waiting on you” vs “waiting on us,” and unlocking
+     the next stage only when the prior one clears.</p>
+
+  <!-- 1. HUB — fresh -->
+  <div class="cap"><span class="n">Hub · new owner</span><span class="d">The home screen: a roadmap of the three stages. Stage 1 is actionable; 2 and 3 are locked until the reviews clear.</span></div>
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org</span></div>
+    <div class="topbar"><div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>Trust Halal <small>· Owner Portal</small></div><div class="acct"><span>amir@amirs.co</span><span class="avatar">A</span></div></div>
+    <div class="hub">
+      <div class="kick">Get verified</div>
+      <h2>Welcome, Amir. Three steps to your verified badge.</h2>
+      <p class="lead">Each step is quick, but we review a couple of them by hand — so there’s a short wait between some. We’ll email you the moment the ball’s back in your court.</p>
+      <div class="road">
+        <div class="stage">
+          <div class="spine"><div class="node now">1</div><div class="line"></div></div>
+          <div class="scard">
+            <div class="sh"><h3>Register your business</h3><span class="pill action">Start here</span></div>
+            <p>Tell us about the legal entity that operates your restaurant(s). We verify it once — then every location you claim rolls up under it.</p>
+            <div class="docs">📎 You’ll upload: <b>articles of organization</b> or <b>certificate of formation</b> (at least one).</div>
+            <div class="cta"><button class="btn primary">Start now →</button><span class="muted" style="font-size:12.5px;color:var(--sub)">~5 min</span></div>
+          </div>
+        </div>
+        <div class="stage locked">
+          <div class="spine"><div class="node lock">2</div><div class="line"></div></div>
+          <div class="scard">
+            <div class="sh"><h3>Claim your restaurant</h3><span class="pill lock">🔒 Locked</span></div>
+            <p>Link a specific location to your verified business.</p>
+            <div class="docs">📎 You’ll upload: <b>business license</b>, lease, or sales-tax permit.</div>
+            <div class="locknote">🔒 Unlocks once your business is verified.</div>
+          </div>
+        </div>
+        <div class="stage locked">
+          <div class="spine"><div class="node lock">3</div></div>
+          <div class="scard">
+            <div class="sh"><h3>Confirm halal details</h3><span class="pill lock">🔒 Locked</span></div>
+            <p>A few plain questions + your halal certificate, so diners see the right info.</p>
+            <div class="locknote">🔒 Unlocks once we approve your restaurant claim.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. STAGE 1 — business details + docs -->
+  <div class="cap"><span class="n">Stage 1</span><span class="d">Register your business — legal details, then upload formation documents and submit for review.</span></div>
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org/get-verified/business</span></div>
+    <div class="topbar"><div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>Trust Halal <small>· Owner Portal</small></div><div class="acct"><span>amir@amirs.co</span><span class="avatar">A</span></div></div>
+    <div class="shell">
+      <aside class="railL">
+        <h4>Get verified</h4>
+        <div class="rstage now"><span class="rn">1</span><div><b>Register your business</b><small>In progress</small></div></div>
+        <div class="rstage lock"><span class="rn">2</span><div><b>Claim your restaurant</b><small>Locked</small></div></div>
+        <div class="rstage lock"><span class="rn">3</span><div><b>Confirm halal details</b><small>Locked</small></div></div>
+      </aside>
+      <div class="main">
+        <div class="content">
+          <h2>Register your business</h2>
+          <p class="lead">The legal entity that operates your restaurant. This is a one-time verification.</p>
+          <div class="seg">Legal business name</div>
+          <input class="field" style="max-width:560px" value="Amir’s Kitchen LLC" />
+          <div class="two">
+            <div><div class="seg">Contact email</div><input class="field" value="contact@amirs.co" /></div>
+            <div><div class="seg">Street address</div><input class="field" value="2118 Peachtree Rd NE" /></div>
+          </div>
+          <div class="three">
+            <div><div class="seg">City</div><input class="field" value="Atlanta" /></div>
+            <div><div class="seg">State</div><input class="field" value="GA" /></div>
+            <div><div class="seg">Postal</div><input class="field" value="30309" /></div>
+          </div>
+          <div class="seg">Formation documents</div>
+          <div class="upload">📄 &nbsp;Drop files here, or <b style="color:var(--primary-deep)">browse</b><br><small>Articles of organization, certificate of formation, or EIN letter · PDF/JPG/PNG</small></div>
+          <div class="doc">📄 articles-of-org.pdf <span style="color:var(--sub)">· 240 KB</span> <span class="x">✕</span></div>
+          <div class="req">⚠ At least one document is required to submit.</div>
+        </div>
+        <div class="foot"><span class="save">✓ Draft saved</span><div class="acts"><button class="btn ghost">Cancel</button><button class="btn primary">Submit for review</button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. WAITING (stage 1 in review) -->
+  <div class="cap"><span class="n">Gate · waiting on us</span><span class="d">Right after submitting — the wait is explicit, with the roadmap showing stage 2 still locked but “unlocking soon”.</span></div>
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org</span></div>
+    <div class="topbar"><div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>Trust Halal <small>· Owner Portal</small></div><div class="acct"><span>amir@amirs.co</span><span class="avatar">A</span></div></div>
+    <div class="wait">
+      <div class="clock"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+      <h2 style="font-size:24px;letter-spacing:-.02em;margin:0 0 8px">We’re verifying your business.</h2>
+      <p class="lead" style="margin:0 auto 4px">Amir’s Kitchen LLC is with our team — usually <b>2–3 business days</b>. We’ll email amir@amirs.co the moment it’s cleared, and your next step unlocks automatically.</p>
+      <div style="max-width:520px;margin:22px auto 0;text-align:left">
+        <div class="road">
+          <div class="stage"><div class="spine"><div class="node now"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#057a55" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div class="line"></div></div><div class="scard"><div class="sh"><h3>Register your business</h3><span class="pill review">In review</span></div><p style="margin-top:4px">Submitted just now.</p></div></div>
+          <div class="stage locked"><div class="spine"><div class="node lock">2</div></div><div class="scard"><div class="sh"><h3>Claim your restaurant</h3><span class="pill lock">🔒</span></div><div class="locknote" style="margin-top:6px">Unlocks when your business is verified.</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. HUB — business verified, claim now actionable -->
+  <div class="cap"><span class="n">Hub · business verified</span><span class="d">The email arrives, they return: stage 1 is done, stage 2 is now the clear next action, stage 3 still locked.</span></div>
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org</span></div>
+    <div class="topbar"><div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>Trust Halal <small>· Owner Portal</small></div><div class="acct"><span>amir@amirs.co</span><span class="avatar">A</span></div></div>
+    <div class="hub">
+      <div class="kick">Get verified</div>
+      <h2>Your business is verified ✓ — now claim your restaurant.</h2>
+      <p class="lead">Nice — Amir’s Kitchen LLC is confirmed. Claim as many locations as you run under it.</p>
+      <div class="road">
+        <div class="stage"><div class="spine"><div class="node done"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></div><div class="line"></div></div>
+          <div class="scard"><div class="sh"><h3>Register your business</h3><span class="pill done">✓ Verified</span></div><p>Amir’s Kitchen LLC</p></div></div>
+        <div class="stage"><div class="spine"><div class="node now">2</div><div class="line"></div></div>
+          <div class="scard"><div class="sh"><h3>Claim your restaurant</h3><span class="pill action">Your turn</span></div><p>Link a specific location to your verified business.</p><div class="docs">📎 You’ll upload: <b>business license</b>, lease, or sales-tax permit.</div><div class="cta"><button class="btn primary">Claim a restaurant →</button></div></div></div>
+        <div class="stage locked"><div class="spine"><div class="node lock">3</div></div>
+          <div class="scard"><div class="sh"><h3>Confirm halal details</h3><span class="pill lock">🔒 Locked</span></div><div class="locknote" style="margin-top:6px">Unlocks once we approve your restaurant claim.</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. STAGE 2 — claim restaurant + license -->
+  <div class="cap"><span class="n">Stage 2</span><span class="d">Claim your restaurant — pick the place, upload the business license, add a short note.</span></div>
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org/get-verified/claim</span></div>
+    <div class="topbar"><div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>Trust Halal <small>· Owner Portal</small></div><div class="acct"><span>amir@amirs.co</span><span class="avatar">A</span></div></div>
+    <div class="shell">
+      <aside class="railL">
+        <h4>Get verified</h4>
+        <div class="rstage done"><span class="rn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span><div><b>Register your business</b><small>Verified</small></div></div>
+        <div class="rstage now"><span class="rn">2</span><div><b>Claim your restaurant</b><small>In progress</small></div></div>
+        <div class="rstage lock"><span class="rn">3</span><div><b>Confirm halal details</b><small>Locked</small></div></div>
+      </aside>
+      <div class="main">
+        <div class="content">
+          <h2>Claim your restaurant</h2>
+          <p class="lead">Under <b>Amir’s Kitchen LLC</b>. Find the location and prove you operate it.</p>
+          <div class="seg">Find your location</div>
+          <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input class="field" value="Khan Halal Grill" /></div>
+          <div class="result sel"><span class="pin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#057a55" stroke-width="2"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span><div><b>Khan Halal Grill</b><small>2118 Peachtree Rd NE, Atlanta</small></div><span class="check"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0e9f6e" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+          <div class="seg">Proof you operate it</div>
+          <div class="upload">📄 &nbsp;Drop your business license here, or <b style="color:var(--primary-deep)">browse</b><br><small>Business license, lease, or sales-tax permit · PDF/JPG/PNG</small></div>
+          <div class="doc">📄 business-license-2026.pdf <span style="color:var(--sub)">· 380 KB</span> <span class="x">✕</span></div>
+          <div class="seg">Anything we should know? (optional)</div>
+          <textarea class="field" style="max-width:560px" rows="2" placeholder="e.g. Operating here since 2019."></textarea>
+        </div>
+        <div class="foot"><span class="save">✓ Draft saved</span><div class="acts"><button class="btn ghost">Back</button><button class="btn primary">Submit claim</button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. STAGE 3 — halal details -->
+  <div class="cap"><span class="n">Stage 3</span><span class="d">Confirm halal details — unlocked only after the claim is approved. Plain toggles + certificate.</span></div>
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org/get-verified/halal</span></div>
+    <div class="topbar"><div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>Trust Halal <small>· Owner Portal</small></div><div class="acct"><span>amir@amirs.co</span><span class="avatar">A</span></div></div>
+    <div class="shell">
+      <aside class="railL">
+        <h4>Get verified</h4>
+        <div class="rstage done"><span class="rn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span><div><b>Register your business</b><small>Verified</small></div></div>
+        <div class="rstage done"><span class="rn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span><div><b>Claim your restaurant</b><small>Approved</small></div></div>
+        <div class="rstage now"><span class="rn">3</span><div><b>Confirm halal details</b><small>In progress</small></div></div>
+      </aside>
+      <div class="main">
+        <div class="content">
+          <h2>Tell diners about your halal.</h2>
+          <p class="lead">For <b>Khan Halal Grill</b>. Just the essentials — refine anytime later.</p>
+          <div class="two">
+            <div><div class="seg">Your menu is…</div>
+              <div class="opt sel"><div><b>Fully halal</b></div><span class="radio"></span></div>
+              <div class="opt"><div><b>Halal options</b></div><span class="radio"></span></div>
+            </div>
+            <div><div class="seg">Alcohol on premises</div>
+              <div class="opt sel"><div><b>None</b></div><span class="radio"></span></div>
+              <div class="opt"><div><b>Beer &amp; wine</b></div><span class="radio"></span></div>
+            </div>
+          </div>
+          <div class="seg">Halal certificate</div>
+          <div class="upload">📄 &nbsp;Drop your certificate here, or <b style="color:var(--primary-deep)">browse</b><br><small>PDF or photo · optional, but it upgrades your trust tier</small></div>
+          <p class="hint">Add per-meat sourcing (chicken, beef, lamb…)? Optional — <b style="color:var(--primary-deep)">add sourcing detail →</b></p>
+        </div>
+        <div class="foot"><span class="save">✓ Draft saved</span><div class="acts"><button class="btn ghost">Back</button><button class="btn primary">Submit halal details</button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. DONE -->
+  <div class="cap"><span class="n">Done · fully verified</span><span class="d">All three stages cleared — the badge is live and the roadmap becomes an at-a-glance status board.</span></div>
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org</span></div>
+    <div class="topbar"><div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>Trust Halal <small>· Owner Portal</small></div><div class="acct"><span>amir@amirs.co</span><span class="avatar">A</span></div></div>
+    <div class="hub">
+      <div class="kick">All set</div>
+      <h2>Khan Halal Grill is Trust Halal Verified. 🎉</h2>
+      <p class="lead">The badge is live on your public listing. From here you can claim another location or keep your details current.</p>
+      <div class="road">
+        <div class="stage"><div class="spine"><div class="node done"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></div><div class="line"></div></div><div class="scard"><div class="sh"><h3>Business</h3><span class="pill done">✓ Verified</span></div><p>Amir’s Kitchen LLC</p></div></div>
+        <div class="stage"><div class="spine"><div class="node done"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></div><div class="line"></div></div><div class="scard"><div class="sh"><h3>Restaurant</h3><span class="pill done">✓ Approved</span></div><p>Khan Halal Grill</p></div></div>
+        <div class="stage"><div class="spine"><div class="node done"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></div></div><div class="scard"><div class="sh"><h3>Halal details</h3><span class="pill done">✓ Verified</span></div><p>Fully halal · No alcohol · Certified</p></div></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:22px"><button class="btn primary">Claim another location →</button><button class="btn ghost">View my listing</button></div>
+    </div>
+  </div>
+
+  <!-- 8. DASHBOARD — steady state -->
+  <div class="cap"><span class="n">Dashboard · steady state</span><span class="d">The home an established owner returns to after onboarding: their verified places, at-a-glance status, and the few things they actually do — edit details, add a location, handle anything that needs attention.</span></div>
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org</span></div>
+    <div class="topbar">
+      <div style="display:flex;align-items:center">
+        <div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>Trust Halal <small>· Owner Portal</small></div>
+        <nav class="nav"><a class="on">Dashboard</a><a>My places</a><a>Business</a><a>Account</a></nav>
+      </div>
+      <div class="acct"><span>Amir’s Kitchen LLC</span><span class="avatar">A</span></div>
+    </div>
+    <div class="dash">
+      <h2>Welcome back, Amir.</h2>
+      <p class="sub"><span class="vbadge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg> VERIFIED BUSINESS</span> Amir’s Kitchen LLC · 1 location</p>
+
+      <!-- attention banner: cert expiring -->
+      <div class="banner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <span>Your <b>IFANCA certificate</b> for Khan Halal Grill expires in <b>45 days</b>. Upload a renewal so your verified tier doesn’t lapse.</span>
+        <span class="bx"><button class="btn primary" style="padding:8px 14px">Upload renewal</button></span>
+      </div>
+
+      <div class="statrow">
+        <div class="stat"><div class="v">1</div><div class="l">Verified location</div></div>
+        <div class="stat"><div class="v">Trust Halal Verified</div><div class="l">Highest trust tier</div></div>
+        <div class="stat"><div class="v">0</div><div class="l">Open disputes</div></div>
+      </div>
+
+      <div class="sectionhead"><h3>Your restaurants</h3><a class="btn link" style="padding:0">View all →</a></div>
+      <div class="place">
+        <span class="pin" style="width:44px;height:44px;border-radius:11px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#057a55" stroke-width="2"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+        <div class="pbody">
+          <div class="ptop"><h4>Khan Halal Grill</h4><span class="vbadge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg> VERIFIED</span></div>
+          <p class="addr">2118 Peachtree Rd NE, Atlanta, GA</p>
+          <div class="chips2">
+            <span class="chip">Fully halal</span>
+            <span class="chip">No alcohol</span>
+            <span class="chip">Certified · IFANCA</span>
+            <span class="chip muted">Cert expires Aug 2026</span>
+          </div>
+          <div class="qacts">
+            <button class="btn ghost">Edit halal details</button>
+            <button class="btn ghost">View public listing ↗</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="addcard">
+        <div><b>Run another location?</b><small>Claim it under Amir’s Kitchen LLC — no need to re-verify your business.</small></div>
+        <button class="btn primary">Claim a restaurant →</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
