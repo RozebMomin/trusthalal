@@ -20,7 +20,7 @@
  * stage 1 "in review" and unlocks stage 2.
  */
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -53,11 +53,32 @@ const RAIL: RailStage[] = [
 ];
 
 export default function BusinessStagePage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="mx-auto max-w-4xl">
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        </div>
+      }
+    >
+      <BusinessStageInner />
+    </React.Suspense>
+  );
+}
+
+function BusinessStageInner() {
+  const searchParams = useSearchParams();
+  // `?new=1` forces a brand-new business — used by multi-entity owners who
+  // already have an org but run another store under a different legal entity.
+  const forceNew = searchParams?.get("new") === "1";
+
   const orgs = useMyOrganizations();
 
   // Resume the most-recent DRAFT if one exists (the hub's "Resume"
-  // CTA). Otherwise we create a fresh org on submit.
+  // CTA). Otherwise we create a fresh org on submit. In force-new mode we
+  // never resume — always start a blank entity.
   const draftOrg = React.useMemo(() => {
+    if (forceNew) return null;
     const drafts = (orgs.data ?? [])
       .filter((o) => o.status === "DRAFT")
       .sort(
@@ -65,7 +86,7 @@ export default function BusinessStagePage() {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
     return drafts[0] ?? null;
-  }, [orgs.data]);
+  }, [orgs.data, forceNew]);
 
   if (orgs.isLoading) {
     return (
@@ -77,7 +98,12 @@ export default function BusinessStagePage() {
 
   // Key on the resumed org id (or "new") so the form re-initialises
   // its state when the underlying draft resolves.
-  return <BusinessForm key={draftOrg?.id ?? "new"} draftOrg={draftOrg} />;
+  return (
+    <BusinessForm
+      key={forceNew ? "new" : (draftOrg?.id ?? "new")}
+      draftOrg={draftOrg}
+    />
+  );
 }
 
 function BusinessForm({ draftOrg }: { draftOrg: MyOrganizationRead | null }) {

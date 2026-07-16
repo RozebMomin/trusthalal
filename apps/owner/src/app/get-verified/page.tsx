@@ -273,6 +273,19 @@ export default function GetVerifiedHubPage() {
           </StageBody>
         </RoadmapStage>
       </Roadmap>
+
+      {/* Once a business is verified, multi-entity owners can branch off to
+          register another legal entity (a store under a different company). */}
+      {orgVerified && (
+        <div className="mt-6 text-center">
+          <Link
+            href="/get-verified/business?new=1"
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Own a store under a different business? Register another →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
@@ -514,6 +527,23 @@ function Dashboard({
           </div>
           <Link href="/get-verified/claim">
             <Button>Claim a restaurant →</Button>
+          </Link>
+        </div>
+
+        {/* Multi-entity owners: a store run under a different legal entity
+            needs its own verified business first. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed bg-muted/30 p-5">
+          <div>
+            <p className="text-sm font-semibold">
+              Own a store under a different business?
+            </p>
+            <p className="text-[13px] text-muted-foreground">
+              Register another legal entity — we&apos;ll verify it, then you can
+              claim locations under it.
+            </p>
+          </div>
+          <Link href="/get-verified/business?new=1">
+            <Button variant="outline">Register a new business →</Button>
           </Link>
         </div>
       </div>
