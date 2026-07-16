@@ -469,6 +469,7 @@ function SearchStep({
                     secondary={[p.address, p.city, p.region]
                       .filter(Boolean)
                       .join(", ")}
+                    claimed={p.is_claimed === true}
                     onClick={() => onPickTrustHalal(p)}
                   />
                 </li>
@@ -533,18 +534,26 @@ function ResultRow({
   secondary,
   onClick,
   selected = false,
+  claimed = false,
 }: {
   name: string;
   secondary: string;
   onClick: () => void;
   selected?: boolean;
+  claimed?: boolean;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={claimed ? undefined : onClick}
+      disabled={claimed}
+      aria-disabled={claimed}
+      title={claimed ? "This restaurant already has an owner or a pending claim." : undefined}
       className={cn(
-        "flex w-full items-center gap-3 rounded-xl border bg-card px-3 py-3 text-left transition hover:bg-accent",
+        "flex w-full items-center gap-3 rounded-xl border bg-card px-3 py-3 text-left transition",
+        claimed
+          ? "cursor-not-allowed opacity-60"
+          : "hover:bg-accent",
         selected && "border-2 border-primary bg-primary/5",
       )}
     >
@@ -559,9 +568,15 @@ function ResultRow({
           </span>
         )}
       </span>
-      <span aria-hidden className="shrink-0 text-xs text-muted-foreground">
-        Pick →
-      </span>
+      {claimed ? (
+        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+          Already claimed
+        </span>
+      ) : (
+        <span aria-hidden className="shrink-0 text-xs text-muted-foreground">
+          Pick →
+        </span>
+      )}
     </button>
   );
 }

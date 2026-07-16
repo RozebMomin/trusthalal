@@ -1014,6 +1014,29 @@ def search_places(
                 return photos_storage.public_url(p.storage_path)
         return None
 
+    # Which of these places already have a claim in flight or granted, so the
+    # owner claim flow can grey them out. One query for the whole page. Lazy
+    # import to sidestep the places <-> ownership_requests cycle.
+    from app.modules.ownership_requests.enums import OwnershipRequestStatus
+    from app.modules.ownership_requests.models import PlaceOwnershipRequest
+
+    _CLAIMED_STATES = (
+        OwnershipRequestStatus.SUBMITTED.value,
+        OwnershipRequestStatus.NEEDS_EVIDENCE.value,
+        OwnershipRequestStatus.UNDER_REVIEW.value,
+        OwnershipRequestStatus.APPROVED.value,
+    )
+    page_place_ids = [place.id for place, _ in rows]
+    claimed_place_ids: set = set()
+    if page_place_ids:
+        claimed_place_ids = set(
+            db.execute(
+                select(PlaceOwnershipRequest.place_id)
+                .where(PlaceOwnershipRequest.place_id.in_(page_place_ids))
+                .where(PlaceOwnershipRequest.status.in_(_CLAIMED_STATES))
+            ).scalars().all()
+        )
+
     results = [
         PlaceSearchResult.model_validate(
             {
@@ -1026,6 +1049,7 @@ def search_places(
                 "region": place.region,
                 "country_code": place.country_code,
                 "cuisine_types": list(place.cuisine_types or []),
+                "is_claimed": place.id in claimed_place_ids,
                 "hero_photo_url": _hero_url_for(place),
                 "google_rating": (
                     float(place.google_rating)

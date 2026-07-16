@@ -73,6 +73,13 @@ class PlaceSearchResult(BaseModel):
     # "Open now" badge on the card and the ?open_now= filter.
     open_now: bool | None = None
 
+    # True when the place already has an ownership claim in flight or granted
+    # (an ownership request in SUBMITTED / NEEDS_EVIDENCE / UNDER_REVIEW /
+    # APPROVED). The owner-portal claim flow uses this to stop a restaurant
+    # that's already spoken for from being selected. Consumer/mobile search
+    # ignores it. Defaults False so older clients are unaffected.
+    is_claimed: bool = False
+
     # Embedded halal profile so consumer-site search results can render
     # validation tier + menu posture badges without an N+1 fetch per
     # row. Null when the place has no approved halal claim, or when its

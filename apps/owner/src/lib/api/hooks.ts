@@ -291,6 +291,9 @@ export type PlaceSearchResult = {
   city: string | null;
   region: string | null;
   country_code: string | null;
+  // True when the place already has an ownership claim in flight or granted.
+  // The claim flow blocks selecting these. Optional for older payloads.
+  is_claimed?: boolean;
 };
 
 /**
