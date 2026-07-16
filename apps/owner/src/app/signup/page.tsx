@@ -131,14 +131,35 @@ export default function SignupPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm space-y-6 rounded-md border bg-card p-8 shadow-sm"
       >
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Create your owner account
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Get your restaurant on the record — verified and searchable on
-            Trust Halal.
-          </p>
+        <div className="space-y-3">
+          {/* Logo mark — emerald rounded square + white check, matching the
+              portal header and the consumer/brand sites' BrandMark. */}
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Create your owner account
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Get your restaurant on the record — verified and searchable on
+              Trust Halal.
+            </p>
+          </div>
         </div>
 
         <div className="space-y-4">
