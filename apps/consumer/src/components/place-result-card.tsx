@@ -322,7 +322,11 @@ function FactsStrip({ facts }: { facts: HalalFactChip[] }) {
         <span
           key={f.label}
           title={f.hint}
-          className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-foreground/80"
+          className={
+            f.tone === "warning"
+              ? "inline-flex items-center rounded-md border border-red-300 bg-red-50 px-1.5 py-0.5 text-[11px] font-semibold text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+              : "inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-foreground/80"
+          }
         >
           {f.label}
         </span>

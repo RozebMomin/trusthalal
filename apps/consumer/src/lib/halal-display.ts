@@ -82,6 +82,13 @@ export type PrimaryHalalSignal = {
 export type HalalFactChip = {
   label: string;
   hint?: string;
+  /**
+   * Visual tone. ``warning`` chips (pork served, alcohol served,
+   * alcohol in cooking) render in a red/amber alert style so a diner
+   * scanning a card catches the red flag immediately. Undefined =
+   * the default neutral, reassuring fact chip.
+   */
+  tone?: "warning";
 };
 
 const VALIDATION_TIER_RANK: Record<ValidationTier, number> = {
@@ -240,19 +247,30 @@ export function halalFactsFor(profile: HalalProfileEmbed): HalalFactChip[] {
     });
   }
 
-  if (!profile.has_pork) {
-    out.push({ label: "Pork-free", hint: "No pork on the menu." });
+  // Pork + alcohol are shown as RED FLAGS, not reassurances. In a
+  // halal directory pork-free / alcohol-free is the expected default,
+  // so an always-on "Pork-free" chip is noise. We instead surface the
+  // exceptions — a place that serves pork or alcohol — in a warning
+  // tone so it's the thing that catches the eye.
+  if (profile.has_pork) {
+    out.push({
+      label: "Pork served",
+      hint: "Pork is on the menu at this place.",
+      tone: "warning",
+    });
   }
 
-  if (profile.alcohol_policy === "NONE") {
+  if (profile.alcohol_policy === "FULL_BAR") {
     out.push({
-      label: "No alcohol",
-      hint: "No alcohol served on premises.",
+      label: "Alcohol served",
+      hint: "Full bar — spirits, beer, and wine served on premises.",
+      tone: "warning",
     });
   } else if (profile.alcohol_policy === "BEER_AND_WINE_ONLY") {
     out.push({
-      label: ALCOHOL_POLICY_LABELS["BEER_AND_WINE_ONLY"],
-      hint: "Beer and wine served. No spirits.",
+      label: "Alcohol served",
+      hint: "Beer and wine served on premises. No spirits.",
+      tone: "warning",
     });
   }
 
@@ -276,17 +294,21 @@ export function halalFactsFor(profile: HalalProfileEmbed): HalalFactChip[] {
   }
 
   if (profile.alcohol_in_cooking) {
-    // Alcohol-in-cooking IS a negative chip — but the strict
-    // observers who care about it overwhelmingly want to know,
-    // so it earns the visual cost. Tone-coded warning on the
-    // renderer side.
+    // Alcohol-in-cooking is a red flag the strict observers who care
+    // about it overwhelmingly want to know, so it earns a warning chip.
     out.push({
       label: "Alcohol in cooking",
       hint: "Some menu items use alcohol (wine reductions, mirin, etc.) in preparation.",
+      tone: "warning",
     });
   }
 
-  return out;
+  // Surface warning chips first so a red flag (pork / alcohol) is never
+  // pushed off the card by the "+N more" truncation.
+  return [
+    ...out.filter((c) => c.tone === "warning"),
+    ...out.filter((c) => c.tone !== "warning"),
+  ];
 }
 
 /**

@@ -33,6 +33,7 @@ import * as React from "react";
 
 import { FavoriteToggle } from "@/components/favorite-toggle";
 import { FileDisputeDialog } from "@/components/file-dispute-dialog";
+import { NearbyPlaces } from "@/components/nearby-places";
 import { PlaceHero } from "@/components/place-hero";
 import {
   PlacePhotoGallery,
@@ -263,6 +264,8 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
             hasActiveDispute={hasActiveDispute}
             onOpenDialog={() => setDisputeDialogOpen(true)}
           />
+
+          <NearbyPlaces place={place.data} />
 
           <FileDisputeDialog
             placeId={placeId}
