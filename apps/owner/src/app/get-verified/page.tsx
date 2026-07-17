@@ -19,9 +19,11 @@ import Link from "next/link";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
+import { ClaimStatusBadge } from "@/components/claim-status-badge";
 import { OrgStatusBadge } from "@/components/org-status-badge";
 import {
   type AlcoholPolicy,
+  type MyOwnershipRequestRead,
   type MenuPosture,
   type MyHalalClaimRead,
   type MyOrganizationRead,
@@ -104,6 +106,7 @@ export default function GetVerifiedHubPage() {
         firstName={firstName}
         org={primaryOrg}
         orgs={orgList}
+        claims={claimList}
         places={places}
         halalClaims={halalList}
       />
@@ -284,6 +287,12 @@ export default function GetVerifiedHubPage() {
         <BusinessesOverview orgs={orgList} activeOrgId={primaryOrg?.id ?? null} />
       )}
 
+      {/* Restaurant claims at a glance. Stage 2 above only reflects the
+          aggregate state, so an owner with a claim in review (or several
+          across locations) can't otherwise see the individual submissions
+          and where each one stands. */}
+      {claimList.length >= 1 && <ClaimsOverview claims={claimList} />}
+
       {/* Once a business is verified, multi-entity owners can branch off to
           register another legal entity (a store under a different company). */}
       {orgVerified && (
@@ -348,6 +357,75 @@ function BusinessesOverview({
             </Link>
           </li>
         ))}
+      </ul>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Restaurant-claims overview — every ownership claim + its live status.
+// ---------------------------------------------------------------------------
+
+function ClaimsOverview({
+  claims,
+  title = "Your restaurant claims",
+}: {
+  claims: MyOwnershipRequestRead[];
+  title?: string;
+}) {
+  const sorted = [...claims].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
+  return (
+    <section className="mt-10">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <Link
+          href="/my-claims"
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Manage all →
+        </Link>
+      </div>
+      <ul className="mt-3 space-y-2">
+        {sorted.map((c) => {
+          const needsAction =
+            c.status === "NEEDS_EVIDENCE" || c.status === "REJECTED";
+          return (
+            <li
+              key={c.id}
+              className="rounded-xl border bg-card px-4 py-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium">
+                    {c.place.name}
+                  </span>
+                  {c.organization?.name && (
+                    <span className="block truncate text-[11px] text-muted-foreground">
+                      under {c.organization.name}
+                    </span>
+                  )}
+                </span>
+                <ClaimStatusBadge status={c.status} />
+              </div>
+              {needsAction && (
+                <div className="mt-2">
+                  <Link
+                    href="/my-claims"
+                    className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    {c.status === "NEEDS_EVIDENCE"
+                      ? "Add what we asked for →"
+                      : "See why & try again →"}
+                  </Link>
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -477,15 +555,22 @@ function Dashboard({
   firstName,
   org,
   orgs,
+  claims,
   places,
   halalClaims,
 }: {
   firstName: string;
   org: MyOrganizationRead | null;
   orgs: MyOrganizationRead[];
+  claims: MyOwnershipRequestRead[];
   places: OwnedPlaceRead[];
   halalClaims: MyHalalClaimRead[];
 }) {
+  // Approved claims already surface above as places, so the dashboard's
+  // claims list is only the ones still in flight or needing attention.
+  const openClaims = claims.filter(
+    (c) => c.status !== "APPROVED" && c.status !== "CANCELLED",
+  );
   const approvedByPlace = new Map<string, MyHalalClaimRead>();
   for (const claim of halalClaims) {
     if (claim.status === "APPROVED" && claim.place_id) {
@@ -612,6 +697,10 @@ function Dashboard({
           </Link>
         </div>
       </div>
+
+      {openClaims.length > 0 && (
+        <ClaimsOverview claims={openClaims} title="Claims in progress" />
+      )}
 
       {orgs.length >= 2 && (
         <BusinessesOverview orgs={orgs} activeOrgId={org?.id ?? null} />
