@@ -206,7 +206,7 @@ function AuthedShell({
       appeared at the bottom of admin dashboard scrolls. h-full kept
       so the desktop sidebar still stretches to the body's height.
     */
-    <div className="flex h-full min-h-[100dvh] flex-col md:flex-row">
+    <div className="flex min-h-[100dvh] flex-col md:h-[100dvh] md:min-h-0 md:flex-row md:overflow-hidden">
       {/* Mobile-only top bar: hamburger + brand + portal qualifier.
           The "Admin panel" subtitle next to the wordmark mirrors the
           pattern on the owner portal so users landing on a phone
@@ -222,11 +222,30 @@ function AuthedShell({
         >
           <Menu className="h-5 w-5" aria-hidden />
         </button>
-        <div className="flex items-baseline gap-2">
-          <span className="text-base font-semibold tracking-tight">
-            Trust Halal
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
           </span>
-          <span className="text-xs text-muted-foreground">Admin portal</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-base font-semibold tracking-tight">
+              Trust Halal
+            </span>
+            <span className="text-xs text-muted-foreground">Admin portal</span>
+          </div>
         </div>
       </header>
 
@@ -242,7 +261,7 @@ function AuthedShell({
 
       <aside
         className={[
-          "flex w-64 shrink-0 flex-col border-r bg-card",
+          "flex w-64 shrink-0 flex-col border-r bg-card md:overflow-y-auto",
           // Mobile: fixed slide-out drawer.
           "fixed inset-y-0 left-0 z-40 transform transition-transform duration-200",
           navOpen ? "translate-x-0" : "-translate-x-full",
@@ -284,7 +303,7 @@ function AuthedShell({
         scroll.
       */}
       <div className="flex flex-1 flex-col overflow-x-hidden md:overflow-hidden">
-        <main className="flex-1 p-4 md:overflow-y-auto md:p-8">
+        <main className="flex-1 p-4 md:min-h-0 md:overflow-y-auto md:p-8">
           {children}
           {/*
             isFetching indicator at bottom is just a hook for future

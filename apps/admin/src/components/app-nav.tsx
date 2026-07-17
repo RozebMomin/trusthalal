@@ -59,11 +59,32 @@ export function AppNav() {
           brand — capitalization signals a polished surface, and
           the explicit qualifier tells someone landing on the
           mobile drawer which Trust Halal surface they're on. */}
-      <div className="mb-4 flex flex-col gap-0.5 px-2 leading-tight">
-        <span className="text-lg font-semibold tracking-tight">
-          Trust Halal
+      <div className="mb-4 flex items-center gap-2.5 px-2">
+        {/* Logo mark — emerald rounded square + white check, matching the
+            owner portal header and the consumer/brand sites' BrandMark. */}
+        <span
+          aria-hidden="true"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
         </span>
-        <span className="text-xs text-muted-foreground">Admin portal</span>
+        <span className="flex flex-col gap-0.5 leading-tight">
+          <span className="text-lg font-semibold tracking-tight">
+            Trust Halal
+          </span>
+          <span className="text-xs text-muted-foreground">Admin portal</span>
+        </span>
       </div>
       {visibleItems.map((item) => {
         const active =
