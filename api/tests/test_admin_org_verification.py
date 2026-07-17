@@ -264,6 +264,97 @@ def test_admin_reject_org_rejects_non_under_review(
     assert resp.json()["error"]["code"] == "ORGANIZATION_NOT_REVIEWABLE"
 
 
+def test_admin_reject_org_cascades_to_open_claims(
+    api, factories, db_session, fake_storage,
+):
+    """Rejecting an org closes out its still-open ownership claims.
+
+    A claim can only be approved once its sponsoring org is VERIFIED, so a
+    claim left open under a rejected org could never advance — it would sit
+    in the queue forever. The reject path rejects those claims too, landing
+    an explanatory decision_note the owner reads on their claim card.
+    """
+    from app.modules.ownership_requests.enums import OwnershipRequestStatus
+    from app.modules.ownership_requests.models import PlaceOwnershipRequest
+
+    admin = factories.admin()
+    owner, org_id = _under_review_org(api, factories, db_session)
+    place = factories.place(name="Cascade Diner")
+    db_session.commit()
+
+    # Owner files a claim under the still-UNDER_REVIEW org.
+    claim_resp = api.as_user(owner).post(
+        "/me/ownership-requests",
+        json={"organization_id": org_id, "place_id": str(place.id)},
+    )
+    assert claim_resp.status_code == 201, claim_resp.text
+    claim_id = claim_resp.json()["id"]
+    assert claim_resp.json()["status"] == OwnershipRequestStatus.SUBMITTED.value
+
+    # Admin rejects the sponsoring org.
+    reject = api.as_user(admin).post(
+        f"/admin/organizations/{org_id}/reject",
+        json={"reason": "Filing does not match the registered LLC name."},
+    )
+    assert reject.status_code == 200, reject.text
+
+    # The claim was cascaded to REJECTED with an org-specific note.
+    row = db_session.execute(
+        select(PlaceOwnershipRequest).where(
+            PlaceOwnershipRequest.id == uuid.UUID(claim_id)
+        )
+    ).scalar_one()
+    assert row.status == OwnershipRequestStatus.REJECTED.value
+    assert row.decision_note is not None
+    assert "wasn't verified" in row.decision_note
+    assert "Under Review Co" in row.decision_note
+
+
+def test_admin_reject_org_leaves_terminal_claims_untouched(
+    api, factories, db_session, fake_storage,
+):
+    """The cascade only touches OPEN claims. A claim already rejected on
+    its own merits keeps its original reason — we don't overwrite settled
+    history with the generic org-cascade note."""
+    from app.modules.ownership_requests.enums import OwnershipRequestStatus
+    from app.modules.ownership_requests.models import PlaceOwnershipRequest
+
+    admin = factories.admin()
+    owner, org_id = _under_review_org(api, factories, db_session)
+    place = factories.place(name="Already-Rejected Diner")
+    db_session.commit()
+
+    claim_resp = api.as_user(owner).post(
+        "/me/ownership-requests",
+        json={"organization_id": org_id, "place_id": str(place.id)},
+    )
+    assert claim_resp.status_code == 201, claim_resp.text
+    claim_id = claim_resp.json()["id"]
+
+    # Admin rejects the claim on its own merits first (org still UNDER_REVIEW).
+    original_reason = "Evidence photo was for a different storefront."
+    claim_reject = api.as_user(admin).post(
+        f"/admin/ownership-requests/{claim_id}/reject",
+        json={"reason": original_reason},
+    )
+    assert claim_reject.status_code == 200, claim_reject.text
+
+    # Now reject the sponsoring org — the already-terminal claim is untouched.
+    org_reject = api.as_user(admin).post(
+        f"/admin/organizations/{org_id}/reject",
+        json={"reason": "Filing does not match the registered LLC name."},
+    )
+    assert org_reject.status_code == 200, org_reject.text
+
+    row = db_session.execute(
+        select(PlaceOwnershipRequest).where(
+            PlaceOwnershipRequest.id == uuid.UUID(claim_id)
+        )
+    ).scalar_one()
+    assert row.status == OwnershipRequestStatus.REJECTED.value
+    assert row.decision_note == original_reason
+
+
 # ---------------------------------------------------------------------------
 # List + status filter
 # ---------------------------------------------------------------------------

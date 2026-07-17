@@ -165,14 +165,20 @@ export default function GetVerifiedHubPage() {
             ) : stage1.state === "fix" ? (
               <>
                 <p className="mt-1.5 text-sm text-muted-foreground">
-                  Trust Halal couldn&apos;t verify this business.
+                  Trust Halal couldn&apos;t verify{" "}
+                  {primaryOrg?.name ?? "this business"}.
                   {primaryOrg?.decision_note
                     ? ` Their note: ${primaryOrg.decision_note}`
-                    : " Reach out to support if you need context."}
+                    : ""}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  A rejected business is locked, so it can&apos;t be edited and
+                  resubmitted — register a fresh business entity to try again.
+                  Any restaurant claims filed under it were closed with it.
                 </p>
                 <CtaRow>
-                  <Link href="/get-verified/business">
-                    <Button>Fix &amp; resubmit →</Button>
+                  <Link href="/get-verified/business?new=1">
+                    <Button>Register a new business →</Button>
                   </Link>
                 </CtaRow>
               </>
@@ -412,7 +418,12 @@ function ClaimsOverview({
                 <ClaimStatusBadge status={c.status} />
               </div>
               {needsAction && (
-                <div className="mt-2">
+                <div className="mt-2 space-y-1.5">
+                  {c.decision_note && (
+                    <p className="text-xs text-muted-foreground">
+                      {c.decision_note}
+                    </p>
+                  )}
                   <Link
                     href="/my-claims"
                     className="text-xs font-medium text-primary underline-offset-4 hover:underline"

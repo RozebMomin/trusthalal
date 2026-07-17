@@ -18,7 +18,10 @@ from app.modules.organizations.models import (
     OrganizationMember,
     PlaceOwner,
 )
-from app.modules.places.models import Place
+from app.modules.ownership_requests.enums import OwnershipRequestStatus
+from app.modules.ownership_requests.models import PlaceOwnershipRequest
+from app.modules.places.enums import PlaceEventType
+from app.modules.places.models import Place, PlaceEvent
 from app.modules.users.models import User
 
 
@@ -141,6 +144,48 @@ def admin_reject_organization(
     org.decided_by_user_id = actor_user_id
     org.decision_note = reason.strip()
     db.add(org)
+
+    # Cascade to dependent claims. Approving an ownership claim hard-gates
+    # on a VERIFIED sponsoring org (see admin_approve_ownership_request),
+    # so once this org is rejected any still-open claim under it can never
+    # be approved — it would otherwise sit in the review queue forever,
+    # invisible dead weight to owner and staff alike. Close those out here
+    # with an explanatory note. Mirrors admin_reject_ownership_request:
+    # a row-level decision_note for the owner's claim card plus a
+    # PlaceEvent for the per-event audit trail.
+    open_statuses = (
+        OwnershipRequestStatus.SUBMITTED.value,
+        OwnershipRequestStatus.NEEDS_EVIDENCE.value,
+        OwnershipRequestStatus.UNDER_REVIEW.value,
+    )
+    blocked_claims = (
+        db.execute(
+            select(PlaceOwnershipRequest).where(
+                PlaceOwnershipRequest.organization_id == org.id,
+                PlaceOwnershipRequest.status.in_(open_statuses),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    cascade_note = (
+        f"The sponsoring business ({org.name}) wasn't verified, so this "
+        "claim can't proceed. Register a verified business and re-file to "
+        "claim this restaurant."
+    )
+    for claim in blocked_claims:
+        claim.status = OwnershipRequestStatus.REJECTED.value
+        claim.decision_note = cascade_note
+        db.add(claim)
+        db.add(
+            PlaceEvent(
+                place_id=claim.place_id,
+                event_type=PlaceEventType.OWNERSHIP_REQUEST_REJECTED.value,
+                actor_user_id=actor_user_id,
+                message=cascade_note,
+            )
+        )
+
     db.commit()
     db.refresh(org)
     return org
