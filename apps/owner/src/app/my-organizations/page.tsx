@@ -66,8 +66,13 @@ export default function MyOrganizationsPage() {
   // Default to "Verified" — the working set most owners visit
   // /my-organizations to look at. DRAFT / UNDER_REVIEW / REJECTED
   // are still one click away in the dropdown.
+  // Default to "All" — owners usually land here from a "Manage all →"
+  // link on the home hub, where they've just seen a specific business
+  // (including in-progress or rejected ones). Opening straight to the
+  // full list means the org they came to find is always visible instead
+  // of hidden behind a narrower default.
   const [statusFilter, setStatusFilter] =
-    React.useState<StatusFilter>("verified");
+    React.useState<StatusFilter>("all");
   const activeFilter =
     STATUS_FILTERS.find((f) => f.value === statusFilter) ?? STATUS_FILTERS[0];
   const visibleOrgs = orgs.filter((o) =>

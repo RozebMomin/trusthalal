@@ -94,12 +94,13 @@ export default function MyClaimsPage() {
   // render. (TanStack Query gives us a stable ``data`` reference.)
   const allClaims = React.useMemo(() => data ?? [], [data]);
 
-  // Default to "Approved" — the working set most owners visit
-  // /my-claims to look at: the verified places they actually
-  // operate. In-progress and rejected claims fall behind the
-  // dropdown but stay one click away.
+  // Default to "All" — owners usually arrive from a "Manage all →" link
+  // on the home hub after seeing a specific claim (often one that's
+  // in-progress or needs a fix). Showing everything up front means the
+  // claim they came to act on is visible instead of hidden behind a
+  // narrower default. Buckets stay one click away in the dropdown.
   const [statusFilter, setStatusFilter] =
-    React.useState<StatusFilter>("approved");
+    React.useState<StatusFilter>("all");
   const activeFilter =
     STATUS_FILTERS.find((f) => f.value === statusFilter) ?? STATUS_FILTERS[0];
   const claims = allClaims.filter((c) =>

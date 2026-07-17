@@ -25,7 +25,7 @@
  * source of truth is the API's /me endpoint.
  */
 
-import { Building2, ShieldCheck, Store } from "lucide-react";
+import { Building2, Home, ShieldCheck, Store } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
@@ -179,6 +179,12 @@ function PortalHeader() {
         {me && (
           <nav className="hidden items-center gap-1 md:flex">
             <NavLink
+              href="/get-verified"
+              active={pathname === "/" || pathname.startsWith("/get-verified")}
+            >
+              Home
+            </NavLink>
+            <NavLink
               href="/my-organizations"
               active={pathname.startsWith("/my-organizations")}
             >
@@ -273,6 +279,12 @@ function BottomTabBar() {
     icon: typeof ShieldCheck;
     matches: (p: string) => boolean;
   }> = [
+    {
+      href: "/get-verified",
+      label: "Home",
+      icon: Home,
+      matches: (p) => p === "/" || p.startsWith("/get-verified"),
+    },
     {
       href: "/my-organizations",
       label: "Orgs",
