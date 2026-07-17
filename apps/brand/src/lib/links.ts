@@ -7,6 +7,13 @@
  */
 export const CONSUMER_URL = "https://halalfoodnearme.com";
 export const OWNER_URL = "https://owner.trusthalal.org";
+/**
+ * Onboarding handoff — where an operator clicking a "verify your
+ * restaurant" CTA on the brand site should land: the unified
+ * get-verified flow (register business → claim restaurant → confirm
+ * halal). The bare OWNER_URL stays for generic "owner portal" nav.
+ */
+export const OWNER_GET_VERIFIED_URL = `${OWNER_URL}/get-verified`;
 export const VERIFIER_URL = "https://halalfoodnearme.com/become-a-verifier";
 export const ADMIN_URL = "https://admin.trusthalal.org";
 export const ETHICS_PATH = "/ethics";

@@ -105,7 +105,7 @@ export default function MyOrganizationsPage() {
             each one before it can sponsor a place claim.
           </p>
         </div>
-        <Link href="/my-organizations/new" className="sm:shrink-0">
+        <Link href="/get-verified/business?new=1" className="sm:shrink-0">
           <Button className="w-full sm:w-auto">Add organization</Button>
         </Link>
       </header>
@@ -263,7 +263,7 @@ function EmptyState() {
         entity before claims can be filed under it.
       </p>
       <div className="mt-4">
-        <Link href="/my-organizations/new">
+        <Link href="/get-verified/business?new=1">
           <Button>Add an organization</Button>
         </Link>
       </div>

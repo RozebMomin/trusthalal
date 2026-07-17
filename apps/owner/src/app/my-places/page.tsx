@@ -44,7 +44,7 @@ export default function MyPlacesPage() {
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href="/claim">Claim a new place</Link>
+          <Link href="/get-verified/claim">Claim a new place</Link>
         </Button>
       </header>
 
@@ -75,7 +75,7 @@ export default function MyPlacesPage() {
             so you can manage cuisine tags, photos, and the cover image.
           </p>
           <Button asChild className="mt-4">
-            <Link href="/claim">Claim your first place</Link>
+            <Link href="/get-verified/claim">Claim your first place</Link>
           </Button>
           <p className="mt-3 text-xs text-muted-foreground">
             Already submitted?{" "}

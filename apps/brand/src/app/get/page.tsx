@@ -13,7 +13,7 @@
 import type { Metadata } from "next";
 import { ArrowIcon, Footer, Header } from "@/components/chrome";
 import { GetButtons } from "@/components/get-buttons";
-import { OWNER_URL, VERIFIER_URL } from "@/lib/links";
+import { OWNER_GET_VERIFIED_URL, VERIFIER_URL } from "@/lib/links";
 
 const TITLE = "Get Trust Halal — join the Atlanta alpha";
 const DESCRIPTION =
@@ -83,7 +83,7 @@ export default function GetPage() {
             title="Own a halal spot?"
             body="Get listed free and show diners exactly what backs your kitchen. Verified places stand out."
             cta="Get your place listed"
-            href={OWNER_URL}
+            href={OWNER_GET_VERIFIED_URL}
           />
           <AudienceCard
             title="Out a few times a week?"

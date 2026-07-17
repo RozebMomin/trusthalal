@@ -43,3 +43,11 @@ export const TRUST_HALAL_URL = "https://trusthalal.org";
  * they click "Claim your listing" from the consumer surface.
  */
 export const OWNER_PORTAL_URL = "https://owner.trusthalal.org";
+
+/**
+ * Onboarding handoff — where a restaurant operator coming from the
+ * consumer site should land: the unified get-verified flow (register
+ * business → claim restaurant → confirm halal). Deep-links past the
+ * bare portal root so the CTA drops them straight into onboarding.
+ */
+export const OWNER_GET_VERIFIED_URL = `${OWNER_PORTAL_URL}/get-verified`;

@@ -26,7 +26,7 @@ import { ArrowIcon, Footer, Header } from "@/components/chrome";
 import {
   CONSUMER_URL,
   ETHICS_PATH,
-  OWNER_URL,
+  OWNER_GET_VERIFIED_URL,
   VERIFIER_URL,
 } from "@/lib/links";
 
@@ -104,7 +104,7 @@ function Hero() {
           <ArrowIcon />
         </a>
         <a
-          href={OWNER_URL}
+          href={OWNER_GET_VERIFIED_URL}
           className="inline-flex items-center gap-2 rounded-full border border-line bg-white/60 px-6 py-3 text-base font-medium text-ink transition hover:border-accent/50 hover:bg-white"
         >
           Verify your restaurant
@@ -303,7 +303,7 @@ function Audiences() {
           title="Get your restaurant verified"
           body="Free verification. Public listing plus a Trust Halal Verified badge for your window."
           cta="Apply for verification"
-          href={OWNER_URL}
+          href={OWNER_GET_VERIFIED_URL}
         />
         <AudienceCard
           icon={<FlagIcon />}

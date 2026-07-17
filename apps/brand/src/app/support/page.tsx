@@ -11,7 +11,7 @@ import type { Metadata } from "next";
 import { Footer, Header } from "@/components/chrome";
 import {
   CONSUMER_URL,
-  OWNER_URL,
+  OWNER_GET_VERIFIED_URL,
   PRIVACY_PATH,
   SUPPORT_CONTACT_EMAIL,
   VERIFIER_URL,
@@ -113,7 +113,7 @@ export default function SupportPage() {
 
           <SubHeader>I own a restaurant. How do I claim it?</SubHeader>
           <p>
-            Head to the <a href={OWNER_URL}>owner portal</a> to claim your place,
+            Head to the <a href={OWNER_GET_VERIFIED_URL}>owner portal</a> to claim your place,
             add your halal details, and upload a certificate if you have one.
             Verification is free for restaurants.
           </p>

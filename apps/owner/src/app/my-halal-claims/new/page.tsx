@@ -145,7 +145,7 @@ export default function NewHalalClaimPage() {
           </p>
           <div>
             <Link
-              href="/claim"
+              href="/get-verified/claim"
               className="text-sm font-medium underline-offset-4 hover:underline"
             >
               Claim a place →

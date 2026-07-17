@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { VersionTag } from "@/components/version-tag";
 import {
   BRAND_NAME,
+  OWNER_GET_VERIFIED_URL,
   OWNER_PORTAL_URL,
   TRUST_HALAL_URL,
 } from "@/lib/branding";
@@ -366,7 +367,7 @@ function SiteFooter() {
             Become a verifier →
           </Link>
           <a
-            href={OWNER_PORTAL_URL}
+            href={OWNER_GET_VERIFIED_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline"

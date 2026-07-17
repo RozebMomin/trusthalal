@@ -107,7 +107,7 @@ export default function Profile() {
         />
         <Cell
           last={!SHOW_DEV_TOOLS}
-          onPress={() => Linking.openURL("https://owner.trusthalal.org")}
+          onPress={() => Linking.openURL("https://owner.trusthalal.org/get-verified")}
           left={<><IcBox icon="home" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Own a restaurant?</Text></>}
           right={rightText("web ↗")}
         />

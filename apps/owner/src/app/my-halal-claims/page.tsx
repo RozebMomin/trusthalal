@@ -152,7 +152,7 @@ function EmptyState({ hasOwnedPlaces }: { hasOwnedPlaces: boolean }) {
       </p>
       <div>
         <Link
-          href="/claim"
+          href="/get-verified/claim"
           className="text-sm font-medium underline-offset-4 hover:underline"
         >
           Start a place ownership claim →

@@ -135,7 +135,7 @@ export default function MyClaimsPage() {
             Trust Halal review.
           </p>
         </div>
-        <Link href="/claim" className="sm:shrink-0">
+        <Link href="/get-verified/claim" className="sm:shrink-0">
           <Button className="w-full sm:w-auto">Claim a place</Button>
         </Link>
       </header>
@@ -332,7 +332,7 @@ function RejectedSection({ note }: { note: string }) {
       <p className="mt-2 text-xs text-muted-foreground">
         Address the issue above and{" "}
         <Link
-          href="/claim"
+          href="/get-verified/claim"
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
           submit a new claim
@@ -489,7 +489,7 @@ function EmptyState() {
         reviews each submission and ties verified owners to their listings.
       </p>
       <div className="mt-4">
-        <Link href="/claim">
+        <Link href="/get-verified/claim">
           <Button>Claim a place</Button>
         </Link>
       </div>
