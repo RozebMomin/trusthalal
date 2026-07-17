@@ -379,7 +379,11 @@ export default function Explore() {
           keyExtractor={(item) => item.place.id}
           contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 110 }}
           renderItem={({ item }) => (
-            <PlaceCard place={item.place} distanceMeters={item.distanceMeters} />
+            <PlaceCard
+              place={item.place}
+              distanceMeters={item.distanceMeters}
+              showUnknownHours={!!filters.open_now}
+            />
           )}
         />
       )}

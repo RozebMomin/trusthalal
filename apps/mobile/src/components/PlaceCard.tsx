@@ -20,15 +20,27 @@ const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase().replaceA
 export function PlaceCard({
   place,
   distanceMeters,
+  showUnknownHours = false,
 }: {
   place: PlaceSearchResult;
   distanceMeters?: number;
+  /** When true, places with unknown hours show a "No hours" badge
+   *  instead of nothing. Set on the Explore list while the "Open now"
+   *  filter is active so a diner can tell a confirmed-open place apart
+   *  from one we simply don't have hours for. */
+  showUnknownHours?: boolean;
 }) {
   const t = useTheme();
   const signal = primaryHalalSignal(place.halal_profile);
   const dist = miles(distanceMeters);
   const openState =
-    place.open_now === true ? "open" : place.open_now === false ? "closed" : null;
+    place.open_now === true
+      ? "open"
+      : place.open_now === false
+        ? "closed"
+        : showUnknownHours
+          ? "unknown"
+          : null;
   const meta = [...place.cuisine_types.slice(0, 2).map(titleCase), place.city]
     .filter(Boolean)
     .join(" · ");
@@ -53,6 +65,8 @@ export function PlaceCard({
                 <Text style={{ color: "#16A34A", fontFamily: "Inter_700Bold" }}>Open</Text>
               ) : openState === "closed" ? (
                 <Text style={{ color: t.sub }}>Closed</Text>
+              ) : openState === "unknown" ? (
+                <Text style={{ color: t.sub }}>No hours</Text>
               ) : null}
               {openState ? " · " : null}
               {place.google_rating != null ? (
@@ -120,7 +134,11 @@ export function PlaceCard({
               }}
             >
               <Text style={{ fontFamily: "Inter_700Bold", fontSize: 9.5, color: "#fff" }}>
-                {openState === "open" ? "Open now" : "Closed"}
+                {openState === "open"
+                  ? "Open now"
+                  : openState === "closed"
+                    ? "Closed"
+                    : "No hours available"}
               </Text>
             </View>
           ) : null}

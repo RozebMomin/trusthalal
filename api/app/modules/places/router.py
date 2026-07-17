@@ -894,10 +894,12 @@ def search_places(
     open_now: bool = Query(
         default=False,
         description=(
-            "When true, only return places open right now (computed from "
-            "stored Google hours + place timezone). Places with no hours on "
-            "file are excluded. Applied after the DB query over a capped scan "
-            "of matches, so pagination is honored within that cap."
+            "When true, exclude places we can confirm are CLOSED right now "
+            "(computed from stored Google hours + place timezone). Places with "
+            "unknown hours are kept (open_now=null) so a young catalog still "
+            "surfaces them — the client badges them 'No hours available'. "
+            "Applied after the DB query over a capped scan of matches, so "
+            "pagination is honored within that cap."
         ),
     ),
     # Multi-value: ?cuisine=PAKISTANI&cuisine=INDIAN. Result is the
@@ -1069,10 +1071,11 @@ def search_places(
     ]
 
     if open_now:
-        # Keep only places we can confirm are open right now (excludes
-        # unknown-hours places), then apply the caller's page window over
-        # the filtered set.
-        results = [r for r in results if r.open_now is True]
+        # Drop only places we can confirm are CLOSED right now. Confirmed-
+        # open (True) and unknown-hours (None) both stay — the latter get a
+        # "No hours available" badge client-side so a diner can tell them
+        # apart. Then apply the caller's page window over the filtered set.
+        results = [r for r in results if r.open_now is not False]
         results = results[offset : offset + limit]
 
     return results
