@@ -19,6 +19,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
+import { OrgStatusBadge } from "@/components/org-status-badge";
 import {
   type AlcoholPolicy,
   type MenuPosture,
@@ -102,6 +103,7 @@ export default function GetVerifiedHubPage() {
       <Dashboard
         firstName={firstName}
         org={primaryOrg}
+        orgs={orgList}
         places={places}
         halalClaims={halalList}
       />
@@ -274,6 +276,14 @@ export default function GetVerifiedHubPage() {
         </RoadmapStage>
       </Roadmap>
 
+      {/* Multi-entity owners: an at-a-glance list of every business on the
+          account with its live status. The roadmap above only tracks the
+          most-recent entity, so without this an owner who registers a
+          second business loses sight of the first. */}
+      {orgList.length >= 2 && (
+        <BusinessesOverview orgs={orgList} activeOrgId={primaryOrg?.id ?? null} />
+      )}
+
       {/* Once a business is verified, multi-entity owners can branch off to
           register another legal entity (a store under a different company). */}
       {orgVerified && (
@@ -287,6 +297,59 @@ export default function GetVerifiedHubPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Your-businesses overview — every org on the account + its live status.
+// ---------------------------------------------------------------------------
+
+function BusinessesOverview({
+  orgs,
+  activeOrgId,
+}: {
+  orgs: MyOrganizationRead[];
+  activeOrgId: string | null;
+}) {
+  const sorted = [...orgs].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
+  return (
+    <section className="mt-10">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold">Your businesses</h2>
+        <Link
+          href="/my-organizations"
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Manage all →
+        </Link>
+      </div>
+      <ul className="mt-3 space-y-2">
+        {sorted.map((o) => (
+          <li key={o.id}>
+            <Link
+              href={`/my-organizations/${o.id}`}
+              className="flex items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:bg-muted/40"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium">
+                  {o.name}
+                </span>
+                {o.id === activeOrgId && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Currently setting up
+                  </span>
+                )}
+              </span>
+              <OrgStatusBadge status={o.status} />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -413,11 +476,13 @@ const ALCOHOL_LABELS: Partial<Record<AlcoholPolicy, string>> = {
 function Dashboard({
   firstName,
   org,
+  orgs,
   places,
   halalClaims,
 }: {
   firstName: string;
   org: MyOrganizationRead | null;
+  orgs: MyOrganizationRead[];
   places: OwnedPlaceRead[];
   halalClaims: MyHalalClaimRead[];
 }) {
@@ -547,6 +612,10 @@ function Dashboard({
           </Link>
         </div>
       </div>
+
+      {orgs.length >= 2 && (
+        <BusinessesOverview orgs={orgs} activeOrgId={org?.id ?? null} />
+      )}
     </div>
   );
 }
