@@ -34,7 +34,10 @@ import * as React from "react";
 import { FavoriteToggle } from "@/components/favorite-toggle";
 import { FileDisputeDialog } from "@/components/file-dispute-dialog";
 import { PlaceHero } from "@/components/place-hero";
-import { PlacePhotoGallery } from "@/components/place-photo-gallery";
+import {
+  PlacePhotoGallery,
+  PlacePhotoLightbox,
+} from "@/components/place-photo-gallery";
 import {
   PlaceNoTrustSummary,
   PlaceTrustSummary,
@@ -49,6 +52,8 @@ import {
   type DisputeStatus,
   type DisputedAttribute,
   type PlaceDetail,
+  type PlacePhotoRead,
+  isConsumerAudience,
   useCurrentUser,
   useMyDisputes,
   usePlaceDetail,
@@ -115,6 +120,34 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
   );
 
   const [disputeDialogOpen, setDisputeDialogOpen] = React.useState(false);
+  const [heroExpanded, setHeroExpanded] = React.useState(false);
+
+  // Photos + start index for expanding the hero into the shared
+  // lightbox. The hero is the is_hero photo in ``photos``; if the
+  // convenience ``hero_photo_url`` is set but somehow isn't in the
+  // array, synthesize a front slide so the header stays expandable.
+  const heroLightbox = React.useMemo<{
+    photos: PlacePhotoRead[];
+    startIndex: number;
+  } | null>(() => {
+    const d = place.data;
+    if (!d || !d.hero_photo_url) return null;
+    const idx = d.photos.findIndex((p) => p.is_hero);
+    if (idx >= 0) return { photos: d.photos, startIndex: idx };
+    const synthetic: PlacePhotoRead = {
+      id: "__hero__",
+      place_id: d.id,
+      url: d.hero_photo_url,
+      source: "OWNER",
+      width_px: null,
+      height_px: null,
+      caption: null,
+      is_hero: true,
+      uploaded_by_display_name: null,
+      created_at: new Date(0).toISOString(),
+    };
+    return { photos: [synthetic, ...d.photos], startIndex: 0 };
+  }, [place.data]);
 
   const disputesForThisPlace = React.useMemo<ConsumerDisputeReporter[]>(
     () =>
@@ -178,7 +211,10 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
 
       {place.data && (
         <>
-          <PlaceHero place={place.data} />
+          <PlaceHero
+            place={place.data}
+            onExpand={heroLightbox ? () => setHeroExpanded(true) : undefined}
+          />
 
           {/* Address + quick actions row. Address sits left, the
               save-to-favorites toggle sits right so the heart is
@@ -234,6 +270,15 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
             open={disputeDialogOpen}
             onOpenChange={setDisputeDialogOpen}
           />
+
+          {heroExpanded && heroLightbox && (
+            <PlacePhotoLightbox
+              photos={heroLightbox.photos}
+              placeName={place.data.name}
+              startIndex={heroLightbox.startIndex}
+              onClose={() => setHeroExpanded(false)}
+            />
+          )}
         </>
       )}
     </div>
@@ -308,14 +353,47 @@ function PlaceAddressLine({ place }: { place: PlaceDetail }) {
 // line over the full week, expanded by default. A quiet "from Google" line
 // sets freshness. Renders nothing when the place has no hours on file.
 // ---------------------------------------------------------------------------
+// Weekday index Monday=0 .. Sunday=6 (matches Google's Monday-first
+// weekday_text) for "now" in the given IANA timezone. Falls back to the
+// browser's local day when tz is missing or unrecognized.
+function weekdayIndexInTz(tz: string | null): number {
+  const now = new Date();
+  if (tz) {
+    try {
+      const wd = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        weekday: "short",
+      }).format(now);
+      const map: Record<string, number> = {
+        Mon: 0,
+        Tue: 1,
+        Wed: 2,
+        Thu: 3,
+        Fri: 4,
+        Sat: 5,
+        Sun: 6,
+      };
+      if (wd in map) return map[wd];
+    } catch {
+      // Unknown tz string — fall through to browser-local.
+    }
+  }
+  return (now.getDay() + 6) % 7;
+}
+
 function PlaceHoursCard({ place }: { place: PlaceDetail }) {
   const week = place.opening_hours_weekday_text ?? null;
   const hasHours = Boolean(week && week.length > 0);
   const [open, setOpen] = React.useState(true);
   if (!hasHours || !week) return null;
 
-  // Google's weekdayDescriptions are Monday-first; JS getDay() is Sunday=0.
-  const todayIdx = (new Date().getDay() + 6) % 7;
+  // Google's weekdayDescriptions are Monday-first. Compute "today" in
+  // the PLACE's timezone, not the visitor's browser — otherwise a diner
+  // in a different timezone (or near midnight) sees the wrong day
+  // highlighted. Falls back to browser-local when tz is unknown. The
+  // open/closed status itself is already computed server-side against
+  // the place timezone, so this only aligns the weekly-list highlight.
+  const todayIdx = weekdayIndexInTz(place.timezone);
   const splitLine = (line: string): [string, string] => {
     const m = line.match(/^(.*?):\s(.+)$/);
     return m ? [m[1], m[2]] : [line, ""];
@@ -413,7 +491,10 @@ function DisputeSection({
   onOpenDialog: () => void;
 }) {
   const isAnonymous = me === null;
-  const isConsumer = me?.role === "CONSUMER";
+  // Verifiers file disputes on the diner surface like any consumer
+  // (the API gates on auth, not the CONSUMER role). Only OWNER / ADMIN
+  // get the quiet "wrong audience" note.
+  const isConsumer = isConsumerAudience(me?.role);
 
   // Staff / owner accounts get a quiet section — they shouldn't be
   // filing consumer disputes from the public site.

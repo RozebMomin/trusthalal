@@ -35,6 +35,7 @@ import * as React from "react";
 
 import {
   type PlaceSearchResult,
+  isConsumerAudience,
   useAddFavorite,
   useCurrentUser,
   useIsFavorited,
@@ -64,7 +65,9 @@ export function FavoriteToggle({
   const pathname = usePathname();
   const { data: me } = useCurrentUser();
   const isAuthenticated = Boolean(me);
-  const isConsumer = me?.role === "CONSUMER";
+  // Verifiers are consumers-plus on the diner surface — they save
+  // places like anyone else. Only OWNER / ADMIN get the disabled state.
+  const isConsumer = isConsumerAudience(me?.role);
 
   const isFavorited = useIsFavorited(place.id, {
     enabled: isAuthenticated && isConsumer,

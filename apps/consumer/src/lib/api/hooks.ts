@@ -385,7 +385,27 @@ export type SearchPlacesParams = {
   /** Multi-value cuisine filter. Server returns places matching ANY
    *  of the cuisines (overlap). Empty / missing = no cuisine filter. */
   cuisines?: Cuisine[];
+  /**
+   * UI-only flag (never sent to the API — see useSearchPlaces): the
+   * user has taken manual control of the filters on the search page,
+   * so saved preferences must NOT auto-fill the empty axes. Without
+   * this, clearing a preference-derived filter would just get
+   * re-applied from the saved prefs on the next render.
+   */
+  pref_override?: boolean;
 };
+
+/**
+ * Consumer-facing surfaces (favorites, disputes, search preferences,
+ * saved places) treat VERIFIERS as consumers-plus: a verifier browses,
+ * saves, and reports on the diner surface exactly like a consumer.
+ * Only OWNER / ADMIN are the "wrong audience" on these surfaces.
+ */
+export function isConsumerAudience(
+  role: string | null | undefined,
+): boolean {
+  return role === "CONSUMER" || role === "VERIFIER";
+}
 
 // ---------------------------------------------------------------------------
 // Query keys

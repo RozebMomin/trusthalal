@@ -175,6 +175,12 @@ function HomePageInner() {
   // ignore my usual filters") while a fresh visit auto-applies the
   // user's saved posture.
   const effectiveFilters = React.useMemo<SearchPlacesParams>(() => {
+    // Once the user has taken manual control of the filters (cleared
+    // one, removed a chip, or edited them in the sheet), the URL is
+    // authoritative and saved preferences must NOT re-fill the empty
+    // axes — otherwise clearing a pref-derived filter would instantly
+    // reappear on the next render.
+    if (filtersFromUrl.pref_override) return filtersFromUrl;
     const prefs = prefsQuery.data;
     return {
       ...filtersFromUrl,
@@ -199,6 +205,9 @@ function HomePageInner() {
   }, [filtersFromUrl, prefsQuery.data]);
 
   const isUsingSavedPrefs = React.useMemo(() => {
+    // Manual filter control disables the auto-apply, so the "applying
+    // your saved preferences" banner shouldn't show either.
+    if (filtersFromUrl.pref_override) return false;
     const prefs = prefsQuery.data;
     if (!prefs) return false;
     return (
@@ -245,7 +254,16 @@ function HomePageInner() {
   }, [debouncedQuery, filtersFromUrl.q]);
 
   function setFilters(next: SearchPlacesParams) {
-    router.replace(`/?${stringifySearchParams(next)}`, { scroll: false });
+    // Every filter interaction (sheet apply, cuisine rail, active-filter
+    // chip removal, "clear all") routes through here. Stamp the
+    // pref_override flag so the written URL becomes authoritative and
+    // saved preferences stop auto-filling — this is what lets a
+    // signed-in user actually clear or broaden a preference-derived
+    // filter instead of watching it snap back.
+    router.replace(
+      `/?${stringifySearchParams({ ...next, pref_override: true })}`,
+      { scroll: false },
+    );
   }
 
   // Near-me coords from the URL, packed into the shape the
@@ -786,6 +804,9 @@ function parseSearchParams(p: URLSearchParams | null): SearchPlacesParams {
   if (p.get("no_pork") === "true") out.no_pork = true;
   if (p.get("no_alcohol_served") === "true") out.no_alcohol_served = true;
   if (p.get("has_certification") === "true") out.has_certification = true;
+  // "prefs overridden" flag — the user has manually edited filters, so
+  // saved preferences must not auto-fill the empty axes.
+  if (p.get("px") === "1") out.pref_override = true;
   // Multi-value cuisine filter — repeated keys (?cuisine=A&cuisine=B).
   // Drop unknown values rather than 422ing the user's first request.
   const rawCuisines = p.getAll("cuisine");
@@ -821,6 +842,7 @@ function stringifySearchParams(params: SearchPlacesParams): string {
     u.set("no_alcohol_served", "true");
   if (params.has_certification === true)
     u.set("has_certification", "true");
+  if (params.pref_override) u.set("px", "1");
   // Cuisines as repeated keys (?cuisine=A&cuisine=B). Empty / missing
   // drops the param entirely so an empty filter doesn't bloat the URL.
   if (params.cuisines && params.cuisines.length > 0) {

@@ -23,7 +23,7 @@
  * stacked above so the visitor sees the status before reading the
  * profile.
  */
-import { Star, Utensils } from "lucide-react";
+import { Maximize2, Star, Utensils } from "lucide-react";
 import * as React from "react";
 
 import type { Cuisine, PlaceDetail } from "@/lib/api/hooks";
@@ -92,7 +92,15 @@ const HERO_CUISINE_LABELS: Readonly<Record<Cuisine, string>> = {
 
 const MAX_CUISINE_CHIPS = 3;
 
-export function PlaceHero({ place }: { place: PlaceDetail }) {
+export function PlaceHero({
+  place,
+  onExpand,
+}: {
+  place: PlaceDetail;
+  /** When provided (and a photo exists), the hero photo becomes
+   *  tap-to-expand into the full-screen lightbox. */
+  onExpand?: () => void;
+}) {
   const { primary } = halalDisplayFor({
     id: place.id,
     name: place.name,
@@ -110,6 +118,10 @@ export function PlaceHero({ place }: { place: PlaceDetail }) {
   const visibleCuisines = place.cuisine_types.slice(0, MAX_CUISINE_CHIPS);
   const cuisineOverflow = place.cuisine_types.length - visibleCuisines.length;
 
+  // The hero is tap-to-expand only when there's a real photo and the
+  // parent wired up a handler.
+  const expandable = Boolean(onExpand && place.hero_photo_url);
+
   return (
     <section
       className={cn(
@@ -117,7 +129,34 @@ export function PlaceHero({ place }: { place: PlaceDetail }) {
       )}
       aria-label={`${place.name} hero`}
     >
-      <HeroPhoto src={place.hero_photo_url} alt={place.name} />
+      {expandable ? (
+        <button
+          type="button"
+          onClick={onExpand}
+          aria-label={`Expand photo of ${place.name}`}
+          className="group block w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
+        >
+          <HeroPhoto src={place.hero_photo_url} alt={place.name} />
+        </button>
+      ) : (
+        <HeroPhoto src={place.hero_photo_url} alt={place.name} />
+      )}
+
+      {/* Expand affordance — a quiet maximize badge, bottom-right. It's
+          pointer-events-none so the tap lands on the photo button
+          beneath it rather than being swallowed here. */}
+      {expandable && (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute bottom-4 right-4 sm:bottom-5 sm:right-5",
+            "inline-flex h-8 w-8 items-center justify-center rounded-full",
+            "bg-black/45 text-white ring-1 ring-inset ring-white/25 backdrop-blur-sm",
+          )}
+        >
+          <Maximize2 className="h-4 w-4" aria-hidden />
+        </span>
+      )}
 
       {/* Bottom-up gradient for name legibility on bright photos. The
           gradient is rendered on top of the photo and below the
@@ -146,7 +185,10 @@ export function PlaceHero({ place }: { place: PlaceDetail }) {
 
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0",
+          // pointer-events-none so a tap on the name/cuisine area still
+          // reaches the expand button beneath (the text isn't
+          // interactive anyway).
+          "pointer-events-none absolute inset-x-0 bottom-0",
           "flex flex-col gap-2 p-4 text-white sm:p-6",
         )}
       >
