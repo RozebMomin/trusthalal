@@ -100,6 +100,9 @@ export type PlacePhoto = {
 export type PlaceDetail = PlaceSearchResult & {
   is_deleted: boolean;
   phone: string | null;
+  /** IANA timezone (from Google) — used to compute "today" in the
+   *  place's own timezone for the weekly hours highlight. */
+  timezone?: string | null;
   photos: PlacePhoto[];
   /** Listing website (from Google ingest). */
   website_url?: string | null;
@@ -120,6 +123,9 @@ export type SearchPlacesParams = {
   no_pork?: boolean;
   no_alcohol_served?: boolean;
   cuisines?: string[];
+  /** Keep only places we can confirm are open right now (server-computed
+   *  against each place's stored hours + timezone). */
+  open_now?: boolean;
 };
 
 export type FavoriteRead = { saved_at: string; place: PlaceSearchResult };

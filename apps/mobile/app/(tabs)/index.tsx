@@ -235,6 +235,13 @@ export default function Explore() {
             onPress={() => setLocOpen(true)}
           />
           <Chip
+            active={!!filters.open_now}
+            label="Open now"
+            onPress={() =>
+              setFilters((f) => ({ ...f, open_now: f.open_now ? undefined : true }))
+            }
+          />
+          <Chip
             active={filters.min_validation_tier === "TRUST_HALAL_VERIFIED"}
             label="✓ Verified"
             onPress={() =>

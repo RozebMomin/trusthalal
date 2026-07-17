@@ -121,6 +121,7 @@ function searchParamsToQuery(p: SearchPlacesParams): string {
   if (p.has_certification) u.set("has_certification", "true");
   if (p.no_pork) u.set("no_pork", "true");
   if (p.no_alcohol_served) u.set("no_alcohol_served", "true");
+  if (p.open_now) u.set("open_now", "true");
   for (const c of p.cuisines ?? []) u.append("cuisine", c);
   return u.toString();
 }

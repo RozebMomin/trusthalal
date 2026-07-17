@@ -19,11 +19,16 @@ const POSTURES = [
 
 export type Filters = Pick<
   SearchPlacesParams,
-  "min_validation_tier" | "min_menu_posture" | "no_pork" | "no_alcohol_served" | "has_certification"
+  | "min_validation_tier"
+  | "min_menu_posture"
+  | "no_pork"
+  | "no_alcohol_served"
+  | "has_certification"
+  | "open_now"
 >;
 
 export function countFilters(f: Filters) {
-  return [f.min_validation_tier, f.min_menu_posture, f.no_pork, f.no_alcohol_served, f.has_certification].filter(Boolean).length;
+  return [f.min_validation_tier, f.min_menu_posture, f.no_pork, f.no_alcohol_served, f.has_certification, f.open_now].filter(Boolean).length;
 }
 
 export function FiltersSheet({
@@ -49,7 +54,46 @@ export function FiltersSheet({
           </Pressable>
         </View>
         <ScrollView style={{ maxHeight: 520 }}>
-          <Text style={[ty.seg, { color: t.sub, marginBottom: 8 }]}>Minimum proof</Text>
+          <Text style={[ty.seg, { color: t.sub, marginBottom: 8 }]}>Availability</Text>
+          <Pressable
+            onPress={() => onChange({ ...filters, open_now: filters.open_now ? undefined : true })}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: filters.open_now ? "rgba(22,163,74,0.12)" : "transparent",
+              borderWidth: 1,
+              borderColor: filters.open_now ? "#16A34A" : t.line,
+              borderRadius: radii.md,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+            }}
+          >
+            <View>
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: t.ink }}>Open now</Text>
+              <Text style={[ty.small, { color: t.sub, marginTop: 2 }]}>
+                Only show places confirmed open right now.
+              </Text>
+            </View>
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: filters.open_now ? "#16A34A" : "transparent",
+                borderWidth: filters.open_now ? 0 : 1.5,
+                borderColor: t.line,
+              }}
+            >
+              {filters.open_now ? (
+                <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>✓</Text>
+              ) : null}
+            </View>
+          </Pressable>
+
+          <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 8 }]}>Minimum proof</Text>
           <View style={{ flexDirection: "row", backgroundColor: t.zincSoft, borderRadius: radii.md, padding: 3 }}>
             {TIERS.map((o) => {
               const on = filters.min_validation_tier === o.v;

@@ -344,6 +344,34 @@ function Glass({
 /** Google-sourced opening hours as a calm card: a status line (Open/Closed +
  *  today's times) over the full week, expanded by default. A quiet "from
  *  Google" line sets freshness. Renders nothing when a place has no hours. */
+// Weekday index Monday=0 .. Sunday=6 (matches Google's Monday-first
+// weekday_text) for "now" in the given IANA timezone. Falls back to the
+// device's local day when tz is missing or unrecognized.
+function weekdayIndexInTz(tz: string | null): number {
+  const now = new Date();
+  if (tz) {
+    try {
+      const wd = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        weekday: "short",
+      }).format(now);
+      const map: Record<string, number> = {
+        Mon: 0,
+        Tue: 1,
+        Wed: 2,
+        Thu: 3,
+        Fri: 4,
+        Sat: 5,
+        Sun: 6,
+      };
+      if (wd in map) return map[wd];
+    } catch {
+      // Unknown tz — fall through to device-local.
+    }
+  }
+  return (now.getDay() + 6) % 7;
+}
+
 function HoursCard({ place }: { place: PlaceDetailType }) {
   const t = useTheme();
   const [open, setOpen] = useState(true);
@@ -352,8 +380,11 @@ function HoursCard({ place }: { place: PlaceDetailType }) {
   const hasHours = !!week && week.length > 0;
   if (!hasHours) return null;
 
-  // Google's weekdayDescriptions are Monday-first; JS getDay() is Sunday=0.
-  const todayIdx = (new Date().getDay() + 6) % 7;
+  // Google's weekdayDescriptions are Monday-first. Compute "today" in
+  // the PLACE's timezone (not the device's) so a diner browsing a place
+  // in another timezone — or near midnight — sees the right day. The
+  // open/closed status is already server-computed against the place tz.
+  const todayIdx = weekdayIndexInTz(place.timezone ?? null);
   const splitLine = (line: string): [string, string] => {
     const m = line.match(/^(.*?):\s(.+)$/);
     return m ? [m[1], m[2]] : [line, ""];

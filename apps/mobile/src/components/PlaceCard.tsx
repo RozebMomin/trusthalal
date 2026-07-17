@@ -27,6 +27,8 @@ export function PlaceCard({
   const t = useTheme();
   const signal = primaryHalalSignal(place.halal_profile);
   const dist = miles(distanceMeters);
+  const openState =
+    place.open_now === true ? "open" : place.open_now === false ? "closed" : null;
   const meta = [...place.cuisine_types.slice(0, 2).map(titleCase), place.city]
     .filter(Boolean)
     .join(" · ");
@@ -47,6 +49,12 @@ export function PlaceCard({
               {place.name}
             </Text>
             <Text style={[ty.small, { color: t.sub, marginTop: 3 }]} numberOfLines={1}>
+              {openState === "open" ? (
+                <Text style={{ color: "#16A34A", fontFamily: "Inter_700Bold" }}>Open</Text>
+              ) : openState === "closed" ? (
+                <Text style={{ color: t.sub }}>Closed</Text>
+              ) : null}
+              {openState ? " · " : null}
               {place.google_rating != null ? (
                 <Text style={{ color: "#F59E0B", fontFamily: "Inter_700Bold" }}>
                   {`★ ${place.google_rating.toFixed(1)}`}
@@ -99,6 +107,23 @@ export function PlaceCard({
           </View>
         ) : null}
         <View style={{ padding: space.md }}>
+          {openState ? (
+            <View
+              style={{
+                alignSelf: "flex-start",
+                backgroundColor:
+                  openState === "open" ? "rgba(22,163,74,0.95)" : "rgba(0,0,0,0.55)",
+                borderRadius: 6,
+                paddingHorizontal: 7,
+                paddingVertical: 2.5,
+                marginBottom: 5,
+              }}
+            >
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 9.5, color: "#fff" }}>
+                {openState === "open" ? "Open now" : "Closed"}
+              </Text>
+            </View>
+          ) : null}
           <Text numberOfLines={1} style={[ty.label, { color: "#fff", fontSize: 16 }]}>
             {place.name}
           </Text>
