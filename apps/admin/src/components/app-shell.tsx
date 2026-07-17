@@ -197,6 +197,27 @@ function AuthedShell({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // Single-scroll guarantee on desktop. The shell already pins the
+  // layout to the viewport (h-[100dvh] + overflow-hidden) so <main> is
+  // the only scroll region — but a 1px rounding gap between 100dvh and
+  // the html's 100% height can still let the document scroll a hair,
+  // showing a phantom second scrollbar next to main's. Lock the
+  // document itself on md+ so that can't happen; mobile keeps its
+  // natural body scroll. Cleaned up on unmount (e.g. sign-out → /login)
+  // so public pages scroll normally again.
+  React.useEffect(() => {
+    const root = document.documentElement;
+    function apply() {
+      root.style.overflow = window.innerWidth >= 768 ? "hidden" : "";
+    }
+    apply();
+    window.addEventListener("resize", apply);
+    return () => {
+      window.removeEventListener("resize", apply);
+      root.style.overflow = "";
+    };
+  }, []);
+
   return (
     /*
       `min-h-[100dvh]` instead of `min-h-screen` (= 100vh): on mobile
