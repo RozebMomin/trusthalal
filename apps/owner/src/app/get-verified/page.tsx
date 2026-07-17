@@ -72,14 +72,26 @@ export default function GetVerifiedHubPage() {
   const places = ownedPlaces.data ?? [];
   const halalList = halalClaims.data ?? [];
 
-  // Primary org = most recently created.
+  // Primary org — the business the hub speaks for in its headline,
+  // dashboard badge, and "claim another under…" nudge. A verified org
+  // must win over a newer rejected/draft one: an owner who registers a
+  // second business that then gets rejected should still see their
+  // *verified* business as primary, not the rejected latecomer. So rank
+  // by status (VERIFIED → in-progress → REJECTED) and only tie-break by
+  // recency within a rank.
+  const orgRank = (o: MyOrganizationRead): number => {
+    if (o.status === "VERIFIED") return 0;
+    if (o.status === "UNDER_REVIEW" || o.status === "DRAFT") return 1;
+    return 2; // REJECTED
+  };
   const primaryOrg =
-    [...orgList].sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    )[0] ?? null;
+    [...orgList].sort((a, b) => {
+      const byRank = orgRank(a) - orgRank(b);
+      if (byRank !== 0) return byRank;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    })[0] ?? null;
 
-  const orgVerified = primaryOrg?.status === "VERIFIED";
+  const orgVerified = orgList.some((o) => o.status === "VERIFIED");
   const orgEligible = orgList.some((o) =>
     ORG_ELIGIBLE_FOR_CLAIM.includes(o.status),
   );
@@ -713,9 +725,9 @@ function Dashboard({
         <ClaimsOverview claims={openClaims} title="Claims in progress" />
       )}
 
-      {orgs.length >= 2 && (
-        <BusinessesOverview orgs={orgs} activeOrgId={org?.id ?? null} />
-      )}
+      {/* All set — nothing is mid-setup, so no "currently setting up"
+          marker. Just the roster of businesses with their statuses. */}
+      {orgs.length >= 2 && <BusinessesOverview orgs={orgs} activeOrgId={null} />}
     </div>
   );
 }

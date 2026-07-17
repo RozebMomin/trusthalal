@@ -179,10 +179,10 @@ function PortalHeader() {
         {me && (
           <nav className="hidden items-center gap-1 md:flex">
             <NavLink
-              href="/my-halal-claims"
-              active={pathname.startsWith("/my-halal-claims")}
+              href="/my-organizations"
+              active={pathname.startsWith("/my-organizations")}
             >
-              Halal claims
+              Organizations
             </NavLink>
             <NavLink
               href="/my-places"
@@ -191,10 +191,10 @@ function PortalHeader() {
               Places
             </NavLink>
             <NavLink
-              href="/my-organizations"
-              active={pathname.startsWith("/my-organizations")}
+              href="/my-halal-claims"
+              active={pathname.startsWith("/my-halal-claims")}
             >
-              Organizations
+              Halal Claims
             </NavLink>
           </nav>
         )}
@@ -274,27 +274,25 @@ function BottomTabBar() {
     matches: (p: string) => boolean;
   }> = [
     {
-      href: "/my-halal-claims",
-      label: "Claims",
-      icon: ShieldCheck,
-      matches: (p) => p.startsWith("/my-halal-claims"),
+      href: "/my-organizations",
+      label: "Orgs",
+      icon: Building2,
+      matches: (p) => p.startsWith("/my-organizations"),
     },
     {
       href: "/my-places",
       label: "Places",
       icon: Store,
-      // /my-places is the new owned-place management hub. The home
-      // page (/) plus the legacy /my-claims (ownership-request
-      // lifecycle) both still match this tab so the highlight tracks
-      // when the owner navigates to either of those surfaces.
-      matches: (p) =>
-        p === "/" || p.startsWith("/my-places") || p.startsWith("/my-claims"),
+      // /my-places is the new owned-place management hub. The legacy
+      // /my-claims (ownership-request lifecycle) still matches this tab
+      // so the highlight tracks when the owner navigates there too.
+      matches: (p) => p.startsWith("/my-places") || p.startsWith("/my-claims"),
     },
     {
-      href: "/my-organizations",
-      label: "Orgs",
-      icon: Building2,
-      matches: (p) => p.startsWith("/my-organizations"),
+      href: "/my-halal-claims",
+      label: "Claims",
+      icon: ShieldCheck,
+      matches: (p) => p.startsWith("/my-halal-claims"),
     },
   ];
 
