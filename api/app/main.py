@@ -49,6 +49,7 @@ from app.modules.ownership_requests.router import router as ownership_requests_r
 # the profile-derivation service.
 from app.modules.halal_claims.router import router as halal_claims_router  # noqa: E402
 from app.modules.notifications.router import router as notifications_router  # noqa: E402
+from app.modules.notifications.router import me_router as me_notifications_router  # noqa: E402
 
 # Halal v2 — Phase 7: consumer dispute system. The consumer-facing
 # surface ships two routers (one rooted at /places, one at /me) so
@@ -451,6 +452,7 @@ app.include_router(place_disputes_router)
 app.include_router(me_disputes_router)
 app.include_router(consumer_preferences_router)
 app.include_router(notifications_router)
+app.include_router(me_notifications_router)
 app.include_router(favorites_router)
 app.include_router(public_verifier_applications_router)
 app.include_router(public_verifier_profile_router)

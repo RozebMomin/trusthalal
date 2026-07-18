@@ -124,6 +124,13 @@ def notify_dispute_resolved(
             "place_url": place_url,
             "upheld": upheld,
         },
+        push_title="Your report was reviewed",
+        push_body=(
+            f"Trust Halal upheld your report about {place_name}."
+            if upheld
+            else f"Trust Halal reviewed your report about {place_name}."
+        ),
+        push_data={"path": f"/places/{place_id}"},
     )
 
 
@@ -164,6 +171,9 @@ def notify_place_verified_savers(
                 "place_name": place_name,
                 "place_url": place_url,
             },
+            push_title="Now Trust Halal Verified",
+            push_body=f"{place_name} — a place you saved — was verified in person.",
+            push_data={"path": f"/places/{place_id}"},
         ):
             sent += 1
     return sent
@@ -219,6 +229,19 @@ def notify_verifier_application_decided(
             "decision_note": decision_note or "",
             "site_url": site_url,
         },
+        push_title=(
+            "You're a Trust Halal verifier"
+            if approved
+            else "Verifier application update"
+        ),
+        push_body=(
+            "You're approved — file your first verification visit."
+            if approved
+            else "We couldn't approve your verifier application this time."
+        ),
+        # Approved verifiers land on the Verify tab; everyone else on Profile,
+        # where the application status lives.
+        push_data={"path": "/verify" if approved else "/profile"},
     )
 
 
@@ -260,6 +283,15 @@ def notify_verifier_status_changed(
             "note": note or "",
             "site_url": settings.CONSUMER_ORIGIN.rstrip("/"),
         },
+        push_title=subject,
+        push_body=(
+            "Your verifier access was removed."
+            if revoked
+            else "Your verifier access is paused."
+            if suspended
+            else "You can file verification visits again."
+        ),
+        push_data={"path": "/verify"},
     )
 
 
@@ -271,8 +303,14 @@ def notify_verifier_visit_decided(
     place_id: UUID,
     accepted: bool,
     decision_note: str | None,
+    visit_id: UUID | None = None,
 ) -> None:
-    """Tell the verifier whether their submitted visit was accepted."""
+    """Tell the verifier whether their submitted visit was accepted.
+
+    ``visit_id`` is optional only for backwards compatibility — pass it so the
+    push can deep-link straight to the visit detail screen instead of dumping
+    the verifier on the tab.
+    """
     verifier = db.execute(
         select(User).where(User.id == verifier_user_id)
     ).scalar_one_or_none()
@@ -303,6 +341,17 @@ def notify_verifier_visit_decided(
             "place_name": place_name,
             "place_url": place_url,
             "decision_note": decision_note or "",
+        },
+        push_title=(
+            "Visit accepted" if accepted else "Update on your visit"
+        ),
+        push_body=(
+            f"Your verification of {place_name} is live — thank you."
+            if accepted
+            else f"Your visit to {place_name} wasn't accepted. Tap for details."
+        ),
+        push_data={
+            "path": f"/visit/{visit_id}" if visit_id is not None else "/verify"
         },
     )
 

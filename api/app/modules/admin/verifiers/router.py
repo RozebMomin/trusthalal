@@ -297,6 +297,7 @@ def admin_decide_verification_visit(
         place_id=visit.place_id,
         accepted=accepted,
         decision_note=payload.decision_note,
+        visit_id=visit.id,
     )
     if accepted and not was_verified:
         notify_place_verified_savers(background, db, place_id=visit.place_id)

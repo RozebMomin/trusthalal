@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import { capture, identify, resetAnalytics } from "@/lib/analytics";
 import { tokenStore } from "@/lib/auth/token-store";
+import { unregisterPush } from "@/lib/push";
 import type {
   FavoriteRead,
   HalalHistoryEvent,
@@ -91,6 +92,10 @@ export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
+      // Drop the push registration BEFORE clearing tokens — the DELETE needs
+      // the access token, and the next person on this phone shouldn't inherit
+      // the previous account's notifications.
+      await unregisterPush();
       const { refresh } = await tokenStore.get();
       if (refresh) {
         await apiFetch("/auth/mobile/logout", {

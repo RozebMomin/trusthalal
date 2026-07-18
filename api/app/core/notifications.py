@@ -29,13 +29,18 @@ from urllib.parse import urlencode
 from uuid import UUID
 
 from fastapi import BackgroundTasks
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.analytics import track
 from app.core.config import settings
 from app.core.email import EmailError, send_email
-from app.modules.notifications.models import NotificationUnsubscribe
+from app.core.push import deliver as deliver_push
+from app.core.push import tokens_for_user
+from app.modules.notifications.models import (
+    NotificationChannel,
+    NotificationUnsubscribe,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,21 +119,56 @@ def build_unsubscribe_url(user_id: UUID, category: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def is_unsubscribed(db: Session, *, user_id: UUID, category: str) -> bool:
+def is_unsubscribed(
+    db: Session,
+    *,
+    user_id: UUID,
+    category: str,
+    channel: str = NotificationChannel.EMAIL,
+) -> bool:
     row = db.execute(
         select(NotificationUnsubscribe.user_id).where(
             NotificationUnsubscribe.user_id == user_id,
             NotificationUnsubscribe.category == category,
+            NotificationUnsubscribe.channel == channel,
         )
     ).first()
     return row is not None
 
 
-def unsubscribe(db: Session, *, user_id: UUID, category: str) -> None:
-    """Idempotently opt a user out of a category (no-op if already out)."""
-    if is_unsubscribed(db, user_id=user_id, category=category):
+def unsubscribe(
+    db: Session,
+    *,
+    user_id: UUID,
+    category: str,
+    channel: str = NotificationChannel.EMAIL,
+) -> None:
+    """Idempotently opt a user out of a category on one channel."""
+    if is_unsubscribed(db, user_id=user_id, category=category, channel=channel):
         return
-    db.add(NotificationUnsubscribe(user_id=user_id, category=category))
+    db.add(
+        NotificationUnsubscribe(
+            user_id=user_id, category=category, channel=channel
+        )
+    )
+    db.commit()
+
+
+def resubscribe(
+    db: Session,
+    *,
+    user_id: UUID,
+    category: str,
+    channel: str = NotificationChannel.EMAIL,
+) -> None:
+    """Idempotently opt a user back IN to a category on one channel."""
+    db.execute(
+        delete(NotificationUnsubscribe).where(
+            NotificationUnsubscribe.user_id == user_id,
+            NotificationUnsubscribe.category == category,
+            NotificationUnsubscribe.channel == channel,
+        )
+    )
     db.commit()
 
 
@@ -156,33 +196,84 @@ def notify(
     subject: str,
     template: str,
     context: dict,
+    push_title: str | None = None,
+    push_body: str | None = None,
+    push_data: dict | None = None,
 ) -> bool:
-    """Dispatch one notification email. Returns True if it was scheduled,
-    False if suppressed by an opt-out.
+    """Dispatch one notification across every channel the user allows.
 
-    The email send runs in ``background`` so the caller's request/txn isn't
-    blocked. Caller provides the template-specific ``context`` (e.g.
-    ``place_name``, ``portal_url``, ``preheader``); this function fills in
-    ``display_name`` and ``unsubscribe_url``.
+    Returns True if anything was scheduled, False if fully suppressed.
+
+    Channels:
+      * **Email** — always, unless the category is opt-outable AND the user
+        opted out of it on the EMAIL channel.
+      * **Push** — only when the caller supplies ``push_title``/``push_body``
+        (i.e. the event is meaningful on a phone), the user has a registered
+        device, and they haven't opted out on the PUSH channel.
+
+    Note the asymmetry: ``MANDATORY_CATEGORIES`` forces *email* through
+    (transactional receipts you can't unsubscribe from), but push is ALWAYS
+    opt-outable. A buzzing phone is far more intrusive than an inbox row, and
+    "keep emailing me but stop pushing" is the request that shows up the day
+    after push ships.
+
+    Both sends run in ``background`` so the caller's request/txn isn't blocked
+    and an outage at Resend or Expo can't fail the underlying action. Token
+    lookup happens synchronously here because the request's DB session is gone
+    by the time the background task runs.
     """
     category = str(category)
     mandatory = category in MANDATORY_CATEGORIES
+    scheduled = False
 
-    if not mandatory and is_unsubscribed(db, user_id=user_id, category=category):
-        return False
+    # --- Email -------------------------------------------------------------
+    email_suppressed = not mandatory and is_unsubscribed(
+        db, user_id=user_id, category=category, channel=NotificationChannel.EMAIL
+    )
+    if not email_suppressed:
+        ctx = dict(context)
+        ctx.setdefault("display_name", display_name or "")
+        ctx["unsubscribe_url"] = (
+            None if mandatory else build_unsubscribe_url(user_id, category)
+        )
+        background.add_task(
+            _send_safe, to=email, subject=subject, template=template, context=ctx
+        )
+        track(
+            "notification_sent",
+            distinct_id=str(user_id),
+            properties={
+                "category": category,
+                "template": template,
+                "channel": NotificationChannel.EMAIL,
+            },
+        )
+        scheduled = True
 
-    ctx = dict(context)
-    ctx.setdefault("display_name", display_name or "")
-    ctx["unsubscribe_url"] = (
-        None if mandatory else build_unsubscribe_url(user_id, category)
-    )
+    # --- Push --------------------------------------------------------------
+    if push_title and push_body:
+        push_suppressed = is_unsubscribed(
+            db, user_id=user_id, category=category, channel=NotificationChannel.PUSH
+        )
+        if not push_suppressed:
+            tokens = tokens_for_user(db, user_id)
+            if tokens:
+                background.add_task(
+                    deliver_push,
+                    tokens=tokens,
+                    title=push_title,
+                    body=push_body,
+                    data=push_data or {},
+                )
+                track(
+                    "notification_sent",
+                    distinct_id=str(user_id),
+                    properties={
+                        "category": category,
+                        "template": template,
+                        "channel": NotificationChannel.PUSH,
+                    },
+                )
+                scheduled = True
 
-    background.add_task(
-        _send_safe, to=email, subject=subject, template=template, context=ctx
-    )
-    track(
-        "notification_sent",
-        distinct_id=str(user_id),
-        properties={"category": category, "template": template},
-    )
-    return True
+    return scheduled

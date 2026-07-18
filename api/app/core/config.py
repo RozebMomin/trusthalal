@@ -224,6 +224,18 @@ class Settings(BaseSettings):
     RESEND_REPLY_TO: str | None = None
 
     # ------------------------------------------------------------------
+    # Push — Expo
+    # ------------------------------------------------------------------
+    # Mobile push goes through Expo's push service (the app ships via EAS,
+    # so Expo already holds the APNs key + FCM credentials). No key is
+    # required to send, but Expo lets you require one per project under
+    # "enhanced security" — set it here when you turn that on so a leaked
+    # device token can't be used to push to your users.
+    #
+    # Create at https://expo.dev/accounts/<account>/settings/access-tokens
+    EXPO_ACCESS_TOKEN: str | None = None
+
+    # ------------------------------------------------------------------
     # Pydantic settings config
     # ------------------------------------------------------------------
     # ``extra="ignore"`` is a deliberate defensive default: env vars

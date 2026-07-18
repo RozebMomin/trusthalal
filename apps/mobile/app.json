@@ -63,6 +63,13 @@
           "organization": "trust-halal-llc",
           "project": "trusthalal-api"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#0E9F6E"
+        }
       ]
     ],
     "experiments": {

@@ -14,6 +14,8 @@ import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
+import { useCurrentUser } from "@/lib/api/hooks";
+import { usePushNotifications } from "@/lib/push";
 import { dark, light } from "@/lib/theme";
 
 SplashScreen.preventAutoHideAsync();
@@ -34,6 +36,17 @@ if (SENTRY_DSN) {
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
 });
+
+/**
+ * Registers the device for push once someone is signed in, and routes
+ * notification taps. Lives inside QueryClientProvider because it reads the
+ * session; renders nothing.
+ */
+function PushBridge() {
+  const { data: me } = useCurrentUser();
+  usePushNotifications(Boolean(me));
+  return null;
+}
 
 function RootLayout() {
   const scheme = useColorScheme();
@@ -58,6 +71,7 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
+        <PushBridge />
         <StatusBar style={scheme === "dark" ? "light" : "dark"} />
         <Stack
           screenOptions={{
