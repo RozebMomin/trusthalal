@@ -1,0 +1,12 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if display_name %}Hi {{ display_name }},{% else %}Your business is verified{% endif %}
+
+Good news - {{ business_name }} is now a verified business on Trust Halal.
+
+You can claim the restaurants you operate under it now. Every location you
+claim rolls up to this business, so you only verify the company once.
+
+Claim your restaurant:
+  {{ portal_url }}
+{% endblock %}

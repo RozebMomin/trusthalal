@@ -1,0 +1,20 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if display_name %}Hi {{ display_name }},{% else %}About your business verification{% endif %}
+
+We weren't able to verify {{ business_name }} on Trust Halal.
+{% if decision_note %}
+Why: {{ decision_note }}
+{% endif %}
+{% if closed_claims %}
+A restaurant claim has to roll up to a verified business, so {{ closed_claims }}
+open claim(s) filed under it were closed at the same time.
+{% endif %}
+A rejected business record is locked, so the next step is to register a fresh one
+with corrected details - then re-file your restaurant claims under it.
+
+Register a new business:
+  {{ portal_url }}
+
+If you think this was a mistake, just reply to this email and we'll take another look.
+{% endblock %}

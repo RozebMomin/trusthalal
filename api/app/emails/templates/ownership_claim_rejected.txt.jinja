@@ -1,0 +1,16 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if display_name %}Hi {{ display_name }},{% else %}About your restaurant claim{% endif %}
+
+We weren't able to approve your ownership claim for {{ place_name }}.
+{% if decision_note %}
+Why: {{ decision_note }}
+{% endif %}
+If you have stronger documentation - a business license, lease, or sales-tax
+permit in the business's name - you can file a new claim with it attached.
+
+Review your claims:
+  {{ portal_url }}
+
+If you think this was a mistake, just reply to this email and we'll take another look.
+{% endblock %}

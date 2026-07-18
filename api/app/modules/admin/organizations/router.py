@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -35,6 +35,7 @@ from app.modules.admin.organizations.schemas import (
     OrganizationRejectAdmin,
     OrganizationVerifyAdmin,
 )
+from app.modules.notifications.events import notify_organization_decided
 from app.modules.organizations.enums import OrganizationStatus
 from app.modules.organizations.models import OrganizationAttachment
 from app.modules.organizations.schemas import OrganizationAttachmentRead
@@ -273,6 +274,7 @@ def deactivate_member_admin(
 def verify_org_admin(
     org_id: UUID,
     payload: OrganizationVerifyAdmin,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> OrganizationAdminRead:
@@ -286,6 +288,9 @@ def verify_org_admin(
     org = admin_verify_organization(
         db, org_id=org_id, note=payload.note, actor_user_id=user.id
     )
+    # Verification unlocks the claim step, so the owner needs to know it
+    # cleared — the get-verified flow promises exactly this email.
+    notify_organization_decided(background, db, organization=org, verified=True)
     return OrganizationAdminRead.model_validate(org)
 
 
@@ -302,6 +307,7 @@ def verify_org_admin(
 def reject_org_admin(
     org_id: UUID,
     payload: OrganizationRejectAdmin,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> OrganizationAdminRead:
@@ -312,8 +318,17 @@ def reject_org_admin(
     read-only artifacts; the owner creates a new org if they want
     to try again.
     """
-    org = admin_reject_organization(
+    org, closed_claims = admin_reject_organization(
         db, org_id=org_id, reason=payload.reason, actor_user_id=user.id
+    )
+    # Tell the owner why, and how many in-flight claims the cascade closed —
+    # otherwise their claims vanish with no explanation.
+    notify_organization_decided(
+        background,
+        db,
+        organization=org,
+        verified=False,
+        closed_claims=closed_claims,
     )
     return OrganizationAdminRead.model_validate(org)
 

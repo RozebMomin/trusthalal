@@ -1,0 +1,34 @@
+{% extends "_base.html.jinja" %}
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if display_name %}Hi {{ display_name }},{% else %}About your business verification{% endif %}
+</h1>
+<p style="margin: 0 0 16px 0;">
+  We weren&rsquo;t able to verify <strong>{{ business_name }}</strong> on Trust Halal.
+</p>
+{% if decision_note %}
+<p style="margin: 0 0 16px 0; padding: 12px 14px; background: #f6f6f7; border-radius: 8px; color: #444;">
+  <strong>Why:</strong> {{ decision_note }}
+</p>
+{% endif %}
+{% if closed_claims %}
+<p style="margin: 0 0 16px 0;">
+  A restaurant claim has to roll up to a verified business, so
+  {{ closed_claims }} open claim{{ '' if closed_claims == 1 else 's' }} filed under
+  it {{ 'was' if closed_claims == 1 else 'were' }} closed at the same time.
+</p>
+{% endif %}
+<p style="margin: 0 0 16px 0;">
+  A rejected business record is locked, so the next step is to register a fresh one
+  with corrected details &mdash; then re-file your restaurant claims under it.
+</p>
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ portal_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Register a new business
+  </a>
+</p>
+<p style="margin: 0; font-size: 13px; color: #888;">
+  If you think this was a mistake, just reply to this email and we&rsquo;ll take another look.
+</p>
+{% endblock %}

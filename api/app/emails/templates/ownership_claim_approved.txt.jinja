@@ -1,0 +1,13 @@
+{% extends "_base.txt.jinja" %}
+{% block content %}
+{% if display_name %}Hi {{ display_name }},{% else %}You're confirmed as the owner{% endif %}
+
+Your ownership claim for {{ place_name }} is approved - the listing is now tied
+to your account.
+
+Last step: confirm the halal details diners see - menu coverage, slaughter
+method, and your certificate if you have one.
+
+Confirm halal details:
+  {{ portal_url }}
+{% endblock %}

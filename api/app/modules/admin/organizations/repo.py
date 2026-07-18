@@ -124,8 +124,12 @@ def admin_reject_organization(
     org_id: UUID,
     reason: str,
     actor_user_id: UUID,
-) -> Organization:
+) -> tuple[Organization, int]:
     """Move an UNDER_REVIEW org → REJECTED with a required reason.
+
+    Returns ``(org, closed_claim_count)`` — the count is how many in-flight
+    ownership claims the cascade below closed, so the caller can tell the
+    owner in the rejection email why their claims disappeared.
 
     ``reason`` is enforced at the schema layer (min_length=3) so this
     repo helper trusts the input. Same NOT_REVIEWABLE guard as
@@ -188,7 +192,7 @@ def admin_reject_organization(
 
     db.commit()
     db.refresh(org)
-    return org
+    return org, len(blocked_claims)
 
 
 def admin_get_organization(db: Session, org_id: UUID) -> Organization:

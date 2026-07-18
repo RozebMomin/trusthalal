@@ -31,7 +31,8 @@ const STATUS_PRESENTATION: Record<
   NEEDS_EVIDENCE: {
     label: "Needs evidence",
     tone: "warn",
-    description: "Trust Halal staff has asked for additional verification. Reply to the email we sent.",
+    description:
+      "Trust Halal staff has asked for additional verification — we've emailed you the details. Upload what they asked for, then resubmit.",
   },
   UNDER_REVIEW: {
     label: "Under review",

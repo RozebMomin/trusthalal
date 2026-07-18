@@ -305,3 +305,134 @@ def notify_verifier_visit_decided(
             "decision_note": decision_note or "",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Owner onboarding — business verification + restaurant ownership claims.
+#
+# These two gates are hand-reviewed and block the owner's next step, so a
+# silent decision strands them: the get-verified flow literally promises
+# "we'll email you the moment the ball's back in your court".
+# ---------------------------------------------------------------------------
+
+
+def org_member_users(db: Session, organization_id: UUID) -> list[User]:
+    """Active members of an organization — the people who should hear about a
+    verification decision on it."""
+    rows = (
+        db.execute(
+            select(User)
+            .join(OrganizationMember, OrganizationMember.user_id == User.id)
+            .where(OrganizationMember.organization_id == organization_id)
+            .where(OrganizationMember.status == "ACTIVE")
+            .where(User.is_active.is_(True))
+            .distinct()
+        )
+        .scalars()
+        .all()
+    )
+    return list(rows)
+
+
+def notify_organization_decided(
+    background: BackgroundTasks,
+    db: Session,
+    *,
+    organization,
+    verified: bool,
+    closed_claims: int = 0,
+) -> None:
+    """Tell the owner(s) behind a business that verification passed or failed.
+
+    Rejection carries the admin's reason and the count of ownership claims the
+    rejection cascade closed, so the owner isn't left wondering why their
+    in-flight claims vanished. Falls back to the org's creator when no active
+    membership rows exist yet.
+    """
+    recipients = org_member_users(db, organization.id)
+    if not recipients and organization.created_by_user_id is not None:
+        creator = db.execute(
+            select(User).where(User.id == organization.created_by_user_id)
+        ).scalar_one_or_none()
+        if creator is not None:
+            recipients = [creator]
+
+    base = settings.OWNER_PORTAL_ORIGIN.rstrip("/")
+    name = organization.name
+
+    if verified:
+        subject = f"{name} is verified on Trust Halal"
+        template = "organization_verified"
+        context = {
+            "preheader": f"{name} is verified — you can claim your restaurant now.",
+            "business_name": name,
+            "portal_url": f"{base}/get-verified/claim",
+        }
+    else:
+        subject = f"About your business verification for {name}"
+        template = "organization_rejected"
+        context = {
+            "preheader": f"We couldn't verify {name} on Trust Halal.",
+            "business_name": name,
+            "decision_note": organization.decision_note or "",
+            "closed_claims": closed_claims,
+            "portal_url": f"{base}/get-verified/business?new=1",
+        }
+
+    for user in recipients:
+        if not user.email:
+            continue
+        notify(
+            background,
+            db=db,
+            user_id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            category=NotificationCategory.CLAIM_DECISION,
+            subject=subject,
+            template=template,
+            context=context,
+        )
+
+
+def notify_ownership_claim_decided(
+    background: BackgroundTasks,
+    db: Session,
+    *,
+    claim,
+    template: str,
+    subject_tpl: str,
+    portal_path: str = "/my-claims",
+) -> None:
+    """Email the requester about an ownership-claim decision.
+
+    ``subject_tpl`` is formatted with ``place``. Silently skips when the claim
+    was filed without a known requester (admin-recorded intake) or the user has
+    no email on file.
+    """
+    if claim.requester_user_id is None:
+        return
+    user = db.execute(
+        select(User).where(User.id == claim.requester_user_id)
+    ).scalar_one_or_none()
+    if user is None or not user.email:
+        return
+
+    place_name = place_name_for(db, claim.place_id)
+    subject = subject_tpl.format(place=place_name)
+    notify(
+        background,
+        db=db,
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        category=NotificationCategory.CLAIM_DECISION,
+        subject=subject,
+        template=template,
+        context={
+            "preheader": subject,
+            "place_name": place_name,
+            "decision_note": claim.decision_note or "",
+            "portal_url": f"{settings.OWNER_PORTAL_ORIGIN.rstrip('/')}{portal_path}",
+        },
+    )

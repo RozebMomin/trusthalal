@@ -1,0 +1,20 @@
+{% extends "_base.html.jinja" %}
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if display_name %}Hi {{ display_name }},{% else %}Your business is verified{% endif %}
+</h1>
+<p style="margin: 0 0 16px 0;">
+  Good news — <strong>{{ business_name }}</strong> is now a verified business on
+  Trust Halal.
+</p>
+<p style="margin: 0 0 16px 0;">
+  You can claim the restaurants you operate under it now. Every location you claim
+  rolls up to this business, so you only verify the company once.
+</p>
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ portal_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Claim your restaurant
+  </a>
+</p>
+{% endblock %}

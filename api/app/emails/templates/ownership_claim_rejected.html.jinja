@@ -1,0 +1,28 @@
+{% extends "_base.html.jinja" %}
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if display_name %}Hi {{ display_name }},{% else %}About your restaurant claim{% endif %}
+</h1>
+<p style="margin: 0 0 16px 0;">
+  We weren&rsquo;t able to approve your ownership claim for
+  <strong>{{ place_name }}</strong>.
+</p>
+{% if decision_note %}
+<p style="margin: 0 0 16px 0; padding: 12px 14px; background: #f6f6f7; border-radius: 8px; color: #444;">
+  <strong>Why:</strong> {{ decision_note }}
+</p>
+{% endif %}
+<p style="margin: 0 0 16px 0;">
+  If you have stronger documentation &mdash; a business license, lease, or sales-tax
+  permit in the business&rsquo;s name &mdash; you can file a new claim with it attached.
+</p>
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ portal_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Review your claims
+  </a>
+</p>
+<p style="margin: 0; font-size: 13px; color: #888;">
+  If you think this was a mistake, just reply to this email and we&rsquo;ll take another look.
+</p>
+{% endblock %}

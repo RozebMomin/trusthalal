@@ -1,0 +1,24 @@
+{% extends "_base.html.jinja" %}
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if display_name %}Hi {{ display_name }},{% else %}We need a bit more info{% endif %}
+</h1>
+<p style="margin: 0 0 16px 0;">
+  We&rsquo;re reviewing your ownership claim for <strong>{{ place_name }}</strong>
+  and need a little more before we can approve it.
+</p>
+{% if decision_note %}
+<p style="margin: 0 0 16px 0; padding: 12px 14px; background: #f6f6f7; border-radius: 8px; color: #444;">
+  <strong>What we need:</strong> {{ decision_note }}
+</p>
+{% endif %}
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ portal_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Add what&rsquo;s needed
+  </a>
+</p>
+<p style="margin: 0; font-size: 13px; color: #888;">
+  Upload the requested document, then re-submit from the same page.
+</p>
+{% endblock %}

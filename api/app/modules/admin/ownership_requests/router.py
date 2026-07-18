@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -25,6 +25,7 @@ from app.modules.admin.ownership_requests.schemas import (
     OwnershipRequestEvidence,
     OwnershipRequestReject,
 )
+from app.modules.notifications.events import notify_ownership_claim_decided
 from app.modules.ownership_requests.models import OwnershipRequestAttachment
 from app.modules.ownership_requests.repo import get_ownership_request
 from app.modules.ownership_requests.schemas import OwnershipRequestAttachmentRead
@@ -93,15 +94,27 @@ def list_ownership_requests(
 def approve_ownership_request(
     request_id: UUID,
     payload: OwnershipRequestApprove,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> OwnershipRequestAdminRead:
-    return admin_approve_ownership_request(
+    claim = admin_approve_ownership_request(
         db,
         request_id=request_id,
         payload=payload,
         actor_user_id=user.id,
     )
+    # Approval hands the owner the listing and unlocks the halal step —
+    # point them straight at it.
+    notify_ownership_claim_decided(
+        background,
+        db,
+        claim=claim,
+        template="ownership_claim_approved",
+        subject_tpl="You're confirmed as the owner of {place}",
+        portal_path="/get-verified/halal",
+    )
+    return claim
 
 
 @router.post(
@@ -116,15 +129,24 @@ def approve_ownership_request(
 def reject_ownership_request(
     request_id: UUID,
     payload: OwnershipRequestReject,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> OwnershipRequestAdminRead:
-    return admin_reject_ownership_request(
+    claim = admin_reject_ownership_request(
         db,
         request_id=request_id,
         payload=payload,
         actor_user_id=user.id,
     )
+    notify_ownership_claim_decided(
+        background,
+        db,
+        claim=claim,
+        template="ownership_claim_rejected",
+        subject_tpl="About your ownership claim for {place}",
+    )
+    return claim
 
 
 @router.post(
@@ -141,15 +163,27 @@ def reject_ownership_request(
 def request_more_evidence(
     request_id: UUID,
     payload: OwnershipRequestEvidence,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> OwnershipRequestAdminRead:
-    return admin_request_more_evidence(
+    claim = admin_request_more_evidence(
         db,
         request_id=request_id,
         payload=payload,
         actor_user_id=user.id,
     )
+    # The claim now sits blocked on the owner. Without this email they'd only
+    # find out by happening to re-open the portal — and the owner-portal copy
+    # explicitly tells them to reply to "the email we sent".
+    notify_ownership_claim_decided(
+        background,
+        db,
+        claim=claim,
+        template="ownership_claim_needs_evidence",
+        subject_tpl="We need a bit more to verify your claim for {place}",
+    )
+    return claim
 
 
 # ---------------------------------------------------------------------------
