@@ -93,6 +93,12 @@ _DEFAULT_FIELDS_NEW = ",".join(
         "rating",
         "userRatingCount",
         "regularOpeningHours",
+        # IANA timezone (e.g. {"id": "America/New_York"}). REQUIRED for
+        # "open now": is_open_now() needs the place's timezone to evaluate
+        # the stored hours. Without this field the extractor got null and
+        # every place read back as open_now=unknown ("No hours available")
+        # even when hours were present.
+        "timeZone",
     )
 )
 

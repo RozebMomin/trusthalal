@@ -27,7 +27,7 @@
  * a corner badge — the corner is now reserved for the primary halal
  * signal which is more important to scan first.
  */
-import { Navigation, Star } from "lucide-react";
+import { Clock, Navigation, Star } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -108,11 +108,25 @@ const MAX_FACT_CHIPS = 4;
 export function PlaceResultCard({
   place,
   distanceMeters,
+  showUnknownHours = false,
 }: {
   place: PlaceSearchResult;
   distanceMeters?: number;
+  /** When true, a place with unknown hours shows a "No hours" badge
+   *  instead of nothing. Set while the "Open now" filter is active so a
+   *  diner can tell a confirmed-open place apart from one we lack hours
+   *  for. */
+  showUnknownHours?: boolean;
 }) {
   const { primary, facts } = halalDisplayFor(place);
+  const openState =
+    place.open_now === true
+      ? "open"
+      : place.open_now === false
+        ? "closed"
+        : showUnknownHours
+          ? "unknown"
+          : null;
   const addressLine = [place.city, place.country_code]
     .filter(Boolean)
     .join(", ");
@@ -148,6 +162,24 @@ export function PlaceResultCard({
             <h3 className="pr-24 text-lg font-semibold leading-tight tracking-tight sm:pr-28">
               {place.name}
             </h3>
+
+            {openState && (
+              <span
+                className={cn(
+                  "inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold",
+                  openState === "open"
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                <Clock className="h-3 w-3" aria-hidden />
+                {openState === "open"
+                  ? "Open now"
+                  : openState === "closed"
+                    ? "Closed"
+                    : "No hours available"}
+              </span>
+            )}
 
             <MetadataStrip
               cuisines={place.cuisine_types}

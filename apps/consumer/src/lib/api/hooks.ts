@@ -385,6 +385,10 @@ export type SearchPlacesParams = {
   /** Multi-value cuisine filter. Server returns places matching ANY
    *  of the cuisines (overlap). Empty / missing = no cuisine filter. */
   cuisines?: Cuisine[];
+  /** Keep only places we can confirm are NOT closed right now (server-
+   *  computed against each place's hours + timezone). Unknown-hours
+   *  places still come back, badged "No hours" client-side. */
+  open_now?: boolean;
   /**
    * UI-only flag (never sent to the API — see useSearchPlaces): the
    * user has taken manual control of the filters on the search page,
@@ -934,6 +938,7 @@ export function useSearchPlaces(params: SearchPlacesParams) {
           has_certification: params.has_certification,
           no_pork: params.no_pork,
           no_alcohol_served: params.no_alcohol_served,
+          open_now: params.open_now || undefined,
           // Multi-value cuisine filter — encoded as repeated keys
           // (``?cuisine=PAKISTANI&cuisine=INDIAN``) by the array-aware
           // buildUrl in client.ts. Empty array drops the param.

@@ -44,7 +44,9 @@ import {
 } from "@/components/filters-sheet";
 import { PlaceResultCard } from "@/components/place-result-card";
 import { SiteHero } from "@/components/site-hero";
-import { Search, X } from "lucide-react";
+import { Clock, Search, X } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -262,6 +264,19 @@ function HomePageInner() {
     // filter instead of watching it snap back.
     router.replace(
       `/?${stringifySearchParams({ ...next, pref_override: true })}`,
+      { scroll: false },
+    );
+  }
+
+  // "Open now" is an availability toggle, not a halal preference, so it
+  // updates the URL directly and does NOT flip pref_override — a diner's
+  // saved halal filters keep applying while they narrow to what's open.
+  function toggleOpenNow() {
+    router.replace(
+      `/?${stringifySearchParams({
+        ...filtersFromUrl,
+        open_now: filtersFromUrl.open_now ? undefined : true,
+      })}`,
       { scroll: false },
     );
   }
@@ -518,6 +533,20 @@ function HomePageInner() {
             count={activeFilterCount}
             onClick={() => setFiltersOpen(true)}
           />
+          <button
+            type="button"
+            onClick={toggleOpenNow}
+            aria-pressed={Boolean(effectiveFilters.open_now)}
+            className={cn(
+              "inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition",
+              effectiveFilters.open_now
+                ? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                : "border-input text-foreground hover:bg-accent",
+            )}
+          >
+            <Clock className="h-4 w-4" aria-hidden />
+            <span>Open now</span>
+          </button>
         </div>
         <CuisineRail
           filters={effectiveFilters}
@@ -622,6 +651,7 @@ function HomePageInner() {
                   key={place.id}
                   place={place}
                   distanceMeters={distanceMeters}
+                  showUnknownHours={Boolean(effectiveFilters.open_now)}
                 />
               ))}
             </ul>
@@ -804,6 +834,7 @@ function parseSearchParams(p: URLSearchParams | null): SearchPlacesParams {
   if (p.get("no_pork") === "true") out.no_pork = true;
   if (p.get("no_alcohol_served") === "true") out.no_alcohol_served = true;
   if (p.get("has_certification") === "true") out.has_certification = true;
+  if (p.get("open_now") === "true") out.open_now = true;
   // "prefs overridden" flag — the user has manually edited filters, so
   // saved preferences must not auto-fill the empty axes.
   if (p.get("px") === "1") out.pref_override = true;
@@ -842,6 +873,7 @@ function stringifySearchParams(params: SearchPlacesParams): string {
     u.set("no_alcohol_served", "true");
   if (params.has_certification === true)
     u.set("has_certification", "true");
+  if (params.open_now === true) u.set("open_now", "true");
   if (params.pref_override) u.set("px", "1");
   // Cuisines as repeated keys (?cuisine=A&cuisine=B). Empty / missing
   // drops the param entirely so an empty filter doesn't bloat the URL.
