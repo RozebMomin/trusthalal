@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1037666665983",
+    "project_id": "halaltrust",
+    "storage_bucket": "halaltrust.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1037666665983:android:206ef34324ef3a854593ca",
+        "android_client_info": {
+          "package_name": "org.trusthalal.consumer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDa3E42vTfWfU2om0ilpSGbvmzGlh7vF6Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
