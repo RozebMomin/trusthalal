@@ -1,39 +1,42 @@
 /**
- * Trust summary card for the place detail page — tightened pass.
+ * The halal verdict — the one thing a diner came to this page for.
  *
- * Information ordered by what a halal consumer scans for, not by what
- * the data model groups together:
+ * ## What changed and why
  *
- *   1. **Headline** — a single sentence answering "is this halal?".
- *      Combines validation tier + menu posture into one statement
- *      ("Verified halal — fully halal kitchen") so the visitor doesn't
- *      have to mentally cross-reference two badges.
- *   2. **Dispute banner** — only when ``dispute_state !== "NONE"``.
- *      Surfaces above the meat grid so a disputed profile reads as
- *      "questioned" before the visitor commits to the rest.
- *   3. **Slaughter grid** — four meat tiles. Single most important
- *      detail beyond the headline for many observant consumers, so it
- *      lives high up. Skipped entirely on seafood-only kitchens.
- *   4. **Pork + alcohol line** — two short fact lines. Anything
- *      observant consumers expect to be a "yes/no/with caveat".
- *   5. **Certifications** — clickable. Opens a dialog with the
- *      issuer, expiration, and (eventually) the certificate document.
- *      Only rendered when ``has_certification`` is true.
- *   6. **Owner notes** — free-form caveats from the owner.
- *   7. **Last verified** — small footer.
+ * This used to be five stacked blocks inside one card: a tier headline, a
+ * kitchen/pantry list, a certification row, a four-tile slaughter grid, and a
+ * freshness footer. Each was individually reasonable; together they said the
+ * same thing four times ("Halal certified" / "certificate on file" /
+ * "Certified by HMS" / "last verified 7 days ago") across ~260px of scroll,
+ * with no single line that answered "can I eat here?".
  *
- * Copy is consciously tighter than the previous "What we know about
- * halal here" pass. Headers are short, paragraphs cap at one line
- * where possible, and the only rich-format block is the slaughter
- * grid (the one place where structure pays for itself).
+ * Now it's one block with a fixed shape:
+ *
+ *   1. **Banner** — what the kitchen is, in the largest type on the page,
+ *      over a colour that encodes how well we know it.
+ *   2. **Facts** — pork, alcohol, anything the owner flagged.
+ *   3. **Meats** — only what's actually served.
+ *   4. **Provenance** — who checked, when, and a way into the evidence.
+ *
+ * ## The one thing not to "simplify" later
+ *
+ * The headline says what the RESTAURANT claims; the colour and the sub-line
+ * say how much PROOF we have. Those are deliberately separate. A self-attested
+ * fully-halal kitchen and a verifier-inspected one make the identical claim
+ * and are not the same fact, and this platform exists to keep that distinction
+ * legible. A green banner on an unverified place would be the single most
+ * damaging thing this component could do — it would launder the owner's word
+ * into Trust Halal's endorsement.
+ *
+ * That's also why the banner never reads "safe to eat here". Safety is an
+ * assertion we can only make at the verified tier, and even then it's the
+ * evidence that's ours, not the guarantee.
  */
 "use client";
 
 import {
   AlertTriangle,
-  BadgeCheck,
   CalendarClock,
-  ChefHat,
   ChevronRight,
   CircleAlert,
   ExternalLink,
@@ -81,13 +84,27 @@ const TIER_DESCRIPTION: Record<ValidationTier, string> = {
     "The owner submitted this info themselves. No third-party verification.",
 };
 
-const TIER_TONE: Record<ValidationTier, string> = {
-  TRUST_HALAL_VERIFIED:
-    "border-primary/40 bg-primary/10 text-foreground",
-  CERTIFICATE_ON_FILE:
-    "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-50",
-  SELF_ATTESTED:
-    "border-slate-300 bg-slate-50 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
+/** Banner fill. Encodes how much proof we hold — NOT how halal the place
+ *  claims to be. See the note at the top of this file before changing it. */
+const TIER_BANNER: Record<ValidationTier, string> = {
+  TRUST_HALAL_VERIFIED: "bg-primary text-primary-foreground",
+  CERTIFICATE_ON_FILE: "bg-emerald-700 text-white dark:bg-emerald-800",
+  // Deliberately not green. Nobody independent has checked this.
+  SELF_ATTESTED: "bg-slate-700 text-white dark:bg-slate-800",
+};
+
+/** Border of the whole block, matched to the banner. */
+const TIER_EDGE: Record<ValidationTier, string> = {
+  TRUST_HALAL_VERIFIED: "border-primary",
+  CERTIFICATE_ON_FILE: "border-emerald-700 dark:border-emerald-800",
+  SELF_ATTESTED: "border-slate-700 dark:border-slate-800",
+};
+
+/** The proof line under the headline — short, and always says who. */
+const TIER_PROOF: Record<ValidationTier, string> = {
+  TRUST_HALAL_VERIFIED: "A Trust Halal verifier checked this in person",
+  CERTIFICATE_ON_FILE: "Halal certificate on file with us",
+  SELF_ATTESTED: "The owner's own description — nobody has verified it",
 };
 
 const MENU_POSTURE_HEADLINE: Record<MenuPosture, string> = {
@@ -130,32 +147,43 @@ export function PlaceTrustSummary({
 }) {
   return (
     <section
-      aria-label="Halal trust summary"
-      className="space-y-4 rounded-xl border bg-card p-5 shadow-sm sm:p-6"
+      aria-label="Halal verdict"
+      className={cn(
+        "overflow-hidden rounded-xl border-2 shadow-sm",
+        TIER_EDGE[profile.validation_tier],
+      )}
     >
-      <Headline profile={profile} />
-
-      {profile.dispute_state !== "NONE" && (
-        <DisputeBanner state={profile.dispute_state} />
-      )}
-
-      <KitchenAndPantry profile={profile} />
-
-      {profile.has_certification && (
-        <CertificationRow profile={profile} />
-      )}
-
-      {!profile.seafood_only && <SlaughterGrid profile={profile} />}
-
-      {profile.seafood_only && (
-        <p className="text-sm text-muted-foreground">
-          Seafood-only kitchen — no land meat or poultry served.
+      {/* The claim, in the largest type on the page. Colour behind it is the
+          proof level — see the note at the top of this file. */}
+      <div className={cn("px-5 py-4", TIER_BANNER[profile.validation_tier])}>
+        <h2 className="flex items-start gap-2.5 text-lg font-bold leading-tight tracking-tight sm:text-xl">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+          <span>{MENU_POSTURE_HEADLINE[profile.menu_posture]}</span>
+        </h2>
+        <p className="mt-1 pl-[30px] text-sm opacity-90">
+          {TIER_PROOF[profile.validation_tier]}
         </p>
-      )}
+      </div>
 
-      {profile.caveats && <Caveats text={profile.caveats} />}
+      <div className="space-y-3 bg-card p-5">
+        {profile.dispute_state !== "NONE" && (
+          <DisputeBanner state={profile.dispute_state} />
+        )}
 
-      <FreshnessFooter profile={profile} />
+        <KitchenAndPantry profile={profile} />
+
+        {!profile.seafood_only && <ServedMeats profile={profile} />}
+
+        {profile.seafood_only && (
+          <p className="text-sm text-muted-foreground">
+            Seafood-only kitchen — no land meat or poultry served.
+          </p>
+        )}
+
+        {profile.caveats && <Caveats text={profile.caveats} />}
+
+        <ProvenanceFooter profile={profile} />
+      </div>
     </section>
   );
 }
@@ -166,45 +194,20 @@ export function PlaceTrustSummary({
 // ---------------------------------------------------------------------------
 export function PlaceNoTrustSummary() {
   return (
-    <section className="rounded-xl border border-dashed bg-muted/30 p-6 text-center">
+    <section className="rounded-xl border-2 border-dashed bg-muted/30 p-6 text-center">
       <Info
         className="mx-auto h-6 w-6 text-muted-foreground/70"
         aria-hidden
       />
       <p className="mt-3 text-sm font-medium text-foreground">
-        No halal profile yet.
+        No halal information yet
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        This restaurant hasn&rsquo;t been verified by Trust Halal. Owners
-        can submit a halal claim through the owner portal.
+        Nobody has told us how this kitchen works, so we can&rsquo;t say
+        anything about it either way. If you own this restaurant, you can add
+        your halal details.
       </p>
     </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Headline: validation tier with a one-line description. Menu posture
-// used to ride along here ("Verified halal · Fully halal kitchen") but
-// it's now its own line in ``KitchenAndPantry`` below — keeping the
-// headline focused on the trust source alone reads cleaner.
-// ---------------------------------------------------------------------------
-function Headline({ profile }: { profile: HalalProfileEmbed }) {
-  const tier = TIER_HEADLINE[profile.validation_tier];
-  const description = TIER_DESCRIPTION[profile.validation_tier];
-
-  return (
-    <div
-      className={cn(
-        "flex items-start gap-3 rounded-lg border p-4",
-        TIER_TONE[profile.validation_tier],
-      )}
-    >
-      <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-      <div className="min-w-0 space-y-0.5">
-        <p className="text-base font-semibold leading-snug">{tier}</p>
-        <p className="text-sm leading-snug opacity-90">{description}</p>
-      </div>
-    </div>
   );
 }
 
@@ -229,12 +232,22 @@ function DisputeBanner({
 }
 
 // ---------------------------------------------------------------------------
-// Per-meat slaughter grid. Single most-loaded section after the headline
-// — Zabihah is the gold standard for many observant consumers and the
-// per-meat granularity matters (a place might be Zabihah for chicken
-// but machine for beef).
+// What's actually served, and how it was slaughtered.
+//
+// The old version was a four-tile grid always showing chicken / beef / lamb /
+// goat. On a typical place two of those read "Not served", so half of the most
+// important widget on the page was spent rendering the absence of a fact in a
+// bordered box the same size as a real one.
+//
+// Now: served meats get a chip each, and everything not served collapses into
+// one sentence underneath. The information is identical — a diner looking for
+// lamb still learns there isn't any — it just stops occupying the same visual
+// weight as "beef is zabihah".
+//
+// Machine-slaughtered meat keeps its amber chip. That's a real distinction
+// many observant diners care about and it must never quietly read as zabihah.
 // ---------------------------------------------------------------------------
-function SlaughterGrid({ profile }: { profile: HalalProfileEmbed }) {
+function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
   const rows: Array<{ label: string; method: SlaughterMethod }> = [
     { label: "Chicken", method: profile.chicken_slaughter },
     { label: "Beef", method: profile.beef_slaughter },
@@ -242,33 +255,43 @@ function SlaughterGrid({ profile }: { profile: HalalProfileEmbed }) {
     { label: "Goat", method: profile.goat_slaughter },
   ];
 
+  const served = rows.filter((r) => r.method !== "NOT_SERVED");
+  const absent = rows.filter((r) => r.method === "NOT_SERVED");
+
+  // Nothing on the list is served and it isn't a seafood kitchen — say so
+  // plainly rather than rendering an empty row.
+  if (served.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No chicken, beef, lamb or goat is served here.
+      </p>
+    );
+  }
+
   return (
-    <div className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Slaughter method
-      </h3>
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {rows.map((row) => {
-          const label = SLAUGHTER_LABELS[row.method] ?? row.method;
-          const tone =
-            SLAUGHTER_TONE[row.method] ??
-            "border-slate-200 bg-muted/40 text-muted-foreground";
-          return (
-            <li
-              key={row.label}
-              className={cn(
-                "flex flex-col gap-0.5 rounded-md border px-3 py-2",
-                tone,
-              )}
-            >
-              <span className="text-[11px] font-medium uppercase tracking-wide opacity-70">
-                {row.label}
-              </span>
-              <span className="text-sm font-semibold">{label}</span>
-            </li>
-          );
-        })}
+    <div className="space-y-1.5">
+      <ul className="flex flex-wrap gap-1.5">
+        {served.map((row) => (
+          <li
+            key={row.label}
+            className={cn(
+              "inline-flex items-baseline gap-1.5 rounded-md border px-2.5 py-1 text-sm",
+              SLAUGHTER_TONE[row.method],
+            )}
+          >
+            <span className="opacity-75">{row.label}</span>
+            <span className="font-semibold">
+              {SLAUGHTER_LABELS[row.method] ?? row.method}
+            </span>
+          </li>
+        ))}
       </ul>
+      {absent.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {absent.map((r) => r.label.toLowerCase()).join(", ")}
+          {absent.length === 1 ? " isn't" : " aren't"} served here.
+        </p>
+      )}
     </div>
   );
 }
@@ -283,32 +306,11 @@ function SlaughterGrid({ profile }: { profile: HalalProfileEmbed }) {
 // the line-item details below.
 // ---------------------------------------------------------------------------
 
-// Tone classes for the menu-posture icon. FULLY_HALAL and the strict
-// SEPARATE_KITCHENS variant earn a green check; the looser postures
-// stay neutral; SHARED_KITCHEN gets an amber tint to telegraph the
-// cross-contamination caveat.
-const MENU_POSTURE_TONE: Record<MenuPosture, string> = {
-  FULLY_HALAL: "text-emerald-600 dark:text-emerald-400",
-  MIXED_SEPARATE_KITCHENS: "text-emerald-600 dark:text-emerald-400",
-  HALAL_OPTIONS_ADVERTISED: "text-foreground/80",
-  HALAL_UPON_REQUEST: "text-foreground/80",
-  MIXED_SHARED_KITCHEN: "text-amber-600 dark:text-amber-400",
-};
-
 function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
+  // Menu posture is NOT repeated here — it's the banner headline above. It
+  // used to lead this list back when the banner said something else, and
+  // leaving it would print the same sentence twice, 40px apart.
   const lines: Array<{ icon: React.ReactNode; text: string }> = [
-    {
-      icon: (
-        <ChefHat
-          className={cn(
-            "h-5 w-5 shrink-0",
-            MENU_POSTURE_TONE[profile.menu_posture],
-          )}
-          aria-hidden
-        />
-      ),
-      text: MENU_POSTURE_HEADLINE[profile.menu_posture],
-    },
     {
       icon: (
         <span
@@ -367,65 +369,6 @@ function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Certifications — clickable row that opens a dialog with the cert
-// metadata we have on file. The actual cert document URL isn't on the
-// public embed yet; the dialog is structured so wiring it up is a one-
-// line swap (the placeholder card becomes an <img>/<iframe>).
-// ---------------------------------------------------------------------------
-function CertificationRow({
-  profile,
-}: {
-  profile: HalalProfileEmbed;
-}) {
-  const [open, setOpen] = React.useState(false);
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "group flex w-full items-center justify-between gap-3 rounded-lg border bg-background px-4 py-3 text-left",
-          "transition hover:border-foreground/30 hover:shadow-sm",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        )}
-        aria-label="View halal certificate details"
-      >
-        <span className="flex min-w-0 items-start gap-3">
-          <BadgeCheck
-            className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400"
-            aria-hidden
-          />
-          <span className="min-w-0 space-y-0.5">
-            <span className="block text-sm font-semibold">
-              {profile.certifying_body_name
-                ? `Certified by ${profile.certifying_body_name}`
-                : "Halal certificate on file"}
-            </span>
-            {profile.certificate_expires_at && (
-              <span className="block text-xs text-muted-foreground">
-                Valid through{" "}
-                {formatDateOnly(profile.certificate_expires_at)}
-              </span>
-            )}
-          </span>
-        </span>
-        <ChevronRight
-          className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-foreground"
-          aria-hidden
-        />
-      </button>
-
-      <CertificateDialog
-        open={open}
-        onOpenChange={setOpen}
-        profile={profile}
-      />
-    </>
   );
 }
 
@@ -613,23 +556,59 @@ function Caveats({ text }: { text: string }) {
   );
 }
 
-function FreshnessFooter({ profile }: { profile: HalalProfileEmbed }) {
+/**
+ * Who checked this, when, and a way into the evidence — one line.
+ *
+ * Replaces two separate blocks (a full-width "Certified by X ›" button and a
+ * bordered "Last verified N days ago" footer). They were always answering the
+ * same question, and splitting them meant the page said "we checked" twice
+ * without either one being a complete answer.
+ */
+function ProvenanceFooter({ profile }: { profile: HalalProfileEmbed }) {
+  const [certOpen, setCertOpen] = React.useState(false);
+
+  const checked = formatDateRelative(profile.last_verified_at);
+  const issuer = profile.certifying_body_name;
+
   return (
-    <div className="flex items-start gap-1.5 border-t pt-3 text-xs text-muted-foreground">
-      <CalendarClock
-        className="mt-0.5 h-3.5 w-3.5 shrink-0"
-        aria-hidden
-      />
-      <p>
-        Last verified {formatDateRelative(profile.last_verified_at)}
-        {profile.expires_at && (
-          <>
-            {" "}
-            · re-verification due {formatDateOnly(profile.expires_at)}
-          </>
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t pt-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>
+            {issuer ? (
+              <>
+                Certified by{" "}
+                <span className="font-medium text-foreground">{issuer}</span> ·{" "}
+              </>
+            ) : null}
+            Checked {checked}
+            {profile.expires_at && (
+              <> · due again {formatDateOnly(profile.expires_at)}</>
+            )}
+          </span>
+        </span>
+
+        {/* Only offered when there's something to look at. A button that opens
+            a dialog saying "no document" is worse than no button. */}
+        {profile.has_certification && (
+          <button
+            type="button"
+            onClick={() => setCertOpen(true)}
+            className="inline-flex items-center gap-0.5 font-semibold text-primary hover:underline"
+          >
+            See the evidence
+            <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          </button>
         )}
-      </p>
-    </div>
+      </div>
+
+      <CertificateDialog
+        open={certOpen}
+        onOpenChange={setCertOpen}
+        profile={profile}
+      />
+    </>
   );
 }
 

@@ -101,7 +101,10 @@ function RatingHeader({
           </div>
           {summary.count > 0 ? (
             <>
-              <div className="text-4xl font-bold leading-none tracking-tight">
+              {/* Same size as Google's below. These are two measurements of
+                  different things by different populations; rendering one at
+                  4xl and the other at 2xl silently ranks them. */}
+              <div className="text-2xl font-bold leading-tight tracking-tight">
                 {summary.average?.toFixed(1)}
               </div>
               <Stars

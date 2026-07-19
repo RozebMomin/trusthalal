@@ -1,32 +1,42 @@
 "use client";
 
 /**
- * Client view for /places/[id] — refreshed for the aesthetic pass.
+ * Client view for /places/[id].
  *
- * Renders, top to bottom:
+ * ## The shape, and why
  *
- *   1. Back-to-search link.
- *   2. Hero banner — full-bleed photo with overlayed name, cuisine
- *      chips, and primary halal trust pill (``PlaceHero``).
- *   3. Address strip (with MapPin icon) right under the hero so the
- *      "where" is one glance away from the "what".
- *   4. Preference-match banner — when the visitor has saved filters
- *      and this place hits them.
- *   5. Trust summary card — ``PlaceTrustSummary`` consolidates what
- *      used to be seven separate panels into one scannable block.
- *      Falls back to ``PlaceNoTrustSummary`` when the place hasn't
- *      been claimed yet.
- *   6. Photo gallery — thumbnail grid + lightbox for any photo
- *      beyond the hero.
- *   7. Dispute section — auth-gated CTA + the visitor's existing
- *      reports for this place.
+ * This was eight stacked cards of identical visual weight in a 768px column
+ * at every screen size. Everything was legible and nothing was answered: a
+ * diner arrives asking "can I eat here?", and finding out took as much work
+ * as finding the opening hours.
  *
- * Wrapped by a server component (page.tsx) that provides
- * generateMetadata + JSON-LD; the placeId is passed down explicitly
- * so this view doesn't depend on ``useParams``.
+ * Now the page splits into **the answer** and **everything else**:
+ *
+ *   * Left (`lg` and up, sticky): the halal verdict, the actions you'd take
+ *     next, and the small print. This column is why the page exists, so on a
+ *     wide screen it stays put while the rest scrolls past it.
+ *   * Right: photos, reviews, hours, nearby — the browsing material.
+ *
+ * Below `lg` it collapses to one column in that same order, which is the
+ * reordering on its own. Phones get the priority change without the grid.
+ *
+ * ## Two things worth not undoing
+ *
+ * **Google's rating is not in the hero.** It used to sit beside the name at
+ * full size, making somebody else's score the first and largest number on a
+ * page about our verification. It lives in the reviews block now, beside
+ * Trust Halal's own and the same size as it.
+ *
+ * **Report and claim are two lines of text, not two cards.** For a signed-out
+ * visitor — most first-time traffic — those cards were large boxes whose only
+ * affordance was "sign in". They were out-weighing the photos.
+ *
+ * Wrapped by a server component (page.tsx) that provides generateMetadata +
+ * JSON-LD; the placeId is passed down explicitly so this view doesn't depend
+ * on ``useParams``.
  */
 
-import { ChevronDown, ChevronLeft, ChevronUp, Clock, ExternalLink, Flag, Globe, MapPin } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronUp, Clock, ExternalLink, Flag, Globe, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -45,7 +55,6 @@ import {
   PlaceTrustSummary,
 } from "@/components/place-trust-summary";
 import { PreferenceMatchBanner } from "@/components/preference-match-banner";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -208,7 +217,10 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    // Widens at lg so the two-column grid below has somewhere to go — a
+    // 340px sidebar inside a 768px column would leave the right side
+    // narrower than the phone layout. Matches the app shell's max-w-5xl.
+    <div className="mx-auto max-w-3xl space-y-5 lg:max-w-5xl">
       <Link
         href="/"
         onClick={handleBackClick}
@@ -228,62 +240,74 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
             onExpand={heroLightbox ? () => setHeroExpanded(true) : undefined}
           />
 
-          {/* Address + quick actions row. Address sits left, the
-              save-to-favorites toggle sits right so the heart is
-              reachable without scrolling past the trust card.
-              Wraps gracefully on narrow widths. */}
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <PlaceAddressLine place={place.data} />
-            <FavoriteToggle
-              place={{
-                id: place.data.id,
-                name: place.data.name,
-                address: place.data.address,
-                lat: place.data.lat,
-                lng: place.data.lng,
-                city: place.data.city,
-                region: place.data.region,
-                country_code: place.data.country_code,
-                cuisine_types: place.data.cuisine_types,
-                hero_photo_url: place.data.hero_photo_url,
-                halal_profile: place.data.halal_profile,
-              }}
-              variant="inline"
-            />
-          </div>
-
           <PreferenceMatchBanner result={matchResult} />
 
-          {place.data.halal_profile ? (
-            <PlaceTrustSummary profile={place.data.halal_profile} />
-          ) : (
-            <PlaceNoTrustSummary />
-          )}
+          {/* Two columns from lg up. The halal verdict is the reason anyone
+              opened this page, so on a wide screen it stops scrolling away —
+              photos, reviews and hours move past it instead of pushing it off.
+              Below lg this collapses to the same single column as before, in
+              the same order, so phones get the reordering without the grid. */}
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:items-start">
+            <div className="space-y-4 lg:sticky lg:top-20">
+              {place.data.halal_profile ? (
+                <PlaceTrustSummary profile={place.data.halal_profile} />
+              ) : (
+                <PlaceNoTrustSummary />
+              )}
 
-          <PlaceHoursCard place={place.data} />
+              <PlaceActionCard
+                place={place.data}
+                onSave={
+                  <FavoriteToggle
+                    place={{
+                      id: place.data.id,
+                      name: place.data.name,
+                      address: place.data.address,
+                      lat: place.data.lat,
+                      lng: place.data.lng,
+                      city: place.data.city,
+                      region: place.data.region,
+                      country_code: place.data.country_code,
+                      cuisine_types: place.data.cuisine_types,
+                      hero_photo_url: place.data.hero_photo_url,
+                      halal_profile: place.data.halal_profile,
+                    }}
+                    variant="inline"
+                  />
+                }
+              />
 
-          <PlacePhotoGallery
-            photos={place.data.photos}
-            placeName={place.data.name}
-            placeId={placeId}
-          />
+              {/* Two dead full-width cards for signed-out visitors became one
+                  quiet line. Reporting matters, but it isn't what someone came
+                  here to do, and it shouldn't out-weigh the photos. */}
+              <PlaceFooterLinks
+                placeId={placeId}
+                placeName={place.data.name}
+                me={me ?? null}
+                disputes={disputesForThisPlace}
+                hasActiveDispute={hasActiveDispute}
+                onOpenDialog={() => setDisputeDialogOpen(true)}
+              />
+            </div>
 
-          <PlaceReviews
-            place={place.data}
-            signedIn={Boolean(me?.id)}
-            emailVerified={me?.email_verified === true}
-          />
+            <div className="min-w-0 space-y-5">
+              <PlacePhotoGallery
+                photos={place.data.photos}
+                placeName={place.data.name}
+                placeId={placeId}
+              />
 
-          <DisputeSection
-            placeId={placeId}
-            placeName={place.data.name}
-            me={me ?? null}
-            disputes={disputesForThisPlace}
-            hasActiveDispute={hasActiveDispute}
-            onOpenDialog={() => setDisputeDialogOpen(true)}
-          />
+              <PlaceReviews
+                place={place.data}
+                signedIn={Boolean(me?.id)}
+                emailVerified={me?.email_verified === true}
+              />
 
-          <NearbyPlaces place={place.data} />
+              <PlaceHoursCard place={place.data} />
+
+              <NearbyPlaces place={place.data} />
+            </div>
+          </div>
 
           <FileDisputeDialog
             placeId={placeId}
@@ -310,62 +334,85 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
 // Sub-sections
 // ---------------------------------------------------------------------------
 
-function PlaceAddressLine({ place }: { place: PlaceDetail }) {
+/**
+ * Everything you'd actually do next, on one card: go there, call, open the
+ * site, save it.
+ *
+ * Replaces a loose address line with two pill links floating above the trust
+ * card. Getting to the restaurant is the most common action on this page and
+ * it was competing with the halal verdict for attention while looking like
+ * decoration.
+ */
+function PlaceActionCard({
+  place,
+  onSave,
+}: {
+  place: PlaceDetail;
+  onSave: React.ReactNode;
+}) {
   const addressParts = [
     place.address,
     [place.city, place.region].filter(Boolean).join(", "),
-    place.country_code,
   ].filter(Boolean);
 
-  if (addressParts.length === 0) return null;
-
-  // Tappable address → Google Maps directions. Coordinates are the
-  // destination (more reliable than free-text address matching);
-  // the visible text stays the human-readable address. Getting to
-  // the restaurant is the single most common action on this page,
-  // so it shouldn't require copy-pasting an address.
+  // Coordinates, not the free-text address: matching an address string is
+  // less reliable than a point, and this is the action most likely to be
+  // taken while someone is already in the car.
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`;
+  const websiteUrl = place.website_url
+    ? place.website_url.startsWith("http")
+      ? place.website_url
+      : `https://${place.website_url}`
+    : null;
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <a
-        href={directionsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group flex items-start gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
-      >
-        <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-        <span className="break-words underline-offset-2 group-hover:underline">
-          {addressParts.join(" · ")}
-        </span>
-      </a>
+    <section className="rounded-xl border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-2">
         <a
           href={directionsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
         >
-          Get directions
-          <ExternalLink className="h-3 w-3" aria-hidden />
+          <MapPin className="h-4 w-4" aria-hidden />
+          Directions
         </a>
-        {place.website_url && (
+        {place.phone && (
           <a
-            href={
-              place.website_url.startsWith("http")
-                ? place.website_url
-                : `https://${place.website_url}`
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
+            href={`tel:${place.phone.replace(/[^+\d]/g, "")}`}
+            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition hover:bg-accent"
           >
-            <Globe className="h-3 w-3" aria-hidden />
-            Visit website
+            <Phone className="h-4 w-4" aria-hidden />
+            Call
           </a>
         )}
+        {websiteUrl && (
+          <a
+            href={websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition hover:bg-accent"
+            aria-label="Visit website"
+          >
+            <Globe className="h-4 w-4" aria-hidden />
+            <span className="sr-only sm:not-sr-only">Website</span>
+          </a>
+        )}
+        {onSave}
       </div>
-    </div>
+
+      {addressParts.length > 0 && (
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          <span>{addressParts.join(", ")}</span>
+          <ExternalLink className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+        </a>
+      )}
+    </section>
   );
 }
 
@@ -405,7 +452,10 @@ function weekdayIndexInTz(tz: string | null): number {
 function PlaceHoursCard({ place }: { place: PlaceDetail }) {
   const week = place.opening_hours_weekday_text ?? null;
   const hasHours = Boolean(week && week.length > 0);
-  const [open, setOpen] = React.useState(true);
+  // Collapsed by default. It used to sit high on the page where an expanded
+  // week justified itself; now it's below the photos and reviews, where seven
+  // lines of times is mostly scroll between you and the nearby places.
+  const [open, setOpen] = React.useState(false);
   if (!hasHours || !week) return null;
 
   // Google's weekdayDescriptions are Monday-first. Compute "today" in
@@ -496,7 +546,19 @@ function PlaceHoursCard({ place }: { place: PlaceDetail }) {
   );
 }
 
-function DisputeSection({
+/**
+ * Report + claim, as two lines of text rather than two full-width cards.
+ *
+ * The old version gave "Spot something wrong?" a bordered section with a
+ * heading and a button, which for a signed-out visitor — most first-time
+ * traffic — was a large box whose only affordance was "Sign in to report".
+ * Reporting matters, but it isn't why anyone opened this page, and it was
+ * out-weighing the photos.
+ *
+ * Existing reports keep their full treatment: if you've filed something, its
+ * status is real information about a place you cared enough to flag.
+ */
+function PlaceFooterLinks({
   placeId,
   placeName,
   me,
@@ -512,78 +574,71 @@ function DisputeSection({
   onOpenDialog: () => void;
 }) {
   const isAnonymous = me === null;
-  // Verifiers file disputes on the diner surface like any consumer
-  // (the API gates on auth, not the CONSUMER role). Only OWNER / ADMIN
-  // get the quiet "wrong audience" note.
+  // Verifiers file disputes on the diner surface like any consumer (the API
+  // gates on auth, not the CONSUMER role). Only OWNER / ADMIN are the wrong
+  // audience here.
   const isConsumer = isConsumerAudience(me?.role);
 
-  // Staff / owner accounts get a quiet section — they shouldn't be
-  // filing consumer disputes from the public site.
-  const wrongAudience = me !== null && !isConsumer;
-
   return (
-    <section className="space-y-3 rounded-xl border bg-card p-5 shadow-sm sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold tracking-tight">
-            Spot something wrong?
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Report inaccuracies in {placeName}&rsquo;s halal profile
-            and we&rsquo;ll review it.
-          </p>
-        </div>
-
-        {isAnonymous && (
-          <Link
-            href={`/login?next=/places/${placeId}`}
-            className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent"
-          >
-            <Flag className="h-4 w-4" /> Sign in to report
-          </Link>
-        )}
-
-        {isConsumer && !hasActiveDispute && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenDialog}
-            className="gap-2"
-          >
-            <Flag className="h-4 w-4" /> Report an issue
-          </Button>
-        )}
-
-        {isConsumer && hasActiveDispute && (
-          <span className="inline-flex items-center gap-2 rounded-md border border-dashed border-muted-foreground/40 px-3 py-1.5 text-xs text-muted-foreground">
-            You have an open report for this place.
+    <div className="space-y-3">
+      <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+        {hasActiveDispute ? (
+          <span className="flex items-center gap-1.5">
+            <Flag className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            You have an open report for {placeName}.
           </span>
+        ) : isConsumer ? (
+          <>
+            Something wrong with this profile?{" "}
+            <button
+              type="button"
+              onClick={onOpenDialog}
+              className="font-semibold text-primary hover:underline"
+            >
+              Report it
+            </button>
+          </>
+        ) : isAnonymous ? (
+          <>
+            Something wrong with this profile?{" "}
+            <Link
+              href={`/login?next=/places/${placeId}`}
+              className="font-semibold text-primary hover:underline"
+            >
+              Sign in to report it
+            </Link>
+          </>
+        ) : (
+          <>Reports are filed by signed-in diners.</>
         )}
+      </p>
 
-        {wrongAudience && (
-          <span className="inline-flex items-center gap-2 rounded-md border border-dashed border-muted-foreground/40 px-3 py-1.5 text-xs text-muted-foreground">
-            Disputes are filed by signed-in consumers.
-          </span>
-        )}
-      </div>
+      <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+        Own {placeName}?{" "}
+        <a
+          href="https://owner.trusthalal.org/get-verified"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-primary hover:underline"
+        >
+          Claim your listing
+        </a>
+      </p>
 
       {disputes.length > 0 && (
-        <div className="space-y-2 border-t pt-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="space-y-2 rounded-lg border bg-card p-3">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Your reports for this place
           </h3>
           <ul className="space-y-2">
             {disputes.map((d) => (
-              <li
-                key={d.id}
-                className="rounded-md border bg-background p-3 text-sm"
-              >
+              <li key={d.id} className="rounded-md border bg-background p-2.5 text-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium">
                     {DISPUTED_ATTRIBUTE_LABELS[d.disputed_attribute] ??
                       d.disputed_attribute}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-muted-foreground">
                     {DISPUTE_STATUS_LABELS[d.status] ?? d.status}
                   </span>
                 </div>
@@ -591,9 +646,8 @@ function DisputeSection({
                   {d.description}
                 </p>
                 {d.admin_decision_note && (
-                  <p className="mt-2 rounded-md bg-muted p-2 text-xs">
-                    <strong>Admin note:</strong>{" "}
-                    {d.admin_decision_note}
+                  <p className="mt-2 rounded-md bg-muted p-2">
+                    <strong>Admin note:</strong> {d.admin_decision_note}
                   </p>
                 )}
               </li>
@@ -601,7 +655,7 @@ function DisputeSection({
           </ul>
         </div>
       )}
-    </section>
+    </div>
   );
 }
 

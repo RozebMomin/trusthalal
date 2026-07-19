@@ -618,6 +618,10 @@ export type PlaceDetail = {
   country_code: string | null;
   postal_code: string | null;
   timezone: string | null;
+  /** Ingested from Google. The API has returned this since places grew a
+   *  phone column; the web type simply never declared it, so the consumer
+   *  site couldn't offer a Call action while mobile could. */
+  phone: string | null;
   /** Curated cuisine tags. See PlaceSearchResult.cuisine_types. */
   cuisine_types: Cuisine[];
   updated_at: string | null;

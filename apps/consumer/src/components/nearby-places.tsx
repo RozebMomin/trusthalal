@@ -75,6 +75,31 @@ export function NearbyPlaces({ place }: { place: PlaceDetail }) {
           />
         ))}
       </ul>
+
+      {/* The page used to end on however many of these say "No halal info
+          yet" — a last impression of what the catalogue is missing. One line
+          turns that into something a reader can act on.
+
+          Note: the pill itself still reads "No halal info yet". It's a shared
+          status label used on search cards and on a place's own hero, where
+          "Halal info wanted" would read as a strange claim about the
+          restaurant rather than a request to the reader. The posture change
+          belongs here, in the one context where the reader is being asked
+          for help. */}
+      {items.some((p) => p.halal_profile === null) && (
+        <p className="text-xs text-muted-foreground">
+          Know one of these places?{" "}
+          <a
+            href="https://owner.trusthalal.org/get-verified"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-primary hover:underline"
+          >
+            Owners can add their halal details
+          </a>{" "}
+          — that&rsquo;s how this list fills in.
+        </p>
+      )}
     </section>
   );
 }

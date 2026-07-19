@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trust Halal — place detail redesign</title>
+<style>
+  /* Real tokens from apps/consumer/src/app/globals.css so this can't look
+     better than what actually ships. */
+  :root{
+    --bg:#ffffff;
+    --ink:hsl(222.2 84% 4.9%);
+    --sub:hsl(215.4 16.3% 46.9%);
+    --line:hsl(214.3 31.8% 91.4%);
+    --muted:hsl(210 40% 96.1%);
+    --primary:hsl(160 84% 34%);
+    --primary-soft:hsl(160 84% 34% / .08);
+    --primary-line:hsl(160 84% 34% / .25);
+    --warm:hsl(35 90% 55%);
+    --warm-soft:hsl(45 100% 96%);
+    --warm-line:hsl(40 90% 78%);
+    --warm-ink:hsl(28 60% 14%);
+    --danger:hsl(0 72% 45%);
+    --page:#f6f7f9;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--page);color:var(--ink);
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1400px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:24px;letter-spacing:-.4px;margin:0 0 6px}
+  .lede{color:var(--sub);max-width:70ch;margin:0 0 28px}
+  .lede b{color:var(--ink)}
+
+  .board{display:flex;gap:22px;align-items:flex-start;overflow-x:auto;padding-bottom:12px}
+  .col{flex:0 0 auto}
+  .colhead{margin:0 0 10px}
+  .colhead h2{font-size:13px;text-transform:uppercase;letter-spacing:.8px;margin:0 0 3px}
+  .colhead p{margin:0;color:var(--sub);font-size:12px;max-width:36ch}
+  .tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;
+       padding:2px 7px;border-radius:999px;text-transform:uppercase;margin-bottom:6px}
+  .tag.now{background:#fee2e2;color:#991b1b}
+  .tag.a{background:var(--primary-soft);color:var(--primary);border:1px solid var(--primary-line)}
+  .tag.b{background:#eef2ff;color:#3730a3}
+
+  /* Phone frame */
+  .phone{width:390px;background:var(--bg);border:1px solid var(--line);
+         border-radius:20px;overflow:hidden;box-shadow:0 8px 30px rgb(0 0 0/.07)}
+  .phone .scroll{max-height:1180px;overflow-y:auto}
+  .pad{padding:14px}
+
+  /* Desktop frame */
+  .desk{width:900px;background:var(--bg);border:1px solid var(--line);
+        border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgb(0 0 0/.07)}
+
+  .card{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);
+        padding:14px;margin-bottom:10px}
+  .muted{color:var(--sub)}
+  .xs{font-size:11.5px}
+  .sm{font-size:12.5px}
+  .bold{font-weight:700}
+  .row{display:flex;gap:8px;align-items:center}
+  .between{display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+  /* hero */
+  .hero{position:relative;height:180px;background:linear-gradient(135deg,#c8b89a,#8d7a5e);
+        display:flex;align-items:flex-end;padding:12px;color:#fff}
+  .hero .name{font-size:21px;font-weight:800;letter-spacing:-.3px;text-shadow:0 1px 6px rgb(0 0 0/.5)}
+  .hero .meta{font-size:12px;opacity:.95;text-shadow:0 1px 6px rgb(0 0 0/.5)}
+  .hero .badge{position:absolute;top:10px;right:10px;background:#fff;color:var(--warm-ink);
+        font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px}
+  .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+  .chip{background:rgb(255 255 255/.22);border:1px solid rgb(255 255 255/.35);
+        color:#fff;font-size:10.5px;padding:2px 7px;border-radius:999px}
+  .chip.ghost{background:var(--muted);border-color:var(--line);color:var(--sub)}
+
+  /* verdict block — the centrepiece of the redesign */
+  .verdict{border:1.5px solid var(--primary);border-radius:var(--radius);overflow:hidden;margin-bottom:10px}
+  .verdict .top{background:var(--primary);color:#fff;padding:12px 14px}
+  .verdict .top .h{font-size:17px;font-weight:800;letter-spacing:-.2px;display:flex;gap:8px;align-items:center}
+  .verdict .top .s{font-size:12px;opacity:.92;margin-top:2px}
+  .verdict .body{padding:12px 14px}
+  .facts{display:flex;flex-direction:column;gap:7px}
+  .fact{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+  .fact .ic{color:var(--primary);font-weight:700;line-height:1.35}
+  .meats{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .meat{background:var(--primary-soft);border:1px solid var(--primary-line);
+        border-radius:8px;padding:5px 9px;font-size:12px}
+  .meat b{color:var(--primary)}
+  .prov{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;
+        font-size:11.5px;color:var(--sub);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+
+  .btn{display:inline-block;border:1px solid var(--line);background:var(--bg);
+       border-radius:8px;padding:7px 11px;font-size:12.5px;font-weight:600;color:var(--ink)}
+  .btn.p{background:var(--primary);border-color:var(--primary);color:#fff}
+  .btn.full{display:block;text-align:center;width:100%}
+  .btnrow{display:flex;gap:7px;margin-top:10px}
+  .btnrow .btn{flex:1;text-align:center}
+
+  .sechead{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+           color:var(--sub);margin:16px 2px 7px}
+  .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .thumb{aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#d5cbb8,#9b8b72);
+         position:relative;overflow:hidden}
+  .thumb span{position:absolute;bottom:4px;left:4px;background:rgb(0 0 0/.55);color:#fff;
+              font-size:9px;padding:1px 5px;border-radius:4px}
+  .thumb.more{background:var(--muted);display:flex;align-items:center;justify-content:center;
+              color:var(--sub);font-size:12px;font-weight:600}
+
+  .ratings{display:flex;gap:0;align-items:stretch}
+  .ratings > div{flex:1;padding:2px 12px}
+  .ratings > div:first-child{padding-left:0}
+  .ratings > div + div{border-left:1px solid var(--line)}
+  .rlabel{font-size:9.5px;font-weight:800;letter-spacing:.7px;text-transform:uppercase}
+  .rbig{font-size:26px;font-weight:800;letter-spacing:-.5px;line-height:1.1}
+
+  .annot{background:#fffbeb;border:1px solid var(--warm-line);border-left-width:3px;
+         border-radius:8px;padding:9px 11px;font-size:11.5px;color:var(--warm-ink);margin:8px 0 12px}
+  .annot b{display:block;margin-bottom:2px}
+  .annot.bad{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
+  .annot.good{background:var(--primary-soft);border-color:var(--primary-line);color:#065f46}
+
+  /* two-column desktop */
+  .dgrid{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:14px}
+  .sticky{position:sticky;top:12px}
+  .dhero{height:210px}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 20px;font-size:12px;color:var(--sub)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Place detail — three ways</h1>
+  <p class="lede">
+    Same restaurant, same data, three structures. The problem isn't that there's too much
+    information — it's that <b>every piece of it has the same weight</b>, so the one question a
+    diner actually arrived with ("can I eat here?") takes as much work to answer as "what are the
+    opening hours". Column A is what's live now. B and C are two ways out.
+  </p>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--primary)"></i> Trust Halal's own verdict &amp; evidence</span>
+    <span><i class="sw" style="background:var(--warm)"></i> Third-party / Google data</span>
+    <span><i class="sw" style="background:var(--muted);border:1px solid var(--line)"></i> Secondary</span>
+  </div>
+
+  <div class="board">
+
+    <!-- ============================================ A — CURRENT ============================================ -->
+    <div class="col">
+      <div class="colhead">
+        <span class="tag now">Live today</span>
+        <h2>A · What's there now</h2>
+        <p>Eight sibling cards, identical weight. Annotated with what each one costs.</p>
+      </div>
+
+      <div class="phone"><div class="scroll">
+        <div class="pad xs muted">&lsaquo; Back to search</div>
+
+        <div style="padding:0 14px">
+          <div class="hero" style="border-radius:10px">
+            <div class="badge">Halal certified</div>
+            <div>
+              <div class="name">Jay's Deli</div>
+              <div class="meta">★ 4.8 (301) on Google</div>
+              <div class="chips">
+                <span class="chip">Burgers</span><span class="chip">American</span>
+                <span class="chip">Wings</span><span class="chip">+3 more</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pad">
+          <div class="annot bad">
+            <b>Google's number is the loudest thing on the page.</b>
+            It sits beside the name at full size. Trust Halal's own rating appears once,
+            far below, saying "No reviews yet" — the product's core signal, whispered.
+          </div>
+
+          <div class="between sm" style="margin-bottom:10px">
+            <span class="muted">📍 2179 Lawrenceville Hwy F, Decatur, GA</span>
+            <span class="btn xs">♡ Save</span>
+          </div>
+          <div class="row sm" style="margin-bottom:12px">
+            <span class="btn xs">Get directions ↗</span><span class="btn xs">Visit website</span>
+          </div>
+
+          <div class="card" style="background:var(--warm-soft);border-color:var(--warm-line)">
+            <div class="bold">🛡 Halal certificate on file</div>
+            <div class="sm muted" style="margin-top:2px">The owner has a current halal certificate on file with us.</div>
+          </div>
+
+          <div class="card">
+            <div class="facts">
+              <div class="fact"><span class="ic">✓</span> Fully halal kitchen</div>
+              <div class="fact"><span class="ic">✓</span> No pork on the menu</div>
+              <div class="fact"><span class="ic">✓</span> No alcohol served</div>
+            </div>
+            <div class="card sm" style="margin:10px 0 0"><div class="between">✓ Certified by HMS <span class="muted">›</span></div></div>
+            <div class="sechead" style="margin-left:0">Slaughter method</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div class="card sm" style="margin:0;border-color:var(--primary-line)"><div class="xs muted">CHICKEN</div><b>Zabihah</b></div>
+              <div class="card sm" style="margin:0;border-color:var(--primary-line)"><div class="xs muted">BEEF</div><b>Zabihah</b></div>
+              <div class="card sm" style="margin:0"><div class="xs muted">LAMB</div><span class="muted">Not served</span></div>
+              <div class="card sm" style="margin:0"><div class="xs muted">GOAT</div><span class="muted">Not served</span></div>
+            </div>
+            <div class="xs muted" style="margin-top:10px">🗓 Last verified 7 days ago · re-verification due Oct 10, 2026</div>
+          </div>
+
+          <div class="annot bad">
+            <b>The same fact, told four times.</b>
+            "Halal certified" (hero) → "Halal certificate on file" (card) → "Certified by HMS"
+            → "Last verified 7 days ago". Four framings, four boxes, ~260px of scroll, one claim.
+            And half the slaughter grid is spent saying <i>Not served</i> twice.
+          </div>
+
+          <div class="card between sm"><span>🕐 <b style="color:var(--primary)">Open now</b> · Today 12:00–9:00 PM</span><span class="muted">⌄</span></div>
+          <div class="xs muted" style="text-align:center;margin:-4px 0 12px">Ratings &amp; hours from Google · updated Jul 17</div>
+
+          <div class="sechead">Photos (2)</div>
+          <div class="card" style="padding:0;overflow:hidden">
+            <div style="height:150px;background:linear-gradient(135deg,#d5cbb8,#9b8b72)"></div>
+          </div>
+          <div class="annot">
+            <b>Two photos, one full-width card.</b> A gallery of two shouldn't occupy the
+            same real estate as the halal verdict.
+          </div>
+
+          <div class="card">
+            <div class="sechead" style="margin:0 0 8px">Reviews</div>
+            <div class="ratings">
+              <div>
+                <div class="rlabel" style="color:var(--primary)">TRUST HALAL</div>
+                <div class="sm muted" style="margin-top:4px">No reviews yet. Be the first.</div>
+              </div>
+              <div>
+                <div class="rlabel muted">ON GOOGLE</div>
+                <div class="rbig">4.8</div>
+                <div class="xs muted">301 ratings</div>
+              </div>
+            </div>
+            <div class="between sm" style="margin-top:12px">
+              <span class="muted xs">Reviews are from Trust Halal diners.</span>
+              <span class="btn p xs">Write a review</span>
+            </div>
+            <div class="card sm muted" style="margin:10px 0 0;background:var(--muted)">Sign in to write a review.</div>
+          </div>
+
+          <div class="card">
+            <div class="between"><div><div class="bold sm">Spot something wrong?</div>
+            <div class="xs muted">Report inaccuracies in Jay's Deli's halal profile.</div></div>
+            <span class="btn xs">⚑ Sign in to report</span></div>
+          </div>
+
+          <div class="annot bad">
+            <b>Two dead rows for signed-out visitors.</b> "Sign in to write a review" and
+            "Sign in to report" are two separate full-width blocks that do nothing.
+          </div>
+
+          <div class="sechead">More halal places nearby</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="card" style="padding:0;overflow:hidden">
+              <div style="height:64px;background:var(--muted);display:flex;align-items:center;justify-content:center" class="xs muted">No halal info yet</div>
+              <div style="padding:8px"><div class="sm bold">NY Deli &amp; Juice Bar</div><div class="xs muted">★ 4.4 · 2.7 mi</div></div>
+            </div>
+            <div class="card" style="padding:0;overflow:hidden">
+              <div style="height:64px;background:var(--muted);display:flex;align-items:center;justify-content:center" class="xs muted">No halal info yet</div>
+              <div style="padding:8px"><div class="sm bold">Meltwich</div><div class="xs muted">★ 4.8 · 4.7 mi</div></div>
+            </div>
+          </div>
+          <div class="annot bad">
+            <b>The page ends on the catalogue's weakest point.</b> Last impression:
+            two restaurants with "No halal info yet".
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============================================ B — SINGLE COLUMN ============================================ -->
+    <div class="col">
+      <div class="colhead">
+        <span class="tag a">Option B</span>
+        <h2>B · Single column, re-weighted</h2>
+        <p>Same components, same width. One verdict block, everything else demoted.</p>
+      </div>
+
+      <div class="phone"><div class="scroll">
+        <div class="pad xs muted">&lsaquo; Back to search</div>
+
+        <div style="padding:0 14px">
+          <div class="hero" style="border-radius:10px;height:150px">
+            <div>
+              <div class="name">Jay's Deli</div>
+              <!-- Google's rating loses the hero. It's not our claim and it isn't
+                   why someone is on this page. -->
+              <div class="meta">Decatur, GA · Burgers, American, Wings</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pad">
+          <!-- THE ANSWER. One block, first thing, unmistakable. -->
+          <div class="verdict">
+            <div class="top">
+              <div class="h">✓ Safe to eat here</div>
+              <div class="s">Fully halal kitchen · certificate on file with us</div>
+            </div>
+            <div class="body">
+              <div class="facts">
+                <div class="fact"><span class="ic">✓</span> No pork on the menu</div>
+                <div class="fact"><span class="ic">✓</span> No alcohol served</div>
+              </div>
+              <!-- Only what they SERVE. "Not served" is the absence of a fact and
+                   doesn't deserve half the widget. -->
+              <div class="meats">
+                <div class="meat">Chicken <b>Zabihah</b></div>
+                <div class="meat">Beef <b>Zabihah</b></div>
+              </div>
+              <div class="xs muted" style="margin-top:7px">Lamb and goat aren't served here.</div>
+
+              <div class="prov">
+                <span>Certified by <b style="color:var(--ink)">HMS</b> · checked 7 days ago</span>
+                <span style="color:var(--primary);font-weight:600">See the evidence ›</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="annot good">
+            <b>Four statements became one.</b> Verdict → the facts behind it → who checked
+            and when. Provenance is still one tap away, it just isn't shouting alongside
+            the answer.
+          </div>
+
+          <!-- Practical row: everything you do next, on one line. -->
+          <div class="card">
+            <div class="between sm">
+              <span>🕐 <b style="color:var(--primary)">Open now</b> · until 9:00 PM</span>
+              <span class="muted xs">2179 Lawrenceville Hwy ›</span>
+            </div>
+            <div class="btnrow">
+              <span class="btn">Directions</span>
+              <span class="btn">Call</span>
+              <span class="btn">Website</span>
+              <span class="btn">♡</span>
+            </div>
+          </div>
+
+          <div class="sechead">Photos</div>
+          <div class="thumbs">
+            <div class="thumb"><span>Restaurant</span></div>
+            <div class="thumb"><span>Menu</span></div>
+            <div class="thumb more">See all</div>
+          </div>
+
+          <div class="sechead">What diners say</div>
+          <div class="card">
+            <div class="ratings">
+              <div>
+                <div class="rlabel" style="color:var(--primary)">TRUST HALAL</div>
+                <div class="rbig muted" style="font-size:19px;margin-top:3px">No reviews yet</div>
+                <div class="xs muted">Be the first</div>
+              </div>
+              <div>
+                <div class="rlabel muted">ON GOOGLE</div>
+                <div class="rbig muted" style="font-size:19px;margin-top:3px">4.8</div>
+                <div class="xs muted">301 ratings</div>
+              </div>
+            </div>
+            <span class="btn p full" style="margin-top:11px">Write the first review</span>
+          </div>
+
+          <div class="annot good">
+            <b>Both ratings, same size, each labelled.</b> Google's is context, not the
+            headline — and an empty Trust Halal column reads as an invitation rather
+            than a gap.
+          </div>
+
+          <div class="sechead">Nearby</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="card" style="padding:8px">
+              <div class="sm bold">NY Deli &amp; Juice Bar</div>
+              <div class="xs muted">2.7 mi · ★ 4.8 on Google</div>
+              <div class="chips" style="margin-top:5px"><span class="chip ghost">Halal info wanted</span></div>
+            </div>
+            <div class="card" style="padding:8px">
+              <div class="sm bold">Meltwich</div>
+              <div class="xs muted">4.7 mi · ★ 4.8 on Google</div>
+              <div class="chips" style="margin-top:5px"><span class="chip ghost">Halal info wanted</span></div>
+            </div>
+          </div>
+
+          <!-- One quiet footer replaces two dead sign-in cards. -->
+          <div class="xs muted" style="text-align:center;margin:14px 0 4px;line-height:1.7">
+            Something wrong with this profile? <b style="color:var(--primary)">Report it</b><br>
+            Own Jay's Deli? <b style="color:var(--primary)">Claim your listing</b>
+          </div>
+
+          <div class="annot good">
+            <b>"No halal info yet" became "Halal info wanted".</b> Same fact, but it
+            reads as a thing you can help with rather than a hole in the product.
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============================================ C — TWO COLUMN ============================================ -->
+    <div class="col">
+      <div class="colhead">
+        <span class="tag b">Option C</span>
+        <h2>C · Two column (desktop ≥1024px)</h2>
+        <p>The verdict stops scrolling away. Same B layout on phones.</p>
+      </div>
+
+      <div class="desk">
+        <div class="hero dhero">
+          <div>
+            <div class="name" style="font-size:25px">Jay's Deli</div>
+            <div class="meta">Decatur, GA · Burgers, American, Wings · Open until 9:00 PM</div>
+          </div>
+        </div>
+
+        <div class="dgrid">
+          <!-- LEFT: the answer, pinned -->
+          <div>
+            <div class="sticky">
+              <div class="verdict">
+                <div class="top">
+                  <div class="h">✓ Safe to eat here</div>
+                  <div class="s">Fully halal kitchen</div>
+                </div>
+                <div class="body">
+                  <div class="facts">
+                    <div class="fact"><span class="ic">✓</span> Certificate on file with us</div>
+                    <div class="fact"><span class="ic">✓</span> No pork on the menu</div>
+                    <div class="fact"><span class="ic">✓</span> No alcohol served</div>
+                  </div>
+                  <div class="meats">
+                    <div class="meat">Chicken <b>Zabihah</b></div>
+                    <div class="meat">Beef <b>Zabihah</b></div>
+                  </div>
+                  <div class="xs muted" style="margin-top:7px">Lamb and goat aren't served here.</div>
+                  <div class="prov">
+                    <span>By <b style="color:var(--ink)">HMS</b> · checked 7d ago</span>
+                    <span style="color:var(--primary);font-weight:600">Evidence ›</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="btnrow" style="margin:0">
+                  <span class="btn p">Directions</span>
+                  <span class="btn">Call</span>
+                  <span class="btn">♡</span>
+                </div>
+                <div class="xs muted" style="margin-top:9px;line-height:1.6">
+                  2179 Lawrenceville Hwy F<br>Decatur, GA 30033
+                </div>
+              </div>
+
+              <div class="xs muted" style="text-align:center;line-height:1.7">
+                Something wrong? <b style="color:var(--primary)">Report it</b> ·
+                Own this? <b style="color:var(--primary)">Claim it</b>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: everything you browse -->
+          <div>
+            <div class="sechead" style="margin-top:0">Photos</div>
+            <div class="thumbs" style="grid-template-columns:repeat(4,1fr)">
+              <div class="thumb"><span>Restaurant</span></div>
+              <div class="thumb"><span>Menu</span></div>
+              <div class="thumb more">See all</div>
+              <div class="thumb more" style="background:var(--primary-soft);color:var(--primary)">+ Add</div>
+            </div>
+
+            <div class="sechead">What diners say</div>
+            <div class="card">
+              <div class="ratings">
+                <div>
+                  <div class="rlabel" style="color:var(--primary)">TRUST HALAL</div>
+                  <div class="rbig muted" style="font-size:20px;margin-top:3px">No reviews yet</div>
+                  <div class="xs muted">Be the first to review</div>
+                </div>
+                <div>
+                  <div class="rlabel muted">ON GOOGLE</div>
+                  <div class="rbig muted" style="font-size:20px;margin-top:3px">4.8</div>
+                  <div class="xs muted">301 ratings</div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:flex-end">
+                  <span class="btn p">Write a review</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sechead">Hours</div>
+            <div class="card sm">
+              <div class="between"><span>Today</span><b>12:00 – 9:00 PM</b></div>
+              <div class="between muted" style="margin-top:4px"><span>Tomorrow</span><span>12:00 – 9:00 PM</span></div>
+              <div class="xs muted" style="margin-top:8px;border-top:1px solid var(--line);padding-top:7px">
+                Hours from Google · updated Jul 17
+              </div>
+            </div>
+
+            <div class="sechead">Nearby</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div class="card" style="padding:9px">
+                <div class="sm bold">NY Deli &amp; Juice Bar</div>
+                <div class="xs muted">2.7 mi · ★ 4.4 on Google</div>
+                <div class="chips" style="margin-top:5px"><span class="chip ghost">Halal info wanted</span></div>
+              </div>
+              <div class="card" style="padding:9px">
+                <div class="sm bold">Meltwich</div>
+                <div class="xs muted">4.7 mi · ★ 4.8 on Google</div>
+                <div class="chips" style="margin-top:5px"><span class="chip ghost">Halal info wanted</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:900px">
+        <div class="annot good" style="margin-top:14px">
+          <b>The verdict never leaves the screen.</b> On desktop the answer stays pinned
+          while photos, reviews and hours scroll past it — which is the actual fix for
+          "there's a lot of info". Nothing is removed; it stops competing for the same
+          vertical space.
+        </div>
+        <div class="annot">
+          <b>Cost, honestly:</b> C needs a real layout change to
+          <code>place-detail-client.tsx</code> (grid + sticky) and every section restyled to
+          work at 320px and at full width. B is mostly reordering and re-weighting
+          components that already exist. C contains B — the phone layout is identical —
+          so B first and C later is a valid path, not wasted work.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <h2 style="font-size:15px;margin:34px 0 8px">What changed, and why</h2>
+  <div style="max-width:78ch;color:var(--sub);font-size:13px;line-height:1.75">
+    <p style="margin:0 0 10px"><b style="color:var(--ink)">One verdict instead of four statements.</b>
+    "Halal certified", "certificate on file", "Certified by HMS" and "last verified 7 days ago"
+    are one claim with its provenance. Collapsing them frees the top of the page for the
+    answer and puts the evidence one tap behind it.</p>
+
+    <p style="margin:0 0 10px"><b style="color:var(--ink)">Google's rating leaves the hero.</b>
+    It's still shown, still labelled, still next to yours — but it stops being the first
+    number a visitor reads on a page about your verification. Right now the loudest fact on a
+    Trust Halal profile is somebody else's score.</p>
+
+    <p style="margin:0 0 10px"><b style="color:var(--ink)">The slaughter grid only shows what's served.</b>
+    Two "Not served" tiles were half the widget. They become one quiet line underneath.</p>
+
+    <p style="margin:0 0 10px"><b style="color:var(--ink)">Dead sign-in rows become one footer line.</b>
+    Two full-width cards that do nothing for signed-out visitors — the overwhelming majority
+    of first-time traffic — collapse into a single line that also carries the owner-claim CTA.</p>
+
+    <p style="margin:0"><b style="color:var(--ink)">"No halal info yet" → "Halal info wanted".</b>
+    Identical fact, opposite posture. One advertises a hole; the other asks for help and
+    hints that the catalogue is something people build.</p>
+  </div>
+
+</div>
+</body>
+</html>
