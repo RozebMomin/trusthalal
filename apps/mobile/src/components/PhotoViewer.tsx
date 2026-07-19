@@ -6,12 +6,25 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PlacePhoto } from "@/lib/api/types";
 
-/** Human label per upload source — mirrors the mockup's "verifier visit" credit. */
-const SOURCE_LABEL: Record<string, string> = {
-  OWNER: "owner photo",
-  VERIFIER: "verifier visit",
-  CONSUMER: "community photo",
+/** Human credit per provenance.
+ *
+ *  Keyed off `attribution`, which the server derives, rather than off
+ *  `source`. The previous map had a VERIFIER key that was never a real
+ *  enum value and no GOOGLE case, so every backfilled Google photo — and
+ *  there are plenty in production — fell through to a bare "photo". */
+const ATTRIBUTION_LABEL: Record<string, string> = {
+  OWNER: "from the restaurant",
+  DINER: "community photo",
+  REVIEW: "from a review",
+  GOOGLE: "from Google",
 };
+
+function creditFor(photo: PlacePhoto): string {
+  if (photo.attribution === "REVIEW" && photo.review_rating != null) {
+    return `from a ${photo.review_rating}★ review`;
+  }
+  return ATTRIBUTION_LABEL[photo.attribution] ?? "photo";
+}
 
 const THUMB = 48;
 const THUMB_GAP = 8;
@@ -221,7 +234,7 @@ export function PhotoViewer({
                 <Text numberOfLines={1} style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>
                   {current.uploaded_by_display_name ?? "Trust Halal"}
                   {"  ·  "}
-                  <Text style={{ color: "#34D399" }}>{SOURCE_LABEL[current.source] ?? "photo"}</Text>
+                  <Text style={{ color: "#34D399" }}>{creditFor(current)}</Text>
                 </Text>
                 <Text numberOfLines={1} style={{ color: "rgba(255,255,255,0.6)", fontSize: 11.5, marginTop: 1 }}>
                   {current.caption ? `“${current.caption}” · ` : ""}{dateStr}

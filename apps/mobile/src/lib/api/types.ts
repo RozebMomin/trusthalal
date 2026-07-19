@@ -23,6 +23,10 @@ export type MobileUser = {
   email: string;
   role: UserRole;
   display_name: string | null;
+  /** Whether the account confirmed its email address. Gates posting reviews
+   *  and nothing else — browsing and saving stay open. Optional because the
+   *  field post-dates this type and older cached payloads won't carry it. */
+  email_verified?: boolean;
 };
 
 export type MobileAuthResponse = {
@@ -84,13 +88,26 @@ export type PlaceSearchResult = {
   open_now?: boolean | null;
 };
 
+/** Display-level provenance, derived server-side.
+ *
+ *  Render credits from this, never from `source`. The viewer previously
+ *  keyed a label map off `source` with a VERIFIER entry that was never a
+ *  real value and no GOOGLE case at all — so backfilled Google photos, which
+ *  exist in production, rendered a bare "photo". */
+export type PhotoAttribution = "OWNER" | "DINER" | "REVIEW" | "GOOGLE";
+
 export type PlacePhoto = {
   id: string;
   url: string;
   caption: string | null;
   is_hero: boolean;
-  /** OWNER | CONSUMER | VERIFIER — drives the credit line in the viewer. */
+  /** OWNER | CONSUMER | GOOGLE, as stored. Prefer `attribution`. */
   source: string;
+  attribution: PhotoAttribution;
+  /** Set when the photo was attached to a review, with that review's rating
+   *  so the credit can say which. */
+  review_id: string | null;
+  review_rating: number | null;
   uploaded_by_display_name: string | null;
   width_px: number | null;
   height_px: number | null;
@@ -229,4 +246,72 @@ export type SubmitVisitInput = {
   public_review_url?: string;
   disclosure: VisitDisclosure;
   disclosure_note?: string;
+};
+
+// ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+
+export type ReviewSort = "recent" | "rating_high" | "rating_low";
+
+/** Author identity on a review. No role, deliberately — a verifier's review
+ *  renders like anyone else's. Verifier standing is earned against facts and
+ *  doesn't transfer to weight of opinion about a meal. */
+export type ReviewAuthorRead = {
+  id: string;
+  display_name: string | null;
+};
+
+export type PlaceReviewReplyRead = {
+  id: string;
+  review_id: string;
+  organization_id: string;
+  organization_name: string | null;
+  body: string;
+  edited_at: string | null;
+  created_at: string;
+};
+
+export type PlaceReviewRead = {
+  id: string;
+  place_id: string;
+  author: ReviewAuthorRead;
+  rating: number;
+  body: string;
+  visited_on: string | null;
+  status: "PUBLISHED" | "HIDDEN" | "REMOVED";
+  edited_at: string | null;
+  created_at: string;
+  photos: Array<{ id: string; url: string }>;
+  reply: PlaceReviewReplyRead | null;
+  is_mine: boolean;
+  reported_by_me: boolean;
+  moderation_note: string | null;
+};
+
+/** Both ratings ride together so each can be labelled. They measure
+ *  different things over different populations and must never be blended. */
+export type ReviewSummary = {
+  average: number | null;
+  count: number;
+  histogram: Record<string, number>;
+  google_rating: number | null;
+  google_rating_count: number | null;
+};
+
+export type PlaceReviewListResponse = {
+  summary: ReviewSummary;
+  items: PlaceReviewRead[];
+  total: number;
+  next_offset: number | null;
+  /** False when signed out, unverified, or already reviewed — lets the app
+   *  explain why rather than hiding the button. */
+  can_review: boolean;
+  my_review_id: string | null;
+};
+
+export type PlaceReviewCreate = {
+  rating: number;
+  body: string;
+  visited_on?: string | null;
 };

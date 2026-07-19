@@ -17,7 +17,11 @@ import type {
   NotificationChannel,
   NotificationPreferencesResponse,
   PlaceDetail,
+  PlaceReviewCreate,
+  PlaceReviewListResponse,
+  PlaceReviewRead,
   PlaceSearchResult,
+  ReviewSort,
   SearchPlacesParams,
   SubmitVisitInput,
   VerificationVisit,
@@ -440,5 +444,63 @@ export function useUpdateNotificationPreference() {
       if (ctx?.previous) qc.setQueryData(PREFS_KEY, ctx.previous);
     },
     onSuccess: (data) => qc.setQueryData(PREFS_KEY, data),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+
+export function usePlaceReviews(placeId: string, sort: ReviewSort = "recent") {
+  return useQuery<PlaceReviewListResponse>({
+    queryKey: ["places", "reviews", placeId, sort],
+    queryFn: () =>
+      apiFetch<PlaceReviewListResponse>(
+        `/places/${placeId}/reviews?sort=${sort}&limit=10`,
+      ),
+    enabled: Boolean(placeId),
+  });
+}
+
+function invalidateReviews(qc: ReturnType<typeof useQueryClient>, placeId: string) {
+  qc.invalidateQueries({ queryKey: ["places", "reviews", placeId] });
+  // The place detail carries the denormalized aggregate, so it goes stale
+  // on every write here too.
+  qc.invalidateQueries({ queryKey: ["places", "detail", placeId] });
+}
+
+export function useCreateReview(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: PlaceReviewCreate) =>
+      apiFetch<PlaceReviewRead>(`/places/${placeId}/reviews`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => invalidateReviews(qc, placeId),
+  });
+}
+
+export function useUpdateReview(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      reviewId,
+      ...payload
+    }: Partial<PlaceReviewCreate> & { reviewId: string }) =>
+      apiFetch<PlaceReviewRead>(`/me/reviews/${reviewId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => invalidateReviews(qc, placeId),
+  });
+}
+
+export function useDeleteReview(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reviewId: string) =>
+      apiFetch<void>(`/me/reviews/${reviewId}`, { method: "DELETE" }),
+    onSuccess: () => invalidateReviews(qc, placeId),
   });
 }

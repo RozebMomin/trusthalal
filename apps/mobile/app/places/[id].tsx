@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Alert, Image, Linking, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyFavorites, usePlaceDetail, useToggleFavorite } from "@/lib/api/hooks";
+import { PlaceReviews } from "@/components/PlaceReviews";
 import { primaryHalalSignal } from "@/lib/halal-display";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -217,6 +218,13 @@ export default function PlaceDetail() {
               </View>
 
               <HoursCard place={place} />
+
+              {/* Opinion after the verified facts, matching the web ordering. */}
+              <PlaceReviews
+                place={place}
+                signedIn={Boolean(me)}
+                emailVerified={me?.email_verified === true}
+              />
 
               <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
                 Spot something wrong? Reporting arrives in the next build — for now, report on
