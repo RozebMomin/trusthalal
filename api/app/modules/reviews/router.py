@@ -53,6 +53,7 @@ from app.core.text_moderation import (
 from app.core.storage import StorageClient, get_photos_storage_client
 from app.db.deps import get_db
 from app.modules.notifications.events import (
+    notify_review_edited_after_reply,
     notify_review_posted,
     notify_review_replied,
 )
@@ -201,6 +202,7 @@ def _review_read(
         is_mine=viewer_id is not None and review.author_user_id == viewer_id,
         reported_by_me=reported,
         moderation_note=review.moderation_note if include_moderation_note else None,
+        edited_after_reply=repo.was_edited_after_reply(review),
     )
 
 
@@ -382,6 +384,7 @@ def list_my_reviews(
 @limiter.limit("30/hour", key_func=user_or_ip_key)
 def update_my_review(
     request: Request,
+    background: BackgroundTasks,
     review_id: UUID,
     payload: PlaceReviewUpdate,
     user: CurrentUser = Depends(require_verified_email),
@@ -395,8 +398,12 @@ def update_my_review(
     if payload.body is not None:
         _moderate(payload.body, moderator)
 
+    # Whether there was already a reply has to be read *before* the update, so
+    # the notify decision isn't affected by anything the edit does.
+    had_reply = review.reply is not None
+
     fields = payload.model_dump(exclude_unset=True)
-    repo.update_review(
+    edit = repo.update_review(
         db,
         review=review,
         rating=payload.rating,
@@ -406,6 +413,16 @@ def update_my_review(
     )
     db.commit()
     db.refresh(review)
+
+    # A reply is a public statement about specific words. When those words
+    # change materially the owner's reply may now be answering something that
+    # isn't there, and they're the only one who can fix it — so they have to
+    # be told. Cosmetic edits stay silent on purpose; see update_review.
+    if had_reply and edit.material:
+        notify_review_edited_after_reply(
+            background, db, review=review, previous_rating=edit.previous_rating
+        )
+
     return _review_read(db, review, viewer_id=user.id, include_moderation_note=True)
 
 
@@ -495,15 +512,22 @@ def report_review(
     response_model=OwnerReviewListResponse,
     summary="Reviews across the places you manage",
     description=(
-        "The owner inbox. `needs_reply=true` filters to unanswered reviews; "
-        "`needs_reply_count` is always returned across every managed place "
-        "because it drives the nav badge, which is the reason the inbox "
-        "exists at all."
+        "The owner inbox. Two actionable buckets:\n\n"
+        "* `needs_reply=true` — reviews nobody has answered.\n"
+        "* `edited_after_reply=true` — reviews that changed *after* the "
+        "owner replied, so the published reply may no longer match what "
+        "it sits under. These are ordered by when they were edited, not "
+        "when they were posted: a review written months ago and rewritten "
+        "today is today's problem.\n\n"
+        "Both counts are always returned across every managed place, "
+        "because they drive the nav badges — a count that changes when you "
+        "click a filter isn't a badge, it's a search result."
     ),
 )
 def owner_review_inbox(
     place_id: Optional[UUID] = Query(default=None),
     needs_reply: bool = Query(default=False),
+    edited_after_reply: bool = Query(default=False),
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     user: CurrentUser = Depends(get_current_user),
@@ -527,7 +551,11 @@ def owner_review_inbox(
 
     if not managed_ids:
         return OwnerReviewListResponse(
-            items=[], total=0, needs_reply_count=0, next_offset=None
+            items=[],
+            total=0,
+            needs_reply_count=0,
+            edited_after_reply_count=0,
+            next_offset=None,
         )
 
     scope = [place_id] if place_id and place_id in managed_ids else managed_ids
@@ -545,14 +573,32 @@ def owner_review_inbox(
     )
 
     unanswered = [r for r in rows if r.reply is None]
+    # Sorted by when they were edited rather than when they were posted. The
+    # default created_at ordering is what made this bucket necessary: a review
+    # from three months ago that was rewritten this morning sits three months
+    # down the list, so even an owner who went looking wouldn't find it.
+    stale_replies = sorted(
+        [r for r in rows if repo.was_edited_after_reply(r)],
+        key=lambda r: r.edited_at,
+        reverse=True,
+    )
+
     # The badge counts across everything they manage, not the current filter
     # — a count that changes when you click a filter isn't a badge, it's a
     # search result.
     needs_reply_count = len(
         [r for r in rows if r.reply is None and r.place_id in managed_ids]
     )
+    edited_after_reply_count = len(
+        [r for r in stale_replies if r.place_id in managed_ids]
+    )
 
-    selected = unanswered if needs_reply else rows
+    if edited_after_reply:
+        selected = stale_replies
+    elif needs_reply:
+        selected = unanswered
+    else:
+        selected = rows
     total = len(selected)
     page = selected[offset : offset + limit]
 
@@ -587,6 +633,7 @@ def owner_review_inbox(
         items=items,
         total=total,
         needs_reply_count=needs_reply_count,
+        edited_after_reply_count=edited_after_reply_count,
         next_offset=(offset + limit) if (offset + limit) < total else None,
     )
 

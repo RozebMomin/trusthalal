@@ -13,7 +13,8 @@ silently drifts from the reviews it claims to summarize.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional, Sequence
+from difflib import SequenceMatcher
+from typing import NamedTuple, Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
@@ -283,6 +284,50 @@ def create_review(
     return row
 
 
+#: How similar two versions of a body have to be for the edit to count as
+#: cosmetic. SequenceMatcher scores a typo fix in a normal-length review around
+#: 0.97–0.99 and a genuine rewrite well below 0.8, so 0.9 sits in the empty
+#: space between them.
+_BODY_SIMILARITY_COSMETIC = 0.9
+
+
+class ReviewEdit(NamedTuple):
+    """What an edit did, so the router can decide whether to tell anyone.
+
+    ``material`` is the interesting one: it means the review now says
+    something different enough that an owner who already replied might want
+    to revisit their reply. Fixing "grate food" to "great food" is not that.
+    """
+
+    changed: bool
+    material: bool
+    previous_rating: int | None
+    previous_body: str | None
+
+
+def _is_material_body_change(before: str, after: str) -> bool:
+    """True when a body edit changes the substance, not just the spelling.
+
+    A pure character comparison would notify an owner every time somebody
+    fixed a typo, and an owner who learns their "review changed" email is
+    usually noise will stop opening it — at which point the one that matters
+    gets missed too. So the bar is similarity, not equality.
+
+    Length change alone is a deliberate trigger: appending a paragraph keeps
+    every original character intact but can completely reverse the sentiment.
+    """
+    a = " ".join(before.split()).lower()
+    b = " ".join(after.split()).lower()
+    if a == b:
+        return False
+    # A big swing in length is material regardless of what the ratio says.
+    if min(len(a), len(b)) == 0:
+        return True
+    if max(len(a), len(b)) / min(len(a), len(b)) >= 1.25:
+        return True
+    return SequenceMatcher(None, a, b).ratio() < _BODY_SIMILARITY_COSMETIC
+
+
 def update_review(
     db: Session,
     *,
@@ -291,12 +336,18 @@ def update_review(
     body: str | None = None,
     visited_on=None,
     visited_on_provided: bool = False,
-) -> PlaceReview:
+) -> ReviewEdit:
     """Edit in place, stamping ``edited_at``. Caller owns the commit.
 
     A removed review can't be edited back into visibility — that would let
     anyone whose content was taken down simply re-post it. Hidden ones can be
     edited, which is the point of hidden being reversible: fix it and ask.
+
+    Returns a ``ReviewEdit`` rather than the review, because the caller needs
+    to know *what kind* of change this was. A review that gets rewritten from
+    praise to complaint after the owner already replied leaves that reply
+    answering something nobody said — the owner has to be told, and only the
+    code that saw both versions can say whether that happened.
     """
     if review.status == PlaceReviewStatus.REMOVED.value:
         raise ForbiddenError(
@@ -304,14 +355,25 @@ def update_review(
             "This review was removed by moderation and can't be edited.",
         )
 
+    previous_rating = review.rating
+    previous_body = review.body
+
     changed = False
+    material = False
     if rating is not None and rating != review.rating:
         review.rating = rating
         changed = True
+        # Any star movement is material. It's the number the whole product
+        # ranks on, and it's what a reply is most often responding to.
+        material = True
     if body is not None and body != review.body:
+        if _is_material_body_change(review.body, body):
+            material = True
         review.body = body
         changed = True
     if visited_on_provided and visited_on != review.visited_on:
+        # Not material: correcting which day you went doesn't change what you
+        # said about the place, so it isn't worth an owner's attention.
         review.visited_on = visited_on
         changed = True
 
@@ -324,7 +386,28 @@ def update_review(
         db.flush()
         recompute_place_review_stats(db, place_id=review.place_id)
 
-    return review
+    return ReviewEdit(
+        changed=changed,
+        material=material,
+        previous_rating=previous_rating if changed else None,
+        previous_body=previous_body if changed else None,
+    )
+
+
+def was_edited_after_reply(review: PlaceReview) -> bool:
+    """True when the review changed after the owner's reply was written.
+
+    The comparison is against the reply's ``created_at``, not its
+    ``edited_at``: if the owner has since revised the reply they've already
+    seen the new text, and re-flagging it would tell readers something the
+    owner has already dealt with. So an owner clears the flag by editing
+    their reply — which is exactly the action the flag is asking for.
+    """
+    reply = review.reply
+    if reply is None or review.edited_at is None:
+        return False
+    seen_at = reply.edited_at or reply.created_at
+    return review.edited_at > seen_at
 
 
 def delete_review(db: Session, *, review: PlaceReview) -> UUID:

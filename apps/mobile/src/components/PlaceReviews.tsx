@@ -122,6 +122,13 @@ function ReviewRow({
           <Text style={[ty.small, { color: t.ink, marginTop: 4, lineHeight: 17 }]}>
             {review.reply.body}
           </Text>
+          {/* The review changed after this reply was written, so the reply may
+              be answering words no longer above it. Same reasoning as web. */}
+          {review.edited_after_reply ? (
+            <Text style={[ty.small, { color: t.sub, marginTop: 6, fontSize: 10.5 }]}>
+              This review was edited after this reply was written.
+            </Text>
+          ) : null}
         </View>
       ) : null}
     </View>

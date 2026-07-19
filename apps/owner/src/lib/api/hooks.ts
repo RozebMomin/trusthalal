@@ -1535,6 +1535,10 @@ export type OwnerReviewRead = {
   photos: Array<{ id: string; url: string }>;
   reply: OwnerReviewReply | null;
   place: OwnerReviewPlace | null;
+  /** The diner changed this review after the reply was published, so the
+   *  reply may now be answering words that aren't there. Computed
+   *  server-side; clears when the owner edits their reply. */
+  edited_after_reply: boolean;
   /** An owner should know a review they're about to answer is already
    *  contested — the tone of a good reply differs. */
   open_report_count: number;
@@ -1547,6 +1551,9 @@ export type OwnerReviewListResponse = {
    *  nav badge, and a badge that changes when you click a filter is a
    *  search result, not a badge. */
   needs_reply_count: number;
+  /** Reviews that changed after you replied — your published reply may no
+   *  longer match what it sits under. Same all-places scoping as above. */
+  edited_after_reply_count: number;
   next_offset: number | null;
 };
 
@@ -1558,10 +1565,12 @@ const ownerReviewsQk = {
 export function useOwnerReviews(opts: {
   placeId?: string;
   needsReply?: boolean;
+  editedAfterReply?: boolean;
 } = {}) {
   const params = {
     place_id: opts.placeId,
     needs_reply: opts.needsReply ? true : undefined,
+    edited_after_reply: opts.editedAfterReply ? true : undefined,
   };
   return useQuery<OwnerReviewListResponse>({
     queryKey: ownerReviewsQk.inbox(params),

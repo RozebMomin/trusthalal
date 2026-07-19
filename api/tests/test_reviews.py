@@ -808,3 +808,259 @@ def test_deleted_review_leaves_the_admin_queue_intact(
     resp = api.as_user(admin.id).get("/admin/review-reports")
     assert resp.status_code == 200, resp.text
     assert resp.json()["items"] == []
+
+
+# ---------------------------------------------------------------------------
+# Editing a review the owner already answered
+# ---------------------------------------------------------------------------
+# A reply is a public statement about specific words. When those words change
+# afterwards the reply keeps standing underneath, now apparently answering
+# something nobody said. Before this, nothing told the owner and nothing told
+# readers — the owner inbox structurally could not surface it, because "needs
+# reply" means "has no reply" and the list sorts by original post date.
+
+
+def _reply(api, owner_id, review_id, body="Thanks for coming in."):
+    return api.as_user(owner_id).post(
+        f"/places/reviews/{review_id}/reply", json={"body": body}
+    )
+
+
+def test_material_body_change_detection():
+    """The bar is similarity, not equality. Notifying an owner every time
+    somebody fixed a typo teaches them the email is noise, and then the one
+    that matters gets skimmed past with the rest."""
+    from app.modules.reviews.repo import _is_material_body_change
+
+    long_body = (
+        "Ordered the mixed grill and asked about the chicken; they showed me "
+        "the certificate without hesitation. Portions were generous."
+    )
+
+    # Cosmetic: a typo, a capitalisation change, reflowed whitespace.
+    assert not _is_material_body_change(long_body, long_body.replace("grill", "gril"))
+    assert not _is_material_body_change(long_body, long_body.upper())
+    assert not _is_material_body_change(long_body, "  ".join(long_body.split()))
+    assert not _is_material_body_change(long_body, long_body)
+
+    # Material: a rewrite, and an appended paragraph that keeps every original
+    # character intact but reverses the sentiment.
+    assert _is_material_body_change(
+        long_body, "Went back a second time and it was genuinely bad. Avoid."
+    )
+    assert _is_material_body_change(
+        long_body,
+        long_body + " Went back since and it was awful — I'm downgrading this.",
+    )
+
+
+def test_rating_change_alone_is_material(api, db_session, verified_user, place, moderator):
+    """No body change at all, but the star count is the number the whole
+    product ranks on and the thing a reply most often responds to."""
+    from app.modules.reviews import repo
+
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, place.id, rating=5).json()["id"]
+    db_session.expire_all()
+
+    review = repo.get_review(db_session, review_id)
+    edit = repo.update_review(db_session, review=review, rating=2)
+    db_session.commit()
+
+    assert edit.changed is True
+    assert edit.material is True
+    assert edit.previous_rating == 5
+
+
+def test_visited_on_change_alone_is_not_material(
+    api, db_session, verified_user, place, moderator
+):
+    """Correcting which day you went doesn't change what you said about the
+    place, so it isn't worth an owner's attention."""
+    from datetime import date
+
+    from app.modules.reviews import repo
+
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, place.id).json()["id"]
+    db_session.expire_all()
+
+    review = repo.get_review(db_session, review_id)
+    edit = repo.update_review(
+        db_session,
+        review=review,
+        visited_on=date(2026, 1, 2),
+        visited_on_provided=True,
+    )
+    db_session.commit()
+
+    assert edit.changed is True
+    assert edit.material is False
+
+
+def test_edit_after_reply_flags_the_reply_publicly(
+    api, db_session, verified_user, owned_place, moderator
+):
+    """Readers get told, because otherwise they see a reply that contradicts
+    the review above it and have to guess which party is being dishonest."""
+    p, owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, p.id, rating=5).json()["id"]
+    assert _reply(api, owner.id, review_id).status_code in (200, 201)
+
+    r = api_author.patch(
+        f"/me/reviews/{review_id}",
+        json={"rating": 2, "body": "Went back and it was genuinely bad. Avoid."},
+    )
+    assert r.status_code == 200
+    assert r.json()["edited_after_reply"] is True
+
+    # And on the public list, which is what a diner actually reads.
+    listed = api.get(f"/places/{p.id}/reviews").json()["items"]
+    assert [x["edited_after_reply"] for x in listed] == [True]
+
+
+def test_edit_before_any_reply_does_not_flag(
+    api, db_session, verified_user, owned_place, moderator
+):
+    """The harmless ordering. Flagging this would cry wolf on every review
+    whose author fixed something before the owner got around to answering."""
+    p, owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, p.id, rating=5).json()["id"]
+
+    api_author.patch(f"/me/reviews/{review_id}", json={"rating": 4})
+    assert _reply(api, owner.id, review_id).status_code in (200, 201)
+
+    listed = api.get(f"/places/{p.id}/reviews").json()["items"]
+    assert [x["edited_after_reply"] for x in listed] == [False]
+
+
+def test_owner_editing_their_reply_clears_the_flag(
+    api, db_session, verified_user, owned_place, moderator
+):
+    """The flag says "the owner may not have seen this". Once they've revised
+    the reply they clearly have, and leaving the warning up would tell readers
+    about a problem that's already been dealt with."""
+    p, owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, p.id, rating=5).json()["id"]
+    _reply(api, owner.id, review_id)
+    api_author.patch(
+        f"/me/reviews/{review_id}",
+        json={"rating": 2, "body": "Went back and it was genuinely bad. Avoid."},
+    )
+
+    assert api.get(f"/places/{p.id}/reviews").json()["items"][0][
+        "edited_after_reply"
+    ] is True
+
+    r = api.as_user(owner.id).patch(
+        f"/places/reviews/{review_id}/reply",
+        json={"body": "Sorry to hear the second visit fell short — please reach out."},
+    )
+    assert r.status_code == 200
+
+    assert api.get(f"/places/{p.id}/reviews").json()["items"][0][
+        "edited_after_reply"
+    ] is False
+
+
+def test_material_edit_notifies_the_owner(
+    api, db_session, verified_user, owned_place, moderator, monkeypatch
+):
+    """The whole point. Without this the owner's reply silently rots."""
+    from app.modules.reviews import router as reviews_router
+
+    calls: list = []
+    monkeypatch.setattr(
+        reviews_router,
+        "notify_review_edited_after_reply",
+        lambda *a, **kw: calls.append(kw),
+    )
+
+    p, owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, p.id, rating=5).json()["id"]
+    _reply(api, owner.id, review_id)
+
+    api_author.patch(
+        f"/me/reviews/{review_id}",
+        json={"rating": 2, "body": "Went back and it was genuinely bad. Avoid."},
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["previous_rating"] == 5
+
+
+def test_cosmetic_edit_does_not_notify(
+    api, db_session, verified_user, owned_place, moderator, monkeypatch
+):
+    """A typo fix is not news. This is the check that keeps the channel worth
+    reading — an owner who learns to ignore these will ignore the real one."""
+    from app.modules.reviews import router as reviews_router
+
+    calls: list = []
+    monkeypatch.setattr(
+        reviews_router,
+        "notify_review_edited_after_reply",
+        lambda *a, **kw: calls.append(kw),
+    )
+
+    p, owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, p.id, rating=5).json()["id"]
+    _reply(api, owner.id, review_id)
+
+    api_author.patch(f"/me/reviews/{review_id}", json={"body": BODY.replace("the", "teh", 1)})
+
+    assert calls == []
+
+
+def test_edit_with_no_reply_does_not_notify(
+    api, db_session, verified_user, owned_place, moderator, monkeypatch
+):
+    """Nothing to go stale, and the review is already sitting in the owner's
+    "needs reply" bucket where they'll see the current text anyway."""
+    from app.modules.reviews import router as reviews_router
+
+    calls: list = []
+    monkeypatch.setattr(
+        reviews_router,
+        "notify_review_edited_after_reply",
+        lambda *a, **kw: calls.append(kw),
+    )
+
+    p, _owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, p.id, rating=5).json()["id"]
+    api_author.patch(f"/me/reviews/{review_id}", json={"rating": 1})
+
+    assert calls == []
+
+
+def test_owner_inbox_surfaces_edited_reviews_in_their_own_bucket(
+    api, db_session, verified_user, owned_place, moderator
+):
+    """The bucket has to exist separately: "needs reply" is defined as having
+    no reply, so an answered-then-edited review can never appear there, and
+    the "all" list sorts by original post date."""
+    p, owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, p.id, rating=5).json()["id"]
+    _reply(api, owner.id, review_id)
+    api_author.patch(
+        f"/me/reviews/{review_id}",
+        json={"rating": 2, "body": "Went back and it was genuinely bad. Avoid."},
+    )
+
+    api_owner = api.as_user(owner.id)
+
+    inbox = api_owner.get("/me/place-reviews?edited_after_reply=true").json()
+    assert [x["id"] for x in inbox["items"]] == [review_id]
+    assert inbox["edited_after_reply_count"] == 1
+
+    # Still absent from needs-reply, which is exactly why the bucket exists.
+    needs = api_owner.get("/me/place-reviews?needs_reply=true").json()
+    assert [x["id"] for x in needs["items"]] == []
+    assert needs["edited_after_reply_count"] == 1

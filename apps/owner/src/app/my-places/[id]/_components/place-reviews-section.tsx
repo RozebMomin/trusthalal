@@ -132,6 +132,17 @@ function ReviewItem({ review }: { review: OwnerReviewRead }) {
         </div>
       )}
 
+      {/* Mirrors the inbox card — same warning, same wording, so an owner who
+          sees it in one place recognizes it in the other. */}
+      {review.edited_after_reply && (
+        <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+          <b>This review changed after you replied.</b>{" "}
+          {review.edited_at && `Edited ${relative(review.edited_at)}. `}
+          Diners currently see a note saying so under your reply. Editing your
+          reply — even slightly — clears it.
+        </div>
+      )}
+
       {review.reply && !open && (
         <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-3">
           <div className="text-[11px] font-bold text-primary">

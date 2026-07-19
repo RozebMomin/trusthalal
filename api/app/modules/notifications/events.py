@@ -544,6 +544,73 @@ def notify_review_posted(
         )
 
 
+def notify_review_edited_after_reply(
+    background: BackgroundTasks, db: Session, *, review, previous_rating: int | None
+) -> None:
+    """Tell the owners that a review they already answered has changed.
+
+    Without this the flow has a silent hole: a diner reviews, the owner
+    replies, and months later the diner rewrites the review into something
+    else. The reply stays published underneath, now apparently answering
+    words nobody wrote — and nothing anywhere tells the owner to look.
+
+    Only fires for *material* edits (see ``repo.update_review``). Notifying on
+    every typo fix would teach owners that this email is noise, and the one
+    that matters would get skimmed past with the rest.
+
+    Recipients are the place's owners, so this no-ops on unclaimed places —
+    same as a new review. Nobody to tell, nothing to fix.
+    """
+    if review.reply is None:
+        return
+    recipients = owner_users_for_place(db, review.place_id)
+    if not recipients:
+        return
+
+    place_name = place_name_for(db, review.place_id)
+    inbox_url = f"{settings.OWNER_PORTAL_ORIGIN.rstrip('/')}/my-reviews?updated=1"
+    stars = "★" * int(review.rating) + "☆" * (5 - int(review.rating))
+    rating_changed = (
+        previous_rating is not None and int(previous_rating) != int(review.rating)
+    )
+
+    for user in recipients:
+        if not user.email:
+            continue
+        notify(
+            background,
+            db=db,
+            user_id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            category=NotificationCategory.REVIEW,
+            subject=(
+                f"A review you replied to was updated — {place_name}"
+            ),
+            template="review_edited_owner",
+            context={
+                "preheader": (
+                    f"Your published reply may no longer match the review at "
+                    f"{place_name}."
+                ),
+                "place_name": place_name,
+                "rating": int(review.rating),
+                "stars": stars,
+                "previous_rating": int(previous_rating) if rating_changed else None,
+                "rating_changed": rating_changed,
+                "excerpt": _review_excerpt(review.body),
+                "inbox_url": inbox_url,
+            },
+            push_title=f"Review updated at {place_name}",
+            push_body=(
+                f"{stars} — your reply may need another look"
+                if rating_changed
+                else "A review you replied to was rewritten"
+            ),
+            push_data={"path": "/my-reviews"},
+        )
+
+
 def notify_review_replied(
     background: BackgroundTasks, db: Session, *, review, reply
 ) -> None:

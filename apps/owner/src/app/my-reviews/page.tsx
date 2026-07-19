@@ -142,6 +142,18 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
         </div>
       )}
 
+      {/* The diner rewrote this after you answered it. Said up front, above
+          the reply, because the action this card wants is "re-read your reply
+          against the new text" — not "reply", which the owner already did. */}
+      {review.edited_after_reply && (
+        <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+          <b>This review changed after you replied.</b>{" "}
+          {review.edited_at && `Edited ${relative(review.edited_at)}. `}
+          Diners currently see a note saying so under your reply. Editing your
+          reply — even slightly — clears it.
+        </div>
+      )}
+
       {review.reply && !open && (
         <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-3">
           <div className="text-[11px] font-bold text-primary">
@@ -264,9 +276,29 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
   );
 }
 
+/**
+ * Which bucket the inbox is showing.
+ *
+ * "updated" exists because a review can change months after you answered it,
+ * and the other two buckets structurally cannot surface that: "needs reply"
+ * is defined as having no reply, and "all" sorts by original post date, so a
+ * three-month-old review rewritten this morning sits three months down.
+ */
+type Bucket = "needs_reply" | "updated" | "all";
+
 export default function MyReviewsPage() {
-  const [needsReply, setNeedsReply] = React.useState(true);
-  const query = useOwnerReviews({ needsReply });
+  const [bucket, setBucket] = React.useState<Bucket>("needs_reply");
+  const query = useOwnerReviews({
+    needsReply: bucket === "needs_reply",
+    editedAfterReply: bucket === "updated",
+  });
+
+  const empty = {
+    needs_reply: "Nothing waiting on you. Reviews you haven't answered show up here.",
+    updated:
+      "Nothing to revisit. If a diner rewrites a review after you replied, it lands here so your reply doesn't end up answering words that aren't there.",
+    all: "No reviews yet. They'll appear here as diners write them.",
+  }[bucket];
 
   return (
     <div className="space-y-5">
@@ -281,17 +313,26 @@ export default function MyReviewsPage() {
       <div className="flex flex-wrap gap-1.5">
         {(
           [
-            [true, "Needs reply", query.data?.needs_reply_count],
-            [false, "All", query.data && !needsReply ? query.data.total : undefined],
+            ["needs_reply", "Needs reply", query.data?.needs_reply_count],
+            [
+              "updated",
+              "Updated since your reply",
+              query.data?.edited_after_reply_count,
+            ],
+            [
+              "all",
+              "All",
+              query.data && bucket === "all" ? query.data.total : undefined,
+            ],
           ] as const
         ).map(([key, label, count]) => (
           <button
-            key={String(key)}
+            key={key}
             type="button"
-            onClick={() => setNeedsReply(key)}
+            onClick={() => setBucket(key)}
             className={
               "rounded-full border px-3 py-1 text-sm font-medium transition " +
-              (needsReply === key
+              (bucket === key
                 ? "border-foreground bg-foreground text-background"
                 : "border-border text-muted-foreground hover:text-foreground")
             }
@@ -308,9 +349,7 @@ export default function MyReviewsPage() {
 
       {query.data && query.data.items.length === 0 && (
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          {needsReply
-            ? "Nothing waiting on you. Reviews you haven't answered show up here."
-            : "No reviews yet. They'll appear here as diners write them."}
+          {empty}
         </div>
       )}
 

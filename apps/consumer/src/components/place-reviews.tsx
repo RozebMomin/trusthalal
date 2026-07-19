@@ -297,6 +297,16 @@ function ReviewRow({
           <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-foreground/85">
             {review.reply.body}
           </p>
+          {/* The review changed after this reply was written, so the reply may
+              be answering words that are no longer above it. Saying so is the
+              honest option: without it a reader sees a mismatch and has to
+              guess whether the restaurant is being dishonest or the reviewer
+              is. The owner clears this by editing their reply. */}
+          {review.edited_after_reply && (
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              This review was edited after this reply was written.
+            </p>
+          )}
         </div>
       )}
     </li>

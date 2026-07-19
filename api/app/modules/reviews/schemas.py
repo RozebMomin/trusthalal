@@ -115,6 +115,19 @@ class PlaceReviewRead(BaseModel):
     photos: list[ReviewPhotoRead] = Field(default_factory=list)
     reply: Optional[PlaceReviewReplyRead] = None
 
+    #: True when this review was edited *after* the owner's reply was written.
+    #:
+    #: A bare "edited" marker doesn't distinguish the harmless case (fixed a
+    #: typo, then the owner answered) from the one that misleads readers: the
+    #: review was rewritten afterwards, so the reply now appears to be
+    #: answering words that were never there. Only the second deserves a
+    #: caveat next to the reply.
+    #:
+    #: Computed here rather than left to each client to compare timestamps —
+    #: three clients doing the same date arithmetic is three chances to get
+    #: the comparison backwards.
+    edited_after_reply: bool = False
+
     #: True when the caller wrote this one — drives Edit vs Report in the UI.
     is_mine: bool = False
     #: True when the caller has already reported it, so the client can show
@@ -236,6 +249,10 @@ class OwnerReviewListResponse(BaseModel):
     #: Across every place the owner manages. This is the number that drives
     #: the nav badge, which is the whole reason the inbox exists.
     needs_reply_count: int = 0
+    #: Reviews that changed after the owner already replied — their published
+    #: reply may now be answering words that aren't there. Also scoped to
+    #: every managed place, for the same badge reason.
+    edited_after_reply_count: int = 0
     next_offset: Optional[int] = None
 
 

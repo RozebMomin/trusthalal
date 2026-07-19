@@ -1,0 +1,23 @@
+{% extends "_base.txt.jinja" %}
+
+{% block content %}
+A review you replied to was updated
+
+Someone changed their review of {{ place_name }} after you responded to it.
+Your reply is still public underneath it.
+
+{% if rating_changed %}Rating: {{ previous_rating }}/5 -> {{ rating }}/5
+{{ stars }}
+{% else %}{{ stars }} ({{ rating }}/5)
+{% endif %}
+  {{ excerpt }}
+
+Worth a look: if your reply thanked them for something they no longer say, it
+now reads as a response to words that aren't there. Editing your reply clears
+the "edited after this reply" note diners currently see.
+
+If your reply still stands, you don't need to do anything.
+
+Review your reply:
+  {{ inbox_url }}
+{% endblock %}

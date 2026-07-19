@@ -284,6 +284,10 @@ export type PlaceReviewRead = {
   created_at: string;
   photos: Array<{ id: string; url: string }>;
   reply: PlaceReviewReplyRead | null;
+  /** The review changed after the reply was written, so the reply may be
+   *  answering text that is no longer there. Computed server-side so all
+   *  clients agree — don't recompute it from the two timestamps. */
+  edited_after_reply: boolean;
   is_mine: boolean;
   reported_by_me: boolean;
   moderation_note: string | null;
