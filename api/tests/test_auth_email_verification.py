@@ -22,11 +22,18 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy import select
 from starlette.testclient import TestClient
 
 from app.core.auth import CurrentUser, require_verified_email
+from app.core.exception_handlers import (
+    app_error_handler,
+    http_exception_handler,
+    validation_error_handler,
+)
+from app.core.exceptions import AppError
 from app.db import deps as db_deps
 from app.modules.auth.email_verification import (
     PURPOSE_EMAIL_VERIFICATION,
@@ -57,7 +64,7 @@ def test_web_signup_mints_token_and_leaves_account_unverified(api, db_session):
         "/auth/signup",
         json={
             "email": "verify-web@example.com",
-            "password": "correct horse battery staple",
+            "password": "S3cure-passphrase",
             "display_name": "Web Signup",
             "role": "CONSUMER",
         },
@@ -85,7 +92,7 @@ def test_mobile_signup_mints_token(api, db_session):
         "/auth/mobile/signup",
         json={
             "email": "verify-mobile@example.com",
-            "password": "correct horse battery staple",
+            "password": "S3cure-passphrase",
             "display_name": "Mobile Signup",
         },
     )
@@ -248,7 +255,7 @@ def test_completing_an_invite_marks_email_verified(api, factories, db_session):
 
     resp = api.post(
         "/auth/set-password",
-        json={"token": plaintext, "password": "correct horse battery staple"},
+        json={"token": plaintext, "password": "S3cure-passphrase"},
     )
     assert resp.status_code == 200, resp.text
 
@@ -263,8 +270,19 @@ def test_completing_an_invite_marks_email_verified(api, factories, db_session):
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def gated_api(db_session):
-    """A throwaway app exposing one endpoint behind require_verified_email."""
+    """A throwaway app exposing one endpoint behind require_verified_email.
+
+    The dependency isn't mounted on any real route yet (reviews don't exist),
+    so this is the only way to exercise it. The handler registrations below
+    are load-bearing and easy to forget: a bare ``FastAPI()`` has none of the
+    app's error handling, so ``ForbiddenError`` would escape as an unhandled
+    exception rather than the ``{"error": {...}}`` envelope the rest of the
+    suite asserts on. Mirrors app/main.py.
+    """
     app = FastAPI()
+    app.add_exception_handler(AppError, app_error_handler)
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
 
     @app.get("/gated")
     def _gated(user: CurrentUser = Depends(require_verified_email)):
