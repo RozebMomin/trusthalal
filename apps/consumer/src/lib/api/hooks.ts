@@ -293,6 +293,167 @@ export function useReportPhoto(placeId: string) {
   });
 }
 
+
+// ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+
+export type ReviewSort = "recent" | "rating_high" | "rating_low";
+export type PlaceReviewStatus = "PUBLISHED" | "HIDDEN" | "REMOVED";
+export type ReviewReportReason =
+  | "SPAM"
+  | "OFF_TOPIC"
+  | "HARASSMENT"
+  | "FALSE_INFO"
+  | "CONFLICT_OF_INTEREST"
+  | "OTHER";
+
+/** Author identity on a review.
+ *
+ *  Carries no role, by design — a verifier's review renders exactly like
+ *  anyone else's. Verifier standing is earned against facts and doesn't
+ *  transfer to weight of opinion about a meal. The server doesn't send the
+ *  field, which is what stops a badge creeping back in here. */
+export type ReviewAuthorRead = {
+  id: string;
+  display_name: string | null;
+};
+
+export type ReviewPhotoRead = { id: string; url: string };
+
+export type PlaceReviewReplyRead = {
+  id: string;
+  review_id: string;
+  organization_id: string;
+  organization_name: string | null;
+  body: string;
+  edited_at: string | null;
+  created_at: string;
+};
+
+export type PlaceReviewRead = {
+  id: string;
+  place_id: string;
+  author: ReviewAuthorRead;
+  rating: number;
+  body: string;
+  visited_on: string | null;
+  status: PlaceReviewStatus;
+  edited_at: string | null;
+  created_at: string;
+  photos: ReviewPhotoRead[];
+  reply: PlaceReviewReplyRead | null;
+  is_mine: boolean;
+  reported_by_me: boolean;
+  moderation_note: string | null;
+};
+
+/** Both ratings ride together so a client can label each.
+ *
+ *  Showing a bare star that silently means Google's is exactly what this
+ *  feature exists to stop doing — the two numbers measure different things
+ *  over different populations and must never be blended. */
+export type ReviewSummary = {
+  average: number | null;
+  count: number;
+  histogram: Record<string, number>;
+  google_rating: number | null;
+  google_rating_count: number | null;
+};
+
+export type PlaceReviewListResponse = {
+  summary: ReviewSummary;
+  items: PlaceReviewRead[];
+  total: number;
+  next_offset: number | null;
+  /** False when signed out, unverified, or already reviewed — the client
+   *  can then explain *why* rather than hiding the button. */
+  can_review: boolean;
+  my_review_id: string | null;
+};
+
+export function usePlaceReviews(placeId: string, sort: ReviewSort = "recent") {
+  return useQuery<PlaceReviewListResponse>({
+    queryKey: ["places", placeId, "reviews", sort],
+    queryFn: () =>
+      apiFetch<PlaceReviewListResponse>(`/places/${placeId}/reviews`, {
+        searchParams: { sort, limit: 10 },
+      }),
+    enabled: Boolean(placeId),
+  });
+}
+
+export type PlaceReviewCreate = {
+  rating: number;
+  body: string;
+  visited_on?: string | null;
+};
+
+function invalidatePlaceReviews(qc: ReturnType<typeof useQueryClient>, placeId: string) {
+  // The place detail itself carries the denormalized aggregate, so it goes
+  // stale on every write here too.
+  qc.invalidateQueries({ queryKey: ["places", placeId, "reviews"] });
+  qc.invalidateQueries({ queryKey: qk.placeDetail(placeId) });
+}
+
+export function useCreateReview(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: PlaceReviewCreate) =>
+      apiFetch<PlaceReviewRead>(`/places/${placeId}/reviews`, {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => invalidatePlaceReviews(qc, placeId),
+  });
+}
+
+export function useUpdateReview(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      reviewId,
+      ...payload
+    }: Partial<PlaceReviewCreate> & { reviewId: string }) =>
+      apiFetch<PlaceReviewRead>(`/me/reviews/${reviewId}`, {
+        method: "PATCH",
+        json: payload,
+      }),
+    onSuccess: () => invalidatePlaceReviews(qc, placeId),
+  });
+}
+
+export function useDeleteReview(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reviewId: string) =>
+      apiFetch<void>(`/me/reviews/${reviewId}`, { method: "DELETE" }),
+    onSuccess: () => invalidatePlaceReviews(qc, placeId),
+  });
+}
+
+export function useReportReview(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      reviewId,
+      reason,
+      detail,
+      replyId,
+    }: {
+      reviewId: string;
+      reason: ReviewReportReason;
+      detail?: string;
+      replyId?: string;
+    }) =>
+      apiFetch<unknown>(`/places/reviews/${reviewId}/report`, {
+        method: "POST",
+        json: { reason, detail, reply_id: replyId },
+      }),
+    onSuccess: () => invalidatePlaceReviews(qc, placeId),
+  });
+}
+
 export type PlaceSearchResult = {
   id: string;
   name: string;
@@ -318,6 +479,11 @@ export type PlaceSearchResult = {
    * synced. Optional so cached payloads and fixtures stay valid. */
   google_rating?: number | null;
   google_rating_count?: number | null;
+  /** Trust Halal's own rating. Never blend this with google_rating — they
+   *  measure different things over different populations, and every surface
+   *  showing either must say which it is. */
+  review_rating_avg?: number | null;
+  review_count?: number;
   /** Computed open/closed from stored hours + place tz. Null when
    * hours are unknown. */
   open_now?: boolean | null;
@@ -350,12 +516,20 @@ export type PlaceDetail = {
   /** Convenience shortcut: the URL of the photo with is_hero=true,
    * or null when no hero is set. */
   hero_photo_url: string | null;
+  /** Whether anyone can reply to reviews here. False means no verified
+   *  owner exists yet, which turns the reviews block into a claim prompt. */
+  is_claimed?: boolean;
   /** Listing website (from Google ingest). Null when unknown. */
   website_url?: string | null;
   /** Google star rating (1.0–5.0) + count, and when the volatile
    * Google fields were last refreshed (for a "from Google" line). */
   google_rating?: number | null;
   google_rating_count?: number | null;
+  /** Trust Halal's own rating. Never blend this with google_rating — they
+   *  measure different things over different populations, and every surface
+   *  showing either must say which it is. */
+  review_rating_avg?: number | null;
+  review_count?: number;
   google_synced_at?: string | null;
   /** Human-readable weekly hours, Monday-first, e.g.
    * ["Monday: 11 AM – 11 PM", …]. Null when Google has no hours. */

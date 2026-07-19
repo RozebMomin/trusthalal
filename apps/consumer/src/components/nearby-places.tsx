@@ -119,16 +119,33 @@ function NearbyCard({
             {place.name}
           </h3>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {place.google_rating != null && (
-              <span className="inline-flex items-center gap-0.5 font-medium text-foreground/80">
-                <Star
-                  className="h-3 w-3 fill-amber-400 text-amber-400"
-                  aria-hidden
-                />
-                {place.google_rating.toFixed(1)}
-              </span>
-            )}
-            {place.google_rating != null && <span aria-hidden>·</span>}
+            {/* Ours where we have it, Google's otherwise — and the title
+                says which, since there's no room for a label at this size. */}
+            {(() => {
+              const own =
+                (place.review_count ?? 0) > 0 ? place.review_rating_avg : null;
+              const shown = own ?? place.google_rating ?? null;
+              if (shown == null) return null;
+              return (
+                <>
+                  <span
+                    className="inline-flex items-center gap-0.5 font-medium text-foreground/80"
+                    title={
+                      own != null
+                        ? "Rating from Trust Halal diners"
+                        : "Rating from Google"
+                    }
+                  >
+                    <Star
+                      className="h-3 w-3 fill-amber-400 text-amber-400"
+                      aria-hidden
+                    />
+                    {shown.toFixed(1)}
+                  </span>
+                  <span aria-hidden>·</span>
+                </>
+              );
+            })()}
             <span>{formatDistance(distanceMeters)}</span>
           </div>
         </div>

@@ -34,6 +34,7 @@ import * as React from "react";
 import { FavoriteToggle } from "@/components/favorite-toggle";
 import { FileDisputeDialog } from "@/components/file-dispute-dialog";
 import { NearbyPlaces } from "@/components/nearby-places";
+import { PlaceReviews } from "@/components/place-reviews";
 import { PlaceHero } from "@/components/place-hero";
 import {
   PlacePhotoGallery,
@@ -265,6 +266,12 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
             photos={place.data.photos}
             placeName={place.data.name}
             placeId={placeId}
+          />
+
+          <PlaceReviews
+            place={place.data}
+            signedIn={Boolean(me?.id)}
+            emailVerified={me?.email_verified === true}
           />
 
           <DisputeSection

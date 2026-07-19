@@ -186,6 +186,8 @@ export function PlaceResultCard({
               distanceMeters={distanceMeters}
               rating={place.google_rating}
               ratingCount={place.google_rating_count}
+              reviewRating={place.review_rating_avg}
+              reviewCount={place.review_count}
             />
 
             {facts.length > 0 && <FactsStrip facts={facts} />}
@@ -282,15 +284,27 @@ function MetadataStrip({
   distanceMeters,
   rating,
   ratingCount,
+  reviewRating,
+  reviewCount,
 }: {
   cuisines: ReadonlyArray<Cuisine>;
   distanceMeters?: number;
   rating?: number | null;
   ratingCount?: number | null;
+  reviewRating?: number | null;
+  reviewCount?: number;
 }) {
   const visibleCuisines = cuisines.slice(0, MAX_CUISINE_CHIPS);
   const cuisineOverflow = cuisines.length - visibleCuisines.length;
-  const hasRating = rating != null;
+  // One rating per card — there isn't room for two, and two unlabelled
+  // numbers side by side is worse than one labelled one. Trust Halal's wins
+  // where it exists; otherwise Google's, explicitly marked as Google's so a
+  // bare star never again means something the reader can't identify.
+  const ownRating = (reviewCount ?? 0) > 0 ? reviewRating : null;
+  const shownRating = ownRating ?? rating ?? null;
+  const shownCount = ownRating != null ? reviewCount : ratingCount;
+  const isGoogle = ownRating == null && rating != null;
+  const hasRating = shownRating != null;
 
   if (
     visibleCuisines.length === 0 &&
@@ -303,11 +317,23 @@ function MetadataStrip({
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
       {hasRating && (
-        <span className="inline-flex items-center gap-1 font-medium text-amber-600">
+        <span
+          className="inline-flex items-center gap-1 font-medium text-amber-600"
+          title={
+            isGoogle
+              ? "Rating from Google"
+              : "Rating from Trust Halal diners"
+          }
+        >
           <Star className="h-3 w-3 fill-amber-500 text-amber-500" aria-hidden />
-          {rating.toFixed(1)}
-          {ratingCount != null && (
-            <span className="text-muted-foreground/80">({ratingCount})</span>
+          {shownRating.toFixed(1)}
+          {shownCount != null && (
+            <span className="text-muted-foreground/80">({shownCount})</span>
+          )}
+          {isGoogle && (
+            <span className="font-normal text-muted-foreground/80">
+              on Google
+            </span>
           )}
         </span>
       )}

@@ -72,6 +72,14 @@ class PlaceSearchResult(BaseModel):
     # Google rating + count for the result-card star. Null until synced.
     google_rating: float | None = None
     google_rating_count: int | None = None
+
+    # First-party rating, from Trust Halal diners. Rides alongside Google's
+    # rather than replacing it, and clients MUST label which is which — two
+    # numbers measuring different things over different populations. The
+    # aggregate is denormalized onto places and recomputed from PUBLISHED
+    # reviews, so this costs no join.
+    review_rating_avg: float | None = None
+    review_count: int = 0
     # Server-computed against stored hours + place timezone. True/False when
     # hours are known, null when the place has no hours on file. Drives the
     # "Open now" badge on the card and the ?open_now= filter.
@@ -184,6 +192,19 @@ class PlaceDetail(BaseModel):
     # last refreshed — surfaces to consumers as "4.6 (312) · as of <date>".
     google_rating: float | None = None
     google_rating_count: int | None = None
+
+    # First-party rating, from Trust Halal diners. Rides alongside Google's
+    # rather than replacing it, and clients MUST label which is which — two
+    # numbers measuring different things over different populations. The
+    # aggregate is denormalized onto places and recomputed from PUBLISHED
+    # reviews, so this costs no join.
+    review_rating_avg: float | None = None
+    review_count: int = 0
+
+    # Whether anyone can actually respond to reviews here. An unclaimed place
+    # has no verified owner, so its reviews block should invite a claim rather
+    # than sit there unanswered. Mirrors the flag already on search results.
+    is_claimed: bool = False
     google_synced_at: datetime | None = None
     # Human-readable opening hours for display, one string per day, e.g.
     # ["Monday: 9 AM–9 PM", ...]. Null when Google has no hours on file.

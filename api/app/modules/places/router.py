@@ -221,6 +221,13 @@ def patch_owned_place(
             "halal_profile": halal_embed,
             "photos": photos_payload,
             "hero_photo_url": hero_url,
+            "review_rating_avg": (
+                float(place.review_rating_avg)
+                if place.review_rating_avg is not None
+                else None
+            ),
+            "review_count": place.review_count or 0,
+            "is_claimed": _place_is_claimed(db, place.id),
         }
     )
 
@@ -659,6 +666,13 @@ def get_place_by_id(
             "halal_profile": halal_embed,
             "photos": photos_payload,
             "hero_photo_url": hero_url,
+            "review_rating_avg": (
+                float(place.review_rating_avg)
+                if place.review_rating_avg is not None
+                else None
+            ),
+            "review_count": place.review_count or 0,
+            "is_claimed": _place_is_claimed(db, place.id),
         }
     )
 
@@ -1053,6 +1067,12 @@ def search_places(
                 "cuisine_types": list(place.cuisine_types or []),
                 "is_claimed": place.id in claimed_place_ids,
                 "hero_photo_url": _hero_url_for(place),
+                "review_rating_avg": (
+                    float(place.review_rating_avg)
+                    if place.review_rating_avg is not None
+                    else None
+                ),
+                "review_count": place.review_count or 0,
                 "google_rating": (
                     float(place.google_rating)
                     if place.google_rating is not None

@@ -200,15 +200,23 @@ export function PlaceHero({
           {place.name}
         </h1>
 
+        {/* Attribution matters more than compactness here. This star has
+            always been Google's and has never said so, which on a platform
+            selling trustworthy provenance is the one number that can't stay
+            anonymous. Trust Halal's own rating lives in the reviews section
+            with its count and histogram; duplicating it in the hero would
+            put two similar numbers side by side in the least readable place
+            on the page. */}
         {place.google_rating != null && (
           <div className="flex items-center gap-1.5 text-sm font-medium text-white drop-shadow">
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
             <span>{place.google_rating.toFixed(1)}</span>
             {place.google_rating_count != null && (
               <span className="text-white/75">
-                ({place.google_rating_count})
+                ({place.google_rating_count.toLocaleString()})
               </span>
             )}
+            <span className="text-white/75">on Google</span>
           </div>
         )}
 
