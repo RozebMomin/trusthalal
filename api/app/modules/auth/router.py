@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Request, Response, status
@@ -7,11 +8,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from uuid import UUID
 
+from app.core.analytics import track
 from app.core.auth import CurrentUser, get_current_user
 from app.core.config import settings
 from app.core.exceptions import BadRequestError, ConflictError, UnauthorizedError
 from app.core.password_hashing import hash_password, verify_password
-from app.core.rate_limit import ip_key, limiter
+from app.core.rate_limit import ip_key, limiter, user_or_ip_key
 from app.db.deps import get_db
 from app.modules.auth.invite_repo import (
     consume_invite,
@@ -41,6 +43,8 @@ from app.modules.auth.repo import (
     revoke_session,
 )
 from app.modules.auth.schemas import (
+    AccountDeletionPreview,
+    DeleteAccountRequest,
     ForgotPasswordRequest,
     ForgotPasswordResponse,
     InviteInfoResponse,
@@ -63,6 +67,7 @@ from app.modules.auth.schemas import (
     VerifyEmailRequest,
     VerifyEmailResponse,
 )
+from app.modules.users.deletion import delete_account, preview_deletion
 from app.modules.users.enums import UserRole
 from app.modules.users.models import User
 
@@ -136,6 +141,8 @@ def _clear_session_cookie(response: Response) -> None:
 # Routers
 # ---------------------------------------------------------------------------
 
+logger = logging.getLogger(__name__)
+
 me_router = APIRouter(prefix="/me", tags=["auth"])
 
 
@@ -182,6 +189,103 @@ def get_me(
         email=user_row.email,
         email_verified=user_row.email_verified_at is not None,
     )
+
+
+@me_router.get(
+    "/deletion-preview",
+    response_model=AccountDeletionPreview,
+    summary="What deleting your account would remove",
+    description=(
+        "Read-only. Powers the confirmation screen so an irreversible choice "
+        "is made against its actual scope rather than a generic warning."
+    ),
+)
+def get_deletion_preview(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AccountDeletionPreview:
+    summary = preview_deletion(db, user_id=user.id)
+    return AccountDeletionPreview(
+        reviews_deleted=summary.reviews_deleted,
+        photos_deleted=summary.photos_deleted,
+        keeps_owner_photos=True,
+        keeps_owner_replies=True,
+    )
+
+
+@me_router.delete(
+    "",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete your account",
+    description=(
+        "Permanently removes the account and the personal content attached "
+        "to it: reviews, review photos, diner-uploaded photos, favorites, "
+        "saved preferences, and device registrations. Bucket objects are "
+        "queued for deletion rather than left orphaned.\n\n"
+        "Business and audit records survive with the person detached — "
+        "disputes stay on file anonymised, organizations they created remain, "
+        "and an owner reply keeps standing because it speaks for a restaurant "
+        "rather than for the individual who typed it.\n\n"
+        "Requires the current password and a typed confirmation. Apple's "
+        "account-deletion guidance explicitly permits verifying identity "
+        "before deleting; it does not permit routing people to a support "
+        "email, which is why this endpoint exists at all.\n\n"
+        "Rate-limited at 5/hour."
+    ),
+)
+@limiter.limit("5/hour", key_func=user_or_ip_key)
+def delete_my_account(
+    request: Request,
+    response: Response,
+    payload: DeleteAccountRequest,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    row = db.get(User, user.id)
+    if row is None:
+        raise UnauthorizedError(
+            "INVALID_CREDENTIALS",
+            "Your session is no longer valid. Please sign in again.",
+        )
+
+    if payload.confirmation.strip().upper() != "DELETE":
+        raise BadRequestError(
+            "DELETE_CONFIRMATION_REQUIRED",
+            'Type DELETE to confirm you want to remove your account.',
+        )
+
+    if not row.password_hash or not verify_password(
+        payload.password, row.password_hash
+    ):
+        raise UnauthorizedError(
+            "INVALID_CREDENTIALS",
+            "That password doesn't match. Your account has not been deleted.",
+        )
+
+    summary = delete_account(db, user_id=user.id)
+    db.commit()
+
+    # The session row cascaded away with the user, so the cookie is already
+    # dead server-side — clearing it stops the client sending a token that
+    # can only 401.
+    _clear_session_cookie(response)
+
+    track(
+        "account_deleted",
+        distinct_id=user.id,
+        properties={
+            "reviews_deleted": summary.reviews_deleted,
+            "photos_deleted": summary.photos_deleted,
+        },
+    )
+    logger.info(
+        "Account %s deleted: %d review(s), %d photo(s), %d storage object(s) queued",
+        user.id,
+        summary.reviews_deleted,
+        summary.photos_deleted,
+        summary.storage_objects_queued,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])

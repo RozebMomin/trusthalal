@@ -9,6 +9,7 @@ import { capture, identify, resetAnalytics } from "@/lib/analytics";
 import { tokenStore } from "@/lib/auth/token-store";
 import { unregisterPush } from "@/lib/push";
 import type {
+  AccountDeletionPreview,
   ConsumerPreferences,
   FavoriteRead,
   HalalHistoryEvent,
@@ -95,6 +96,40 @@ export function useForgotPassword() {
         method: "POST",
         body: JSON.stringify({ email: input.email, audience: "consumer" }),
       }),
+  });
+}
+
+/** GET /me/deletion-preview — what account deletion would remove. */
+export function useAccountDeletionPreview(enabled: boolean) {
+  return useQuery<AccountDeletionPreview>({
+    queryKey: ["me", "deletion-preview"],
+    queryFn: () => apiFetch<AccountDeletionPreview>("/me/deletion-preview"),
+    enabled,
+  });
+}
+
+/**
+ * DELETE /me — permanent, in-app, required by App Store guideline 5.1.1(v).
+ *
+ * Clears local tokens on success regardless of what the server said about
+ * cookies: the account is gone, so a stored token can only produce 401s, and
+ * leaving it behind would show a signed-in shell for a user who no longer
+ * exists.
+ */
+export function useDeleteAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { password: string; confirmation: string }) =>
+      apiFetch<void>("/me", {
+        method: "DELETE",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: async () => {
+      await unregisterPush();
+      await tokenStore.clear();
+      resetAnalytics();
+      void qc.invalidateQueries();
+    },
   });
 }
 

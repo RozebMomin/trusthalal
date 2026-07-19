@@ -145,12 +145,40 @@ export default function Profile() {
       </Card>
 
       {me ? (
-        <Pressable onPress={() => logout.mutate()} accessibilityRole="button">
-          <Text style={[ty.label, { color: t.danger, textAlign: "center", paddingVertical: space.md }]}>
-            {logout.isPending ? "Signing out…" : "Sign out"}
-          </Text>
-        </Pressable>
+        <>
+          <Pressable onPress={() => logout.mutate()} accessibilityRole="button">
+            <Text style={[ty.label, { color: t.danger, textAlign: "center", paddingVertical: space.md }]}>
+              {logout.isPending ? "Signing out…" : "Sign out"}
+            </Text>
+          </Pressable>
+
+          {/* Account deletion has to be reachable from account settings —
+              App Store guideline 5.1.1(v), and Apple's guidance says to make
+              it easy to find rather than buried. Quieter than Sign out
+              because it's the rarer and more destructive of the two, but
+              plainly labelled and one tap away. */}
+          <Pressable
+            onPress={() => router.push("/delete-account")}
+            accessibilityRole="button"
+          >
+            <Text style={[ty.small, { color: t.sub, textAlign: "center", paddingBottom: space.md }]}>
+              Delete account
+            </Text>
+          </Pressable>
+        </>
       ) : null}
+
+      {/* Published contact information — required for apps with
+          user-generated content (guideline 1.2), and the app had no way to
+          reach us at all before reviews shipped. */}
+      <Pressable
+        onPress={() => Linking.openURL("mailto:support@trusthalal.org")}
+        accessibilityRole="button"
+      >
+        <Text style={[ty.small, { color: t.accentDeep, textAlign: "center", fontWeight: "600" }]}>
+          Contact support
+        </Text>
+      </Pressable>
 
       <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
         Trust Halal · v0.1.0{"\n"}Community-built · Muslim-led

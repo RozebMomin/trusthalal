@@ -336,3 +336,37 @@ class MobileRefreshRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     refresh_token: str = Field(..., min_length=16, max_length=512)
+
+
+class AccountDeletionPreview(BaseModel):
+    """What deleting your account would remove.
+
+    Shown on the confirmation screen. Someone making an irreversible choice
+    should see its actual scope — "4 reviews and 7 photos" is a different
+    decision from an unqualified "delete account".
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    reviews_deleted: int = 0
+    photos_deleted: int = 0
+    #: Business records that survive, so the copy can say so honestly rather
+    #: than implying every trace is gone.
+    keeps_owner_photos: bool = False
+    keeps_owner_replies: bool = False
+
+
+class DeleteAccountRequest(BaseModel):
+    """Reauthentication for account deletion.
+
+    Apple permits (and the guidance explicitly endorses) verifying identity
+    before deleting. The password is the least surprising way to do that for
+    an account that signs in with one.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    password: str = Field(..., min_length=1, max_length=200)
+    #: Typed confirmation, matched case-insensitively server-side. Belt and
+    #: braces against a mis-tap on a destructive, unrecoverable action.
+    confirmation: str = Field(..., min_length=1, max_length=32)

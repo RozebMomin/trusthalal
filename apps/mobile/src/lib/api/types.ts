@@ -170,6 +170,15 @@ export type SearchDiagnostics = {
   wider_radius_count: number | null;
 };
 
+/** What deleting your account would remove. Real numbers for the confirm
+ *  screen — an irreversible choice deserves better than a generic warning. */
+export type AccountDeletionPreview = {
+  reviews_deleted: number;
+  photos_deleted: number;
+  keeps_owner_photos: boolean;
+  keeps_owner_replies: boolean;
+};
+
 export type FavoriteRead = { saved_at: string; place: PlaceSearchResult };
 
 /** One row of the per-category, per-channel notification matrix.
