@@ -39,6 +39,23 @@ class User(Base):
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
+    # When the user confirmed control of ``email``. NULL means never.
+    #
+    # A timestamp rather than a boolean: it answers the same yes/no question
+    # and also tells you *when*, which is what you want when investigating an
+    # account later. Gates content that carries a business's reputation
+    # (reviews, owner replies) via ``require_verified_email``; deliberately
+    # does NOT gate browsing, favorites, or sign-in, so signup → value stays
+    # uninterrupted for everything that can't hurt anyone.
+    email_verified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    @property
+    def email_verified(self) -> bool:
+        """Convenience for the common boolean read."""
+        return self.email_verified_at is not None
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

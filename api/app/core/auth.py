@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.exceptions import ForbiddenError
 from app.db.deps import get_db
 from app.modules.auth.repo import resolve_session
 from app.modules.users.enums import UserRole
@@ -190,3 +191,51 @@ def require_roles(*allowed: UserRole):
             raise HTTPException(status_code=403, detail="Forbidden")
         return user
     return _dep
+
+
+def require_verified_email(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CurrentUser:
+    """Signed in AND confirmed control of the account's email address.
+
+    Applied narrowly: content that carries a named business's reputation
+    (reviews, owner replies). Deliberately NOT applied to browsing,
+    favorites, search preferences, or sign-in — gating those would interrupt
+    signup → value for actions that can't hurt anyone, and would train users
+    to see the confirmation as an obstacle rather than a one-time step.
+
+    Costs a ``User`` lookup because ``CurrentUser`` is a frozen (id, role)
+    dataclass with no DB handle. That's deliberate: caching verification
+    state on the session would mean a user who just confirmed still gets
+    refused until their session rolls over, which reads as a broken product.
+    The read is a PK lookup, and it only runs on write paths.
+
+    ADMINs bypass. An admin without a confirmed address is a provisioning
+    quirk, not a trust signal, and locking staff out of moderation because
+    of it would be its own outage.
+    """
+    if user.role == UserRole.ADMIN:
+        return user
+
+    # Select id alongside the timestamp so "no such user" and "user exists
+    # but never confirmed" stay distinguishable — a bare scalar select on a
+    # nullable column returns None for both.
+    row = db.execute(
+        select(User.id, User.email_verified_at).where(User.id == user.id)
+    ).one_or_none()
+
+    if row is None:
+        # Session resolved but the row is gone. Treat as unauthenticated
+        # rather than reporting an email problem for an account that no
+        # longer exists.
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    if row.email_verified_at is None:
+        raise ForbiddenError(
+            "EMAIL_NOT_VERIFIED",
+            "Confirm your email address before posting. Check your inbox for "
+            "the confirmation link, or request a new one.",
+        )
+
+    return user

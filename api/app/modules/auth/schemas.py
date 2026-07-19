@@ -25,6 +25,11 @@ class MeResponse(BaseModel):
     role: UserRole
     display_name: str | None = None
     email: EmailStr | None = None
+    # Lets a client show the "confirm your email" prompt before the user
+    # writes a whole review and gets refused at submit. Sourced from the
+    # timestamp column; the timestamp itself isn't exposed because no client
+    # needs it and it's noise in the payload.
+    email_verified: bool = False
 
 
 class LoginRequest(BaseModel):
@@ -217,6 +222,57 @@ class ResetPasswordResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    email: EmailStr
+
+
+# ---------------------------------------------------------------------------
+# Email verification (POST /auth/verify-email*)
+# ---------------------------------------------------------------------------
+
+
+class VerifyEmailRequest(BaseModel):
+    """POST /auth/verify-email body. Anonymous — the token is the proof.
+
+    People click these from a phone while signed in on a laptop, so requiring
+    a session would break the common case for no security gain.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(..., min_length=16, max_length=128)
+
+
+class VerifyEmailResponse(BaseModel):
+    """Returns the confirmed address so the landing page can say which one,
+    and ``already_verified`` so a second click on the same link reads as
+    "you're all set" rather than an error."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    email: EmailStr
+    already_verified: bool = False
+
+
+class ResendVerificationRequest(BaseModel):
+    """POST /auth/verify-email/resend body.
+
+    Authenticated — the address is taken from the session, never the body.
+    That's what keeps this endpoint from being an enumeration oracle, and
+    it's why (unlike forgot-password) it can return an honest answer.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    audience: str = Field(default="consumer", max_length=32)
+
+
+class ResendVerificationResponse(BaseModel):
+    """``sent=False`` means the address was already confirmed — not a
+    failure, and the client should say so rather than showing an error."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    sent: bool
     email: EmailStr
 
 

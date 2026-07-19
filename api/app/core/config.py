@@ -83,6 +83,12 @@ class Settings(BaseSettings):
     # so it should not sit valid for long.
     PASSWORD_RESET_TTL_MINUTES: int = 60
 
+    # Email-verification links live in days, not minutes. A reset link is a
+    # live credential and a short window is a security property; a
+    # verification link only proves the recipient can read the inbox, and the
+    # realistic failure mode is somebody getting to their email tomorrow.
+    EMAIL_VERIFICATION_TTL_DAYS: int = 3
+
     # ------------------------------------------------------------------
     # Notifications
     # ------------------------------------------------------------------

@@ -1,0 +1,18 @@
+{% extends "_base.txt.jinja" %}
+
+{% block content %}
+{% if display_name %}Welcome, {{ display_name }}{% else %}Confirm your email{% endif %}
+
+Confirm this address to finish setting up your Trust Halal account. It takes
+one click.
+
+  {{ verify_url }}
+
+You can browse and save restaurants without confirming. We ask for it before
+you post a review, because a review carries a real restaurant's reputation and
+we want to know the person behind it is reachable.
+
+This link expires in {{ ttl_days }} day{{ "" if ttl_days == 1 else "s" }}.
+If you didn't create a Trust Halal account you can ignore this email — nothing
+happens until the link is used.
+{% endblock %}

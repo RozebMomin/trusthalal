@@ -1,0 +1,48 @@
+{# Email-confirmation message.
+
+   Sent on signup and from POST /auth/verify-email/resend — carries the
+   one-time URL that marks the address confirmed.
+
+   Required context:
+     * ``preheader``    — short text shown in inbox previews
+     * ``display_name`` — recipient's name (or empty string if unknown)
+     * ``verify_url``   — pre-baked /verify-email URL with token
+     * ``ttl_days``     — days until the link expires
+#}{% extends "_base.html.jinja" %}
+
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if display_name %}Welcome, {{ display_name }}{% else %}Confirm your email{% endif %}
+</h1>
+
+<p style="margin: 0 0 16px 0;">
+  Confirm this address to finish setting up your Trust Halal account. It takes
+  one click.
+</p>
+
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ verify_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Confirm my email
+  </a>
+</p>
+
+<p style="margin: 0 0 8px 0; color: #555;">
+  Or paste this URL into a browser:
+</p>
+<p style="margin: 0 0 24px 0; word-break: break-all;">
+  <a href="{{ verify_url }}" style="color: #6f8b3e; text-decoration: underline;">{{ verify_url }}</a>
+</p>
+
+<p style="margin: 0 0 16px 0; color: #555;">
+  You can browse and save restaurants without confirming. We ask for it before
+  you post a review, because a review carries a real restaurant's reputation
+  and we want to know the person behind it is reachable.
+</p>
+
+<p style="margin: 0; font-size: 13px; color: #888;">
+  This link expires in {{ ttl_days }} day{{ "" if ttl_days == 1 else "s" }}.
+  If you didn't create a Trust Halal account you can ignore this email —
+  nothing happens until the link is used.
+</p>
+{% endblock %}

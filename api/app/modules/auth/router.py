@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -20,6 +22,11 @@ from app.modules.auth.mobile_tokens import (
     revoke_all_mobile_tokens_for_user,
     revoke_by_refresh_token,
     rotate_refresh_token,
+)
+from app.modules.auth.email_verification import (
+    DEFAULT_AUDIENCE,
+    issue_verification_email,
+    resolve_verification_token,
 )
 from app.modules.auth.password_reset import (
     EmailError,
@@ -44,6 +51,8 @@ from app.modules.auth.schemas import (
     MobileRefreshRequest,
     MobileSignupRequest,
     MobileUser,
+    ResendVerificationRequest,
+    ResendVerificationResponse,
     ResetInfoResponse,
     ResetPasswordRequest,
     ResetPasswordResponse,
@@ -51,6 +60,8 @@ from app.modules.auth.schemas import (
     SetPasswordResponse,
     SignupRequest,
     SignupResponse,
+    VerifyEmailRequest,
+    VerifyEmailResponse,
 )
 from app.modules.users.enums import UserRole
 from app.modules.users.models import User
@@ -169,6 +180,7 @@ def get_me(
         role=UserRole(user_row.role),
         display_name=user_row.display_name,
         email=user_row.email,
+        email_verified=user_row.email_verified_at is not None,
     )
 
 
@@ -268,6 +280,7 @@ def signup(
     request: Request,
     payload: SignupRequest,
     response: Response,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> SignupResponse:
     """Self-service signup for owners and consumers.
@@ -314,11 +327,28 @@ def signup(
         is_active=True,
     )
     db.add(user)
+    db.flush()
+
+    # Send the confirmation link. Best-effort by design: a Resend outage
+    # must not fail a signup that otherwise worked, and the user can press
+    # Resend from the prompt. Minted inside the same transaction as the
+    # user so a rollback below can't leave a token pointing at nothing.
+    issue_verification_email(
+        db,
+        background,
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        audience="owner" if payload.role == UserRole.OWNER else "consumer",
+    )
+
     db.commit()
     db.refresh(user)
 
     # Auto-login: same cookie shape as /auth/login's happy path so the
-    # client can treat the response identically.
+    # client can treat the response identically. Unverified accounts are
+    # still fully signed in — verification gates *posting reviews*, not
+    # using the product.
     session = create_session(db, user_id=user.id)
     _set_session_cookie(response, session.id)
 
@@ -487,6 +517,13 @@ def set_password_with_invite(
 
     # Hash + persist the password.
     user.password_hash = hash_password(payload.password)
+
+    # Completing an invite proves control of the address: the single-use
+    # secret was delivered there. Recording it here means invited users
+    # never see a confirmation prompt for something they've already done.
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(timezone.utc)
+
     db.add(user)
 
     # Burn the token before committing so the whole thing rolls back
@@ -646,6 +683,133 @@ def reset_password(
     return ResetPasswordResponse(email=user.email)
 
 
+# ---------------------------------------------------------------------------
+# Email verification — POST /auth/verify-email, /auth/verify-email/resend
+#
+# Confirming an address is not an authentication event: it doesn't change
+# a credential and doesn't grant a session. It only unlocks the surfaces
+# that publish content about a named business (reviews, owner replies), via
+# ``require_verified_email``. Everything else — browsing, favorites, search
+# preferences, sign-in — stays open, deliberately.
+# ---------------------------------------------------------------------------
+
+
+@auth_router.post(
+    "/verify-email",
+    response_model=VerifyEmailResponse,
+    summary="Confirm an email address using a verification token",
+    description=(
+        "Anonymous — the token is the proof, so a link clicked on a "
+        "phone works while the account is signed in on a laptop. "
+        "Idempotent in effect: a second click on a consumed link "
+        "returns `already_verified` if the address is confirmed, "
+        "rather than an error. Rate-limited per-IP at 30/min."
+    ),
+)
+@limiter.limit("30/minute", key_func=ip_key)
+def verify_email(
+    request: Request,
+    payload: VerifyEmailRequest,
+    db: Session = Depends(get_db),
+) -> VerifyEmailResponse:
+    """Burn a verification token and stamp ``email_verified_at``.
+
+    No session is created and none is revoked. Confirming an address is
+    not an authentication factor change, so there's nothing to invalidate —
+    a contrast with reset-password, which deliberately kicks every session.
+
+    The token is consumed *before* commit so the whole thing rolls back
+    together if the stamp fails.
+    """
+    token = resolve_verification_token(db, token_plain=payload.token)
+
+    if token is None:
+        # A consumed token can't be traced back to a user (we only store the
+        # hash and the row is already burned), so a second click on the same
+        # link genuinely can't be distinguished from a forged one — hence the
+        # generic message pointing at Resend. The ``already_verified`` flag
+        # below covers the case we *can* detect: a live token for an address
+        # that was confirmed some other way.
+        raise BadRequestError(
+            "VERIFICATION_INVALID",
+            "This confirmation link is invalid, expired, or already used. "
+            "Sign in and request a new one.",
+        )
+
+    user = db.execute(
+        select(User).where(User.id == token.user_id)
+    ).scalar_one_or_none()
+    if user is None or not user.is_active:
+        raise BadRequestError(
+            "VERIFICATION_INVALID",
+            "This confirmation link is invalid, expired, or already used. "
+            "Sign in and request a new one.",
+        )
+
+    already = user.email_verified_at is not None
+    if not already:
+        user.email_verified_at = datetime.now(timezone.utc)
+        db.add(user)
+
+    consume_invite(db, token=token)
+    db.commit()
+
+    return VerifyEmailResponse(email=user.email, already_verified=already)
+
+
+@auth_router.post(
+    "/verify-email/resend",
+    response_model=ResendVerificationResponse,
+    summary="Send a fresh confirmation link to the signed-in user",
+    description=(
+        "Requires a session; the address comes from that session and is "
+        "never taken from the body, so this can't be used to probe which "
+        "emails exist. Returns `sent=false` when the address is already "
+        "confirmed — not an error. Issuing a new link invalidates any "
+        "previous one. Rate-limited per-IP at 5/min and 20/hour."
+    ),
+)
+@limiter.limit("5/minute", key_func=ip_key)
+@limiter.limit("20/hour", key_func=ip_key)
+def resend_verification(
+    request: Request,
+    payload: ResendVerificationRequest,
+    background: BackgroundTasks,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResendVerificationResponse:
+    """Mint + send a replacement confirmation link.
+
+    Authenticated on purpose. ``/auth/forgot-password`` has to accept an
+    arbitrary address and therefore has to lie about the outcome to avoid
+    being an enumeration oracle. This endpoint reads the address off the
+    session, so there's nothing to enumerate and it can tell the truth —
+    which matters, because "did that actually send?" is the whole question
+    a user has when they press Resend.
+    """
+    user_row = db.get(User, user.id)
+    if user_row is None:
+        raise UnauthorizedError(
+            "INVALID_CREDENTIALS",
+            "Your session is no longer valid. Please sign in again.",
+        )
+
+    if user_row.email_verified_at is not None:
+        return ResendVerificationResponse(sent=False, email=user_row.email)
+
+    issue_verification_email(
+        db,
+        background,
+        user_id=user_row.id,
+        email=user_row.email,
+        display_name=user_row.display_name,
+        audience=payload.audience,
+    )
+    db.commit()
+
+    return ResendVerificationResponse(sent=True, email=user_row.email)
+
+
 # ``/auth/dev-login`` lived here previously — a shortcut that looked
 # up a user by email and returned their id so callers could set
 # ``X-User-Id`` on subsequent requests. With real auth in place and the
@@ -754,6 +918,7 @@ def mobile_login(
 def mobile_signup(
     request: Request,
     payload: MobileSignupRequest,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> MobileAuthResponse:
     normalized_email = payload.email.strip().lower()
@@ -774,6 +939,21 @@ def mobile_signup(
         is_active=True,
     )
     db.add(user)
+    db.flush()
+
+    # Mobile has no web page to land on, so the link points at the consumer
+    # site. That's correct rather than a compromise: confirming in a browser
+    # marks the account verified server-side, and the app picks it up on its
+    # next /me — no deep-link handling needed for a once-per-account action.
+    issue_verification_email(
+        db,
+        background,
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        audience=DEFAULT_AUDIENCE,
+    )
+
     db.commit()
     db.refresh(user)
 
