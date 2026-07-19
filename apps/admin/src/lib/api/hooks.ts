@@ -1980,3 +1980,223 @@ export function useResendVerification() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Moderation queues — reported reviews and reported photos
+// ---------------------------------------------------------------------------
+// Both queues group by the piece of content rather than by complaint: a
+// moderator looks at the content once and reaches one conclusion, so three
+// reports about the same review are one row and one decision.
+
+export type ReportStatus = "OPEN" | "UPHELD" | "DISMISSED";
+export type ReviewReportReason =
+  | "SPAM"
+  | "OFF_TOPIC"
+  | "HARASSMENT"
+  | "FALSE_INFO"
+  | "CONFLICT_OF_INTEREST"
+  | "OTHER";
+export type PlaceReviewStatus = "PUBLISHED" | "HIDDEN" | "REMOVED";
+export type ModerationAction = "NONE" | "HIDE" | "REMOVE";
+
+export type AdminReportQueueRow = {
+  review_id: string;
+  reply_id: string | null;
+  place_id: string;
+  place_name: string | null;
+  excerpt: string;
+  rating: number;
+  review_status: PlaceReviewStatus;
+  reasons: ReviewReportReason[];
+  report_count: number;
+  open_report_count: number;
+  latest_report_at: string;
+  /** True when the reported content is the owner's reply, not the diner's
+   *  review. Owners behaving badly in public is a first-class case here. */
+  targets_reply: boolean;
+};
+
+export type AdminReportQueueResponse = {
+  items: AdminReportQueueRow[];
+  total: number;
+  next_offset: number | null;
+};
+
+export type AdminReviewReportRead = {
+  id: string;
+  review_id: string;
+  reply_id: string | null;
+  reason: ReviewReportReason;
+  detail: string | null;
+  status: ReportStatus;
+  reporter_display_name: string | null;
+  reporter_email: string | null;
+  /** OWNER when the reporter manages this place — an obvious interest a
+   *  moderator should see without going to check. */
+  reporter_relationship: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  resolution_note: string | null;
+};
+
+export type AdminReportReviewSnapshot = {
+  id: string;
+  place_id: string;
+  place_name: string | null;
+  author: { id: string; display_name: string | null };
+  author_email: string | null;
+  /** Account age and review count aren't decorative: an unsupported
+   *  accusation from a three-day-old account with no other activity is a
+   *  different thing from a detailed account by an established reviewer,
+   *  and no classifier can make that call. */
+  author_account_age_days: number | null;
+  author_review_count: number;
+  rating: number;
+  body: string;
+  status: PlaceReviewStatus;
+  created_at: string;
+  reply: {
+    id: string;
+    body: string;
+    organization_name: string | null;
+    created_at: string;
+  } | null;
+};
+
+export type AdminReportDetailResponse = {
+  review: AdminReportReviewSnapshot;
+  reports: AdminReviewReportRead[];
+};
+
+const reviewReportsQk = {
+  list: (status?: string) => ["admin", "review-reports", { status }] as const,
+  detail: (id: string) => ["admin", "review-reports", id] as const,
+};
+
+export function useReviewReports(status: ReportStatus = "OPEN") {
+  return useQuery<AdminReportQueueResponse>({
+    queryKey: reviewReportsQk.list(status),
+    queryFn: () =>
+      apiFetch<AdminReportQueueResponse>("/admin/review-reports", {
+        searchParams: { status },
+      }),
+  });
+}
+
+export function useReviewReport(id: string | null | undefined) {
+  return useQuery<AdminReportDetailResponse>({
+    queryKey: reviewReportsQk.detail(id ?? "__nil__"),
+    queryFn: () => apiFetch<AdminReportDetailResponse>(`/admin/review-reports/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+export function useResolveReviewReport(reviewId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      decision: "UPHELD" | "DISMISSED";
+      action: ModerationAction;
+      resolution_note?: string;
+    }) =>
+      apiFetch<AdminReportDetailResponse>(
+        `/admin/review-reports/${reviewId}/resolve`,
+        { method: "POST", json: payload },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "review-reports"] });
+    },
+  });
+}
+
+// ---- Photos ---------------------------------------------------------------
+
+export type PhotoAttribution = "OWNER" | "DINER" | "REVIEW" | "GOOGLE";
+export type PhotoReportReason =
+  | "NOT_THIS_PLACE"
+  | "INAPPROPRIATE"
+  | "MISLEADING"
+  | "PERSONAL_INFO"
+  | "COPYRIGHT"
+  | "OTHER";
+
+export type AdminPhotoReportRow = {
+  photo_id: string;
+  place_id: string;
+  place_name: string | null;
+  url: string;
+  attribution: PhotoAttribution;
+  uploader_display_name: string | null;
+  reasons: PhotoReportReason[];
+  report_count: number;
+  open_report_count: number;
+  latest_report_at: string;
+  reported_by_owner: boolean;
+};
+
+export type AdminPhotoQueueResponse = {
+  items: AdminPhotoReportRow[];
+  total: number;
+  next_offset: number | null;
+};
+
+export type AdminPhotoReportDetail = {
+  photo_id: string;
+  place_id: string;
+  place_name: string | null;
+  url: string;
+  attribution: PhotoAttribution;
+  caption: string | null;
+  uploader_display_name: string | null;
+  uploader_email: string | null;
+  uploader_account_age_days: number | null;
+  is_hero: boolean;
+  created_at: string;
+  review_id: string | null;
+  review_rating: number | null;
+  review_body: string | null;
+  reports: Array<{
+    id: string;
+    reason: PhotoReportReason;
+    detail: string | null;
+    status: ReportStatus;
+    reporter_display_name: string | null;
+    created_at: string;
+  }>;
+};
+
+export function usePhotoReports(status: ReportStatus = "OPEN") {
+  return useQuery<AdminPhotoQueueResponse>({
+    queryKey: ["admin", "photo-reports", { status }],
+    queryFn: () =>
+      apiFetch<AdminPhotoQueueResponse>("/admin/photo-reports", {
+        searchParams: { status },
+      }),
+  });
+}
+
+export function usePhotoReport(id: string | null | undefined) {
+  return useQuery<AdminPhotoReportDetail>({
+    queryKey: ["admin", "photo-reports", id],
+    queryFn: () => apiFetch<AdminPhotoReportDetail>(`/admin/photo-reports/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+export function useResolvePhotoReport(photoId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      decision: "UPHELD" | "DISMISSED";
+      remove: boolean;
+      resolution_note?: string;
+    }) =>
+      apiFetch<AdminPhotoReportDetail>(
+        `/admin/photo-reports/${photoId}/resolve`,
+        { method: "POST", json: payload },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "photo-reports"] });
+    },
+  });
+}
