@@ -72,6 +72,42 @@ from sqlalchemy import select
 
 router = APIRouter(prefix="/places", tags=["places"])
 
+
+def _place_is_claimed(db: Session, place_id) -> bool:
+    """Whether an ownership claim exists that could produce a replying owner.
+
+    Module scope on purpose: the search listing computes the same answer in
+    bulk for a page via a local helper, but the place-detail route needs it
+    for one place and lives elsewhere in this file.
+
+    Same states the listing counts as claimed — anything short of a rejection
+    means someone is on the way to being able to answer reviews, and inviting
+    them to claim a place they've already claimed reads as broken.
+    """
+    # Both imported locally: OwnershipRequestStatus is imported inside the
+    # search handler rather than at module level, and the models import is
+    # deferred to avoid a cycle.
+    from app.modules.ownership_requests.enums import OwnershipRequestStatus
+    from app.modules.ownership_requests.models import PlaceOwnershipRequest
+
+    states = (
+        OwnershipRequestStatus.SUBMITTED.value,
+        OwnershipRequestStatus.NEEDS_EVIDENCE.value,
+        OwnershipRequestStatus.UNDER_REVIEW.value,
+        OwnershipRequestStatus.APPROVED.value,
+    )
+    return (
+        db.execute(
+            select(PlaceOwnershipRequest.place_id)
+            .where(PlaceOwnershipRequest.place_id == place_id)
+            .where(PlaceOwnershipRequest.status.in_(states))
+            .limit(1)
+        ).scalar_one_or_none()
+        is not None
+    )
+
+
+
 # A second router for /me-prefixed place-ownership reads. Kept in
 # this file because it's about the Place model, but it doesn't fit
 # under the /places prefix.
