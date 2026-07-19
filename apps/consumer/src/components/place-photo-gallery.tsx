@@ -3,49 +3,50 @@
  *
  * Shape:
  *
- *   - Hero is already shown by ``PlaceHero`` so this gallery starts at
- *     the second photo. If the place only has the one hero shot, the
- *     gallery doesn't render at all.
- *   - Up to 5 thumbnails visible (grid: 2 columns mobile, 3 columns
- *     desktop). The 5th thumbnail flips to a "+N more" overlay when
- *     there are extra photos beyond what fits in the grid.
- *   - Tapping any thumbnail opens a lightbox that lets the visitor
- *     page through every photo (hero included) with arrow keys, the
- *     prev/next buttons, or a fling on touch devices.
- *   - Each lightbox slide carries an attribution chip ("Owner upload"
- *     vs. "Customer upload") and an optional caption.
+ *   - The hero is already shown by ``PlaceHero``, so it's excluded here.
+ *     If the place has nothing but its hero, the gallery renders an empty
+ *     state rather than disappearing, so the page rhythm holds.
+ *   - Up to 5 thumbnails (2 columns mobile, 3 desktop). The last visible
+ *     tile flips to a "+N more" overlay when there are extras.
+ *   - Tapping a thumbnail opens a lightbox spanning *every* photo,
+ *     hero included, so a visitor can page back to it.
  *
- * Photo URLs land directly from the API (Supabase public bucket). No
- * image-optimization layer in front of them yet, so we render plain
- * <img> with eager-load on the lightbox view and lazy-load on the
- * thumbnails — the gallery sits below the fold.
+ * ## Addressing photos by id, not by position
+ *
+ * This component previously did `photos.slice(1)` — assuming the hero was
+ * always index 0 — and passed array offsets to the lightbox, which then did
+ * its own `+1` arithmetic to compensate. Two coupled index maps, both
+ * positional, both silently wrong the moment the array is filtered or
+ * reordered (which grouping by provenance does).
+ *
+ * Everything now addresses photos by **id**. The lightbox is told which
+ * photo to open and which list to page through, and derives position
+ * itself. Filtering the grid can't desynchronise anything, because there
+ * are no offsets to keep in sync.
  */
 "use client";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  ImageIcon,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
 import * as React from "react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import type { PlacePhotoRead, PlacePhotoSource } from "@/lib/api/hooks";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import type { PhotoAttribution, PlacePhotoRead } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
 
-const SOURCE_LABEL: Record<PlacePhotoSource, string> = {
-  OWNER: "Owner upload",
-  CONSUMER: "Customer upload",
+/** Human labels for provenance.
+ *
+ *  Keyed off `attribution`, not `source`. The old map keyed off `source` and
+ *  had no entry for GOOGLE, so backfilled photos — which exist in production
+ *  — rendered an empty chip. */
+const ATTRIBUTION_LABEL: Record<PhotoAttribution, string> = {
+  OWNER: "From the restaurant",
+  DINER: "From a diner",
+  REVIEW: "From a review",
+  GOOGLE: "From Google",
 };
 
-// 5 visible thumbnails leaves us a 2x3 (mobile) / 3x2 (desktop) grid
-// that doesn't dwarf the rest of the page. Anything past index 4 gets
-// the "+N more" overlay on the last visible thumbnail.
+// 5 visible thumbnails leaves a grid that doesn't dwarf the rest of the
+// page. Anything past that gets the "+N more" overlay on the last tile.
 const MAX_VISIBLE_THUMBNAILS = 5;
 
 export function PlacePhotoGallery({
@@ -55,31 +56,28 @@ export function PlacePhotoGallery({
   photos: PlacePhotoRead[];
   placeName: string;
 }) {
-  // Hooks first — the empty-state branch comes after the state
-  // declaration so React's rules-of-hooks invariant holds.
-  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+  // Hooks before any early return, so the rules-of-hooks invariant holds.
+  const [openPhotoId, setOpenPhotoId] = React.useState<string | null>(null);
 
-  // The hero is already shown above; the gallery's "first" tile is
-  // the second photo in the photos array. Lightbox indexes still span
-  // the full set so a visitor can scroll back to the hero.
-  const heroLessPhotos = photos.slice(1);
-  const visible = heroLessPhotos.slice(0, MAX_VISIBLE_THUMBNAILS);
-  const hiddenCount = heroLessPhotos.length - visible.length;
+  // Exclude the hero by its flag rather than by position. `slice(1)` was
+  // only correct because the API happens to sort hero-first; that coupling
+  // is invisible from here and breaks silently if the order ever changes.
+  const galleryPhotos = React.useMemo(
+    () => photos.filter((p) => !p.is_hero),
+    [photos],
+  );
+
+  const visible = galleryPhotos.slice(0, MAX_VISIBLE_THUMBNAILS);
+  const hiddenCount = galleryPhotos.length - visible.length;
 
   return (
-    <section
-      aria-labelledby="photo-gallery-heading"
-      className="space-y-3"
-    >
+    <section aria-labelledby="photo-gallery-heading" className="space-y-3">
       <header className="flex items-baseline justify-between gap-2">
         <h2
           id="photo-gallery-heading"
           className="flex items-center gap-2 text-base font-semibold tracking-tight"
         >
-          <ImageIcon
-            className="h-4 w-4 text-muted-foreground"
-            aria-hidden
-          />
+          <ImageIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
           Photos
           {photos.length > 0 && (
             <span className="text-sm font-normal text-muted-foreground">
@@ -89,79 +87,70 @@ export function PlacePhotoGallery({
         </h2>
       </header>
 
-      {/* Empty state — visible whenever the only photo is the hero (or
-          there are no photos at all). The visible "Photos" header
-          still renders so the page rhythm doesn't collapse, and the
-          empty state advertises the owner-portal upload path. */}
-      {heroLessPhotos.length === 0 && (
+      {galleryPhotos.length === 0 && (
         <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
           {photos.length === 0
             ? "No photos yet."
-            : "Only the hero photo is on file so far."}{" "}
+            : "Only the cover photo is on file so far."}{" "}
           Owners can add more from the owner portal.
         </div>
       )}
 
-      {heroLessPhotos.length > 0 && (
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {visible.map((photo, idx) => {
-          const isLastVisible =
-            idx === visible.length - 1 && hiddenCount > 0;
-          // The lightbox indexes against the FULL photos array
-          // (including hero), so add 1 to skip the hero.
-          const lightboxIndex = idx + 1;
-          return (
-            <li key={photo.id}>
-              <button
-                type="button"
-                onClick={() => setOpenIndex(lightboxIndex)}
-                className={cn(
-                  "group relative block aspect-square w-full overflow-hidden rounded-lg border bg-muted",
-                  "transition hover:border-foreground/30 hover:shadow-sm",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                )}
-                aria-label={
-                  isLastVisible
-                    ? `View all ${photos.length} photos`
-                    : `View photo ${lightboxIndex + 1} of ${photos.length}`
-                }
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.url}
-                  alt={
-                    photo.caption
-                      ? photo.caption
-                      : `${placeName} — photo ${lightboxIndex + 1}`
+      {galleryPhotos.length > 0 && (
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {visible.map((photo, idx) => {
+            const isLastVisible =
+              idx === visible.length - 1 && hiddenCount > 0;
+            return (
+              <li key={photo.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpenPhotoId(photo.id)}
+                  className={cn(
+                    "group relative block aspect-square w-full overflow-hidden rounded-lg border bg-muted",
+                    "transition hover:border-foreground/30 hover:shadow-sm",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  )}
+                  aria-label={
+                    isLastVisible
+                      ? `View all ${photos.length} photos`
+                      : `View photo: ${ATTRIBUTION_LABEL[photo.attribution]}${
+                          photo.caption ? ` — ${photo.caption}` : ""
+                        }`
                   }
-                  loading="lazy"
-                  decoding="async"
-                  className="h-full w-full object-cover transition group-hover:scale-105"
-                />
-                {isLastVisible && hiddenCount > 0 && (
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "absolute inset-0 flex items-center justify-center",
-                      "bg-black/55 text-base font-semibold text-white",
-                    )}
-                  >
-                    +{hiddenCount} more
-                  </span>
-                )}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.url}
+                    alt={photo.caption ?? `${placeName} — photo`}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition group-hover:scale-105"
+                  />
+                  {isLastVisible && hiddenCount > 0 && (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-0 flex items-center justify-center",
+                        "bg-black/55 text-base font-semibold text-white",
+                      )}
+                    >
+                      +{hiddenCount} more
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
-      {openIndex !== null && (
+      {openPhotoId !== null && (
         <Lightbox
           photos={photos}
           placeName={placeName}
-          startIndex={openIndex}
-          onClose={() => setOpenIndex(null)}
+          startPhotoId={openPhotoId}
+          onClose={() => setOpenPhotoId(null)}
         />
       )}
     </section>
@@ -169,37 +158,36 @@ export function PlacePhotoGallery({
 }
 
 // ---------------------------------------------------------------------------
-// Lightbox — full-bleed photo with prev/next controls. Built on the
-// shared Dialog primitive but with a pointer-events-pass-through so
-// the photo can fill the screen rather than sit inside the dialog
-// chrome.
+// Lightbox — full-bleed photo with prev/next controls.
+//
+// Takes the id of the photo to open rather than its index. Position is
+// derived here and nowhere else, so a caller can pass any subset of photos
+// in any order without arithmetic on either side.
 // ---------------------------------------------------------------------------
 
 function Lightbox({
   photos,
   placeName,
-  startIndex,
+  startPhotoId,
   onClose,
 }: {
   photos: PlacePhotoRead[];
   placeName: string;
-  startIndex: number;
+  startPhotoId: string;
   onClose: () => void;
 }) {
+  const startIndex = React.useMemo(() => {
+    const i = photos.findIndex((p) => p.id === startPhotoId);
+    // -1 would mean the caller passed an id that isn't in this list. Opening
+    // at the first photo is a better failure than a blank modal.
+    return i >= 0 ? i : 0;
+  }, [photos, startPhotoId]);
+
   const [index, setIndex] = React.useState(startIndex);
 
-  // Clamp on prop change — defensive for the edge case where the
-  // start index exceeds bounds (shouldn't happen, but cheap to belt
-  // and suspender).
   React.useEffect(() => {
-    if (startIndex >= photos.length) {
-      setIndex(photos.length - 1);
-    } else if (startIndex < 0) {
-      setIndex(0);
-    } else {
-      setIndex(startIndex);
-    }
-  }, [startIndex, photos.length]);
+    setIndex(startIndex);
+  }, [startIndex]);
 
   const goPrev = React.useCallback(() => {
     setIndex((i) => (i - 1 + photos.length) % photos.length);
@@ -208,8 +196,7 @@ function Lightbox({
     setIndex((i) => (i + 1) % photos.length);
   }, [photos.length]);
 
-  // Keyboard navigation. The Dialog primitive already handles Esc to
-  // close; we add Left / Right on top.
+  // Dialog handles Esc; we add Left / Right on top.
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "ArrowLeft") {
@@ -234,9 +221,6 @@ function Lightbox({
       }}
     >
       <DialogContent
-        // Override the default modal sizing so the photo can fill
-        // most of the viewport. Hide the default close button — we
-        // render a custom one with a more contrast-friendly tone.
         className={cn(
           "w-[calc(100%-1rem)] max-w-5xl max-h-[95dvh]",
           "overflow-hidden border-0 bg-black p-0 sm:p-0",
@@ -256,18 +240,13 @@ function Lightbox({
             <img
               key={photo.id}
               src={photo.url}
-              alt={
-                photo.caption
-                  ? photo.caption
-                  : `${placeName} — photo ${index + 1}`
-              }
+              alt={photo.caption ?? `${placeName} — photo ${index + 1}`}
               loading="eager"
               decoding="async"
               className="max-h-full max-w-full object-contain"
             />
           )}
 
-          {/* Prev / Next */}
           {photos.length > 1 && (
             <>
               <button
@@ -297,7 +276,6 @@ function Lightbox({
             </>
           )}
 
-          {/* Custom close — we hid the default Dialog X above. */}
           <button
             type="button"
             onClick={onClose}
@@ -311,21 +289,26 @@ function Lightbox({
           </button>
         </div>
 
-        {/* Caption / attribution strip below the photo. */}
+        {/* Attribution strip. */}
         {photo && (
           <div className="flex flex-wrap items-center justify-between gap-2 bg-black/90 px-4 py-3 text-xs text-white/85">
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-white/15 px-2 py-0.5 font-medium">
-                {SOURCE_LABEL[photo.source]}
+                {ATTRIBUTION_LABEL[photo.attribution]}
               </span>
               {photo.uploaded_by_display_name && (
                 <span className="text-white/70">
                   by {photo.uploaded_by_display_name}
                 </span>
               )}
+              {photo.attribution === "REVIEW" && photo.review_rating != null && (
+                <span className="text-white/70">
+                  · {photo.review_rating}★ review
+                </span>
+              )}
               {photo.is_hero && (
                 <span className="rounded-full border border-white/25 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/80">
-                  Hero
+                  Cover
                 </span>
               )}
             </div>
@@ -346,6 +329,5 @@ function Lightbox({
   );
 }
 
-// Re-export so test files / story files can import the lightbox alone
-// without coupling to the gallery layout.
+// Re-export so test / story files can import the lightbox alone.
 export { Lightbox as PlacePhotoLightbox };

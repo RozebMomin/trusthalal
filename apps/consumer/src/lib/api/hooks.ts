@@ -225,7 +225,18 @@ export type HalalProfileEmbed = {
  * ``PlacePhotoSource`` server-side. Drives the "Owner" / "Customer"
  * badge on the consumer gallery + the hero-eligibility gate.
  */
-export type PlacePhotoSource = "OWNER" | "CONSUMER";
+/** Who supplied a photo, as stored. Includes GOOGLE — the data-ops backfill
+ *  writes those and they exist in production today. Prefer `attribution`
+ *  below for anything user-visible. */
+export type PlacePhotoSource = "OWNER" | "CONSUMER" | "GOOGLE";
+
+/** Display-level provenance, derived server-side.
+ *
+ *  This exists because each client used to infer provenance from `source`
+ *  alone and got it wrong differently: mobile had a VERIFIER label that was
+ *  never a real value, and neither client handled GOOGLE, so backfilled
+ *  photos rendered a blank chip. Render from this, never from `source`. */
+export type PhotoAttribution = "OWNER" | "DINER" | "REVIEW" | "GOOGLE";
 
 /**
  * Photo row as returned by GET /places/{id}/photos and embedded
@@ -237,6 +248,11 @@ export type PlacePhotoRead = {
   place_id: string;
   url: string;
   source: PlacePhotoSource;
+  attribution: PhotoAttribution;
+  /** Set when the photo was attached to a review, so the gallery can link
+   *  back to the words that explain it. */
+  review_id: string | null;
+  review_rating: number | null;
   width_px: number | null;
   height_px: number | null;
   caption: string | null;

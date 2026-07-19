@@ -123,23 +123,33 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
   const [disputeDialogOpen, setDisputeDialogOpen] = React.useState(false);
   const [heroExpanded, setHeroExpanded] = React.useState(false);
 
-  // Photos + start index for expanding the hero into the shared
-  // lightbox. The hero is the is_hero photo in ``photos``; if the
-  // convenience ``hero_photo_url`` is set but somehow isn't in the
-  // array, synthesize a front slide so the header stays expandable.
+  // Photos + the id to open when the hero is expanded into the shared
+  // lightbox.
+  //
+  // When ``hero_photo_url`` is set but no photo in the array carries
+  // ``is_hero`` (a cover that came from somewhere the photos list doesn't
+  // cover), we synthesize a front slide so the header stays expandable.
+  // That slide previously hardcoded ``source: "OWNER"`` — asserting the
+  // restaurant supplied a photo whose provenance we don't actually know,
+  // on the one surface whose entire job is honest provenance. It's now
+  // GOOGLE/GOOGLE, which is what an unattributed cover on this platform in
+  // practice is: the listing photo from the ingest.
   const heroLightbox = React.useMemo<{
     photos: PlacePhotoRead[];
-    startIndex: number;
+    startPhotoId: string;
   } | null>(() => {
     const d = place.data;
     if (!d || !d.hero_photo_url) return null;
-    const idx = d.photos.findIndex((p) => p.is_hero);
-    if (idx >= 0) return { photos: d.photos, startIndex: idx };
+    const hero = d.photos.find((p) => p.is_hero);
+    if (hero) return { photos: d.photos, startPhotoId: hero.id };
     const synthetic: PlacePhotoRead = {
       id: "__hero__",
       place_id: d.id,
       url: d.hero_photo_url,
-      source: "OWNER",
+      source: "GOOGLE",
+      attribution: "GOOGLE",
+      review_id: null,
+      review_rating: null,
       width_px: null,
       height_px: null,
       caption: null,
@@ -147,7 +157,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
       uploaded_by_display_name: null,
       created_at: new Date(0).toISOString(),
     };
-    return { photos: [synthetic, ...d.photos], startIndex: 0 };
+    return { photos: [synthetic, ...d.photos], startPhotoId: synthetic.id };
   }, [place.data]);
 
   const disputesForThisPlace = React.useMemo<ConsumerDisputeReporter[]>(
@@ -278,7 +288,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
             <PlacePhotoLightbox
               photos={heroLightbox.photos}
               placeName={place.data.name}
-              startIndex={heroLightbox.startIndex}
+              startPhotoId={heroLightbox.startPhotoId}
               onClose={() => setHeroExpanded(false)}
             />
           )}
