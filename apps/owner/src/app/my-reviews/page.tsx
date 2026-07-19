@@ -23,6 +23,7 @@ import {
   useEditReviewReply,
   useOwnerReviews,
   useReplyToReview,
+  useResendVerification,
   type OwnerReviewRead,
 } from "@/lib/api/hooks";
 
@@ -54,6 +55,8 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
   const [open, setOpen] = React.useState(false);
   const [body, setBody] = React.useState(review.reply?.body ?? "");
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [needsVerify, setNeedsVerify] = React.useState(false);
+  const resendVerify = useResendVerification();
 
   const editing = review.reply != null;
   const pending = reply.isPending || editReply.isPending;
@@ -74,11 +77,19 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
       });
       // Owners are held to the same content filter as diners. Worth saying
       // plainly rather than letting them wonder what happened.
-      setErrorMsg(
-        status === 503
-          ? "We couldn't run our content check just now — that's on us. Try again in a moment."
-          : description,
-      );
+      // 403 here means the account's email was never confirmed. Accounts
+      // that predate verification were never sent a link, so "check your
+      // inbox" would point at nothing — offer to send one instead.
+      if (status === 403) {
+        setNeedsVerify(true);
+        setErrorMsg(null);
+      } else {
+        setErrorMsg(
+          status === 503
+            ? "We couldn't run our content check just now — that's on us. Try again in a moment."
+            : description,
+        );
+      }
     }
   }
 
@@ -212,6 +223,25 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
             <p className="text-sm text-destructive" role="alert">
               {errorMsg}
             </p>
+          )}
+          {needsVerify && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 p-3">
+              <p className="text-xs leading-relaxed text-amber-900">
+                {resendVerify.isSuccess
+                  ? `Sent — check ${resendVerify.data?.email} and click the link, then post your reply.`
+                  : "Confirm your email address before replying publicly."}
+              </p>
+              {!resendVerify.isSuccess && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={resendVerify.isPending}
+                  onClick={() => resendVerify.mutate({ audience: "owner" })}
+                >
+                  {resendVerify.isPending ? "Sending…" : "Send me the link"}
+                </Button>
+              )}
+            </div>
           )}
           <div className="flex gap-2">
             <Button size="sm" disabled={!canSubmit} onClick={submit}>

@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfirmEmailPrompt } from "./confirm-email-prompt";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   useCreateReview,
@@ -66,6 +67,7 @@ function draftKey(placeId: string) {
 type Failure =
   | { kind: "rejected"; message: string }
   | { kind: "outage"; message: string }
+  | { kind: "verify"; title: string }
   | { kind: "other"; title: string; message: string };
 
 export function WriteReviewDialog({
@@ -175,12 +177,9 @@ export function WriteReviewDialog({
           message: "Sign in and your draft will still be here.",
         });
       } else if (status === 403) {
-        setFailure({
-          kind: "other",
-          title: "Confirm your email first",
-          message:
-            "Check your inbox for the confirmation link, then post your review.",
-        });
+        // No "check your inbox" here: accounts that predate verification
+        // were never sent anything. The prompt below can send one.
+        setFailure({ kind: "verify", title: "Confirm your email first" });
       } else {
         setFailure({ kind: "other", title, message: description });
       }
@@ -217,7 +216,14 @@ export function WriteReviewDialog({
                     ? "This can't be posted as written"
                     : failure.title}
               </span>
-              {failure.message}
+              {failure.kind === "verify" ? (
+                <ConfirmEmailPrompt
+                  action="post this"
+                  className="mt-2 flex flex-wrap items-center justify-between gap-3"
+                />
+              ) : (
+                failure.message
+              )}
             </div>
           )}
 

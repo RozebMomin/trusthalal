@@ -27,6 +27,7 @@ import {
 } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
 
+import { ConfirmEmailPrompt } from "./confirm-email-prompt";
 import { ReportReviewDialog } from "./report-review-dialog";
 import { WriteReviewDialog } from "./write-review-dialog";
 
@@ -187,14 +188,8 @@ function RatingHeader({
 
       {/* Explain a disabled action rather than hiding it — someone who can't
           review should learn why here, not by pressing a button that fails. */}
-      {!canReview && !hasMine && (
-        <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-          {!signedIn
-            ? "Sign in to write a review."
-            : !emailVerified
-              ? "Confirm your email address to write a review — check your inbox for the link."
-              : null}
-        </p>
+      {!canReview && !hasMine && signedIn && !emailVerified && (
+        <ConfirmEmailPrompt />
       )}
     </div>
   );

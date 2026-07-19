@@ -44,6 +44,7 @@ import {
   useCreateReview,
   useDeleteReview,
   usePlaceReviews,
+  useResendVerification,
   useUpdateReview,
 } from "@/lib/api/hooks";
 import { radii, space, type as ty } from "@/lib/theme";
@@ -84,6 +85,7 @@ function draftKey(placeId: string) {
 type Failure =
   | { kind: "rejected"; message: string }
   | { kind: "outage" }
+  | { kind: "verify"; title: string }
   | { kind: "other"; title: string; message: string };
 
 export default function WriteReviewScreen() {
@@ -105,6 +107,7 @@ export default function WriteReviewScreen() {
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
+  const resendVerify = useResendVerification();
   const hydrated = useRef(false);
 
   // Photos aren't part of the saved draft: SecureStore holds strings, and a
@@ -245,11 +248,9 @@ export default function WriteReviewScreen() {
           message: "Sign in and your draft will still be here.",
         });
       } else if (status === 403) {
-        setFailure({
-          kind: "other",
-          title: "Confirm your email first",
-          message: "Check your inbox for the link, then post your review.",
-        });
+        // Not "check your inbox" — accounts that predate verification were
+        // never sent anything. The banner below can send one.
+        setFailure({ kind: "verify", title: "Confirm your email first" });
       } else {
         setFailure({
           kind: "other",
@@ -328,8 +329,31 @@ export default function WriteReviewScreen() {
                 ? "That's on us, not your review. Your draft is saved — try again in a moment."
                 : failure.kind === "rejected"
                   ? `${failure.message} Strong criticism is welcome; we just need it kept civil.`
-                  : failure.message}
+                  : failure.kind === "verify"
+                    ? resendVerify.isSuccess
+                      ? `Sent — check ${resendVerify.data?.email}, tap the link, then post. Your draft is saved.`
+                      : "We'll email you a link. Your draft is saved."
+                    : failure.message}
             </Text>
+            {failure.kind === "verify" && !resendVerify.isSuccess ? (
+              <Pressable
+                onPress={() => resendVerify.mutate()}
+                disabled={resendVerify.isPending}
+                style={{
+                  marginTop: 8,
+                  alignSelf: "flex-start",
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: t.amber,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                }}
+              >
+                <Text style={[ty.label, { color: t.amber, fontSize: 12.5 }]}>
+                  {resendVerify.isPending ? "Sending…" : "Send me the link"}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 

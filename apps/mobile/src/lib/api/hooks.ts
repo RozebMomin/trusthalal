@@ -533,3 +533,24 @@ export function uploadReviewPhoto(params: {
     { method: "POST", body: form },
   );
 }
+
+/** POST /auth/verify-email/resend.
+ *
+ *  Needed because accounts that predate email verification were never sent
+ *  a confirmation link and nothing triggers one on login or when the gate
+ *  refuses. Without this the "confirm your email" message is a dead end.
+ *
+ *  Audience is "consumer": mobile has no verification page of its own, and
+ *  confirming in a browser marks the account verified server-side — the app
+ *  picks it up on its next /me. */
+export function useResendVerification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ sent: boolean; email: string }>("/auth/verify-email/resend", {
+        method: "POST",
+        body: JSON.stringify({ audience: "consumer" }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["me"] }),
+  });
+}
