@@ -130,6 +130,21 @@ export type SearchPlacesParams = {
 
 export type FavoriteRead = { saved_at: string; place: PlaceSearchResult };
 
+/** One row of the per-category, per-channel notification matrix.
+ *  Everything defaults ON; false means the user opted out. Transactional
+ *  categories always report email=true — they can't be silenced by email. */
+export type NotificationPreference = {
+  category: string;
+  email: boolean;
+  push: boolean;
+};
+
+export type NotificationPreferencesResponse = {
+  preferences: NotificationPreference[];
+};
+
+export type NotificationChannel = "EMAIL" | "PUSH";
+
 // ---------------------------------------------------------------------------
 // Verification visits (verifier surface)
 // ---------------------------------------------------------------------------

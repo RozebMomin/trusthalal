@@ -13,6 +13,8 @@ import type {
   HalalHistoryEvent,
   MobileAuthResponse,
   MobileUser,
+  NotificationChannel,
+  NotificationPreferencesResponse,
   PlaceDetail,
   PlaceSearchResult,
   SearchPlacesParams,
@@ -344,5 +346,62 @@ export function useWithdrawVerificationVisit() {
       ),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["me", "verification-visits"] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Notification preferences (per category, per channel)
+// ---------------------------------------------------------------------------
+
+const PREFS_KEY = ["me", "notification-preferences"] as const;
+
+export function useNotificationPreferences(enabled: boolean) {
+  return useQuery({
+    queryKey: PREFS_KEY,
+    queryFn: () =>
+      apiFetch<NotificationPreferencesResponse>("/me/notification-preferences"),
+    enabled,
+  });
+}
+
+/** PUT one category/channel on or off.
+ *
+ * Optimistic: a switch that lags behind the thumb feels broken, so we flip the
+ * cached value immediately and roll back if the request fails. The server's
+ * response is authoritative — it re-derives the whole matrix, which also
+ * corrects the UI if someone tries to disable a mandatory email channel. */
+export function useUpdateNotificationPreference() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      category: string;
+      channel: NotificationChannel;
+      enabled: boolean;
+    }) =>
+      apiFetch<NotificationPreferencesResponse>("/me/notification-preferences", {
+        method: "PUT",
+        body: JSON.stringify(input),
+      }),
+    onMutate: async (input) => {
+      await qc.cancelQueries({ queryKey: PREFS_KEY });
+      const previous = qc.getQueryData<NotificationPreferencesResponse>(PREFS_KEY);
+      if (previous) {
+        qc.setQueryData<NotificationPreferencesResponse>(PREFS_KEY, {
+          preferences: previous.preferences.map((p) =>
+            p.category === input.category
+              ? {
+                  ...p,
+                  [input.channel === "PUSH" ? "push" : "email"]: input.enabled,
+                }
+              : p,
+          ),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _input, ctx) => {
+      if (ctx?.previous) qc.setQueryData(PREFS_KEY, ctx.previous);
+    },
+    onSuccess: (data) => qc.setQueryData(PREFS_KEY, data),
   });
 }
