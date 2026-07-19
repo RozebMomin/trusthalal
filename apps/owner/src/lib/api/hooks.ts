@@ -952,7 +952,12 @@ export type MyOwnedPlacePatch = {
  * gate (only OWNER source photos are auto-considered for hero, but
  * an owner can promote any photo on their place via PATCH).
  */
-export type PlacePhotoSource = "OWNER" | "CONSUMER";
+export type PlacePhotoSource = "OWNER" | "CONSUMER" | "GOOGLE";
+
+/** Display-level provenance, derived server-side. Render from this, never
+ *  from `source` — it folds in whether the photo came from a review, which
+ *  `source` can't express. */
+export type PhotoAttribution = "OWNER" | "DINER" | "REVIEW" | "GOOGLE";
 
 /**
  * Photo row as it lands on the consumer-facing place gallery and
@@ -968,6 +973,9 @@ export type PlacePhotoRead = {
   width_px: number | null;
   height_px: number | null;
   caption: string | null;
+  attribution: PhotoAttribution;
+  review_id: string | null;
+  review_rating: number | null;
   is_hero: boolean;
   uploaded_by_display_name: string | null;
   created_at: string;
@@ -1490,5 +1498,148 @@ export function useResendVerification() {
       // An already-verified response means our cached /me is stale.
       qc.invalidateQueries({ queryKey: qk.me() });
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reviews — the owner inbox
+// ---------------------------------------------------------------------------
+
+export type OwnerReviewPlace = {
+  id: string;
+  name: string;
+  city: string | null;
+  region: string | null;
+};
+
+export type OwnerReviewReply = {
+  id: string;
+  review_id: string;
+  organization_id: string;
+  organization_name: string | null;
+  body: string;
+  edited_at: string | null;
+  created_at: string;
+};
+
+export type OwnerReviewRead = {
+  id: string;
+  place_id: string;
+  author: { id: string; display_name: string | null };
+  rating: number;
+  body: string;
+  visited_on: string | null;
+  status: "PUBLISHED" | "HIDDEN" | "REMOVED";
+  edited_at: string | null;
+  created_at: string;
+  photos: Array<{ id: string; url: string }>;
+  reply: OwnerReviewReply | null;
+  place: OwnerReviewPlace | null;
+  /** An owner should know a review they're about to answer is already
+   *  contested — the tone of a good reply differs. */
+  open_report_count: number;
+};
+
+export type OwnerReviewListResponse = {
+  items: OwnerReviewRead[];
+  total: number;
+  /** Across every managed place, not the current filter — this drives the
+   *  nav badge, and a badge that changes when you click a filter is a
+   *  search result, not a badge. */
+  needs_reply_count: number;
+  next_offset: number | null;
+};
+
+const ownerReviewsQk = {
+  inbox: (params: Record<string, unknown>) =>
+    ["me", "place-reviews", params] as const,
+};
+
+export function useOwnerReviews(opts: {
+  placeId?: string;
+  needsReply?: boolean;
+} = {}) {
+  const params = {
+    place_id: opts.placeId,
+    needs_reply: opts.needsReply ? true : undefined,
+  };
+  return useQuery<OwnerReviewListResponse>({
+    queryKey: ownerReviewsQk.inbox(params),
+    queryFn: () =>
+      apiFetch<OwnerReviewListResponse>("/me/place-reviews", {
+        searchParams: params as Record<string, string | number | boolean | undefined>,
+      }),
+  });
+}
+
+function invalidateOwnerReviews(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["me", "place-reviews"] });
+}
+
+export function useReplyToReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reviewId, body }: { reviewId: string; body: string }) =>
+      apiFetch<OwnerReviewReply>(`/places/reviews/${reviewId}/reply`, {
+        method: "POST",
+        json: { body },
+      }),
+    onSuccess: () => invalidateOwnerReviews(qc),
+  });
+}
+
+export function useEditReviewReply() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reviewId, body }: { reviewId: string; body: string }) =>
+      apiFetch<OwnerReviewReply>(`/places/reviews/${reviewId}/reply`, {
+        method: "PATCH",
+        json: { body },
+      }),
+    onSuccess: () => invalidateOwnerReviews(qc),
+  });
+}
+
+export function useDeleteReviewReply() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reviewId: string) =>
+      apiFetch<void>(`/places/reviews/${reviewId}/reply`, { method: "DELETE" }),
+    onSuccess: () => invalidateOwnerReviews(qc),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Photo reporting
+// ---------------------------------------------------------------------------
+// Owners can't delete a diner's photo — matching Google and Yelp, and
+// mattering more here because a photo of what was served is evidence. This
+// is the route they get instead.
+
+export type PhotoReportReason =
+  | "NOT_THIS_PLACE"
+  | "INAPPROPRIATE"
+  | "MISLEADING"
+  | "PERSONAL_INFO"
+  | "COPYRIGHT"
+  | "OTHER";
+
+export function useReportPlacePhoto() {
+  return useMutation({
+    mutationFn: ({
+      placeId,
+      photoId,
+      reason,
+      detail,
+    }: {
+      placeId: string;
+      photoId: string;
+      reason: PhotoReportReason;
+      detail?: string;
+    }) =>
+      apiFetch<unknown>(`/places/${placeId}/photos/${photoId}/report`, {
+        method: "POST",
+        json: { reason, detail },
+      }),
   });
 }

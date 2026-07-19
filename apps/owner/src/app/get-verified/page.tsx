@@ -34,6 +34,7 @@ import {
   useMyOrganizations,
   useMyOwnedPlaces,
   useMyOwnershipRequests,
+  useOwnerReviews,
 } from "@/lib/api/hooks";
 
 import {
@@ -297,6 +298,14 @@ export default function GetVerifiedHubPage() {
         </RoadmapStage>
       </Roadmap>
 
+      {/* Reviews waiting on a reply.
+          This card is how mobile owners reach reviews at all — the bottom
+          tab bar deliberately stays at four tabs, so the badge lives here
+          instead. It renders on desktop too, where it duplicates the nav
+          badge harmlessly: an owner who's just landed shouldn't have to
+          scan the nav to find out someone is waiting on them. */}
+      <NeedsReplyCard />
+
       {/* Multi-entity owners: an at-a-glance list of every business on the
           account with its live status. The roadmap above only tracks the
           most-recent entity, so without this an owner who registers a
@@ -330,6 +339,45 @@ export default function GetVerifiedHubPage() {
 // ---------------------------------------------------------------------------
 // Your-businesses overview — every org on the account + its live status.
 // ---------------------------------------------------------------------------
+
+/**
+ * "N reviews need a reply" — the mobile entry point to the review inbox.
+ *
+ * Silent at zero. An owner with nothing waiting doesn't need to be told
+ * about a surface they have no reason to visit, and a permanent "0 reviews
+ * need a reply" card trains people to ignore the spot where the real number
+ * will eventually appear.
+ */
+function NeedsReplyCard() {
+  const reviews = useOwnerReviews({ needsReply: true });
+  const count = reviews.data?.needs_reply_count ?? 0;
+  if (count === 0) return null;
+
+  const places = new Set(
+    (reviews.data?.items ?? []).map((r) => r.place_id),
+  ).size;
+
+  return (
+    <Link
+      href="/my-reviews"
+      className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 p-4 transition hover:border-primary/50"
+    >
+      <div>
+        <div className="font-semibold text-primary">
+          {count} review{count === 1 ? "" : "s"} need
+          {count === 1 ? "s" : ""} a reply
+        </div>
+        <div className="mt-0.5 text-sm text-muted-foreground">
+          {places > 1 ? `Across ${places} restaurants` : "Diners are waiting on you"}
+        </div>
+      </div>
+      <span aria-hidden className="text-lg text-primary">
+        ›
+      </span>
+    </Link>
+  );
+}
+
 
 function BusinessesOverview({
   orgs,

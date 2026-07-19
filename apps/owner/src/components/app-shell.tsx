@@ -32,7 +32,7 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { VersionTag } from "@/components/version-tag";
-import { useCurrentUser, useLogout } from "@/lib/api/hooks";
+import { useOwnerReviews, useCurrentUser, useLogout } from "@/lib/api/hooks";
 
 const PUBLIC_PATHS = new Set<string>(["/login", "/signup"]);
 
@@ -202,6 +202,13 @@ function PortalHeader() {
             >
               Halal Claims
             </NavLink>
+            <NavLink
+              href="/my-reviews"
+              active={pathname.startsWith("/my-reviews")}
+            >
+              Reviews
+              <UnrepliedBadge />
+            </NavLink>
           </nav>
         )}
 
@@ -269,6 +276,32 @@ function PortalHeader() {
  *     stroke via lucide's default fill for instant glanceability.
  *   * Each tab is a min-h-12 / min-w-16 touch target — comfortably
  *     above Apple's 44pt and Material's 48dp guidance.
+ */
+/**
+ * Unreplied-review count on the desktop nav.
+ *
+ * Renders nothing at zero — a badge showing "0" is noise, and the absence
+ * of a badge already says the same thing.
+ */
+function UnrepliedBadge() {
+  const reviews = useOwnerReviews({ needsReply: true });
+  const count = reviews.data?.needs_reply_count ?? 0;
+  if (count === 0) return null;
+  return (
+    <span className="ml-1.5 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold leading-none text-destructive-foreground">
+      {count}
+    </span>
+  );
+}
+
+/**
+ * Bottom tab bar — deliberately still FOUR tabs.
+ *
+ * Reviews is a fifth top-level destination on desktop but not here. Five
+ * forces "Halal Claims" down to "Claims" and crowds a bar this file already
+ * argues should stay at three or four. Mobile owners reach reviews from a
+ * badged card at the top of Home instead, which does the same attention job
+ * a tab badge would without the squeeze.
  */
 function BottomTabBar() {
   const pathname = usePathname() ?? "/";

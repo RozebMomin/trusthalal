@@ -53,6 +53,7 @@ import {
   usePlacePhotos,
   useUploadPlacePhoto,
 } from "@/lib/api/hooks";
+import { ReportPhotoDialog } from "./_components/report-photo-dialog";
 
 export default function MyPlaceDetailPage() {
   const params = useParams<{ id: string }>();
@@ -299,6 +300,13 @@ const PHOTO_ALLOWED_MIME = new Set([
 const PHOTO_ALLOWED_HUMAN = "JPEG, PNG, WebP, HEIC";
 const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 
+/** Whether a photo belongs to the restaurant rather than a diner.
+ *  Google-sourced listing photos count as the restaurant's: they represent
+ *  the business, and on a place with no owner uploads they're all there is. */
+function isOwnerSide(photo: PlacePhotoRead): boolean {
+  return photo.attribution === "OWNER" || photo.attribution === "GOOGLE";
+}
+
 function PhotosSection({ placeId }: { placeId: string }) {
   const photosQuery = usePlacePhotos(placeId);
   const upload = useUploadPlacePhoto();
@@ -306,10 +314,25 @@ function PhotosSection({ placeId }: { placeId: string }) {
   const remove = useDeletePlacePhoto();
 
   const [error, setError] = React.useState<string | null>(null);
+  const [tab, setTab] = React.useState<"all" | "owner" | "diner">("all");
+  const [reportPhoto, setReportPhoto] = React.useState<PlacePhotoRead | null>(
+    null,
+  );
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const photos = photosQuery.data ?? [];
   const heroId = photos.find((p) => p.is_hero)?.id ?? null;
+
+  const counts = React.useMemo(() => {
+    const owner = photos.filter(isOwnerSide).length;
+    return { all: photos.length, owner, diner: photos.length - owner };
+  }, [photos]);
+
+  const visiblePhotos = React.useMemo(() => {
+    if (tab === "owner") return photos.filter(isOwnerSide);
+    if (tab === "diner") return photos.filter((p) => !isOwnerSide(p));
+    return photos;
+  }, [photos, tab]);
 
   function onPickFile() {
     fileInputRef.current?.click();
@@ -427,18 +450,64 @@ function PhotosSection({ placeId }: { placeId: string }) {
           No photos yet. Add one so diners know what to expect.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {photos.map((photo) => (
-            <PhotoCard
-              key={photo.id}
-              photo={photo}
-              isHero={photo.id === heroId}
-              busy={patch.isPending || remove.isPending}
-              onSetHero={() => onSetHero(photo)}
-              onDelete={() => onDelete(photo)}
-            />
-          ))}
-        </div>
+        <>
+          {counts.diner > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  ["all", "All", counts.all],
+                  ["owner", "Yours", counts.owner],
+                  ["diner", "From diners", counts.diner],
+                ] as const
+              ).map(([key, label, count]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTab(key)}
+                  className={
+                    "rounded-full border px-3 py-1 text-xs font-medium transition " +
+                    (tab === key
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {label} <span className="opacity-70">{count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {visiblePhotos.map((photo) => (
+              <PhotoCard
+                key={photo.id}
+                photo={photo}
+                isHero={photo.id === heroId}
+                busy={patch.isPending || remove.isPending}
+                onSetHero={() => onSetHero(photo)}
+                onDelete={() => onDelete(photo)}
+                onReport={() => setReportPhoto(photo)}
+              />
+            ))}
+          </div>
+
+          {counts.diner > 0 && (
+            <p className="rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
+              Photos diners add stay on your page — you can report one if it
+              breaks our guidelines, but you can&rsquo;t remove it. Honest
+              photos of what you served are a large part of what makes a
+              listing worth trusting.
+            </p>
+          )}
+        </>
+      )}
+
+      {reportPhoto && (
+        <ReportPhotoDialog
+          placeId={placeId}
+          photo={reportPhoto}
+          onClose={() => setReportPhoto(null)}
+        />
       )}
     </section>
   );
@@ -450,13 +519,20 @@ function PhotoCard({
   busy,
   onSetHero,
   onDelete,
+  onReport,
 }: {
   photo: PlacePhotoRead;
   isHero: boolean;
   busy: boolean;
   onSetHero: () => void;
   onDelete: () => void;
+  onReport: () => void;
 }) {
+  const ownerSide = isOwnerSide(photo);
+  // Only the restaurant's own photos can be the cover, and only the
+  // restaurant's own photos can be deleted here. Rendering the buttons
+  // anyway and letting the API 403 is how an owner concludes the product
+  // is broken rather than that the rule is deliberate.
   return (
     <div
       className={
@@ -473,28 +549,46 @@ function PhotoCard({
       />
       {isHero && (
         <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase text-primary-foreground">
-          Hero
+          Cover
+        </span>
+      )}
+      {!ownerSide && (
+        <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white">
+          {photo.attribution === "REVIEW"
+            ? `From a ${photo.review_rating ?? ""}★ review`
+            : "From a diner"}
         </span>
       )}
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-        {!isHero && (
+        {ownerSide && !isHero && (
           <button
             type="button"
             onClick={onSetHero}
             disabled={busy}
             className="rounded-full bg-background/90 px-2 py-1 text-xs font-medium text-foreground hover:bg-background disabled:opacity-60"
           >
-            Set as hero
+            Set as cover
           </button>
         )}
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={busy}
-          className="ml-auto rounded-full bg-destructive/90 px-2 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive disabled:opacity-60"
-        >
-          Delete
-        </button>
+        {ownerSide ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={busy}
+            className="ml-auto rounded-full bg-destructive/90 px-2 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive disabled:opacity-60"
+          >
+            Delete
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onReport}
+            disabled={busy}
+            className="ml-auto rounded-full bg-background/90 px-2 py-1 text-xs font-medium text-foreground hover:bg-background disabled:opacity-60"
+          >
+            ⚑ Report
+          </button>
+        )}
       </div>
     </div>
   );
