@@ -13,12 +13,11 @@
  * So the draft is mirrored to localStorage on every keystroke and restored
  * on mount. It survives a rejection, a refresh, and a closed tab.
  *
- * ## Two failure states that must not look alike
+ * ## Three failure states that must not look alike
  *
  * A 400 means we read your words and they broke a rule. A 503 means we
- * couldn't read them at all. Showing "your review was rejected" during an
- * outage would be both false and infuriating, so the copy takes the blame
- * explicitly in that case.
+ * couldn't read them at all. A 401/403 means the content was never the
+ * problem — you're signed out or unverified. See the `Failure` type.
  */
 "use client";
 
@@ -51,10 +50,23 @@ function draftKey(placeId: string) {
   return `th:review-draft:${placeId}`;
 }
 
+/** Why a submit failed.
+ *
+ *  These are three genuinely different messages to a person, and collapsing
+ *  any two of them produces a lie:
+ *
+ *    rejected — we read your words and they broke a rule.
+ *    outage   — we couldn't read them at all. Our fault, not yours.
+ *    other    — anything else: signed out, offline, server error. Emphatically
+ *               NOT a judgement on the content.
+ *
+ *  This started as a binary (outage vs. everything-else-is-rejected), which
+ *  meant a signed-out user got told their review "can't be posted as
+ *  written" above a message about a missing session. */
 type Failure =
   | { kind: "rejected"; message: string }
   | { kind: "outage"; message: string }
-  | { kind: "other"; message: string };
+  | { kind: "other"; title: string; message: string };
 
 export function WriteReviewDialog({
   placeId,
@@ -143,7 +155,7 @@ export function WriteReviewDialog({
       onOpenChange(false);
     } catch (err) {
       const status = (err as { status?: number })?.status;
-      const { description } = friendlyApiError(err, {
+      const { title, description } = friendlyApiError(err, {
         defaultTitle: "Couldn't post your review",
       });
       // 503 is the moderation service being unreachable — emphatically not
@@ -156,8 +168,21 @@ export function WriteReviewDialog({
         });
       } else if (status === 400) {
         setFailure({ kind: "rejected", message: description });
+      } else if (status === 401) {
+        setFailure({
+          kind: "other",
+          title: "You're signed out",
+          message: "Sign in and your draft will still be here.",
+        });
+      } else if (status === 403) {
+        setFailure({
+          kind: "other",
+          title: "Confirm your email first",
+          message:
+            "Check your inbox for the confirmation link, then post your review.",
+        });
       } else {
-        setFailure({ kind: "other", message: description });
+        setFailure({ kind: "other", title, message: description });
       }
     }
   }
@@ -180,15 +205,17 @@ export function WriteReviewDialog({
               role="alert"
               className={cn(
                 "rounded-md border p-3 text-sm leading-relaxed",
-                failure.kind === "outage"
-                  ? "border-amber-300 bg-amber-50 text-amber-900"
-                  : "border-destructive/30 bg-destructive/5 text-destructive",
+                failure.kind === "rejected"
+                  ? "border-destructive/30 bg-destructive/5 text-destructive"
+                  : "border-amber-300 bg-amber-50 text-amber-900",
               )}
             >
               <span className="block font-semibold">
                 {failure.kind === "outage"
                   ? "We couldn't run our content check"
-                  : "This can't be posted as written"}
+                  : failure.kind === "rejected"
+                    ? "This can't be posted as written"
+                    : failure.title}
               </span>
               {failure.message}
             </div>

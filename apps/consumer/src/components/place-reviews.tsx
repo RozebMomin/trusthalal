@@ -164,9 +164,25 @@ function RatingHeader({
           Reviews are from Trust Halal diners. We show Google&rsquo;s rating
           for context.
         </p>
-        <Button size="sm" onClick={onWrite}>
-          {hasMine ? "Edit your review" : "Write a review"}
-        </Button>
+        {/* Signed-out users get sent to sign-in rather than into a composer
+            that can only fail. Opening the dialog and letting the POST 401
+            is how someone writes a paragraph and then loses the argument
+            with a login wall. */}
+        {signedIn ? (
+          <Button size="sm" onClick={onWrite}>
+            {hasMine ? "Edit your review" : "Write a review"}
+          </Button>
+        ) : (
+          <Button size="sm" asChild>
+            <a
+              href={`/login?next=${encodeURIComponent(
+                typeof window === "undefined" ? "/" : window.location.pathname,
+              )}`}
+            >
+              Sign in to review
+            </a>
+          </Button>
+        )}
       </div>
 
       {/* Explain a disabled action rather than hiding it — someone who can't

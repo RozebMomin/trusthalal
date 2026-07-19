@@ -1,7 +1,7 @@
 /**
- * Turn a caught error from an admin mutation into user-facing copy.
+ * Turn a caught error from a mutation into user-facing copy.
  *
- * Every admin dialog ends up with the same shape of catch block: `toast`
+ * Every dialog ends up with the same shape of catch block: `toast`
  * a destructive variant whose title describes the action that failed
  * and whose description tells the user what went wrong. Doing that by
  * hand everywhere meant each dialog had to re-decide which ApiError
@@ -48,29 +48,29 @@ export type ErrorOverrides = Partial<
 >;
 
 // ---------------------------------------------------------------------------
-// Base copy — codes every admin mutation can hit. Keep these CAREFUL and
+// Base copy — codes every mutation can hit. This file started as a copy
+// of the admin panel's and its wording followed; it's been re-voiced for
+// diners, who are not admins and shouldn't be told about admin sessions.
+// Keep these CAREFUL and
 // action-neutral: callers can always override for action-specific wording.
 // ---------------------------------------------------------------------------
 const BASE_COPY: Record<string, FriendlyError> = {
   UNAUTHORIZED: {
     title: "Sign-in required",
-    description:
-      "Your admin session is missing or invalid. Refresh the page and try again.",
+    description: "Sign in to do that.",
   },
   FORBIDDEN: {
-    title: "Admin access required",
-    description:
-      "Your account doesn't have admin privileges for this action. Ask another admin to reinstate access if this is a mistake.",
+    title: "Not allowed",
+    description: "Your account can't do that.",
   },
   VALIDATION_ERROR: {
-    title: "Request was rejected",
+    title: "Something didn't look right",
     description:
-      "The server rejected this request. This is usually a panel/server contract drift — please report it.",
+      "We couldn't accept that. Check the fields and try again.",
   },
   NOT_FOUND: {
     title: "Not found",
-    description:
-      "The resource you're working with no longer exists. It may have been deleted in another tab or by another admin.",
+    description: "That's no longer here — it may have been removed.",
   },
   CONFLICT: {
     title: "Action conflicts with current state",
