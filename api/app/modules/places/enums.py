@@ -116,10 +116,14 @@ class Cuisine(StrEnum):
 class PlacePhotoSource(StrEnum):
     """Who uploaded a place photo.
 
-    Drives both authority (only OWNER photos can be hero) and
-    consumer-visible badging on the place detail page. Stored as a
-    plain TEXT column on ``place_photos.source`` so adding a
-    VERIFIER variant later is a code-only change.
+    Drives authority (see ``HERO_ELIGIBLE_SOURCES``). For anything
+    *display*-related use ``PhotoAttribution`` instead — it folds in
+    whether the photo is attached to a review, which ``source`` can't
+    express, and it exists precisely so four clients stop each
+    re-deriving the same rule differently.
+
+    Stored as a plain TEXT column on ``place_photos.source`` so adding a
+    variant later is a code-only change.
     """
 
     OWNER = "OWNER"
@@ -132,6 +136,71 @@ class PlacePhotoSource(StrEnum):
     # OWNER or CONSUMER, so this value originates solely from the
     # backfill tool.
     GOOGLE = "GOOGLE"
+
+
+#: Sources that may serve as a place's cover image.
+#:
+#: OWNER because it's the restaurant's own shopfront. GOOGLE because those
+#: are the listing's photos and they're the only cover an unclaimed place
+#: has. CONSUMER never — a diner's plate photo attached to a two-star review
+#: must not be able to become the image every search result shows, and the
+#: owner shouldn't be able to promote one either (the pre-existing manual
+#: PATCH path allowed exactly that).
+HERO_ELIGIBLE_SOURCES: tuple[str, ...] = (
+    PlacePhotoSource.OWNER,
+    PlacePhotoSource.GOOGLE,
+)
+
+
+class PhotoAttribution(StrEnum):
+    """Display-level provenance of a photo — the thing clients render.
+
+    Derived server-side from ``source`` + ``review_id`` rather than left to
+    each client to infer. That's not gold-plating: today the consumer web
+    and mobile each keep their own SOURCE_LABEL map, mobile's includes a
+    ``VERIFIER`` key that has never been a real value, and neither handles
+    ``GOOGLE`` — so backfilled Google photos already render a blank chip in
+    production. One derivation, one place, four consistent clients.
+    """
+
+    #: Uploaded by the restaurant.
+    OWNER = "OWNER"
+    #: Uploaded by a diner, not attached to a review.
+    DINER = "DINER"
+    #: Attached to a diner's review. Carries the review's rating so the
+    #: gallery can say "from a 2-star review" and link back to it — a photo
+    #: of an undercooked plate means something different once you can read
+    #: what the person said about it.
+    REVIEW = "REVIEW"
+    #: Imported from the Google Places Photo API by the data-ops backfill.
+    GOOGLE = "GOOGLE"
+
+
+def attribution_for(*, source: str, review_id) -> PhotoAttribution:
+    """The single derivation. Order matters: review beats source, because a
+    review photo is uploaded by a CONSUMER and the review context is the
+    more specific and more useful fact."""
+    if review_id is not None:
+        return PhotoAttribution.REVIEW
+    if source == PlacePhotoSource.GOOGLE:
+        return PhotoAttribution.GOOGLE
+    if source == PlacePhotoSource.OWNER:
+        return PhotoAttribution.OWNER
+    return PhotoAttribution.DINER
+
+
+class PhotoAttributionFilter(StrEnum):
+    """Query-param filter on the public photo list.
+
+    Coarser than ``PhotoAttribution`` on purpose: the gallery's tabs are
+    "the restaurant" vs "diners", and folding GOOGLE in with OWNER and
+    REVIEW in with DINER is what a reader actually wants. Four tabs where
+    two will do is furniture.
+    """
+
+    ALL = "all"
+    OWNER = "owner"
+    DINER = "diner"
 
 
 class PlaceEventType(StrEnum):

@@ -53,3 +53,6 @@ from app.modules.reviews.models import (  # noqa: F401
     PlaceReviewReply,
     PlaceReviewReport,
 )
+from app.modules.places.photos.reports import (  # noqa: F401
+    PlacePhotoReport,
+)

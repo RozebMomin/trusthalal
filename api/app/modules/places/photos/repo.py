@@ -21,6 +21,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.storage import StorageClient
+from app.modules.places.enums import attribution_for
 from app.modules.places.models import Place, PlacePhoto
 from app.modules.users.models import User
 
@@ -165,12 +166,29 @@ def serialize_photos_for_place(
         ).all()
         display_name_by_id = {row[0]: row[1] for row in rows}
 
+    # Batch-resolve ratings for any review-attached photos, same reasoning as
+    # the display names above: one query for the gallery, not one per photo.
+    review_ids = {p.review_id for p in live_photos if p.review_id}
+    rating_by_review: dict = {}
+    if review_ids:
+        from app.modules.reviews.models import PlaceReview  # local: cycle
+
+        rows = db.execute(
+            select(PlaceReview.id, PlaceReview.rating).where(
+                PlaceReview.id.in_(review_ids)
+            )
+        ).all()
+        rating_by_review = {row[0]: row[1] for row in rows}
+
     photos_payload = [
         {
             "id": p.id,
             "place_id": p.place_id,
             "url": storage.public_url(p.storage_path),
             "source": p.source,
+            "attribution": attribution_for(source=p.source, review_id=p.review_id),
+            "review_id": p.review_id,
+            "review_rating": rating_by_review.get(p.review_id),
             "width_px": p.width_px,
             "height_px": p.height_px,
             "caption": p.caption,

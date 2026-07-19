@@ -38,10 +38,21 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.analytics import track
 from app.core.auth import CurrentUser, get_current_user
 from app.core.exceptions import (
     BadRequestError,
@@ -57,7 +68,17 @@ from app.core.storage import (
 )
 from app.db.deps import get_db
 from app.modules.organizations.deps import assert_can_manage_place
-from app.modules.places.enums import PlacePhotoSource
+from app.modules.places.enums import (
+    HERO_ELIGIBLE_SOURCES,
+    PhotoAttributionFilter,
+    PlacePhotoSource,
+    attribution_for,
+)
+from app.modules.places.photos.reports import (
+    PhotoReportReason,
+    PhotoReportStatus,
+    PlacePhotoReport,
+)
 from app.modules.places.models import Place, PlacePhoto
 from app.modules.places.photos.processor import (
     ImageProcessingError,
@@ -145,6 +166,7 @@ def _build_photo_read(
     *,
     storage: StorageClient,
     uploader_display_name: str | None,
+    review_rating: int | None = None,
 ) -> PlacePhotoRead:
     """Map an ORM row into the consumer-facing read shape.
 
@@ -157,6 +179,11 @@ def _build_photo_read(
         place_id=photo.place_id,
         url=storage.public_url(photo.storage_path),
         source=PlacePhotoSource(photo.source),
+        attribution=attribution_for(
+            source=photo.source, review_id=photo.review_id
+        ),
+        review_id=photo.review_id,
+        review_rating=review_rating,
         width_px=photo.width_px,
         height_px=photo.height_px,
         caption=photo.caption,
@@ -164,6 +191,40 @@ def _build_photo_read(
         uploaded_by_display_name=uploader_display_name,
         created_at=photo.created_at,
     )
+
+
+def _is_owner_side(photo: PlacePhoto) -> bool:
+    """Whether this photo belongs to the restaurant rather than a diner.
+
+    Google-sourced listing photos count as owner-side: they represent the
+    business, and on an unclaimed place they're the only photos there are.
+    A review-attached photo never does, regardless of who uploaded it.
+    """
+    return photo.review_id is None and photo.source in (
+        PlacePhotoSource.OWNER,
+        PlacePhotoSource.GOOGLE,
+    )
+
+
+def _resolve_review_ratings(
+    db: Session, photos: list[PlacePhoto]
+) -> dict[UUID, int]:
+    """Batch-fetch the rating of every review these photos hang off.
+
+    Same reasoning as the display-name batch below: a 20-photo gallery
+    should cost one extra query, not twenty.
+    """
+    from app.modules.reviews.models import PlaceReview  # local: avoids a cycle
+
+    review_ids = {p.review_id for p in photos if p.review_id}
+    if not review_ids:
+        return {}
+    rows = db.execute(
+        select(PlaceReview.id, PlaceReview.rating).where(
+            PlaceReview.id.in_(review_ids)
+        )
+    ).all()
+    return {row[0]: int(row[1]) for row in rows}
 
 
 def _resolve_uploader_display_names(
@@ -371,12 +432,12 @@ def upload_place_photo(
     # happens when there's no existing hero, so an owner who has
     # already curated their hero doesn't get clobbered by a new
     # upload from a consumer.
-    # A review photo never becomes the hero. The cover image on a search card
-    # is the restaurant's shopfront; a diner's plate photo attached to a
-    # two-star review is not that, and auto-promoting it would let any
-    # reviewer choose how the place is represented across the product.
-    auto_hero = review is None and not has_active_hero_for_place(
-        db, place_id=place.id
+    # Same eligibility rule as the PATCH path — one source of truth, so a
+    # future variant can't be hero-able on one path and not the other.
+    auto_hero = (
+        source in HERO_ELIGIBLE_SOURCES
+        and review is None
+        and not has_active_hero_for_place(db, place_id=place.id)
     )
 
     photo = PlacePhoto(
@@ -431,17 +492,42 @@ def upload_place_photo(
 )
 def list_place_photos(
     place_id: UUID,
+    attribution: PhotoAttributionFilter = Query(
+        default=PhotoAttributionFilter.ALL,
+        description=(
+            "Which photos to return. `owner` covers the restaurant's own "
+            "uploads plus Google-sourced listing photos; `diner` covers "
+            "community uploads and review photos. Defaults to `all`, which "
+            "is the pre-existing behaviour."
+        ),
+    ),
     db: Session = Depends(get_db),
     storage: StorageClient = Depends(get_photos_storage_client),
 ) -> list[PlacePhotoRead]:
+    """Live photos for a place, hero first then newest.
+
+    Deliberately still a bare array rather than an object with a counts
+    block. Wrapping it would be a breaking change for three deployed
+    clients, and the API has to be able to ship ahead of them. Clients
+    derive their own tab counts from the unfiltered array — every item
+    carries ``attribution``, there's no pagination, and per-place volume is
+    capped at 75, so a client-side count is both cheap and exact.
+    """
     _ensure_place_exists(db, place_id)
     photos = list_active_photos_for_place(db, place_id=place_id)
+
+    if attribution != PhotoAttributionFilter.ALL:
+        want_owner = attribution == PhotoAttributionFilter.OWNER
+        photos = [p for p in photos if _is_owner_side(p) is want_owner]
+
     display_names = _resolve_uploader_display_names(db, photos)
+    ratings = _resolve_review_ratings(db, photos)
     return [
         _build_photo_read(
             p,
             storage=storage,
             uploader_display_name=display_names.get(p.uploaded_by_user_id),
+            review_rating=ratings.get(p.review_id),
         )
         for p in photos
     ]
@@ -491,6 +577,21 @@ def patch_place_photo(
                 "Only the place's owner can set or unset the hero photo.",
             )
         if body.is_hero is True:
+            # Eligibility, not just permission. Previously the owner could
+            # promote ANY photo including a diner's — which, once review
+            # photos exist, means a two-star review's plate shot can become
+            # the image every search result shows. The cover asserts "this
+            # is the restaurant, from the restaurant", and that's worth more
+            # than the flexibility. Same rule the auto-promote path uses.
+            if photo.source not in HERO_ELIGIBLE_SOURCES or photo.review_id:
+                raise ConflictError(
+                    "PHOTO_NOT_HERO_ELIGIBLE",
+                    (
+                        "Cover photos come from the restaurant. Upload your "
+                        "own photo to use as the cover — diner photos stay "
+                        "in the gallery."
+                    ),
+                )
             # Atomic swap: clear current hero (if any) before
             # marking this one. The partial unique index would
             # reject the UPDATE otherwise.
@@ -563,7 +664,32 @@ def delete_place_photo(
         and photo.uploaded_by_user_id == user.id
     )
 
-    if not (is_owner_or_admin or is_uploader):
+    is_admin = user.role == UserRole.ADMIN
+
+    # An owner may delete the restaurant's own photos, never a diner's.
+    #
+    # This is the single most important permission in the photo system and
+    # it was previously wrong: place owners had blanket delete rights over
+    # every photo on their place. On a platform whose product is trustworthy
+    # provenance, a photo of what a diner was actually served is evidence,
+    # and the party it implicates must not be able to remove it. Google and
+    # Yelp both landed in the same place — a business can report a customer
+    # photo, never delete it.
+    #
+    # Uploaders keep the right to delete their own work, and admins keep
+    # blanket rights because someone has to be able to act on a report.
+    owner_may_delete = is_owner_or_admin and _is_owner_side(photo)
+
+    if not (is_admin or is_uploader or owner_may_delete):
+        if is_owner_or_admin:
+            raise ForbiddenError(
+                "PLACE_PHOTO_OWNER_CANNOT_DELETE_DINER_PHOTO",
+                (
+                    "Diner photos can't be removed by the restaurant. If "
+                    "this one breaks our guidelines, report it and we'll "
+                    "review it within a day."
+                ),
+            )
         raise ForbiddenError(
             "PLACE_PHOTO_DELETE_FORBIDDEN",
             (
@@ -575,3 +701,93 @@ def delete_place_photo(
 
     soft_delete_photo(db, photo=photo)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Reporting
+# ---------------------------------------------------------------------------
+# Owners can't delete diner photos, so they need somewhere to raise a problem.
+# Anyone signed in can report — a diner spotting a photo of the wrong
+# storefront is as useful a signal as the restaurant spotting one.
+
+
+class PhotoReportCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: PhotoReportReason
+    detail: Optional[str] = Field(default=None, max_length=2000)
+
+    @field_validator("detail")
+    @classmethod
+    def _detail_required_for_other(cls, v, info):
+        # "OTHER" with no explanation gives the moderator nothing to weigh.
+        if info.data.get("reason") == PhotoReportReason.OTHER and not (v or "").strip():
+            raise ValueError("Tell us what's wrong with this photo.")
+        return v
+
+
+class PhotoReportRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    photo_id: UUID
+    reason: PhotoReportReason
+    detail: Optional[str] = None
+    status: PhotoReportStatus
+    created_at: datetime
+
+
+@router.post(
+    "/{place_id}/photos/{photo_id}/report",
+    response_model=PhotoReportRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Report a photo",
+    description=(
+        "Flags a photo for admin review. This is the **only** route a "
+        "restaurant has for a diner's photo — owners cannot delete them, "
+        "matching Google and Yelp. One report per person per photo (409 on "
+        "a repeat). Rate-limited at 20/hour."
+    ),
+)
+@limiter.limit("20/hour", key_func=user_or_ip_key)
+def report_place_photo(
+    request: Request,
+    place_id: UUID,
+    photo_id: UUID,
+    body: PhotoReportCreate,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> PhotoReportRead:
+    _ensure_place_exists(db, place_id)
+    photo = get_photo(db, photo_id=photo_id)
+    if photo is None or photo.place_id != place_id:
+        raise NotFoundError("PLACE_PHOTO_NOT_FOUND", "Photo not found")
+
+    existing = db.execute(
+        select(PlacePhotoReport).where(
+            PlacePhotoReport.photo_id == photo_id,
+            PlacePhotoReport.reporter_user_id == user.id,
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise ConflictError(
+            "PHOTO_ALREADY_REPORTED",
+            "You've already reported this photo. We'll take a look.",
+        )
+
+    row = PlacePhotoReport(
+        photo_id=photo_id,
+        reporter_user_id=user.id,
+        reason=body.reason.value,
+        detail=(body.detail or None),
+        status=PhotoReportStatus.OPEN.value,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    track(
+        "photo_reported",
+        {"place_id": str(place_id), "reason": body.reason.value},
+    )
+    return PhotoReportRead.model_validate(row)

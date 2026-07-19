@@ -698,3 +698,43 @@ def notify_review_report_resolved(
                 ),
             },
         )
+
+
+def notify_photo_removed(
+    background: BackgroundTasks, db: Session, *, photo, note: str | None
+) -> None:
+    """Tell an uploader their photo was taken down, and why.
+
+    Mandatory category, same reasoning as review moderation: removing
+    someone's contribution silently is indistinguishable from a bug to the
+    person it happened to. No push — a buzzing phone is the wrong register
+    for this; the email carries the reasoning.
+    """
+    if photo.uploaded_by_user_id is None:
+        return  # Google-sourced or the account is gone; nobody to tell.
+
+    user = db.execute(
+        select(User).where(User.id == photo.uploaded_by_user_id)
+    ).scalar_one_or_none()
+    if user is None or not user.email:
+        return
+
+    place_name = place_name_for(db, photo.place_id)
+    notify(
+        background,
+        db=db,
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        category=NotificationCategory.REVIEW_MODERATION,
+        subject=f"We removed your photo of {place_name}",
+        template="photo_removed_uploader",
+        context={
+            "preheader": f"About the photo you added to {place_name}.",
+            "place_name": place_name,
+            "reason": (note or "").strip(),
+            "place_url": (
+                f"{settings.CONSUMER_ORIGIN.rstrip('/')}/places/{photo.place_id}"
+            ),
+        },
+    )

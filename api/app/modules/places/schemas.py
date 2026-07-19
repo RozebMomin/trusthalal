@@ -6,7 +6,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
 
-from app.modules.places.enums import Cuisine, PlacePhotoSource
+from app.modules.places.enums import (
+    Cuisine,
+    PhotoAttribution,
+    PlacePhotoSource,
+)
 
 
 class PlaceCreate(BaseModel):
@@ -303,6 +307,17 @@ class PlacePhotoRead(BaseModel):
     place_id: UUID
     url: str
     source: PlacePhotoSource
+    #: Display-level provenance, derived server-side. Prefer this over
+    #: ``source`` for anything user-visible — it folds in review attachment,
+    #: which ``source`` can't express, and it means clients stop each
+    #: maintaining their own (divergent, incomplete) label map.
+    attribution: PhotoAttribution = PhotoAttribution.DINER
+    #: Set when this photo was attached to a review. Lets the gallery link
+    #: the photo back to the words that explain it.
+    review_id: UUID | None = None
+    #: The attached review's rating, so a caption can read "from a 2★
+    #: review" without a second fetch per photo.
+    review_rating: int | None = None
     width_px: int | None = None
     height_px: int | None = None
     caption: str | None = None
@@ -326,12 +341,24 @@ class PlacePhotoUpdate(BaseModel):
         unchanged. Pydantic ``Field(default=...)`` with a sentinel
         gives us the omit-vs-null distinction.
 
-    Owner attempting to set ``is_hero`` on a CONSUMER-source photo
-    is allowed — owners curate the gallery; consumer photos can
-    be promoted to hero if the owner thinks they're great. The
-    "OWNER source" restriction would prevent the use case of the
-    owner saying "this customer photo is the best shot of the
-    dining room, make it the hero."
+    Setting ``is_hero`` on a CONSUMER-source photo is **refused**
+    (409 ``PHOTO_NOT_HERO_ELIGIBLE``). This reverses the earlier
+    policy, which allowed it so an owner could say "this customer
+    photo is the best shot of the dining room."
+
+    Why it changed: once diners can attach photos to reviews, that
+    same permission lets an owner promote a photo out of a two-star
+    review into the image every search result shows — or, read the
+    other way, lets them bury an unflattering one by curating around
+    it. On a platform whose product is trustworthy provenance, the
+    cover image asserting "this is the restaurant, from the
+    restaurant" is worth more than the flexibility. Google reserves
+    the same right in the other direction: it overrides an owner's
+    cover with a user photo when the owner's is poor.
+
+    Owners who want a diner's shot as their cover can ask for it and
+    upload it themselves, which also settles the permission question
+    the honest way.
     """
 
     model_config = ConfigDict(extra="forbid")

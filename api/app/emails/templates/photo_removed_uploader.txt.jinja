@@ -1,0 +1,22 @@
+{% extends "_base.txt.jinja" %}
+
+{% block content %}
+We removed your photo
+
+This is about a photo you added to {{ place_name }}.
+{% if reason %}
+Why:
+
+  {{ reason }}
+{% endif %}
+
+Photos of what a restaurant actually served are welcome here, including
+unflattering ones — they're a large part of what makes Trust Halal worth
+reading. Restaurants can report a photo but can't remove one; this decision was
+made by our team.
+
+View the restaurant:
+  {{ place_url }}
+
+If you think we got this wrong, reply to this email.
+{% endblock %}
