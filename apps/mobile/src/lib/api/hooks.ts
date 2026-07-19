@@ -504,3 +504,32 @@ export function useDeleteReview(placeId: string) {
     onSuccess: () => invalidateReviews(qc, placeId),
   });
 }
+
+/** Attach a photo to a review.
+ *
+ * Reuses the place-photos endpoint with a `review_id` form field — a review
+ * photo IS a place photo that happens to belong to a review, so it inherits
+ * SafeSearch, the EXIF strip, soft-delete and the gallery for free.
+ *
+ * Called only after the review row exists, because the server validates that
+ * the review is the caller's before it spends anything on image processing.
+ */
+export function uploadReviewPhoto(params: {
+  placeId: string;
+  reviewId: string;
+  uri: string;
+  name: string;
+  type: string;
+}) {
+  const form = new FormData();
+  form.append("file", {
+    uri: params.uri,
+    name: params.name,
+    type: params.type,
+  } as unknown as Blob);
+  form.append("review_id", params.reviewId);
+  return apiFetch<{ id: string; url: string }>(
+    `/places/${encodeURIComponent(params.placeId)}/photos`,
+    { method: "POST", body: form },
+  );
+}

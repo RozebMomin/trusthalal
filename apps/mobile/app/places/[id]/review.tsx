@@ -13,19 +13,22 @@
  * effort; nobody retypes a paragraph. Same on-device draft mechanism
  * file-a-visit already uses.
  *
- * ## Two failures that must not look alike
+ * ## Three failures that must not look alike
  *
  * 400 means we read your words and they broke a rule. 503 means we couldn't
- * read them at all. "Your review was rejected" during an outage would be
- * false and infuriating, so that copy takes the blame explicitly.
+ * read them at all. 401/403 means the content was never the problem — you're
+ * signed out or unverified. Collapsing any two of these tells someone their
+ * writing was refused when it wasn't.
  */
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -37,6 +40,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
+  uploadReviewPhoto,
   useCreateReview,
   useDeleteReview,
   usePlaceReviews,
@@ -48,14 +52,39 @@ import { useTheme } from "@/lib/theme/useTheme";
 const BODY_MIN = 20;
 const BODY_MAX = 5000;
 
+/** Server enforces the same cap. Three is enough to show a plate, a menu
+ *  board and a certificate; past that a review becomes an album and the
+ *  moderation surface grows for no extra signal to the reader. */
+const MAX_PHOTOS = 3;
+
+type LocalPhoto = { uri: string; name: string; type: string };
+
+/** ImagePicker asset → the {uri,name,type} shape RN's fetch wants for a
+ *  multipart file part. Same helper shape file-visit.tsx uses. */
+function assetToPhoto(a: ImagePicker.ImagePickerAsset): LocalPhoto {
+  const uri = a.uri;
+  const ext = (
+    a.fileName?.split(".").pop() ||
+    uri.split(".").pop() ||
+    "jpg"
+  ).toLowerCase();
+  return {
+    uri,
+    name: a.fileName || `review-${Date.now()}.${ext}`,
+    type: a.mimeType || (ext === "png" ? "image/png" : "image/jpeg"),
+  };
+}
+
 function draftKey(placeId: string) {
   return `review_draft_${placeId}`;
 }
 
+/** Why a submit failed. Three genuinely different messages to a person;
+ *  collapsing any two produces a lie. See the web dialog's copy of this. */
 type Failure =
   | { kind: "rejected"; message: string }
   | { kind: "outage" }
-  | { kind: "other"; message: string };
+  | { kind: "other"; title: string; message: string };
 
 export default function WriteReviewScreen() {
   const t = useTheme();
@@ -72,8 +101,36 @@ export default function WriteReviewScreen() {
 
   const [rating, setRating] = useState(0);
   const [body, setBody] = useState("");
+  const [photos, setPhotos] = useState<LocalPhoto[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const hydrated = useRef(false);
+
+  // Photos aren't part of the saved draft: SecureStore holds strings, and a
+  // picker URI is a file handle that may not survive an app restart anyway.
+  // Losing a photo selection is recoverable in two taps; losing the text is
+  // not, which is what the draft protects.
+  const pickPhotos = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - photos.length,
+      quality: 0.7,
+    });
+    if (!res.canceled) {
+      setPhotos((ps) => [...ps, ...res.assets.map(assetToPhoto)].slice(0, MAX_PHOTOS));
+    }
+  };
+
+  const takePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) return;
+    const res = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    if (!res.canceled) {
+      setPhotos((ps) => [...ps, ...res.assets.map(assetToPhoto)].slice(0, MAX_PHOTOS));
+    }
+  };
 
   // Hydrate once: the server's copy when editing, otherwise any unsent
   // draft. Editing must NOT restore a stale local draft — the server copy is
@@ -114,12 +171,15 @@ export default function WriteReviewScreen() {
 
   const trimmed = body.trim();
   const pending = create.isPending || update.isPending;
-  const canSubmit = rating > 0 && trimmed.length >= BODY_MIN && !pending;
+  const canSubmit =
+    rating > 0 && trimmed.length >= BODY_MIN && !pending && !uploadingPhotos;
 
   async function submit() {
     if (!canSubmit) return;
     setFailure(null);
+    setPhotoWarning(null);
     try {
+      let reviewId = existing?.id ?? null;
       if (existing) {
         await update.mutateAsync({
           reviewId: existing.id,
@@ -127,8 +187,44 @@ export default function WriteReviewScreen() {
           body: trimmed,
         });
       } else {
-        await create.mutateAsync({ rating, body: trimmed });
+        const created = await create.mutateAsync({ rating, body: trimmed });
+        reviewId = created.id;
       }
+
+      // Photos upload AFTER the review exists — the server validates the
+      // review is the caller's before spending anything on image
+      // processing, and it needs an id to attach to.
+      //
+      // A failed photo must never cost the written review. The text is
+      // already saved by this point; a photo that doesn't make it produces
+      // a warning and the review still posts. SafeSearch fails closed, so
+      // this is a real path, not a theoretical one.
+      if (reviewId && photos.length > 0) {
+        setUploadingPhotos(true);
+        const stillFailing: LocalPhoto[] = [];
+        for (const photo of photos) {
+          try {
+            await uploadReviewPhoto({ placeId, reviewId, ...photo });
+          } catch {
+            stillFailing.push(photo);
+          }
+        }
+        setUploadingPhotos(false);
+
+        if (stillFailing.length > 0) {
+          // Drop the ones that made it. Retrying with the full set would
+          // upload the successes a second time and leave duplicates on the
+          // review.
+          setPhotos(stillFailing);
+          // The review itself posted, so the draft is spent either way.
+          clearDraft();
+          setPhotoWarning(
+            `Your review posted. ${stillFailing.length} photo${stillFailing.length === 1 ? "" : "s"} didn't upload — tap Save to try again, or Done to finish without them.`,
+          );
+          return; // Stay put rather than losing this silently.
+        }
+      }
+
       clearDraft();
       router.back();
     } catch (err) {
@@ -142,10 +238,23 @@ export default function WriteReviewScreen() {
             (err as { message?: string })?.message ??
             "This can't be posted as written.",
         });
+      } else if (status === 401) {
+        setFailure({
+          kind: "other",
+          title: "You're signed out",
+          message: "Sign in and your draft will still be here.",
+        });
+      } else if (status === 403) {
+        setFailure({
+          kind: "other",
+          title: "Confirm your email first",
+          message: "Check your inbox for the link, then post your review.",
+        });
       } else {
         setFailure({
           kind: "other",
-          message: "Couldn't post that. Check your connection and try again.",
+          title: "Couldn't post that",
+          message: "Check your connection and try again.",
         });
       }
     }
@@ -187,7 +296,7 @@ export default function WriteReviewScreen() {
           <View
             style={{
               backgroundColor:
-                failure.kind === "outage" ? t.amberSoft : t.dangerSoft,
+                failure.kind === "rejected" ? t.dangerSoft : t.amberSoft,
               borderRadius: radii.md,
               padding: 12,
             }}
@@ -196,18 +305,20 @@ export default function WriteReviewScreen() {
               style={{
                 fontFamily: "Inter_700Bold",
                 fontSize: 12,
-                color: failure.kind === "outage" ? t.amber : t.danger,
+                color: failure.kind === "rejected" ? t.danger : t.amber,
               }}
             >
               {failure.kind === "outage"
                 ? "We couldn't run our content check"
-                : "This can't be posted as written"}
+                : failure.kind === "rejected"
+                  ? "This can't be posted as written"
+                  : failure.title}
             </Text>
             <Text
               style={[
                 ty.small,
                 {
-                  color: failure.kind === "outage" ? t.amber : t.danger,
+                  color: failure.kind === "rejected" ? t.danger : t.amber,
                   marginTop: 3,
                   lineHeight: 17,
                 },
@@ -285,6 +396,104 @@ export default function WriteReviewScreen() {
           </Text>
         </View>
 
+        <Text style={[ty.seg, { color: t.sub }]}>
+          Photos <Text style={{ textTransform: "none", letterSpacing: 0 }}>(up to {MAX_PHOTOS})</Text>
+        </Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {photos.map((ph, i) => (
+            <View key={`${ph.uri}-${i}`}>
+              <Image
+                source={{ uri: ph.uri }}
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: radii.md,
+                  backgroundColor: t.zincSoft,
+                }}
+              />
+              <Pressable
+                onPress={() => setPhotos((ps) => ps.filter((_, j) => j !== i))}
+                hitSlop={8}
+                accessibilityLabel="Remove photo"
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  right: -6,
+                  width: 22,
+                  height: 22,
+                  borderRadius: 999,
+                  backgroundColor: t.ink,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Feather name="x" size={13} color={t.onInk} />
+              </Pressable>
+            </View>
+          ))}
+
+          {photos.length < MAX_PHOTOS ? (
+            <>
+              <Pressable
+                onPress={takePhoto}
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: radii.md,
+                  borderWidth: 1.5,
+                  borderStyle: "dashed",
+                  borderColor: t.line,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 2,
+                }}
+              >
+                <Feather name="camera" size={18} color={t.sub} />
+                <Text style={[ty.small, { color: t.sub, fontSize: 10 }]}>Camera</Text>
+              </Pressable>
+              <Pressable
+                onPress={pickPhotos}
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: radii.md,
+                  borderWidth: 1.5,
+                  borderStyle: "dashed",
+                  borderColor: t.line,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 2,
+                }}
+              >
+                <Feather name="image" size={18} color={t.sub} />
+                <Text style={[ty.small, { color: t.sub, fontSize: 10 }]}>Library</Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+        <Text style={[ty.small, { color: t.sub }]}>
+          Location data is stripped from photos automatically.
+        </Text>
+
+        {photoWarning ? (
+          <View
+            style={{
+              backgroundColor: t.amberSoft,
+              borderRadius: radii.md,
+              padding: 12,
+            }}
+          >
+            <Text style={[ty.small, { color: t.amber, lineHeight: 17 }]}>
+              {photoWarning}
+            </Text>
+            <Pressable onPress={() => router.back()} style={{ marginTop: 8 }}>
+              <Text style={[ty.label, { color: t.amber, fontSize: 13 }]}>
+                Done
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <Pressable
           onPress={submit}
           disabled={!canSubmit}
@@ -297,7 +506,7 @@ export default function WriteReviewScreen() {
             marginTop: space.sm,
           }}
         >
-          {pending ? (
+          {pending || uploadingPhotos ? (
             <ActivityIndicator color={t.onAccent} />
           ) : (
             <Text

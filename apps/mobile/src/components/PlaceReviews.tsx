@@ -210,8 +210,14 @@ export function PlaceReviews({
           ) : null}
         </View>
 
+        {/* Signed-out users go to sign-in rather than into a composer that
+            can only fail — same reasoning as the web dialog. */}
         <Pressable
-          onPress={() => router.push(`/places/${place.id}/review`)}
+          onPress={() =>
+            signedIn
+              ? router.push(`/places/${place.id}/review`)
+              : router.push("/(auth)/sign-in")
+          }
           style={{
             marginTop: space.md,
             backgroundColor: t.accent,
@@ -221,7 +227,11 @@ export function PlaceReviews({
           }}
         >
           <Text style={{ color: t.onAccent, fontFamily: "Inter_700Bold", fontSize: 13.5 }}>
-            {mine ? "Edit your review" : "Write a review"}
+            {!signedIn
+              ? "Sign in to review"
+              : mine
+                ? "Edit your review"
+                : "Write a review"}
           </Text>
         </Pressable>
 

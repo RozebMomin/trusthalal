@@ -54,6 +54,7 @@ import {
   useUploadPlacePhoto,
 } from "@/lib/api/hooks";
 import { ReportPhotoDialog } from "./_components/report-photo-dialog";
+import { PlaceReviewsSection } from "./_components/place-reviews-section";
 
 export default function MyPlaceDetailPage() {
   const params = useParams<{ id: string }>();
@@ -136,6 +137,8 @@ function PlaceDetailBody({ place }: { place: PlaceDetail }) {
 
       <CuisineSection place={place} />
       <PhotosSection placeId={place.id} />
+
+      <PlaceReviewsSection placeId={place.id} />
       <HalalClaimsForPlaceSection placeId={place.id} />
     </div>
   );
