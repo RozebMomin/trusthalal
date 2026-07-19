@@ -11,6 +11,8 @@ Four endpoints:
     endpoint taking a verdict plus an action.
   * ``POST /admin/reviews/{review_id}/status`` — direct override for
     content staff catch without a report.
+  * ``GET  /admin/places/{place_id}/reviews`` — every review on a place,
+    any status, as context for judging one of them.
 
 Two deliberate absences worth stating, because both look like omissions:
 
@@ -55,6 +57,8 @@ from app.modules.reviews.enums import (
 )
 from app.modules.reviews.models import PlaceReview, PlaceReviewReport
 from app.modules.reviews.schemas import (
+    AdminPlaceReviewRow,
+    AdminPlaceReviewsResponse,
     AdminReportDetailResponse,
     AdminReportQueueResponse,
     AdminReportQueueRow,
@@ -380,6 +384,81 @@ def resolve_review_report(
     )
 
     return get_review_report(review_id=review_id, _admin=admin, db=db)
+
+
+@admin_reviews_router.get(
+    "/places/{place_id}/reviews",
+    response_model=AdminPlaceReviewsResponse,
+    summary="Every review on a place, any status — moderation context",
+    description=(
+        "Read-only context for judging a report. Returns every review on the "
+        "place regardless of status, newest first, with open-report counts.\n\n"
+        "Exists because the same words mean different things depending on "
+        "what surrounds them: one angry review among forty calm ones reads "
+        "as a bad night, while three near-identical complaints from "
+        "week-old accounts read as a campaign. Without this a moderator "
+        "decides on the reported text alone and can't tell those apart.\n\n"
+        "Pass `subject_review_id` to have the review under judgement flagged "
+        "in the list."
+    ),
+)
+def list_place_reviews_for_admin(
+    place_id: UUID,
+    subject_review_id: Optional[UUID] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    _admin: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+) -> AdminPlaceReviewsResponse:
+    place = db.get(Place, place_id)
+    if place is None:
+        raise NotFoundError("PLACE_NOT_FOUND", "That place doesn't exist.")
+
+    rows = (
+        db.execute(
+            select(PlaceReview)
+            .where(PlaceReview.place_id == place_id)
+            .order_by(PlaceReview.created_at.desc())
+            .limit(limit)
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+
+    counts = repo.open_report_counts(db, [r.id for r in rows])
+
+    return AdminPlaceReviewsResponse(
+        place_id=place_id,
+        place_name=place.name,
+        items=[
+            AdminPlaceReviewRow(
+                id=r.id,
+                author=ReviewAuthorRead(
+                    id=r.author_user_id,
+                    display_name=(
+                        u.display_name
+                        if (u := db.get(User, r.author_user_id)) is not None
+                        else None
+                    ),
+                ),
+                rating=r.rating,
+                excerpt=_excerpt(r.body),
+                status=PlaceReviewStatus(r.status),
+                open_report_count=counts.get(r.id, 0),
+                created_at=r.created_at,
+                edited_at=r.edited_at,
+                is_subject=(subject_review_id is not None and r.id == subject_review_id),
+            )
+            for r in rows
+        ],
+        total=len(rows),
+        removed_count=len(
+            [r for r in rows if r.status == PlaceReviewStatus.REMOVED.value]
+        ),
+        hidden_count=len(
+            [r for r in rows if r.status == PlaceReviewStatus.HIDDEN.value]
+        ),
+    )
 
 
 @admin_reviews_router.post(

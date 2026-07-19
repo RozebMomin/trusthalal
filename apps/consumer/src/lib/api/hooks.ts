@@ -391,6 +391,10 @@ export type PlaceReviewCreate = {
   rating: number;
   body: string;
   visited_on?: string | null;
+  /** Set on the second attempt, after the user has seen the "this reads
+   *  heated" nudge and chosen to post anyway. Waives the soft WARN verdict
+   *  only — the text is re-scored server-side and profanity still blocks. */
+  acknowledged_warning?: boolean;
 };
 
 function invalidatePlaceReviews(qc: ReturnType<typeof useQueryClient>, placeId: string) {

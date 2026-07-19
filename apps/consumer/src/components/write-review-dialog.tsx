@@ -66,6 +66,9 @@ function draftKey(placeId: string) {
  *  written" above a message about a missing session. */
 type Failure =
   | { kind: "rejected"; message: string }
+  /** Soft nudge: heated but publishable. The only failure state with an
+   *  affordance to proceed — everything else needs an edit first. */
+  | { kind: "warning"; message: string }
   | { kind: "outage"; message: string }
   | { kind: "verify"; title: string }
   | { kind: "other"; title: string; message: string };
@@ -134,9 +137,7 @@ export function WriteReviewDialog({
   const pending = create.isPending || update.isPending;
   const canSubmit = rating > 0 && trimmed.length >= BODY_MIN && !pending;
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canSubmit) return;
+  async function post(acknowledgedWarning: boolean) {
     setFailure(null);
     try {
       if (existing) {
@@ -145,18 +146,21 @@ export function WriteReviewDialog({
           rating,
           body: trimmed,
           visited_on: visitedOn || null,
+          acknowledged_warning: acknowledgedWarning,
         });
       } else {
         await create.mutateAsync({
           rating,
           body: trimmed,
           visited_on: visitedOn || null,
+          acknowledged_warning: acknowledgedWarning,
         });
       }
       clearDraft();
       onOpenChange(false);
     } catch (err) {
       const status = (err as { status?: number })?.status;
+      const code = (err as { code?: string })?.code;
       const { title, description } = friendlyApiError(err, {
         defaultTitle: "Couldn't post your review",
       });
@@ -168,6 +172,10 @@ export function WriteReviewDialog({
           message:
             "We couldn't run our content check just now — that's on us, not your review. Your draft is saved; try again in a moment.",
         });
+      } else if (status === 400 && code === "REVIEW_TEXT_WARNING") {
+        // Not a rejection — the server is asking once before publishing.
+        // Distinct state because the fix is a decision, not an edit.
+        setFailure({ kind: "warning", message: description });
       } else if (status === 400) {
         setFailure({ kind: "rejected", message: description });
       } else if (status === 401) {
@@ -184,6 +192,12 @@ export function WriteReviewDialog({
         setFailure({ kind: "other", title, message: description });
       }
     }
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    await post(false);
   }
 
   return (
@@ -214,7 +228,9 @@ export function WriteReviewDialog({
                   ? "We couldn't run our content check"
                   : failure.kind === "rejected"
                     ? "This can't be posted as written"
-                    : failure.title}
+                    : failure.kind === "warning"
+                      ? "Worth a second look"
+                      : failure.title}
               </span>
               {failure.kind === "verify" ? (
                 <ConfirmEmailPrompt
@@ -223,6 +239,31 @@ export function WriteReviewDialog({
                 />
               ) : (
                 failure.message
+              )}
+              {/* The only failure state with a way forward that isn't an
+                  edit. Deliberately the secondary action: the nudge is
+                  pointless if "post anyway" is the obvious button, and
+                  pointless the other way too if it isn't offered at all. */}
+              {failure.kind === "warning" && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setFailure(null)}
+                  >
+                    Let me edit it
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => post(true)}
+                  >
+                    {pending ? "Posting…" : "Post anyway"}
+                  </Button>
+                </div>
               )}
             </div>
           )}

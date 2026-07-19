@@ -23,6 +23,7 @@ that passes, and would be a free classifier hanging off the API.
 """
 from __future__ import annotations
 
+import logging
 from typing import Optional
 from uuid import UUID
 
@@ -43,12 +44,15 @@ from app.core.exceptions import (
     NotFoundError,
     ServiceUnavailableError,
 )
+from app.core.observability import capture_exception
 from app.core.rate_limit import limiter, user_or_ip_key
 from app.core.text_moderation import (
+    ModerationVerdict,
     TextModerationClient,
     TextModerationError,
     get_text_moderation_client,
     rejection_message,
+    warning_message,
 )
 from app.core.storage import StorageClient, get_photos_storage_client
 from app.db.deps import get_db
@@ -86,6 +90,8 @@ from app.modules.reviews.schemas import (
 )
 from app.modules.users.models import User
 
+logger = logging.getLogger(__name__)
+
 place_reviews_router = APIRouter(prefix="/places", tags=["reviews"])
 me_reviews_router = APIRouter(prefix="/me/reviews", tags=["reviews"])
 owner_reviews_router = APIRouter(tags=["reviews"])
@@ -96,7 +102,14 @@ owner_reviews_router = APIRouter(tags=["reviews"])
 # ---------------------------------------------------------------------------
 
 
-def _moderate(text: str, moderator: TextModerationClient) -> None:
+def _moderate(
+    text: str,
+    moderator: TextModerationClient,
+    *,
+    surface: str,
+    user_id: UUID | None = None,
+    acknowledged_warning: bool = False,
+) -> None:
     """Refuse text that trips the content filter. Raises or returns None.
 
     Applied identically to diners and owners. The instinct when building this
@@ -109,10 +122,30 @@ def _moderate(text: str, moderator: TextModerationClient) -> None:
     scanner means no publish. The client keeps the draft and shows
     "that's on us, not your review" — the one thing this must never do is
     imply we judged the content when we simply couldn't reach Google.
+
+    ``surface`` and ``user_id`` exist for the outage path only. Failing closed
+    means a scanner outage stops all writing on this surface, and the symptom
+    — nobody posts anything — looks exactly like a quiet week. So the refusal
+    is reported rather than just returned: without that, the most likely way
+    to discover a broken API key is noticing weeks later that reviews stopped.
     """
     try:
         result = moderator.evaluate(text)
     except TextModerationError as exc:
+        # Sentry for the on-call signal, PostHog for the business one — how
+        # much content this cost is a product question, not an error-rate
+        # question, and the two get read by different people.
+        capture_exception(exc)
+        track(
+            "review_submit_blocked_by_outage",
+            distinct_id=user_id,
+            properties={"surface": surface},
+        )
+        logger.error(
+            "Text moderation unavailable; refusing %s submission for user %s",
+            surface,
+            user_id,
+        )
         raise ServiceUnavailableError(
             "MODERATION_UNAVAILABLE",
             "We couldn't run our content check just now — that's on us, not "
@@ -124,6 +157,28 @@ def _moderate(text: str, moderator: TextModerationClient) -> None:
             "REVIEW_TEXT_REJECTED",
             rejection_message(result),
             extra={"category": result.category},
+        )
+
+    # WARN is a nudge, not a rule: the user may post anyway, but they have to
+    # see it once first. Since the check runs on submit rather than while
+    # typing, "shows a nudge and lets them continue" has to be two requests —
+    # the first is refused with the wording, the second carries
+    # ``acknowledged_warning`` and goes through.
+    #
+    # The second request is re-scored rather than trusted. Otherwise the flag
+    # would be a bypass: send anything with acknowledged_warning=true and skip
+    # the check entirely. BLOCK is evaluated above on both passes, so the only
+    # thing the flag waives is the warning it was issued for.
+    if result.verdict == ModerationVerdict.WARN and not acknowledged_warning:
+        track(
+            "review_text_warned",
+            distinct_id=user_id,
+            properties={"surface": surface, "score": round(result.confidence, 3)},
+        )
+        raise BadRequestError(
+            "REVIEW_TEXT_WARNING",
+            warning_message(result),
+            extra={"acknowledgeable": True},
         )
 
 
@@ -313,7 +368,13 @@ def create_review(
     db: Session = Depends(get_db),
     moderator: TextModerationClient = Depends(get_text_moderation_client),
 ) -> PlaceReviewRead:
-    _moderate(payload.body, moderator)
+    _moderate(
+        payload.body,
+        moderator,
+        surface="review_create",
+        user_id=user.id,
+        acknowledged_warning=payload.acknowledged_warning,
+    )
 
     review = repo.create_review(
         db,
@@ -396,7 +457,13 @@ def update_my_review(
     )
 
     if payload.body is not None:
-        _moderate(payload.body, moderator)
+        _moderate(
+            payload.body,
+            moderator,
+            surface="review_edit",
+            user_id=user.id,
+            acknowledged_warning=payload.acknowledged_warning,
+        )
 
     # Whether there was already a reply has to be read *before* the update, so
     # the notify decision isn't affected by anything the edit does.
@@ -481,7 +548,13 @@ def report_review(
     if payload.detail:
         # Reports land in front of a human, so the free text here gets the
         # same screening as anything public.
-        _moderate(payload.detail, moderator)
+        _moderate(
+            payload.detail,
+            moderator,
+            surface="review_report",
+            user_id=user.id,
+            acknowledged_warning=payload.acknowledged_warning,
+        )
 
     row = repo.create_report(
         db,
@@ -673,7 +746,13 @@ def create_reply(
             "Only the verified owner of this restaurant can reply to its reviews.",
         )
 
-    _moderate(payload.body, moderator)
+    _moderate(
+        payload.body,
+        moderator,
+        surface="reply_create",
+        user_id=user.id,
+        acknowledged_warning=payload.acknowledged_warning,
+    )
 
     reply = repo.create_reply(
         db,
@@ -728,7 +807,13 @@ def update_reply(
             "Only the verified owner of this restaurant can edit this reply.",
         )
 
-    _moderate(payload.body, moderator)
+    _moderate(
+        payload.body,
+        moderator,
+        surface="reply_edit",
+        user_id=user.id,
+        acknowledged_warning=payload.acknowledged_warning,
+    )
     reply = repo.update_reply(db, reply=review.reply, body=payload.body)
     db.commit()
     db.refresh(reply)

@@ -84,6 +84,9 @@ function draftKey(placeId: string) {
  *  collapsing any two produces a lie. See the web dialog's copy of this. */
 type Failure =
   | { kind: "rejected"; message: string }
+  /** Heated but publishable. The only failure with a way forward that isn't
+   *  an edit — see the "Post anyway" affordance in the banner. */
+  | { kind: "warning"; message: string }
   | { kind: "outage" }
   | { kind: "verify"; title: string }
   | { kind: "other"; title: string; message: string };
@@ -177,7 +180,7 @@ export default function WriteReviewScreen() {
   const canSubmit =
     rating > 0 && trimmed.length >= BODY_MIN && !pending && !uploadingPhotos;
 
-  async function submit() {
+  async function submit(acknowledgedWarning = false) {
     if (!canSubmit) return;
     setFailure(null);
     setPhotoWarning(null);
@@ -188,9 +191,14 @@ export default function WriteReviewScreen() {
           reviewId: existing.id,
           rating,
           body: trimmed,
+          acknowledged_warning: acknowledgedWarning,
         });
       } else {
-        const created = await create.mutateAsync({ rating, body: trimmed });
+        const created = await create.mutateAsync({
+          rating,
+          body: trimmed,
+          acknowledged_warning: acknowledgedWarning,
+        });
         reviewId = created.id;
       }
 
@@ -232,8 +240,17 @@ export default function WriteReviewScreen() {
       router.back();
     } catch (err) {
       const status = (err as { status?: number })?.status;
+      const code = (err as { code?: string })?.code;
       if (status === 503) {
         setFailure({ kind: "outage" });
+      } else if (status === 400 && code === "REVIEW_TEXT_WARNING") {
+        // Not a rejection — the server asks once before publishing.
+        setFailure({
+          kind: "warning",
+          message:
+            (err as { message?: string })?.message ??
+            "This reads pretty heated.",
+        });
       } else if (status === 400) {
         setFailure({
           kind: "rejected",
@@ -313,7 +330,9 @@ export default function WriteReviewScreen() {
                 ? "We couldn't run our content check"
                 : failure.kind === "rejected"
                   ? "This can't be posted as written"
-                  : failure.title}
+                  : failure.kind === "warning"
+                    ? "Worth a second look"
+                    : failure.title}
             </Text>
             <Text
               style={[
@@ -329,12 +348,59 @@ export default function WriteReviewScreen() {
                 ? "That's on us, not your review. Your draft is saved — try again in a moment."
                 : failure.kind === "rejected"
                   ? `${failure.message} Strong criticism is welcome; we just need it kept civil.`
+                  : failure.kind === "warning"
+                  ? failure.message
                   : failure.kind === "verify"
                     ? resendVerify.isSuccess
                       ? `Sent — check ${resendVerify.data?.email}, tap the link, then post. Your draft is saved.`
                       : "We'll email you a link. Your draft is saved."
                     : failure.message}
             </Text>
+            {/* The only failure state offering a way forward that isn't an
+                edit. "Post anyway" is deliberately the quieter of the two —
+                a nudge nobody can decline is a block, and one that leads
+                with "post anyway" isn't a nudge. */}
+            {failure.kind === "warning" ? (
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                <Pressable
+                  onPress={() => setFailure(null)}
+                  style={{
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: t.amber,
+                    paddingVertical: 7,
+                    paddingHorizontal: 12,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: t.amber,
+                      fontFamily: "Inter_700Bold",
+                      fontSize: 12,
+                    }}
+                  >
+                    Let me edit it
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => submit(true)}
+                  disabled={pending}
+                  style={{ paddingVertical: 7, paddingHorizontal: 6 }}
+                >
+                  <Text
+                    style={{
+                      color: t.amber,
+                      fontFamily: "Inter_600SemiBold",
+                      fontSize: 12,
+                      opacity: pending ? 0.5 : 0.85,
+                    }}
+                  >
+                    {pending ? "Posting…" : "Post anyway"}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
             {failure.kind === "verify" && !resendVerify.isSuccess ? (
               <Pressable
                 onPress={() => resendVerify.mutate()}
@@ -519,7 +585,10 @@ export default function WriteReviewScreen() {
         ) : null}
 
         <Pressable
-          onPress={submit}
+          // Wrapped, not passed directly: Pressable hands the handler a
+          // GestureResponderEvent, which as `acknowledgedWarning` is truthy
+          // — every post would have silently waived the nudge it exists for.
+          onPress={() => submit(false)}
           disabled={!canSubmit}
           style={{
             backgroundColor: t.accent,

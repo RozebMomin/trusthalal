@@ -20,6 +20,7 @@ import type {
   PlaceReviewCreate,
   PlaceReviewListResponse,
   PlaceReviewRead,
+  ReviewReportReason,
   PlaceSearchResult,
   ReviewSort,
   SearchPlacesParams,
@@ -501,6 +502,37 @@ export function useDeleteReview(placeId: string) {
   return useMutation({
     mutationFn: (reviewId: string) =>
       apiFetch<void>(`/me/reviews/${reviewId}`, { method: "DELETE" }),
+    onSuccess: () => invalidateReviews(qc, placeId),
+  });
+}
+
+/** Report a review, or the owner's reply to it.
+ *
+ * `replyId` is what distinguishes the two — the endpoint is the same because
+ * a report is a report, but the moderator needs to know which piece of text
+ * the complaint is actually about.
+ *
+ * Invalidates the list so the row flips to "Reported" and the button stops
+ * being pressable, rather than letting a second press 409.
+ */
+export function useReportReview(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      reviewId,
+      reason,
+      detail,
+      replyId,
+    }: {
+      reviewId: string;
+      reason: ReviewReportReason;
+      detail?: string;
+      replyId?: string;
+    }) =>
+      apiFetch<unknown>(`/places/reviews/${reviewId}/report`, {
+        method: "POST",
+        body: JSON.stringify({ reason, detail, reply_id: replyId }),
+      }),
     onSuccess: () => invalidateReviews(qc, placeId),
   });
 }

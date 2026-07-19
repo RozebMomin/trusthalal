@@ -257,6 +257,28 @@ _CATEGORY_LABELS: dict[str, str] = {
 }
 
 
+def warning_message(result: ModerationResult) -> str:
+    """The nudge shown when text is heated but publishable.
+
+    Deliberately not a telling-off, and deliberately not about rules. It
+    gives a reason grounded in what the reader wants — a review that says
+    what happened is more useful than one that says how it felt — because
+    "this violates our guidelines" is both untrue here and the fastest way
+    to make someone dig in.
+
+    Anger is legitimate on this platform. Someone who was served
+    non-halal food is entitled to be furious, and this must never read as
+    "calm down" — only as "the specifics will land harder."
+    """
+    del result  # scores don't change the wording; kept for symmetry
+    return (
+        "This reads pretty heated. Reviews that describe what happened — "
+        "what you asked, what you were told, what you saw — tend to be more "
+        "useful to other diners than how it felt. Post it as-is if that's "
+        "what you meant to say."
+    )
+
+
 def rejection_message(result: ModerationResult) -> str:
     """The message shown when text is refused.
 

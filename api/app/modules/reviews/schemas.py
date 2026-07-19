@@ -30,6 +30,12 @@ class PlaceReviewCreate(BaseModel):
     body: str = Field(..., min_length=BODY_MIN, max_length=BODY_MAX)
     visited_on: Optional[date] = None
 
+    #: Set by the client when re-submitting after seeing the "this reads
+    #: heated" nudge. Waives the WARN verdict only — the text is re-scored on
+    #: the second pass and a BLOCK still refuses, so this can't be used to
+    #: skip moderation by sending it on the first request.
+    acknowledged_warning: bool = False
+
     @field_validator("body")
     @classmethod
     def _strip_body(cls, v: str) -> str:
@@ -63,6 +69,12 @@ class PlaceReviewUpdate(BaseModel):
         default=None, min_length=BODY_MIN, max_length=BODY_MAX
     )
     visited_on: Optional[date] = None
+
+    #: Set by the client when re-submitting after seeing the "this reads
+    #: heated" nudge. Waives the WARN verdict only — the text is re-scored on
+    #: the second pass and a BLOCK still refuses, so this can't be used to
+    #: skip moderation by sending it on the first request.
+    acknowledged_warning: bool = False
 
 
 class ReviewAuthorRead(BaseModel):
@@ -176,6 +188,12 @@ class PlaceReviewReplyCreate(BaseModel):
 
     body: str = Field(..., min_length=REPLY_MIN, max_length=REPLY_MAX)
 
+    #: Set by the client when re-submitting after seeing the "this reads
+    #: heated" nudge. Waives the WARN verdict only — the text is re-scored on
+    #: the second pass and a BLOCK still refuses, so this can't be used to
+    #: skip moderation by sending it on the first request.
+    acknowledged_warning: bool = False
+
     @field_validator("body")
     @classmethod
     def _strip(cls, v: str) -> str:
@@ -192,6 +210,12 @@ class ReviewReportCreate(BaseModel):
     detail: Optional[str] = Field(default=None, max_length=2000)
     #: Set when reporting the owner's reply rather than the review.
     reply_id: Optional[UUID] = None
+
+    #: Set by the client when re-submitting after seeing the "this reads
+    #: heated" nudge. Waives the WARN verdict only — the text is re-scored on
+    #: the second pass and a BLOCK still refuses, so this can't be used to
+    #: skip moderation by sending it on the first request.
+    acknowledged_warning: bool = False
 
     @model_validator(mode="after")
     def _detail_required_for_other(self):
@@ -284,6 +308,43 @@ class AdminReportReviewSnapshot(BaseModel):
     status: PlaceReviewStatus
     created_at: datetime
     reply: Optional[PlaceReviewReplyRead] = None
+
+
+class AdminPlaceReviewRow(BaseModel):
+    """One review on a place, for the moderator's context list.
+
+    Slimmer than the snapshot above on purpose: this answers "what else has
+    been written about this restaurant", not "should this come down". The
+    body is an excerpt — a moderator scanning for a pattern needs shape, not
+    ten full reviews.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    author: ReviewAuthorRead
+    rating: int
+    excerpt: str
+    status: PlaceReviewStatus
+    open_report_count: int = 0
+    created_at: datetime
+    edited_at: Optional[datetime] = None
+    #: True for the review the moderator is currently judging, so the list
+    #: can mark it rather than making them match ids by eye.
+    is_subject: bool = False
+
+
+class AdminPlaceReviewsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    place_id: UUID
+    place_name: Optional[str] = None
+    items: list[AdminPlaceReviewRow] = Field(default_factory=list)
+    total: int = 0
+    #: Every status, not just published — a place with three removed reviews
+    #: is telling you something a published-only count would hide.
+    removed_count: int = 0
+    hidden_count: int = 0
 
 
 class AdminReviewReportRead(BaseModel):

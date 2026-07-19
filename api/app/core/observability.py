@@ -198,6 +198,32 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         return response
 
 
+def capture_exception(exc: BaseException, **tags: str) -> None:
+    """Report an exception we're handling deliberately.
+
+    Sentry's FastAPI integration only sees what escapes to a 500. Anything a
+    handler catches and converts into a clean error response is invisible to
+    it — which is usually right, but not when the clean response *is* the
+    incident. A fail-closed content check refusing every submission returns a
+    tidy 503 and would otherwise never appear anywhere.
+
+    Import is lazy and failure is swallowed: telemetry must never be the
+    reason a request dies. Same posture as the middleware above.
+    """
+    try:
+        import sentry_sdk
+
+        if tags:
+            with sentry_sdk.push_scope() as scope:
+                for key, value in tags.items():
+                    scope.set_tag(key, value)
+                sentry_sdk.capture_exception(exc)
+        else:
+            sentry_sdk.capture_exception(exc)
+    except Exception:  # pragma: no cover - never break a request over telemetry
+        logger.debug("Sentry capture failed", exc_info=True)
+
+
 def _looks_like_id(s: str) -> bool:
     """Permit the small alphabet we'd realistically emit as a request ID.
 

@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 
+import { ReportReviewSheet } from "@/components/ReportReviewSheet";
 import { usePlaceReviews } from "@/lib/api/hooks";
 import type { PlaceDetail, PlaceReviewRead, ReviewSort } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
@@ -49,10 +50,14 @@ function relative(iso: string): string {
 function ReviewRow({
   review,
   placeName,
+  signedIn,
+  onReport,
 }: {
   review: PlaceReviewRead;
   /** The restaurant, not the owning organization — see the byline below. */
   placeName: string;
+  signedIn: boolean;
+  onReport: (review: PlaceReviewRead) => void;
 }) {
   const t = useTheme();
   const initial = (review.author.display_name ?? "?").charAt(0).toUpperCase();
@@ -131,6 +136,37 @@ function ReviewRow({
           ) : null}
         </View>
       ) : null}
+
+      {/* Report affordance. Hidden on your own review — you can edit or
+          delete that, and reporting yourself is nonsense. Hidden when signed
+          out because the endpoint requires an account and a button that can
+          only 401 is worse than no button. */}
+      {!review.is_mine && signedIn ? (
+        <View style={{ flexDirection: "row", marginTop: 10 }}>
+          {review.reported_by_me ? (
+            <Text style={[ty.small, { color: t.sub, fontSize: 11.5 }]}>
+              ⚑ Reported
+            </Text>
+          ) : (
+            <Pressable
+              onPress={() => onReport(review)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Report this review"
+            >
+              <Text
+                style={{
+                  color: t.sub,
+                  fontFamily: "Inter_600SemiBold",
+                  fontSize: 11.5,
+                }}
+              >
+                ⚑ Report
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -147,6 +183,7 @@ export function PlaceReviews({
   const t = useTheme();
   const [sort, setSort] = useState<ReviewSort>("recent");
   const [expanded, setExpanded] = useState(false);
+  const [reporting, setReporting] = useState<PlaceReviewRead | null>(null);
 
   const reviews = usePlaceReviews(place.id, sort);
   const data = reviews.data;
@@ -304,7 +341,12 @@ export function PlaceReviews({
           >
             {shown.map((r, i) => (
               <View key={r.id} style={i === 0 ? { paddingTop: 4 } : undefined}>
-                <ReviewRow review={r} placeName={place.name} />
+                <ReviewRow
+                  review={r}
+                  placeName={place.name}
+                  signedIn={signedIn}
+                  onReport={setReporting}
+                />
               </View>
             ))}
 
@@ -329,6 +371,15 @@ export function PlaceReviews({
             ) : null}
           </View>
         </>
+      ) : null}
+
+      {reporting ? (
+        <ReportReviewSheet
+          placeId={place.id}
+          review={reporting}
+          visible={reporting !== null}
+          onClose={() => setReporting(null)}
+        />
       ) : null}
     </View>
   );

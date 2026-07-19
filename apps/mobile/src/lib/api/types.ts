@@ -254,6 +254,21 @@ export type SubmitVisitInput = {
 
 export type ReviewSort = "recent" | "rating_high" | "rating_low";
 
+/** Why a review or reply is being reported.
+ *
+ * The report queue is the primary defence for text on this platform: the
+ * content filter catches profanity, but whether a claim about a restaurant
+ * is *false* is a question about the world rather than about the words, and
+ * only a human can weigh it.
+ */
+export type ReviewReportReason =
+  | "FALSE_INFO"
+  | "HARASSMENT"
+  | "OFF_TOPIC"
+  | "SPAM"
+  | "CONFLICT_OF_INTEREST"
+  | "OTHER";
+
 /** Author identity on a review. No role, deliberately — a verifier's review
  *  renders like anyone else's. Verifier standing is earned against facts and
  *  doesn't transfer to weight of opinion about a meal. */
@@ -318,4 +333,8 @@ export type PlaceReviewCreate = {
   rating: number;
   body: string;
   visited_on?: string | null;
+  /** Set on the second attempt, after the user has seen the "this reads
+   *  heated" nudge and chosen to post anyway. Waives the soft WARN verdict
+   *  only — the text is re-scored server-side and profanity still blocks. */
+  acknowledged_warning?: boolean;
 };
