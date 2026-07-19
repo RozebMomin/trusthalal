@@ -37,6 +37,9 @@ export type MeRead = {
   role: UserRole;
   email: string | null;
   display_name: string | null;
+  /** Whether the account has confirmed its email address. Gates posting
+   *  reviews and owner replies; nothing else. */
+  email_verified?: boolean;
 };
 
 /**
@@ -586,6 +589,48 @@ export function useResetPassword() {
         method: "POST",
         json: payload,
       }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Email verification
+// ---------------------------------------------------------------------------
+// Confirming an address doesn't sign anyone in or out — it only unlocks the
+// surfaces that publish content about a named business (reviews, owner
+// replies). See api/app/modules/auth/email_verification.py.
+
+export type VerifyEmailRequest = { token: string };
+export type VerifyEmailResponse = { email: string; already_verified: boolean };
+export type ResendVerificationRequest = { audience?: "consumer" | "owner" | "admin" };
+export type ResendVerificationResponse = { sent: boolean; email: string };
+
+/** POST /auth/verify-email. Anonymous — the token is the proof, so a link
+ *  opened on a phone works while the account is signed in elsewhere. */
+export function useVerifyEmail() {
+  return useMutation({
+    mutationFn: (payload: VerifyEmailRequest) =>
+      apiFetch<VerifyEmailResponse>("/auth/verify-email", {
+        method: "POST",
+        json: payload,
+      }),
+  });
+}
+
+/** POST /auth/verify-email/resend. Requires a session; the address comes
+ *  from that session, never from the body. ``sent: false`` means the address
+ *  was already confirmed — success, not an error. */
+export function useResendVerification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ResendVerificationRequest = {}) =>
+      apiFetch<ResendVerificationResponse>("/auth/verify-email/resend", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => {
+      // An already-verified response means our cached /me is stale.
+      qc.invalidateQueries({ queryKey: qk.me() });
+    },
   });
 }
 
