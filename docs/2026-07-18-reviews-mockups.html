@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reviews — mockups (consumer · mobile · owner · admin)</title>
+<style>
+  :root{
+    --bg:#eef0ee; --card:#ffffff; --ink:#0b0f0d; --sub:#6b7280; --line:#e6e8e6;
+    --primary:#0e9f6e; --primary-deep:#057a55; --primary-soft:#e9f8f1;
+    --amber:#b45309; --amber-soft:#fef3e2; --danger:#e02424; --danger-soft:#fde8e8;
+    --zinc:#52525b; --zinc-soft:#f3f4f3; --rail:#fbfcfb; --lock:#9aa19c;
+    --star:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;-webkit-font-smoothing:antialiased;}
+  .page{max-width:1240px;margin:0 auto;padding:40px 28px 110px}
+  .page h1{font-size:27px;letter-spacing:-.02em;margin:0 0 8px}
+  .page > .intro{color:var(--sub);margin:0;max-width:800px;line-height:1.6;font-size:14.5px}
+  .rule{height:1px;background:var(--line);margin:44px 0 0}
+  .sect{display:flex;align-items:center;gap:12px;margin:40px 0 6px}
+  .sect .tag{font-size:11px;font-weight:800;letter-spacing:.09em;color:#fff;background:var(--ink);border-radius:999px;padding:5px 13px;text-transform:uppercase}
+  .sect h2{font-size:21px;letter-spacing:-.02em;margin:0}
+  .sect p{margin:0;color:var(--sub);font-size:13.5px}
+
+  .cap{display:flex;align-items:baseline;gap:10px;margin:38px 0 12px}
+  .cap .n{font-size:11px;font-weight:800;letter-spacing:.05em;color:#fff;background:var(--primary-deep);border-radius:999px;padding:4px 11px;text-transform:uppercase;white-space:nowrap}
+  .cap .d{color:var(--sub);font-size:13.5px;line-height:1.55;max-width:820px}
+  .cap .d b{color:var(--ink);font-weight:650}
+
+  .note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0 0;font-size:13px;color:var(--sub);line-height:1.55;max-width:840px}
+  .note b{color:var(--ink)}
+
+  /* ---- browser window chrome ---- */
+  .win{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.08)}
+  .titlebar{height:38px;background:#f4f5f4;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:7px;padding:0 14px}
+  .titlebar i{width:11px;height:11px;border-radius:999px;background:#dcdfdc;display:block}
+  .titlebar .url{margin-left:14px;font-size:12px;color:var(--sub);background:#fff;border:1px solid var(--line);border-radius:7px;padding:3px 12px}
+  .topbar{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+  .mark{width:27px;height:27px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px}
+  .navlinks{display:flex;gap:22px;font-size:13.5px;color:var(--sub);font-weight:600}
+  .navlinks .on{color:var(--ink);position:relative}
+  .navlinks .on::after{content:"";position:absolute;left:0;right:0;bottom:-19px;height:2px;background:var(--primary)}
+  .navlinks .badge{background:var(--danger);color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:1px 6px;margin-left:5px;vertical-align:1px}
+  .avatar{width:29px;height:29px;border-radius:999px;background:linear-gradient(135deg,#34d399,#059669);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}
+
+  /* ---- generic bits ---- */
+  .body{padding:26px 30px 34px}
+  .col{max-width:680px;margin:0 auto}
+  .sec{border:1px solid var(--line);border-radius:14px;padding:20px 22px;background:#fff;margin-bottom:16px}
+  .sec h3{font-size:16.5px;margin:0 0 3px;letter-spacing:-.01em}
+  .sec .lead{color:var(--sub);font-size:13px;line-height:1.5;margin:0}
+  .seg{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--sub);margin:0 0 10px}
+  .btn{border:0;border-radius:10px;padding:9px 16px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn.primary{background:var(--primary);color:#fff}
+  .btn.ghost{background:#fff;color:var(--sub);border:1px solid var(--line)}
+  .btn.sm{padding:7px 13px;font-size:12.5px}
+  .btn.danger{background:var(--danger);color:#fff}
+  .btn[disabled]{opacity:.55;cursor:default}
+  .pill{display:inline-block;font-size:10.5px;font-weight:800;border-radius:999px;padding:4px 10px;letter-spacing:.02em;white-space:nowrap}
+  .pill.ok{background:var(--primary-soft);color:var(--primary-deep)}
+  .pill.warn{background:var(--amber-soft);color:var(--amber)}
+  .pill.bad{background:var(--danger-soft);color:var(--danger)}
+  .pill.neutral{background:var(--zinc-soft);color:var(--zinc)}
+  .stars{color:var(--star);letter-spacing:1px;font-size:14px}
+  .stars .off{color:#d8dad8}
+  .muted{color:var(--sub)}
+  .sml{font-size:12.5px}
+
+  /* ---- rating header ---- */
+  .rathead{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+  .bigrat{flex:0 0 auto;text-align:center;padding-right:26px;border-right:1px solid var(--line)}
+  .bigrat .num{font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1}
+  .bigrat .cnt{color:var(--sub);font-size:12px;margin-top:5px}
+  .bigrat .src{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--primary-deep);margin-bottom:7px}
+  .hist{flex:1;min-width:230px;display:flex;flex-direction:column;gap:5px;padding-top:4px}
+  .hrow{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--sub)}
+  .hrow .bar{flex:1;height:7px;background:var(--zinc-soft);border-radius:999px;overflow:hidden}
+  .hrow .bar i{display:block;height:100%;background:var(--star);border-radius:999px}
+  .googlebox{flex:0 0 auto;padding-left:26px;border-left:1px solid var(--line);text-align:center}
+  .googlebox .src{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--sub);margin-bottom:7px}
+  .googlebox .num{font-size:25px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--zinc)}
+  .googlebox .cnt{color:var(--sub);font-size:11px;margin-top:5px}
+
+  /* ---- review rows ---- */
+  .rev{padding:18px 0;border-top:1px solid var(--line)}
+  .rev:first-of-type{border-top:0}
+  .rhead{display:flex;gap:11px;align-items:flex-start}
+  .rav{width:34px;height:34px;flex:0 0 auto;border-radius:999px;background:var(--zinc-soft);color:var(--zinc);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+  .rav.g1{background:#dbeafe;color:#1d4ed8}.rav.g2{background:#fce7f3;color:#be185d}.rav.g3{background:#e9f8f1;color:#057a55}
+  .rmeta{flex:1;min-width:0}
+  .rmeta .nm{font-weight:700;font-size:13.5px}
+  .rmeta .when{color:var(--sub);font-size:11.5px;margin-top:1px}
+  .rbody{font-size:13.5px;line-height:1.6;margin:10px 0 0;color:#1f2937}
+  .ract{display:flex;gap:14px;margin-top:10px;font-size:12px;color:var(--sub);font-weight:600}
+  .ract span{cursor:pointer}
+  .rphotos{display:flex;gap:7px;margin-top:11px}
+  .rphotos i{width:66px;height:66px;border-radius:9px;background:linear-gradient(135deg,#e7eae7,#d6dbd7);display:block;border:1px solid var(--line)}
+  .reply{margin:12px 0 0 45px;background:var(--primary-soft);border-radius:12px;padding:13px 15px;border:1px solid #d3f0e3}
+  .reply .rh{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--primary-deep)}
+  .reply p{margin:7px 0 0;font-size:13px;line-height:1.55;color:#14532d}
+
+  /* ---- dialog ---- */
+  .scrim{background:rgba(11,15,13,.42);padding:34px 24px;display:flex;justify-content:center}
+  .dlg{background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.24);overflow:hidden}
+  .dlg .dh{padding:20px 22px 0}
+  .dlg .dh h3{margin:0 0 3px;font-size:18px;letter-spacing:-.01em}
+  .dlg .dh p{margin:0;color:var(--sub);font-size:13px;line-height:1.5}
+  .dlg .dc{padding:18px 22px}
+  .dlg .df{padding:15px 22px;border-top:1px solid var(--line);background:var(--rail);display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .starpick{font-size:31px;letter-spacing:5px;color:var(--star);cursor:pointer}
+  .starpick .off{color:#dcdfdc}
+  .ta{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:13.5px;line-height:1.6;font-family:inherit;color:var(--ink);resize:none;background:#fff}
+  .ta.err{border-color:var(--danger);background:#fffafa}
+  .fieldnote{display:flex;justify-content:space-between;font-size:11.5px;color:var(--sub);margin-top:6px}
+  .adder{display:flex;gap:8px;align-items:center;margin-top:14px}
+  .adder .slot{width:62px;height:62px;border:1.5px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:20px;background:var(--rail)}
+  .adder .thumb{width:62px;height:62px;border-radius:10px;background:linear-gradient(135deg,#e7eae7,#d6dbd7);border:1px solid var(--line);position:relative}
+  .adder .thumb b{position:absolute;top:-6px;right:-6px;width:19px;height:19px;border-radius:999px;background:var(--ink);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center}
+
+  .alert{border-radius:11px;padding:12px 14px;font-size:13px;line-height:1.55;display:flex;gap:10px;align-items:flex-start}
+  .alert.bad{background:var(--danger-soft);border:1px solid #fbd5d5;color:#9b1c1c}
+  .alert.warn{background:var(--amber-soft);border:1px solid #fce4c2;color:#92400e}
+  .alert.info{background:var(--primary-soft);border:1px solid #d3f0e3;color:#065f46}
+  .alert .ic{font-size:15px;line-height:1.3}
+  .alert b{display:block;margin-bottom:2px}
+
+  .spin{width:14px;height:14px;border-radius:999px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;display:inline-block;vertical-align:-2px;margin-right:7px}
+
+  /* ---- phone frames ---- */
+  .phones{display:flex;gap:26px;flex-wrap:wrap}
+  .phonewrap{width:320px}
+  .phonewrap .plab{font-size:12px;color:var(--sub);margin:0 0 9px;line-height:1.45}
+  .phonewrap .plab b{color:var(--ink)}
+  .phone{width:320px;height:660px;border-radius:36px;background:#0b0b0e;padding:9px;box-shadow:0 18px 44px rgba(0,0,0,.22)}
+  .screen{width:100%;height:100%;border-radius:28px;background:#F6F6F7;overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .statusbar{height:30px;display:flex;align-items:center;justify-content:space-between;padding:0 18px 0 20px;font-size:11px;font-weight:700;color:#0B0B0E;flex:0 0 auto}
+  .mnav{height:44px;display:flex;align-items:center;gap:10px;padding:0 15px;flex:0 0 auto;font-weight:800;font-size:15px}
+  .mnav .bk{color:#7A7A83;font-weight:700;font-size:14px}
+  .mbody{flex:1;overflow:hidden;padding:0 15px}
+  .mcard{background:#fff;border-radius:16px;padding:14px;margin-bottom:11px;border:1px solid #ECECEF}
+  .mcard h4{margin:0 0 3px;font-size:14px}
+  .mseg{font-size:9.5px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#7A7A83;margin:14px 0 8px}
+  .mrow{display:flex;gap:9px;align-items:flex-start}
+  .mav{width:28px;height:28px;border-radius:999px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;background:#F2F2F4;color:#52525B}
+  .mfoot{flex:0 0 auto;padding:11px 15px 16px;background:#fff;border-top:1px solid #ECECEF}
+  .mbtn{display:block;width:100%;text-align:center;background:#0E9F6E;color:#fff;border:0;border-radius:13px;padding:13px;font-size:14px;font-weight:800;font-family:inherit}
+  .mbtn.ghost{background:#F2F2F4;color:#52525B}
+  .mbtn[disabled]{opacity:.55}
+  .mta{width:100%;border:1px solid #ECECEF;border-radius:12px;padding:11px;font-size:13px;line-height:1.55;font-family:inherit;resize:none;background:#fff;color:#0B0B0E}
+  .mta.err{border-color:#E02424;background:#fffafa}
+  .tabbar{flex:0 0 auto;height:58px;background:#fff;border-top:1px solid #ECECEF;display:flex;align-items:center;justify-content:space-around;padding-bottom:6px}
+  .tabbar div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;font-weight:700;color:#7A7A83}
+  .tabbar div.on{color:#0E9F6E}
+  .tabbar .ico{width:19px;height:19px;border-radius:6px;background:#E4E4E8}
+  .tabbar div.on .ico{background:#0E9F6E}
+
+  /* ---- owner / admin tables ---- */
+  .filters{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap}
+  .fpill{border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer}
+  .fpill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .fpill .c{opacity:.6;margin-left:5px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--sub);font-weight:800;padding:0 12px 9px;border-bottom:1px solid var(--line)}
+  tbody td{padding:13px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:hover{background:var(--rail)}
+  .exc{color:var(--sub);font-size:12.5px;line-height:1.5;margin-top:3px;max-width:420px}
+  .sticky{position:sticky;bottom:0;border-top:1px solid var(--line);background:rgba(255,255,255,.96);backdrop-filter:blur(6px);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .sidebar{width:206px;flex:0 0 206px;background:var(--rail);border-right:1px solid var(--line);padding:18px 12px}
+  .snav{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:9px;font-size:13px;color:var(--sub);font-weight:600;margin-bottom:2px}
+  .snav.on{background:#fff;border:1px solid var(--line);color:var(--ink);font-weight:700}
+  .snav .dot{width:6px;height:6px;border-radius:999px;background:var(--danger);margin-left:auto}
+  .shell{display:flex;min-height:520px}
+  .kv{display:flex;gap:8px;font-size:12.5px;padding:5px 0}
+  .kv b{color:var(--sub);font-weight:600;flex:0 0 108px}
+  .repbox{border:1px solid #fbd5d5;background:#fffafa;border-radius:11px;padding:13px 15px;margin-top:9px}
+  .repbox .rl{display:flex;justify-content:space-between;font-size:12px;color:#9b1c1c;font-weight:700}
+  .repbox p{margin:6px 0 0;font-size:12.5px;color:var(--sub);line-height:1.5}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Reviews — mockups</h1>
+  <p class="intro">
+    Every screen the reviews feature adds, across all four surfaces, drawn before any code so the
+    tweaks happen here. Colors are the emerald v2 tokens already shared by the apps.
+    Companion to <b>docs/2026-07-18-reviews-plan.md</b> — decisions locked there are drawn here:
+    stars + text, publish-immediately with a report queue, Google's rating labeled as Google's,
+    moderation checked on submit, fail-closed on scanner outage.
+  </p>
+
+  <!-- ==================================================================== -->
+  <div class="rule"></div>
+  <div class="sect"><span class="tag">Consumer</span><h2>halalfoodnearme.com</h2></div>
+
+  <div class="cap"><span class="n">C1</span><span class="d">
+    <b>Place detail — the reviews section.</b> Sits between the photo gallery and the dispute
+    section: verified facts, then photos, then opinion, then "something's wrong". The two ratings
+    are separated and each is labeled — Trust Halal's is primary and gets the histogram, Google's
+    is a smaller secondary block. This is the fix for today's unattributed floating star.
+  </span></div>
+
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">halalfoodnearme.com/places/khan-halal-grill</span></div>
+    <div class="body"><div class="col">
+
+      <div class="sec" style="opacity:.5">
+        <div class="seg">↑ Trust summary · Hours · Photo gallery (existing sections)</div>
+        <div class="lead">Unchanged. Reviews slot in below.</div>
+      </div>
+
+      <div class="sec">
+        <div class="rathead">
+          <div class="bigrat">
+            <div class="src">Trust Halal</div>
+            <div class="num">4.2</div>
+            <div class="stars">★★★★<span class="off">★</span></div>
+            <div class="cnt">38 reviews</div>
+          </div>
+          <div class="hist">
+            <div class="hrow"><span>5★</span><span class="bar"><i style="width:55%"></i></span><span>21</span></div>
+            <div class="hrow"><span>4★</span><span class="bar"><i style="width:26%"></i></span><span>10</span></div>
+            <div class="hrow"><span>3★</span><span class="bar"><i style="width:10%"></i></span><span>4</span></div>
+            <div class="hrow"><span>2★</span><span class="bar"><i style="width:5%"></i></span><span>2</span></div>
+            <div class="hrow"><span>1★</span><span class="bar"><i style="width:3%"></i></span><span>1</span></div>
+          </div>
+          <div class="googlebox">
+            <div class="src">On Google</div>
+            <div class="num">4.5</div>
+            <div class="cnt">1,204 ratings</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+          <div class="sml muted">Reviews are from Trust Halal diners. We show Google's rating for context.</div>
+          <button class="btn primary">Write a review</button>
+        </div>
+        <div class="alert warn" style="margin-top:14px">
+          <span class="ic">✉</span>
+          <span><b>Confirm your email to post a review</b>
+          We sent a link to <b>mohamad@example.com</b>. Reviews carry a restaurant's reputation, so we
+          confirm the address first. <span style="font-weight:700;text-decoration:underline">Resend the link</span></span>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
+          <div class="seg" style="margin:0">38 reviews</div>
+          <div style="display:flex;gap:6px">
+            <span class="fpill on" style="padding:5px 12px;font-size:11.5px">Most recent</span>
+            <span class="fpill" style="padding:5px 12px;font-size:11.5px">Highest first</span>
+            <span class="fpill" style="padding:5px 12px;font-size:11.5px">Lowest first</span>
+          </div>
+        </div>
+
+        <div class="rev">
+          <div class="rhead">
+            <div class="rav g1">AR</div>
+            <div class="rmeta">
+              <div class="nm">Aisha R.</div>
+              <div class="when"><span class="stars">★★★★★</span> · 3 days ago · visited Jul 12</div>
+            </div>
+          </div>
+          <p class="rbody">Asked about the chicken and the manager brought out the certificate without me
+            even pushing. Zabihah, and they keep the fryers separate. Nihari was excellent. This is my
+            new default for family dinners.</p>
+          <div class="rphotos"><i></i><i></i></div>
+          <div class="ract"><span>⚑ Report</span></div>
+          <div class="reply">
+            <div class="rh">✓ Response from the owner · 2 days ago</div>
+            <p>Thank you Aisha — we keep the certificate at the front counter precisely so nobody
+              has to wonder. See you next time, and ask for Bilal.</p>
+          </div>
+        </div>
+
+        <div class="rev">
+          <div class="rhead">
+            <div class="rav g2">MK</div>
+            <div class="rmeta">
+              <div class="nm">Mariam K.</div>
+              <div class="when"><span class="stars">★★<span class="off">★★★</span></span> · 1 week ago</div>
+            </div>
+          </div>
+          <p class="rbody">Food was fine but I asked twice whether the beef was zabihah and got two
+            different answers from two staff. That shouldn't be hard to answer. Docking stars until
+            they train the front of house.</p>
+          <div class="ract"><span>⚑ Report</span></div>
+          <div class="reply">
+            <div class="rh">✓ Response from the owner · 6 days ago</div>
+            <p>You're right and I'm sorry. All beef is zabihah from Al-Safa — the certificate is on
+              this page. We've since put a card at every station so any staff member can answer
+              consistently. Thank you for telling us instead of just leaving.</p>
+          </div>
+        </div>
+
+        <div class="rev">
+          <div class="rhead">
+            <div class="rav g3">YB</div>
+            <div class="rmeta">
+              <div class="nm">Yusuf B.</div>
+              <div class="when"><span class="stars">★★★★<span class="off">★</span></span> · 2 weeks ago · edited</div>
+            </div>
+          </div>
+          <p class="rbody">Solid. Kitchen is fully halal, no alcohol on the premises. Only note is that
+            the lamb sometimes runs out before 8pm on weekends.</p>
+          <div class="ract"><span>⚑ Report</span></div>
+        </div>
+
+        <div style="text-align:center;padding-top:16px;border-top:1px solid var(--line)">
+          <button class="btn ghost">Show more reviews</button>
+        </div>
+      </div>
+
+      <div class="sec" style="opacity:.5">
+        <div class="seg">↓ Disputes · More halal places nearby (existing sections)</div>
+      </div>
+
+    </div></div>
+  </div>
+
+  <div class="note"><b>Settled: no verifier badge on reviews.</b> Yusuf is a verifier, and the third
+    review is his — but it renders identically to everyone else's. A review is about the whole
+    experience, not just halal status; verifier standing is earned against <i>facts</i> and doesn't
+    transfer to weight of <i>opinion</i>. Verifier attribution stays where it means something precise:
+    the verification history. Every review carries the same weight.</div>
+
+  <div class="cap"><span class="n">C2</span><span class="d">
+    <b>Write a review.</b> Stars, optional visit date, body, up to three photos. No live moderation
+    check while typing — one check on submit, per the plan.
+  </span></div>
+
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">halalfoodnearme.com/places/khan-halal-grill</span></div>
+    <div class="scrim">
+      <div class="dlg">
+        <div class="dh">
+          <h3>Review Khan Halal Grill</h3>
+          <p>Diners rely on these. Describe what you ordered and what you saw.</p>
+        </div>
+        <div class="dc">
+          <div class="seg">Your rating</div>
+          <div class="starpick">★★★★<span class="off">★</span></div>
+
+          <div class="seg" style="margin-top:18px">When did you visit? <span style="text-transform:none;letter-spacing:0;font-weight:600">(optional)</span></div>
+          <div style="border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--sub);display:inline-block">📅 Jul 14, 2026</div>
+
+          <div class="seg" style="margin-top:18px">Your review</div>
+          <textarea class="ta" rows="5">Ordered the mixed grill. Asked about the chicken and they showed me the certificate at the counter without hesitating. Separate fryer for the veg items, which I appreciated.</textarea>
+          <div class="fieldnote"><span>Minimum 20 characters</span><span>187 / 5000</span></div>
+
+          <div class="seg" style="margin-top:18px">Photos <span style="text-transform:none;letter-spacing:0;font-weight:600">(up to 3)</span></div>
+          <div class="adder">
+            <div class="thumb"><b>×</b></div>
+            <div class="slot">+</div>
+          </div>
+          <div class="fieldnote"><span>Location data is stripped from photos automatically.</span><span></span></div>
+        </div>
+        <div class="df">
+          <span class="sml muted">Posts publicly under <b>Mohamad R.</b></span>
+          <div style="display:flex;gap:9px"><button class="btn ghost">Cancel</button><button class="btn primary">Post review</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cap"><span class="n">C3</span><span class="d">
+    <b>Two failure states — the ones most likely to be built badly.</b> Left: moderation rejected the
+    wording. Right: the moderation service itself is down (fail-closed). These read very differently
+    on purpose — one is about the user, one is emphatically not.
+  </span></div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap">
+    <div class="win" style="flex:1;min-width:430px">
+      <div class="titlebar"><i></i><i></i><i></i><span class="url">Rejected — content</span></div>
+      <div class="scrim" style="padding:24px 18px">
+        <div class="dlg" style="max-width:100%">
+          <div class="dh"><h3>Review Khan Halal Grill</h3></div>
+          <div class="dc">
+            <div class="alert bad" style="margin-bottom:14px">
+              <span class="ic">⚠</span>
+              <span><b>This can't be posted as written</b>
+              It contains language our guidelines don't allow (profanity). Edit the wording and try
+              again — strong criticism is welcome, we just need it kept civil.</span>
+            </div>
+            <div class="seg">Your review</div>
+            <textarea class="ta err" rows="4">absolutely ******* disgraceful, the ***** behind the counter lied straight to my face about the meat</textarea>
+            <div class="fieldnote"><span style="color:var(--danger)">Flagged: profanity</span><span>112 / 5000</span></div>
+          </div>
+          <div class="df">
+            <span class="sml muted">Your draft is saved.</span>
+            <button class="btn primary">Post review</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="win" style="flex:1;min-width:430px">
+      <div class="titlebar"><i></i><i></i><i></i><span class="url">Rejected — outage (fail closed)</span></div>
+      <div class="scrim" style="padding:24px 18px">
+        <div class="dlg" style="max-width:100%">
+          <div class="dh"><h3>Review Khan Halal Grill</h3></div>
+          <div class="dc">
+            <div class="alert warn" style="margin-bottom:14px">
+              <span class="ic">↻</span>
+              <span><b>We couldn't run our content check just now</b>
+              That's on us, not your review. Your draft is saved — try posting again in a moment.</span>
+            </div>
+            <div class="seg">Your review</div>
+            <textarea class="ta" rows="4">Ordered the mixed grill. Asked about the chicken and they showed me the certificate at the counter without hesitating.</textarea>
+            <div class="fieldnote"><span>Draft saved locally</span><span>187 / 5000</span></div>
+          </div>
+          <div class="df">
+            <span class="sml muted">Retried twice automatically.</span>
+            <button class="btn primary">Try again</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note"><b>Why these two look so different:</b> a content rejection says "change your
+    words". An outage must never imply we judged the content — the copy explicitly takes the blame,
+    and in both cases the draft survives. Getting the second one wrong (showing "your review was
+    rejected" during an outage) would be the single most infuriating bug in the feature.</div>
+
+  <div class="cap"><span class="n">C4</span><span class="d">
+    <b>Unclaimed place.</b> Nobody can reply because no verified org owns this place yet — which makes
+    the reviews section a conversion surface, not a dead end.
+  </span></div>
+
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">halalfoodnearme.com/places/samarkand-kebab</span></div>
+    <div class="body"><div class="col">
+      <div class="sec">
+        <div class="rev" style="padding-top:0">
+          <div class="rhead">
+            <div class="rav g2">SN</div>
+            <div class="rmeta"><div class="nm">Sana N.</div>
+              <div class="when"><span class="stars">★★<span class="off">★★★</span></span> · 4 days ago</div></div>
+          </div>
+          <p class="rbody">Nobody could tell me where the meat comes from. Three people asked, three
+            shrugs.</p>
+          <div class="ract"><span>⚑ Report</span></div>
+        </div>
+        <div class="alert info" style="margin-top:14px">
+          <span class="ic">🏪</span>
+          <span><b>Own Samarkand Kebab?</b>
+          Claim your restaurant to reply to reviews publicly and add your halal details.
+          <span style="color:var(--primary-deep);font-weight:700;text-decoration:underline">Get verified →</span></span>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <div class="rule"></div>
+  <div class="sect"><span class="tag">Mobile</span><h2>Expo app — place detail &amp; write flow</h2></div>
+
+  <div class="cap"><span class="n">M1–M3</span><span class="d">
+    Same information architecture as the web, compressed. The write flow is a
+    <b>full screen, not a bottom sheet</b> — star pickers and long text are miserable in a sheet.
+  </span></div>
+
+  <div class="phones">
+
+    <div class="phonewrap">
+      <p class="plab"><b>M1 · Place detail, reviews block.</b> Trust Halal's rating leads; Google's is
+        a labeled secondary line rather than a floating star.</p>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>▮▮▮ ⏻</span></div>
+        <div class="mnav"><span class="bk">‹</span><span>Khan Halal Grill</span></div>
+        <div class="mbody">
+          <div class="mcard" style="opacity:.45"><h4>Hours · Trust profile</h4>
+            <div style="font-size:11.5px;color:#7A7A83">Existing sections above</div></div>
+
+          <div class="mseg">Reviews</div>
+          <div class="mcard">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div>
+                <div style="font-size:9.5px;font-weight:800;letter-spacing:.9px;color:#057A55;text-transform:uppercase">Trust Halal</div>
+                <div style="font-size:27px;font-weight:800;letter-spacing:-.6px;line-height:1.1">4.2</div>
+                <div class="stars" style="font-size:12px">★★★★<span class="off">★</span></div>
+                <div style="font-size:10.5px;color:#7A7A83;margin-top:3px">38 reviews</div>
+              </div>
+              <div style="width:1px;height:52px;background:#ECECEF"></div>
+              <div>
+                <div style="font-size:9.5px;font-weight:800;letter-spacing:.9px;color:#7A7A83;text-transform:uppercase">On Google</div>
+                <div style="font-size:19px;font-weight:800;color:#52525B;line-height:1.5">4.5</div>
+                <div style="font-size:10.5px;color:#7A7A83">1,204 ratings</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mcard">
+            <div class="mrow">
+              <div class="mav" style="background:#DBEAFE;color:#1D4ED8">AR</div>
+              <div style="flex:1">
+                <div style="font-size:12.5px;font-weight:700">Aisha R.</div>
+                <div style="font-size:10.5px;color:#7A7A83"><span class="stars" style="font-size:10px">★★★★★</span> · 3d ago</div>
+              </div>
+            </div>
+            <p style="font-size:12.5px;line-height:1.55;margin:9px 0 0;color:#1f2937">Asked about the
+              chicken and the manager brought out the certificate without me even pushing. Zabihah,
+              and they keep the fryers separate.</p>
+            <div style="display:flex;gap:6px;margin-top:9px">
+              <i style="width:52px;height:52px;border-radius:8px;background:linear-gradient(135deg,#e7eae7,#d6dbd7);display:block"></i>
+              <i style="width:52px;height:52px;border-radius:8px;background:linear-gradient(135deg,#e7eae7,#d6dbd7);display:block"></i>
+            </div>
+            <div style="margin:10px 0 0;background:#E6F7F0;border-radius:11px;padding:10px 11px">
+              <div style="font-size:10.5px;font-weight:800;color:#057A55">✓ Response from the owner</div>
+              <p style="margin:5px 0 0;font-size:11.5px;line-height:1.5;color:#14532d">Thank you Aisha —
+                we keep the certificate at the front counter precisely so nobody has to wonder.</p>
+            </div>
+          </div>
+
+          <div class="mcard">
+            <div class="mrow">
+              <div class="mav" style="background:#FCE7F3;color:#BE185D">MK</div>
+              <div style="flex:1">
+                <div style="font-size:12.5px;font-weight:700">Mariam K.</div>
+                <div style="font-size:10.5px;color:#7A7A83"><span class="stars" style="font-size:10px">★★<span class="off">★★★</span></span> · 1w ago</div>
+              </div>
+            </div>
+            <p style="font-size:12.5px;line-height:1.55;margin:9px 0 0;color:#1f2937">Asked twice whether
+              the beef was zabihah and got two different answers…</p>
+          </div>
+        </div>
+        <div class="mfoot"><button class="mbtn">Write a review</button></div>
+      </div></div>
+    </div>
+
+    <div class="phonewrap">
+      <p class="plab"><b>M2 · Write screen.</b> Full screen. Draft persists on-device using the same
+        mechanism file-a-visit already uses.</p>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>▮▮▮ ⏻</span></div>
+        <div class="mnav"><span class="bk">Cancel</span><span style="flex:1">Write a review</span></div>
+        <div class="mbody">
+          <div class="mseg">Your rating</div>
+          <div class="mcard" style="text-align:center;padding:16px">
+            <div style="font-size:33px;letter-spacing:5px;color:#f59e0b">★★★★<span style="color:#DCDFDC">★</span></div>
+            <div style="font-size:11px;color:#7A7A83;margin-top:5px">Tap to rate</div>
+          </div>
+
+          <div class="mseg">Your review</div>
+          <textarea class="mta" rows="7">Ordered the mixed grill. Asked about the chicken and they showed me the certificate at the counter without hesitating. Separate fryer for the veg items.</textarea>
+          <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#7A7A83;margin-top:5px">
+            <span>Min 20 characters</span><span>163 / 5000</span></div>
+
+          <div class="mseg">Photos (up to 3)</div>
+          <div style="display:flex;gap:7px">
+            <div style="width:58px;height:58px;border-radius:10px;background:linear-gradient(135deg,#e7eae7,#d6dbd7);border:1px solid #ECECEF"></div>
+            <div style="width:58px;height:58px;border:1.5px dashed #ECECEF;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#7A7A83;font-size:19px;background:#FAFAFB">+</div>
+          </div>
+        </div>
+        <div class="mfoot"><button class="mbtn">Post review</button></div>
+      </div></div>
+    </div>
+
+    <div class="phonewrap">
+      <p class="plab"><b>M3 · Submit pending + rejected.</b> The check runs on submit, so the button
+        owns the loading state. Rejection keeps every word the user typed.</p>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>▮▮▮ ⏻</span></div>
+        <div class="mnav"><span class="bk">Cancel</span><span style="flex:1">Write a review</span></div>
+        <div class="mbody">
+          <div style="background:#FDE8E8;border:1px solid #FBD5D5;border-radius:12px;padding:11px 12px;margin-top:12px">
+            <div style="font-size:12px;font-weight:800;color:#9B1C1C">⚠ This can't be posted as written</div>
+            <p style="margin:4px 0 0;font-size:11.5px;line-height:1.5;color:#9B1C1C">It contains language
+              our guidelines don't allow (profanity). Edit the wording and try again — strong
+              criticism is welcome, we just need it kept civil.</p>
+          </div>
+
+          <div class="mseg">Your review</div>
+          <textarea class="mta err" rows="6">absolutely ******* disgraceful, the ***** behind the counter lied straight to my face about the meat</textarea>
+          <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-top:5px">
+            <span style="color:#E02424;font-weight:700">Flagged: profanity</span>
+            <span style="color:#7A7A83">112 / 5000</span></div>
+
+          <div class="mseg">Photos (up to 3)</div>
+          <div style="display:flex;gap:7px">
+            <div style="width:58px;height:58px;border-radius:10px;background:linear-gradient(135deg,#e7eae7,#d6dbd7);border:1px solid #ECECEF"></div>
+          </div>
+        </div>
+        <div class="mfoot">
+          <button class="mbtn" disabled><span class="spin"></span>Checking…</button>
+          <div style="text-align:center;font-size:10.5px;color:#7A7A83;margin-top:7px">Draft saved on this device</div>
+        </div>
+      </div></div>
+    </div>
+
+  </div>
+
+  <!-- ==================================================================== -->
+  <div class="rule"></div>
+  <div class="sect"><span class="tag">Owner</span><h2>owner.trusthalal.org</h2></div>
+
+  <div class="cap"><span class="n">O1</span><span class="d">
+    <b>The five-tab moment.</b> Reviews becomes a fifth top-level item with an unreplied badge —
+    the badge is the whole reason a global inbox exists. Desktop handles five comfortably; the
+    mobile bottom bar is the thing to look at hard (O3).
+  </span></div>
+
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org/my-reviews</span></div>
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:30px">
+        <div class="brand"><span class="mark">TH</span> Trust Halal <small style="color:var(--sub);font-weight:500">for owners</small></div>
+        <div class="navlinks">
+          <span>Home</span><span>Organizations</span><span>Places</span><span>Halal Claims</span>
+          <span class="on">Reviews <span class="badge">3</span></span>
+        </div>
+      </div>
+      <div class="avatar">M</div>
+    </div>
+    <div class="body">
+      <h2 style="font-size:22px;margin:0 0 4px;letter-spacing:-.02em">Reviews</h2>
+      <p class="sml muted" style="margin:0 0 18px">Replying publicly — especially to criticism — is the
+        highest-leverage thing you can do here.</p>
+
+      <div class="filters">
+        <span class="fpill on">Needs reply <span class="c">3</span></span>
+        <span class="fpill">All <span class="c">41</span></span>
+        <span class="fpill">Reported <span class="c">1</span></span>
+        <span class="fpill">Khan Halal Grill ▾</span>
+      </div>
+
+      <table>
+        <thead><tr><th style="width:190px">Place</th><th>Review</th><th style="width:110px">Rating</th><th style="width:110px">When</th><th style="width:120px"></th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Khan Halal Grill</b><div class="sml muted">Dearborn, MI</div></td>
+            <td><b>Mariam K.</b><div class="exc">Food was fine but I asked twice whether the beef was
+              zabihah and got two different answers from two staff. That shouldn't be hard to answer…</div></td>
+            <td><span class="stars">★★<span class="off">★★★</span></span></td>
+            <td class="sml muted">1 week ago</td>
+            <td><button class="btn primary sm">Reply</button></td>
+          </tr>
+          <tr>
+            <td><b>Khan Halal Grill</b><div class="sml muted">Dearborn, MI</div></td>
+            <td><b>Sana N.</b> <span class="pill bad">1 report</span><div class="exc">Total rip off,
+              would not go back. Portions are half what they used to be…</div></td>
+            <td><span class="stars">★<span class="off">★★★★</span></span></td>
+            <td class="sml muted">2 weeks ago</td>
+            <td><button class="btn primary sm">Reply</button></td>
+          </tr>
+          <tr>
+            <td><b>Khan Express</b><div class="sml muted">Detroit, MI</div></td>
+            <td><b>Omar F.</b><div class="exc">Great shawarma, fast service, prices went up a bit but
+              still worth it.</div></td>
+            <td><span class="stars">★★★★<span class="off">★</span></span></td>
+            <td class="sml muted">3 weeks ago</td>
+            <td><button class="btn primary sm">Reply</button></td>
+          </tr>
+          <tr style="opacity:.6">
+            <td><b>Khan Halal Grill</b><div class="sml muted">Dearborn, MI</div></td>
+            <td><b>Aisha R.</b><div class="exc">Asked about the chicken and the manager brought out the
+              certificate without me even pushing…</div></td>
+            <td><span class="stars">★★★★★</span></td>
+            <td class="sml muted">3 days ago</td>
+            <td><span class="pill ok">✓ Replied</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="cap"><span class="n">O2</span><span class="d">
+    <b>Reply expands inline</b>, not in a dialog — the point of the inbox is working through several
+    quickly. Note the guidance line: most first-time owners reply defensively, and one sentence of
+    framing measurably changes that.
+  </span></div>
+
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org/my-reviews</span></div>
+    <div class="body">
+      <div class="sec">
+        <div class="rhead">
+          <div class="rav g2">MK</div>
+          <div class="rmeta">
+            <div class="nm">Mariam K. <span class="muted" style="font-weight:500">· Khan Halal Grill</span></div>
+            <div class="when"><span class="stars">★★<span class="off">★★★</span></span> · 1 week ago</div>
+          </div>
+        </div>
+        <p class="rbody">Food was fine but I asked twice whether the beef was zabihah and got two
+          different answers from two staff. That shouldn't be hard to answer. Docking stars until they
+          train the front of house.</p>
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">
+          <div class="alert info" style="margin-bottom:11px">
+            <span class="ic">💡</span>
+            <span>Replies are public and permanent. The ones that work: thank them, state the fact
+              plainly, say what changed. Arguing in public costs you more than the review did.</span>
+          </div>
+          <textarea class="ta" rows="4">You're right and I'm sorry. All beef is zabihah from Al-Safa — the certificate is on this page. We've since put a card at every station so any staff member can answer consistently.</textarea>
+          <div class="fieldnote"><span>Posting publicly as <b>Khan Halal Grill</b></span><span>178 / 3000</span></div>
+          <div style="display:flex;gap:9px;margin-top:12px">
+            <button class="btn primary">Post reply</button>
+            <button class="btn ghost">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cap"><span class="n">O3</span><span class="d">
+    <b>The mobile bottom bar at five tabs.</b> This is the thing to judge before building — the code
+    comments in <span style="font-family:ui-monospace,monospace;font-size:12px">app-shell.tsx</span>
+    explicitly call four the ceiling. Both options drawn.
+  </span></div>
+
+  <div class="phones">
+    <div class="phonewrap">
+      <p class="plab"><b>Option A · five tabs.</b> Labels shrink to fit. "Halal Claims" has to become
+        "Claims", which is a small loss of precision.</p>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>▮▮▮ ⏻</span></div>
+        <div class="mnav"><span style="flex:1">Reviews</span><span style="background:#E02424;color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:2px 7px">3</span></div>
+        <div class="mbody">
+          <div style="display:flex;gap:6px;margin:10px 0 12px">
+            <span style="background:#0B0B0E;color:#fff;border-radius:999px;padding:6px 12px;font-size:11px;font-weight:700">Needs reply 3</span>
+            <span style="background:#fff;border:1px solid #ECECEF;color:#7A7A83;border-radius:999px;padding:6px 12px;font-size:11px;font-weight:700">All</span>
+          </div>
+          <div class="mcard">
+            <div style="font-size:12.5px;font-weight:700">Mariam K. <span style="color:#7A7A83;font-weight:500">· Khan Halal Grill</span></div>
+            <div style="font-size:10.5px;color:#7A7A83;margin-top:2px"><span class="stars" style="font-size:10px">★★<span class="off">★★★</span></span> · 1w ago</div>
+            <p style="font-size:12px;line-height:1.5;margin:8px 0 0;color:#1f2937">Food was fine but I
+              asked twice whether the beef was zabihah and got two different answers…</p>
+            <button class="mbtn" style="padding:9px;font-size:12.5px;margin-top:10px">Reply</button>
+          </div>
+          <div class="mcard">
+            <div style="font-size:12.5px;font-weight:700">Sana N. <span style="color:#7A7A83;font-weight:500">· Khan Halal Grill</span></div>
+            <div style="font-size:10.5px;color:#7A7A83;margin-top:2px"><span class="stars" style="font-size:10px">★<span class="off">★★★★</span></span> · 2w ago</div>
+            <p style="font-size:12px;line-height:1.5;margin:8px 0 0;color:#1f2937">Total rip off, would
+              not go back. Portions are half…</p>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div><span class="ico"></span>Home</div>
+          <div><span class="ico"></span>Orgs</div>
+          <div><span class="ico"></span>Places</div>
+          <div><span class="ico"></span>Claims</div>
+          <div class="on"><span class="ico"></span>Reviews</div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="phonewrap">
+      <p class="plab"><b>Option B · four tabs, Reviews reachable from Home.</b> Keeps the bar
+        comfortable and the labels intact; costs a tap and loses the always-visible unreplied badge.</p>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>▮▮▮ ⏻</span></div>
+        <div class="mnav"><span style="flex:1">Home</span></div>
+        <div class="mbody">
+          <div class="mcard" style="border-color:#0E9F6E;background:#E6F7F0">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <h4 style="color:#057A55">3 reviews need a reply</h4>
+                <div style="font-size:11.5px;color:#057A55;opacity:.85;margin-top:2px">Across 2 restaurants</div>
+              </div>
+              <span style="font-size:19px;color:#057A55">›</span>
+            </div>
+          </div>
+          <div class="mcard" style="opacity:.55"><h4>Khan Halal Grill</h4>
+            <div style="font-size:11.5px;color:#7A7A83">Verified · 4.2 ★ · 38 reviews</div></div>
+          <div class="mcard" style="opacity:.55"><h4>Khan Express</h4>
+            <div style="font-size:11.5px;color:#7A7A83">Under review · 4.6 ★ · 3 reviews</div></div>
+        </div>
+        <div class="tabbar">
+          <div class="on"><span class="ico"></span>Home</div>
+          <div><span class="ico"></span>Organizations</div>
+          <div><span class="ico"></span>Places</div>
+          <div><span class="ico"></span>Halal Claims</div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="note"><b>Settled: Option B.</b> The mobile bottom bar stays at four tabs; Reviews is
+    reached from a badged card on Home. The badge does the same job there as it would on a tab, the
+    labels stay intact, and it respects the ceiling the codebase already documents. Desktop still
+    carries the fifth nav link (O1) where there's room — the two surfaces are allowed to differ.</div>
+
+  <div class="cap"><span class="n">O4</span><span class="d">
+    <b>Reviews tab inside a place.</b> Same list scoped to one restaurant, with that place's summary.
+    This is where an owner with one location will actually live.
+  </span></div>
+
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">owner.trusthalal.org/my-places/khan-halal-grill</span></div>
+    <div class="body">
+      <h2 style="font-size:21px;margin:0 0 3px;letter-spacing:-.02em">Khan Halal Grill</h2>
+      <p class="sml muted" style="margin:0 0 16px">Dearborn, MI · <span class="pill ok">✓ Trust Halal Verified</span></p>
+      <div class="navlinks" style="border-bottom:1px solid var(--line);padding-bottom:11px;margin-bottom:18px">
+        <span>Overview</span><span>Halal profile</span><span>Photos</span>
+        <span class="on" style="padding-bottom:11px">Reviews <span class="badge">2</span></span>
+      </div>
+      <div class="sec">
+        <div class="rathead">
+          <div class="bigrat" style="padding-right:22px">
+            <div class="src">Trust Halal</div><div class="num">4.2</div>
+            <div class="cnt">38 reviews</div>
+          </div>
+          <div class="hist">
+            <div class="hrow"><span>5★</span><span class="bar"><i style="width:55%"></i></span><span>21</span></div>
+            <div class="hrow"><span>4★</span><span class="bar"><i style="width:26%"></i></span><span>10</span></div>
+            <div class="hrow"><span>3★</span><span class="bar"><i style="width:10%"></i></span><span>4</span></div>
+            <div class="hrow"><span>2★</span><span class="bar"><i style="width:5%"></i></span><span>2</span></div>
+            <div class="hrow"><span>1★</span><span class="bar"><i style="width:3%"></i></span><span>1</span></div>
+          </div>
+          <div class="googlebox"><div class="src">On Google</div><div class="num">4.5</div>
+            <div class="cnt">1,204 ratings</div></div>
+        </div>
+      </div>
+      <div class="filters"><span class="fpill on">Needs reply <span class="c">2</span></span>
+        <span class="fpill">All <span class="c">38</span></span><span class="fpill">Reported</span></div>
+      <div class="sec" style="padding:0 22px">
+        <div class="rev">
+          <div class="rhead"><div class="rav g2">MK</div>
+            <div class="rmeta"><div class="nm">Mariam K.</div>
+              <div class="when"><span class="stars">★★<span class="off">★★★</span></span> · 1 week ago</div></div>
+            <button class="btn primary sm">Reply</button></div>
+          <p class="rbody">Food was fine but I asked twice whether the beef was zabihah and got two
+            different answers from two staff…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <div class="rule"></div>
+  <div class="sect"><span class="tag">Admin</span><h2>admin.trusthalal.org — reported reviews</h2></div>
+
+  <div class="cap"><span class="n">A1</span><span class="d">
+    <b>The queue.</b> Structurally a transposition of the existing verification-visits pair: filter
+    pills defaulting to the actionable status, a table, a status badge, clickable rows. Called
+    <b>Reported reviews</b>, never "review queue" — "review" already means staff adjudication
+    everywhere else in this codebase.
+  </span></div>
+
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">admin.trusthalal.org/reported-reviews</span></div>
+    <div class="shell">
+      <div class="sidebar">
+        <div class="brand" style="padding:4px 10px 16px;font-size:14px"><span class="mark" style="width:23px;height:23px;font-size:11px">TH</span> Admin</div>
+        <div class="snav">Dashboard</div>
+        <div class="snav">Places</div>
+        <div class="snav">Halal claims</div>
+        <div class="snav">Ownership requests</div>
+        <div class="snav">Verifier applications</div>
+        <div class="snav">Verification visits</div>
+        <div class="snav">Disputes</div>
+        <div class="snav on">Reported reviews <span class="dot"></span></div>
+        <div class="snav">Organizations</div>
+        <div class="snav">Users</div>
+      </div>
+      <div style="flex:1;padding:24px 26px">
+        <h2 style="font-size:20px;margin:0 0 3px;letter-spacing:-.02em">Reported reviews</h2>
+        <p class="sml muted" style="margin:0 0 16px">Published content flagged by a diner or an owner.</p>
+        <div class="filters">
+          <span class="fpill on">Open <span class="c">4</span></span>
+          <span class="fpill">Upheld</span><span class="fpill">Dismissed</span><span class="fpill">All</span>
+        </div>
+        <table>
+          <thead><tr><th style="width:150px">Place</th><th>Review</th><th style="width:150px">Reason</th><th style="width:82px">Reports</th><th style="width:100px">Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>Samarkand Kebab</b><div class="sml muted">Hamtramck, MI</div></td>
+              <td><b>Anon U.</b> <span class="stars">★<span class="off">★★★★</span></span>
+                <div class="exc">They are knowingly selling haram meat and lying about the
+                  certificate. I have proof. Everyone should avoid…</div></td>
+              <td><span class="pill bad">False info</span><div class="sml muted" style="margin-top:3px">by owner</div></td>
+              <td><b>2</b></td>
+              <td><span class="pill warn">Open</span></td>
+            </tr>
+            <tr>
+              <td><b>Khan Halal Grill</b><div class="sml muted">Dearborn, MI</div></td>
+              <td><b>Sana N.</b> <span class="stars">★<span class="off">★★★★</span></span>
+                <div class="exc">Total rip off, would not go back. Portions are half what they used
+                  to be and the staff were rude…</div></td>
+              <td><span class="pill neutral">Off topic</span><div class="sml muted" style="margin-top:3px">by owner</div></td>
+              <td><b>1</b></td>
+              <td><span class="pill warn">Open</span></td>
+            </tr>
+            <tr>
+              <td><b>Al-Noor Grill</b><div class="sml muted">Chicago, IL</div></td>
+              <td><b>Reply from owner</b>
+                <div class="exc">If you don't like it don't come back, we don't need customers like
+                  you spreading lies…</div></td>
+              <td><span class="pill bad">Harassment</span><div class="sml muted" style="margin-top:3px">by diner</div></td>
+              <td><b>3</b></td>
+              <td><span class="pill warn">Open</span></td>
+            </tr>
+            <tr style="opacity:.6">
+              <td><b>Zaytoun Cafe</b><div class="sml muted">Dearborn, MI</div></td>
+              <td><b>Hassan D.</b> <span class="stars">★★<span class="off">★★★</span></span>
+                <div class="exc">Slow service on a Friday night.</div></td>
+              <td><span class="pill neutral">Spam</span></td>
+              <td><b>1</b></td>
+              <td><span class="pill neutral">Dismissed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="note"><b>Row 3 is the case worth designing for.</b> The reported content is an
+    <i>owner's reply</i>, not a diner's review. Owners behaving badly in public is a real moderation
+    category and the queue has to hold both — which is why replies carry their own status column and
+    reports carry a nullable <span style="font-family:ui-monospace,monospace;font-size:12px">reply_id</span>.
+    <br><br><b>Settled: owners are not exempt from the filter.</b> Reply text runs through the exact
+    same moderation check as review text, at the same thresholds, with the same blocking behavior and
+    the same fail-closed posture. Paying to be on the platform doesn't buy a lower bar for conduct —
+    and an owner swearing at a diner in public does more damage to Trust Halal than the review that
+    provoked it.</div>
+
+  <div class="cap"><span class="n">A2</span><span class="d">
+    <b>Report detail + decision.</b> Sticky bottom decision panel, same as the visits detail page.
+    The decision is one endpoint taking a verdict plus an action, because "this report was valid" and
+    "therefore hide the review" are separate facts — a report can be upheld while the content stays up.
+  </span></div>
+
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">admin.trusthalal.org/reported-reviews/8f3c…</span></div>
+    <div class="body" style="padding:22px 26px 0">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span class="sml muted">‹ Reported reviews</span>
+        <span class="pill warn">Open</span><span class="pill bad">2 reports</span>
+      </div>
+
+      <div class="sec">
+        <div class="seg">The review</div>
+        <div class="rhead">
+          <div class="rav g2">AU</div>
+          <div class="rmeta"><div class="nm">Anon U. <span class="muted sml" style="font-weight:500">· anon@example.com · joined 3 days ago</span></div>
+            <div class="when"><span class="stars">★<span class="off">★★★★</span></span> · posted 2 days ago · Samarkand Kebab</div></div>
+        </div>
+        <p class="rbody">They are knowingly selling haram meat and lying about the certificate. I have
+          proof. Everyone should avoid this place, the owner should be ashamed.</p>
+        <div style="margin-top:12px;display:flex;gap:16px;font-size:12px;color:var(--sub)">
+          <span>Moderation scan: <b style="color:var(--primary-deep)">passed</b> (toxicity 0.31)</span>
+          <span>Author's other reviews: <b>0</b></span>
+          <span>Account age: <b>3 days</b></span>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="seg">Reports</div>
+        <div class="repbox">
+          <div class="rl"><span>False information</span><span>Bilal K. · owner · 2 days ago</span></div>
+          <p>Our certificate is current and on file with you. This person has never eaten here — we
+            have no record and they won't say when they visited. This is a competitor.</p>
+        </div>
+        <div class="repbox">
+          <div class="rl"><span>Harassment</span><span>Fatima S. · diner · 1 day ago</span></div>
+          <p>Accusing a Muslim business of knowingly selling haram without evidence is a serious thing
+            to say. They should have to show the proof they claim to have.</p>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="seg">Context</div>
+        <div class="kv"><b>Place</b><span>Samarkand Kebab · <span class="pill ok">Certificate on file</span> · expires Mar 2027</span></div>
+        <div class="kv"><b>Open disputes</b><span>None</span></div>
+        <div class="kv"><b>Other reviews</b><span>4.4 average across 11 reviews</span></div>
+        <div class="kv"><b>Verifier visits</b><span>1 accepted · Apr 2026</span></div>
+      </div>
+
+      <div class="alert warn" style="margin-bottom:16px">
+        <span class="ic">⚠</span>
+        <span><b>This is a factual claim, not a language problem.</b>
+        The moderation scan passed — nothing here is profane. Whether it's defamatory depends
+        entirely on whether it's true, which is a judgment call only a human can make. Weigh the
+        claim on its evidence: an unsupported accusation from a 3-day-old account with no other
+        activity is not the same as a detailed account from an established reviewer.</span>
+      </div>
+      <div class="alert info" style="margin-bottom:16px">
+        <span class="ic">🛈</span>
+        <span><b>Admins do not open disputes.</b> If this claim deserves investigation, that's the
+        author's call to make, not ours. Filing on someone's behalf would put Trust Halal's name on
+        an accusation a diner made — the dispute record has to stay the consumer's own. Removal
+        emails can point them at the dispute flow; they choose whether to use it.</span>
+      </div>
+    </div>
+
+    <div class="sticky">
+      <div class="sml muted">Deciding as <b>Mohamad R.</b> · the author is notified either way</div>
+      <div style="display:flex;gap:9px">
+        <button class="btn ghost">Dismiss reports</button>
+        <button class="btn ghost">Hide (reversible)</button>
+        <button class="btn danger">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cap"><span class="n">A3</span><span class="d">
+    <b>Removal dialog.</b> The note is required and it is <i>shown to the author</i> — so it's written
+    for them, not as an internal memo. This mirrors the required-decision-note rule the visits module
+    already enforces server-side.
+  </span></div>
+
+  <div class="win">
+    <div class="titlebar"><i></i><i></i><i></i><span class="url">Remove review</span></div>
+    <div class="scrim">
+      <div class="dlg">
+        <div class="dh"><h3>Remove this review</h3>
+          <p>Permanent. The review comes down, the place's rating recalculates, and the author is
+            emailed your reason.</p></div>
+        <div class="dc">
+          <div class="seg">Reason shown to the author</div>
+          <textarea class="ta" rows="4">We removed this review because it states as fact that the restaurant knowingly sells haram meat, without evidence. If you have documentation, please file a dispute and we will investigate it properly.</textarea>
+          <div class="fieldnote"><span>Required · minimum 3 characters</span><span>212</span></div>
+          <div class="alert info" style="margin-top:14px">
+            <span class="ic">✉</span>
+            <span>The author sees this in full. Write it to them.</span>
+          </div>
+        </div>
+        <div class="df">
+          <span class="sml muted">Rating recalculates immediately.</span>
+          <div style="display:flex;gap:9px"><button class="btn ghost">Cancel</button><button class="btn danger">Remove review</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <div class="rule"></div>
+  <div class="sect"><span class="tag">Open</span><h2>Decisions these mockups surface</h2></div>
+
+  <div class="body" style="padding-left:0">
+    <div class="sec" style="max-width:880px">
+      <div class="seg">Settled in review</div>
+      <p style="font-size:13.5px;line-height:1.7;margin:0 0 18px;color:#1f2937">
+        <b>✓ No verifier badge on reviews.</b> Every review carries equal weight; verifier standing
+        stays in the verification history.<br>
+        <b>✓ Owner mobile nav: four tabs.</b> Reviews reached from a badged Home card. Desktop keeps
+        the fifth nav link.<br>
+        <b>✓ Owner replies pass the same profanity filter as reviews.</b> Same thresholds, same
+        blocking, same fail-closed posture. No exemption.<br>
+        <b>✓ Removal reasons are sent to the author</b>, written to them rather than as an internal note.
+      </p>
+      <div class="seg">Settled in round two</div>
+      <p style="font-size:13.5px;line-height:1.7;margin:0 0 18px;color:#1f2937">
+        <b>✓ Admins never open disputes.</b> Removed from A2. Filing an accusation on a diner's behalf
+        would put Trust Halal's name on their claim — that record stays the consumer's own.<br>
+        <b>✓ Email confirmation required before posting.</b> Guests can't review; neither can an
+        unconfirmed account. Phone verification rejected — see the plan for why.<br>
+        <b>✓ Sort: Most recent / Highest first / Lowest first.</b> Drawn in C1.
+      </p>
+      <div class="seg">New prerequisite this surfaced</div>
+      <p style="font-size:13.5px;line-height:1.7;margin:0;color:#1f2937">
+        <b>Email verification does not exist in the platform today.</b> Signup creates the account and
+        logs you straight in — the signup docstring says so explicitly. Requiring a confirmed address
+        before reviewing means building email verification in <span style="font-family:ui-monospace,monospace;font-size:12px">auth</span>
+        first: a nullable <span style="font-family:ui-monospace,monospace;font-size:12px">users.email_verified_at</span>,
+        a third <span style="font-family:ui-monospace,monospace;font-size:12px">purpose</span> on the
+        existing invite-token table, a template pair, and two endpoints. The machinery is already
+        there and was written with this in mind, but it's a real step-zero that lands before any
+        review code.
+      </p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
