@@ -121,8 +121,8 @@ class SupabaseStorageClient:
                             returning a short-lived URL the admin
                             panel can hand to a download click.
       * ``delete_object`` — DELETE /storage/v1/object/{bucket}/{path}.
-                            Used by the cleanup-orphans path; not
-                            wired into the live request flow yet.
+                            Used by the orphan sweeper; idempotent, see
+                            the method for why that matters.
 
     The service-role key bypasses RLS, so the bucket itself can stay
     locked down — public reads/writes are off, only this server-side
@@ -263,12 +263,25 @@ class SupabaseStorageClient:
             ) from exc
 
     def delete_object(self, path: str) -> None:
+        """Remove an object. Idempotent: already-gone counts as success.
+
+        Supabase answers a delete for a nonexistent key with a 400 whose
+        body message is "Object not found". Treating that as an error would
+        make retry loops unwinnable — the orphan sweeper would re-attempt the
+        same missing path forever, and a job interrupted mid-drain could never
+        be safely re-run. The caller asked for the object to not exist; it
+        doesn't exist. Every other 4xx/5xx still raises.
+        """
         try:
             resp = httpx.delete(
                 self._api_url("", path),
                 headers=self._auth_headers(),
                 timeout=self.timeout_s,
             )
+            if resp.status_code in (400, 404):
+                detail = _extract_supabase_detail(resp)
+                if "not found" in detail.lower():
+                    return
             resp.raise_for_status()
         except httpx.HTTPError as exc:
             raise StorageError(f"Object storage delete failed: {exc}") from exc

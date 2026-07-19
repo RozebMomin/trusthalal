@@ -215,8 +215,10 @@ def soft_delete_photo(
 ) -> None:
     """Mark a photo deleted in place. The bytes stay in the bucket
     (no immediate hard delete) so admin restore is just unsetting
-    ``deleted_at``. A future cleanup job can purge orphaned bucket
-    objects.
+    ``deleted_at``. The ``purge_storage_orphans`` data-ops job collects
+    them once they're past its retention window — which is the point at
+    which restore stops being possible, so that window is the real
+    undo horizon, not this flag.
 
     Also clears ``is_hero`` so the partial unique index doesn't
     interfere with a future replacement upload that wants to be the

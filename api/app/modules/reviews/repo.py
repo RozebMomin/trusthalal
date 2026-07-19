@@ -25,8 +25,10 @@ from app.core.exceptions import (
     ForbiddenError,
     NotFoundError,
 )
+from app.core.config import settings
 from app.modules.organizations.models import OrganizationMember, PlaceOwner
-from app.modules.places.models import Place
+from app.modules.places.models import Place, PlacePhoto
+from app.modules.places.photos.storage_cleanup import enqueue_orphans
 from app.modules.reviews.enums import (
     PlaceReviewStatus,
     ReviewReportStatus,
@@ -331,8 +333,28 @@ def delete_review(db: Session, *, review: PlaceReview) -> UUID:
     Hard rather than soft: these are the author's own words and they're
     entitled to withdraw them. The reply, photos, and reports cascade. Admin
     moderation uses status instead, because *that* needs an audit trail.
+
+    The photo rows cascade at the *database* level, which means no application
+    code runs and the storage paths become unrecoverable the instant the delete
+    lands. So the paths are read and queued for the bucket sweeper first —
+    reordering these two statements silently reintroduces the leak.
     """
     place_id = review.place_id
+
+    orphaned_paths = (
+        db.execute(
+            select(PlacePhoto.storage_path).where(PlacePhoto.review_id == review.id)
+        )
+        .scalars()
+        .all()
+    )
+    enqueue_orphans(
+        db,
+        bucket=settings.SUPABASE_PHOTOS_BUCKET,
+        storage_paths=orphaned_paths,
+        reason="review_deleted",
+    )
+
     db.delete(review)
     db.flush()
     recompute_place_review_stats(db, place_id=place_id)

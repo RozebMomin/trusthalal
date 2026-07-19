@@ -31,6 +31,10 @@ from app.modules.places.models import (
     PlacePhoto,
 )
 from app.modules.places.photos.processor import process_image
+from app.modules.places.photos.storage_cleanup import (
+    StorageOrphan,
+    enqueue_orphans,
+)
 
 from ops import jobsdb
 from ops.google_photos import fetch_place_hero_photo
@@ -358,9 +362,143 @@ def run_sync_google_data(job_id: str, params: dict[str, Any]) -> dict:
     }
 
 
+def run_purge_storage_orphans(job_id: str, params: dict[str, Any]) -> dict:
+    """Delete bucket objects that no longer belong to any live photo.
+
+    params: { retention_days?: int = 30, limit?: int = 500,
+              dry_run?: bool = true, throttle_seconds?: float }
+
+    Two phases, because there are two ways bytes get stranded:
+
+    **Phase 1 — retire expired soft deletes.** ``soft_delete_photo`` sets
+    ``deleted_at`` and keeps the object so admin restore is a one-column
+    update. Past ``retention_days`` that restore isn't coming, so the row's
+    path moves to the outbox and the row itself goes. The row has to go with
+    it: a surviving row pointing at deleted bytes would render as a broken
+    image the moment anyone un-deleted it.
+
+    **Phase 2 — drain the outbox.** ``storage_orphans`` rows come from here,
+    from review deletion (where a DB-level cascade takes the photo rows before
+    any application code can read them), and from upload failures that wrote
+    bytes but not a row. Delete the object, stamp ``purged_at``.
+
+    Failures are recorded in ``purge_error`` and left pending, so a transient
+    storage outage self-heals on the next run. The flip side is that a
+    permanently unresolvable path retries forever — visible as a row whose
+    ``created_at`` is old and whose ``purge_error`` keeps changing, which is
+    the intended way to notice it.
+
+    Deletion is idempotent on the Supabase side: removing an object that isn't
+    there is not an error, so a job interrupted mid-drain is safe to re-run.
+    """
+    retention_days = int(params.get("retention_days", 30))
+    limit = int(params.get("limit", 500))
+    dry_run = bool(params.get("dry_run", True))
+    throttle = float(params.get("throttle_seconds", 0))
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+
+    retired = 0
+    purged = 0
+    errors: list[dict] = []
+
+    db = SessionLocal()
+    storage = get_photos_storage_client()
+    try:
+        # ---- Phase 1: expired soft deletes -> outbox ----
+        expired = list(
+            db.execute(
+                select(PlacePhoto)
+                .where(PlacePhoto.deleted_at.is_not(None))
+                .where(PlacePhoto.deleted_at < cutoff)
+                .order_by(PlacePhoto.deleted_at)
+                .limit(limit)
+            )
+            .scalars()
+            .all()
+        )
+        jobsdb.add_log(
+            job_id,
+            f"{'DRY RUN — ' if dry_run else ''}{len(expired)} photo(s) "
+            f"soft-deleted before {cutoff.date()} (retention {retention_days}d).",
+        )
+        if not dry_run and expired:
+            enqueue_orphans(
+                db,
+                bucket=storage.bucket,
+                storage_paths=[p.storage_path for p in expired],
+                reason="soft_delete_expired",
+            )
+            for photo in expired:
+                db.delete(photo)
+            db.commit()
+            retired = len(expired)
+            jobsdb.add_log(job_id, f"retired {retired} expired soft-deleted row(s)")
+
+        # ---- Phase 2: drain the outbox ----
+        pending = list(
+            db.execute(
+                select(StorageOrphan)
+                .where(StorageOrphan.purged_at.is_(None))
+                .order_by(StorageOrphan.created_at)
+                .limit(limit)
+            )
+            .scalars()
+            .all()
+        )
+        jobsdb.set_total(job_id, len(pending))
+        jobsdb.add_log(job_id, f"{len(pending)} object(s) pending deletion.")
+
+        for orphan in pending:
+            try:
+                if dry_run:
+                    jobsdb.add_log(
+                        job_id,
+                        f"[dry-run] would delete {orphan.bucket}/"
+                        f"{orphan.storage_path} ({orphan.reason})",
+                    )
+                else:
+                    storage.delete_object(orphan.storage_path)
+                    orphan.purged_at = datetime.now(timezone.utc)
+                    orphan.purge_error = None
+                    db.add(orphan)
+                    db.commit()
+                    purged += 1
+                    jobsdb.add_log(job_id, f"deleted {orphan.storage_path}")
+            except Exception as exc:
+                db.rollback()
+                errors.append(
+                    {"storage_path": orphan.storage_path, "error": str(exc)}
+                )
+                jobsdb.add_log(job_id, f"ERROR {orphan.storage_path}: {exc}")
+                # Record the failure without clearing the row — it stays
+                # pending and gets another attempt next run.
+                try:
+                    orphan.purge_error = str(exc)[:2000]
+                    db.add(orphan)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            finally:
+                jobsdb.bump_done(job_id, 1)
+                if throttle:
+                    time.sleep(throttle)
+    finally:
+        db.close()
+
+    return {
+        "dry_run": dry_run,
+        "retention_days": retention_days,
+        "soft_deletes_retired": retired,
+        "objects_purged": purged,
+        "errors": errors,
+    }
+
+
 # Registry of runnable job kinds. Add new ops here.
 JOB_KINDS: dict[str, Callable[[str, dict[str, Any]], dict]] = {
     "backfill_field": run_backfill_field,
     "import_google_hero": run_import_google_hero,
     "sync_google_data": run_sync_google_data,
+    "purge_storage_orphans": run_purge_storage_orphans,
 }

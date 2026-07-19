@@ -56,3 +56,6 @@ from app.modules.reviews.models import (  # noqa: F401
 from app.modules.places.photos.reports import (  # noqa: F401
     PlacePhotoReport,
 )
+from app.modules.places.photos.storage_cleanup import (  # noqa: F401
+    StorageOrphan,
+)

@@ -157,6 +157,37 @@
   </div>
 
   <div class="card">
+    <h2>Purge orphaned storage objects</h2>
+    <div class="row">
+      <div>
+        <label>Retention (days)</label>
+        <input id="p_retention" type="number" min="1" value="30" />
+      </div>
+      <div>
+        <label>Limit per phase</label>
+        <input id="p_limit" type="number" min="1" value="500" />
+      </div>
+      <div>
+        <label>Throttle (s)</label>
+        <input id="p_throttle" type="number" min="0" step="0.1" value="0" />
+      </div>
+      <div class="check" style="flex:0 0 auto; padding-bottom:8px;">
+        <input id="p_dryrun" type="checkbox" checked />
+        <label for="p_dryrun" style="margin:0;">Dry run</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button onclick="enqueuePurge()">Run purge</button>
+    </div>
+    <p class="hint">Deletes bucket objects that no longer belong to a live photo. Two phases:
+      soft-deleted photos older than <em>Retention</em> lose their restore window and are retired,
+      then the <code>storage_orphans</code> outbox is drained — which also covers photos whose rows
+      vanished via cascade when a diner deleted a review. <strong>Retention is the only thing
+      standing between an admin-deleted photo and permanent loss</strong>, so don't shorten it
+      casually. Failures stay pending and retry next run.</p>
+  </div>
+
+  <div class="card">
     <div style="display:flex; align-items:center; justify-content:space-between;">
       <h2 style="margin:0;">Jobs</h2>
       <button class="ghost" onclick="clearFinished()">Clear finished</button>
@@ -281,6 +312,29 @@ async function enqueueSync() {
   refresh();
 }
 
+function purgeParams() {
+  const p = { dry_run: $("p_dryrun").checked };
+  const ret = $("p_retention").value.trim();
+  if (ret) p.retention_days = parseInt(ret, 10);
+  const lim = $("p_limit").value.trim();
+  if (lim) p.limit = parseInt(lim, 10);
+  const th = $("p_throttle").value.trim();
+  if (th !== "") p.throttle_seconds = parseFloat(th);
+  return p;
+}
+
+async function enqueuePurge() {
+  const p = purgeParams();
+  if (!p.dry_run && !confirm("Permanently delete these objects from production storage? This cannot be undone.")) return;
+  const r = await fetch("/api/jobs", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind: "purge_storage_orphans", params: p }),
+  });
+  const d = await r.json();
+  if (!r.ok) { alert(d.detail || "error"); return; }
+  refresh();
+}
+
 function statusTag(s) { return `<span class="tag s-${s}">${s}</span>`; }
 function esc(x) { return (x ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
@@ -313,6 +367,8 @@ async function refresh() {
         result = `<code>${dry}imported ${rr.imported ?? 0} · no-photo ${rr.no_photo ?? 0} · err ${errs}</code>`;
       } else if (j.kind === "sync_google_data") {
         result = `<code>${dry}synced ${rr.synced ?? 0} · err ${errs}</code>`;
+      } else if (j.kind === "purge_storage_orphans") {
+        result = `<code>${dry}purged ${rr.objects_purged ?? 0} · retired ${rr.soft_deletes_retired ?? 0} · err ${errs}</code>`;
       } else {
         result = `<code>${dry}upd ${rr.updated ?? 0} · unchg ${rr.unchanged ?? 0} · err ${errs}</code>`;
       }

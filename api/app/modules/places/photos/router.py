@@ -25,11 +25,12 @@ The pipeline order on upload is critical:
   4. Bucket write. Network round-trip.
   5. DB row insert.
 
-If step 5 fails after step 4 succeeded, the bucket gets an
-orphaned object. Acceptable trade-off in alpha — a future cleanup
-job can scan for storage paths not referenced by a row. Worse
-alternative is the inverse (DB row pointing at non-existent
-bytes) which would render as a broken image to consumers.
+The ordering is deliberate and the inverse would be worse: a DB row
+pointing at bytes that were never written renders as a broken image
+to consumers, where the failure in this direction is invisible. If
+step 5 fails after step 4 succeeded the object is recorded in the
+``storage_orphans`` outbox and swept later — see
+``photos/storage_cleanup.py``.
 """
 
 from __future__ import annotations
@@ -99,6 +100,7 @@ from app.modules.places.photos.safesearch import (
     SafeSearchError,
     get_safesearch_client,
 )
+from app.modules.places.photos.storage_cleanup import enqueue_orphans
 from app.modules.places.schemas import PlacePhotoRead, PlacePhotoUpdate
 from app.modules.users.enums import UserRole
 from app.modules.users.models import User
@@ -454,7 +456,26 @@ def upload_place_photo(
         is_hero=auto_hero,
     )
     db.add(photo)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        # Step 5 failed after step 4 already wrote the bytes. Roll back the
+        # failed transaction, then record the object in the orphan outbox on a
+        # clean one so the sweeper collects it. Best-effort by design: if even
+        # the outbox write fails, surface the original error rather than
+        # masking an upload failure with a bookkeeping failure.
+        db.rollback()
+        try:
+            enqueue_orphans(
+                db,
+                bucket=storage.bucket,
+                storage_paths=[storage_path],
+                reason="upload_row_failed",
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+        raise
     db.refresh(photo)
 
     # ``CurrentUser`` is a thin {id, role} record — display_name lives

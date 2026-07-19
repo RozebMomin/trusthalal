@@ -58,6 +58,28 @@ browser ──▶ ops-api ──enqueue──▶ jobs-db ──claim (FOR UPDATE
 - The Jobs table polls every 2s: status, progress bar, result summary
   (`upd / unchg / err`), and expandable per-job logs.
 
+## Purging orphaned storage objects
+
+A photo is a database row plus bytes in a bucket, and the two can't be removed
+atomically. `purge_storage_orphans` is what closes the gap, in two phases:
+
+1. **Retire expired soft deletes.** Deleting a photo through the admin or owner
+   UI only sets `deleted_at`, so a restore is a one-column update. Past
+   `retention_days` (default 30) that restore isn't coming — the row's storage
+   path moves to the outbox and the row goes with it.
+2. **Drain the `storage_orphans` outbox.** Rows land there from phase 1, from
+   review deletion (the photo rows cascade away at the database level, so the
+   paths have to be recorded *before* the delete or they're unrecoverable), and
+   from uploads that wrote bytes but failed to write a row.
+
+Run it on a slow cadence — weekly is plenty. Failed deletes stay pending with
+the error in `purge_error` and retry next run, so a storage outage self-heals.
+A row whose `created_at` is old and whose `purge_error` keeps changing is the
+signal that something needs a human.
+
+**Retention is the real undo horizon for a deleted photo**, not the `deleted_at`
+flag. Shortening it shortens how long a mistaken takedown can be reversed.
+
 ## Adding a new operation
 
 1. Write a `run_<kind>(job_id, params) -> dict` in `ops/runners.py` using the

@@ -730,6 +730,64 @@ def test_deleting_the_last_review_clears_the_rating_entirely(
     assert refreshed.review_rating_avg is None
 
 
+def test_deleting_a_review_queues_its_photos_for_bucket_deletion(
+    api, db_session, verified_user, place, moderator
+):
+    """The photo rows cascade away at the *database* level, which means no
+    application code runs and the storage paths are unrecoverable the instant
+    the delete lands. Unless they're read first, the bytes stay in the bucket
+    forever with nothing left pointing at them.
+
+    This is the ordinary case, not an error path: it happens every time a
+    diner withdraws a review that had photos.
+    """
+    from app.modules.places.models import PlacePhoto
+    from app.modules.places.photos.storage_cleanup import StorageOrphan
+
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, place.id).json()["id"]
+
+    path = f"{place.id}/{uuid4()}.jpg"
+    db_session.add(
+        PlacePhoto(
+            place_id=place.id,
+            review_id=review_id,
+            uploaded_by_user_id=verified_user.id,
+            source="CONSUMER",
+            storage_path=path,
+            content_type="image/jpeg",
+            size_bytes=1234,
+        )
+    )
+    db_session.commit()
+
+    assert api_author.delete(f"/me/reviews/{review_id}").status_code == 204
+
+    db_session.expire_all()
+    # The row is gone (cascade) ...
+    assert db_session.execute(select(PlacePhoto)).scalars().all() == []
+    # ... and the object it pointed at is queued for the sweeper.
+    orphans = db_session.execute(select(StorageOrphan)).scalars().all()
+    assert [o.storage_path for o in orphans] == [path]
+    assert orphans[0].reason == "review_deleted"
+    assert orphans[0].purged_at is None
+
+
+def test_deleting_a_review_without_photos_queues_nothing(
+    api, db_session, verified_user, place, moderator
+):
+    """The outbox is a work queue an operator reads. Filling it with empty
+    rows on every delete would make a real leak harder to spot."""
+    from app.modules.places.photos.storage_cleanup import StorageOrphan
+
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, place.id).json()["id"]
+    api_author.delete(f"/me/reviews/{review_id}")
+
+    db_session.expire_all()
+    assert db_session.execute(select(StorageOrphan)).scalars().all() == []
+
+
 def test_deleted_review_leaves_the_admin_queue_intact(
     api, db_session, factories, verified_user, place, moderator
 ):
