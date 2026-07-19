@@ -1318,3 +1318,45 @@ def test_owner_inbox_can_filter_to_reported_reviews(
     listed = api.as_user(owner.id).get("/me/place-reviews?has_report=true").json()
     assert [x["id"] for x in listed["items"]] == [reported_id]
     assert listed["items"][0]["open_report_count"] == 1
+
+
+def test_stale_reply_flag_compares_timestamps_from_one_clock(
+    api, db_session, verified_user, owned_place, moderator
+):
+    """Regression: the reply's created_at must not come from the database
+    clock while the review's edited_at comes from the application's.
+
+    Two ways that bites. Postgres ``now()`` is TRANSACTION start time, so
+    inside the test harness — one outer transaction per test — every
+    server-side default collapses to the moment the test began and any
+    later application timestamp looks newer. And in production they're
+    different machines: a few tens of milliseconds of NTP skew with the API
+    host ahead is enough to record an edit that happened *before* a reply as
+    after it, which publicly accuses a diner of rewriting their review to
+    strand the owner's response.
+
+    Asserts the ordering directly rather than through the API so it fails on
+    the clock mismatch rather than on how fast two HTTP calls happened to
+    run.
+    """
+    from app.modules.reviews.models import PlaceReviewReply
+
+    p, owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, p.id).json()["id"]
+    api_author.patch(f"/me/reviews/{review_id}", json={"rating": 4})
+    _reply(api, owner.id, review_id)
+
+    db_session.expire_all()
+    review = db_session.execute(
+        select(PlaceReview).where(PlaceReview.id == review_id)
+    ).scalar_one()
+    reply = db_session.execute(
+        select(PlaceReviewReply).where(PlaceReviewReply.review_id == review_id)
+    ).scalar_one()
+
+    assert review.edited_at is not None
+    assert reply.created_at > review.edited_at, (
+        "The reply was written after the edit but carries an earlier "
+        "timestamp — the two are being read from different clocks."
+    )

@@ -20,7 +20,7 @@ same transaction as any change that could move the number.
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 import sqlalchemy as sa
@@ -227,8 +227,31 @@ class PlaceReviewReply(Base):
     edited_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Python-side default, not just the server one — these two timestamps get
+    # COMPARED against ``PlaceReview.edited_at`` to decide whether a reply is
+    # answering text that has since changed (see ``was_edited_after_reply``),
+    # and that comparison is only meaningful if both come from the same clock.
+    #
+    # ``edited_at`` is written by the application, so a server_default here
+    # would put the two on different clocks:
+    #
+    #   * Postgres ``now()`` is TRANSACTION start time, not statement time.
+    #     Inside the test harness — one outer transaction per test — every
+    #     server-side timestamp collapses to the moment the test began, so an
+    #     edit made before a reply reliably looked later than it.
+    #   * In production they're different machines. NTP skew of a few tens of
+    #     milliseconds between the API host and the database is ordinary, and
+    #     if the API clock runs ahead, an edit that happened *before* a reply
+    #     is recorded as after it — publicly telling readers the diner
+    #     rewrote their review to strand the owner's response, when they
+    #     didn't. A false accusation is a worse failure than a missed flag.
+    #
+    # server_default stays for rows inserted outside the ORM.
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
