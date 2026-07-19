@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Sequence
 from uuid import UUID
 
 from geoalchemy2.elements import WKTElement
-from sqlalchemy import or_, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Select
 
@@ -473,3 +473,210 @@ def search_nearby(
     stmt = stmt.params(lat=lat, lng=lng, radius_m=radius_m)
     stmt = stmt.limit(limit).offset(offset)
     return [(p, hp) for p, hp in db.execute(stmt).all()]
+
+# ---------------------------------------------------------------------------
+# Empty-search diagnostics
+# ---------------------------------------------------------------------------
+# A zero-result search on a catalogue this size is nearly always one filter
+# away from something. "Nothing matched, try removing a filter" makes the
+# person guess which one; naming it with a count doesn't.
+#
+# Every count below runs through the SAME query builders as the real search.
+# Re-implementing the predicates in Python would be faster to write and would
+# eventually drift, and the failure mode of drift here is telling someone
+# "remove this and you'll see 4 places" and then showing them zero — which is
+# worse than saying nothing.
+
+#: Field name on ``HalalSearchFilters`` → the query param a client would clear.
+#: Keys are returned to the client; the label is deliberately NOT, because the
+#: API stays neutral about how each surface words its own filter chips.
+RELAXABLE_FILTERS: tuple[str, ...] = (
+    "min_validation_tier",
+    "min_menu_posture",
+    "has_certification",
+    "no_pork",
+    "no_alcohol_served",
+    "chicken_slaughter",
+    "beef_slaughter",
+    "lamb_slaughter",
+    "goat_slaughter",
+)
+
+
+def _active_filter_fields(filters: HalalSearchFilters) -> list[str]:
+    """Which relaxable filters the caller actually set."""
+    active: list[str] = []
+    for field in RELAXABLE_FILTERS:
+        value = getattr(filters, field)
+        if value is None:
+            continue
+        # Sequence fields are "set" only when non-empty; booleans only when
+        # True (has_certification=False means "don't care", not "must lack").
+        if isinstance(value, (list, tuple)) and not value:
+            continue
+        if value is False:
+            continue
+        active.append(field)
+    return active
+
+
+def _without(filters: HalalSearchFilters, field: str) -> HalalSearchFilters:
+    """A copy with one filter cleared, using that field's own empty value."""
+    current = getattr(filters, field)
+    empty = () if isinstance(current, (list, tuple)) else None
+    return replace(filters, **{field: empty})
+
+
+def count_matches(
+    db: Session,
+    *,
+    q: str | None = None,
+    lat: float | None = None,
+    lng: float | None = None,
+    radius_m: int | None = None,
+    halal_filters: HalalSearchFilters | None = None,
+    cuisines: Sequence[Cuisine] = (),
+) -> int:
+    """How many places a search WOULD return, ignoring paging.
+
+    Shares ``_apply_halal_filters`` / ``_apply_cuisine_filter`` with the real
+    search functions so a count can never disagree with the list it describes.
+    """
+    stmt = select(func.count(func.distinct(Place.id))).select_from(Place).where(
+        Place.is_deleted.is_(False)
+    )
+
+    if q and q.strip():
+        # Escaped exactly as ``search_by_text`` does. An unescaped ``%`` here
+        # would match everything while the real search matched nothing, so
+        # the count would contradict the list it's supposed to explain —
+        # precisely the drift this function exists to avoid.
+        needle = f"%{escape_like(q.strip())}%"
+        stmt = stmt.where(
+            or_(
+                Place.name.ilike(needle, escape=LIKE_ESCAPE),
+                Place.address.ilike(needle, escape=LIKE_ESCAPE),
+                Place.city.ilike(needle, escape=LIKE_ESCAPE),
+            )
+        )
+
+    if lat is not None and lng is not None and radius_m is not None:
+        stmt = stmt.where(
+            text(
+                "ST_DWithin("
+                "app.places.geom::geography, "
+                "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, "
+                ":radius_m"
+                ")"
+            )
+        ).params(lat=lat, lng=lng, radius_m=radius_m)
+
+    if halal_filters is not None and not halal_filters.is_empty():
+        stmt = _apply_halal_filters(stmt, halal_filters)
+
+    stmt = _apply_cuisine_filter(stmt, cuisines)
+    return int(db.execute(stmt).scalar_one())
+
+
+@dataclass(frozen=True)
+class SearchRelaxation:
+    """One change the caller could make, and what it would get them."""
+
+    field: str
+    count_if_removed: int
+
+
+@dataclass(frozen=True)
+class SearchDiagnostics:
+    total_in_area: int
+    """Places in range at all, before any halal or cuisine filtering. Zero
+    means the catalogue simply doesn't cover here yet — a different problem
+    from a filter being too strict, and it needs different words."""
+
+    single_filter_relaxations: list[SearchRelaxation]
+    """Filters that are individually responsible: clear any one and you get
+    results. Empty when several filters overlap, in which case no single
+    change helps and the honest advice is ``without_halal_filters``."""
+
+    without_halal_filters: int
+    without_cuisines: int
+    wider_radius_m: int | None
+    wider_radius_count: int | None
+
+
+def diagnose_empty_search(
+    db: Session,
+    *,
+    q: str | None = None,
+    lat: float | None = None,
+    lng: float | None = None,
+    radius_m: int | None = None,
+    halal_filters: HalalSearchFilters | None = None,
+    cuisines: Sequence[Cuisine] = (),
+    wider_radius_m: int | None = None,
+) -> SearchDiagnostics:
+    """Work out why a search came back empty and what would fix it.
+
+    Costs one COUNT per active filter plus a few extras — all indexed, and
+    only ever run when a search already returned nothing, so the expensive
+    case is the one where the user is otherwise stuck staring at a dead end.
+    """
+    filters = halal_filters or HalalSearchFilters()
+
+    geo = {"lat": lat, "lng": lng, "radius_m": radius_m}
+
+    total_in_area = count_matches(db, q=q, **geo)
+
+    relaxations: list[SearchRelaxation] = []
+    # Only meaningful if there's anything in range to un-filter. When the area
+    # is empty, every "remove this filter" count is zero and suggesting one
+    # would send the person round in a circle.
+    if total_in_area > 0:
+        for field in _active_filter_fields(filters):
+            count = count_matches(
+                db,
+                q=q,
+                **geo,
+                halal_filters=_without(filters, field),
+                cuisines=cuisines,
+            )
+            if count > 0:
+                relaxations.append(SearchRelaxation(field=field, count_if_removed=count))
+        # Most productive change first — if one relaxation opens up six places
+        # and another opens one, lead with the six.
+        relaxations.sort(key=lambda r: r.count_if_removed, reverse=True)
+
+    without_halal = (
+        count_matches(db, q=q, **geo, cuisines=cuisines) if total_in_area > 0 else 0
+    )
+    without_cuisines = (
+        count_matches(db, q=q, **geo, halal_filters=filters)
+        if (cuisines and total_in_area > 0)
+        else 0
+    )
+
+    wider_count: int | None = None
+    if (
+        wider_radius_m is not None
+        and radius_m is not None
+        and wider_radius_m > radius_m
+        and lat is not None
+    ):
+        wider_count = count_matches(
+            db,
+            q=q,
+            lat=lat,
+            lng=lng,
+            radius_m=wider_radius_m,
+            halal_filters=filters,
+            cuisines=cuisines,
+        )
+
+    return SearchDiagnostics(
+        total_in_area=total_in_area,
+        single_filter_relaxations=relaxations,
+        without_halal_filters=without_halal,
+        without_cuisines=without_cuisines,
+        wider_radius_m=wider_radius_m if wider_count is not None else None,
+        wider_radius_count=wider_count,
+    )

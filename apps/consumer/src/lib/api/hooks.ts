@@ -377,6 +377,60 @@ export type PlaceReviewListResponse = {
   my_review_id: string | null;
 };
 
+/** One filter that is individually responsible for an empty result set. */
+export type SearchRelaxation = {
+  /** Machine key on SearchPlacesParams — clear exactly this one. */
+  field: string;
+  count_if_removed: number;
+};
+
+export type SearchDiagnostics = {
+  total_in_area: number;
+  single_filter_relaxations: SearchRelaxation[];
+  without_halal_filters: number;
+  without_cuisines: number;
+  wider_radius_m: number | null;
+  wider_radius_count: number | null;
+};
+
+/**
+ * Why a search returned nothing.
+ *
+ * Only fires when a search has already come back empty — it's several COUNT
+ * queries, and there's no reason to pay for them on a search that worked.
+ *
+ * Returns counts, never places. Someone who filtered out alcohol or
+ * non-zabihah meat isn't looking for near-misses: those aren't "close
+ * enough", they're food they can't eat. The answer to an empty search here
+ * is a better explanation of the filters, not a consolation list.
+ */
+export function useSearchDiagnostics(
+  params: SearchPlacesParams,
+  opts: { enabled: boolean; widerRadius?: number },
+) {
+  return useQuery<SearchDiagnostics>({
+    queryKey: ["places", "search-diagnostics", params, opts.widerRadius],
+    queryFn: () =>
+      apiFetch<SearchDiagnostics>("/places/search-diagnostics", {
+        searchParams: {
+          q: params.q,
+          lat: params.lat,
+          lng: params.lng,
+          radius: params.radius,
+          wider_radius: opts.widerRadius,
+          min_validation_tier: params.min_validation_tier,
+          min_menu_posture: params.min_menu_posture,
+          has_certification: params.has_certification,
+          no_pork: params.no_pork,
+          no_alcohol_served: params.no_alcohol_served,
+          cuisine: params.cuisines,
+        },
+      }),
+    enabled: opts.enabled,
+    staleTime: 30_000,
+  });
+}
+
 export const REVIEWS_PAGE_SIZE = 10;
 
 /**

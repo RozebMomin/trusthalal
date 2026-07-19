@@ -223,6 +223,58 @@ export function countActiveFilters(filters: SearchPlacesParams): number {
 // mental model; they're search context).
 // ---------------------------------------------------------------------------
 
+/**
+ * How each filter is named when we tell someone it's the reason they got
+ * nothing. Keyed by the server's machine field name.
+ *
+ * Phrased as the thing they asked for ("a certificate on file") rather than
+ * the parameter ("has_certification"), because the sentence it lands in is
+ * "no places here have ___".
+ */
+export const FILTER_LABELS: Readonly<Record<string, string>> = {
+  min_validation_tier: "that level of verification",
+  min_menu_posture: "that kind of menu",
+  has_certification: "a certificate on file",
+  no_pork: "no pork on the menu",
+  no_alcohol_served: "no alcohol served",
+  chicken_slaughter: "that chicken slaughter method",
+  beef_slaughter: "that beef slaughter method",
+  lamb_slaughter: "that lamb slaughter method",
+  goat_slaughter: "that goat slaughter method",
+};
+
+/** Clear one filter by its server field name, leaving the rest alone. */
+export function clearFilterField(
+  filters: SearchPlacesParams,
+  field: string,
+): SearchPlacesParams {
+  const next = { ...filters };
+  switch (field) {
+    case "min_validation_tier":
+      delete next.min_validation_tier;
+      break;
+    case "min_menu_posture":
+      delete next.min_menu_posture;
+      break;
+    case "has_certification":
+      delete next.has_certification;
+      break;
+    case "no_pork":
+      delete next.no_pork;
+      break;
+    case "no_alcohol_served":
+      delete next.no_alcohol_served;
+      break;
+    default:
+      // Slaughter-method filters come from saved preferences and have no
+      // control in this sheet yet, so there's nothing to clear here. Falls
+      // through to "no change" rather than silently dropping something the
+      // user can't see or restore.
+      break;
+  }
+  return next;
+}
+
 export function clearAllFilters(filters: SearchPlacesParams): SearchPlacesParams {
   return {
     q: filters.q,

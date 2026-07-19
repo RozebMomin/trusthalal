@@ -520,3 +520,104 @@ def test_search_without_filters_includes_unprofiled(
     ids = {row["id"] for row in resp.json()}
     assert str(no_profile_place.id) in ids
     assert str(p_strict.id) in ids
+
+
+# ---------------------------------------------------------------------------
+# Empty-search diagnostics
+# ---------------------------------------------------------------------------
+# "Nothing matched, try removing a filter" makes the person guess which of six
+# was the problem. These pin the thing that makes the message worth showing:
+# the counts have to be true, and the advice has to be reachable.
+
+
+def test_diagnostics_names_the_single_filter_responsible(
+    api, factories, db_session
+):
+    """One filter too strict, everything else fine — say which one, and how
+    much dropping it would open up."""
+    _seed_three_distinct_places(api, factories, db_session)
+
+    # Only the strict place is FULLY_HALAL; asking for that plus a pork-free
+    # menu still leaves it, so narrow further to get zero.
+    empty = api.get(
+        "/places",
+        params={"q": "AAA", "min_validation_tier": "TRUST_HALAL_VERIFIED",
+                "no_alcohol_served": True, "min_menu_posture": "FULLY_HALAL",
+                "cuisine": "PIZZA"},
+    )
+    assert empty.json() == []
+
+    resp = api.get(
+        "/places/search-diagnostics",
+        params={"q": "AAA", "min_validation_tier": "TRUST_HALAL_VERIFIED",
+                "no_alcohol_served": True, "min_menu_posture": "FULLY_HALAL",
+                "cuisine": "PIZZA"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+
+    # The cuisine is what's doing the damage here, and cuisine isn't in the
+    # halal filter set — so no single *halal* relaxation helps.
+    assert body["total_in_area"] == 3
+    assert body["single_filter_relaxations"] == []
+    assert body["without_cuisines"] == 1
+
+
+def test_diagnostics_reports_a_relaxation_that_actually_works(
+    api, factories, db_session
+):
+    _seed_three_distinct_places(api, factories, db_session)
+
+    params = {
+        "q": "AAA",
+        "min_validation_tier": "TRUST_HALAL_VERIFIED",
+        "no_pork": True,
+        # Nothing is both TRUST_HALAL_VERIFIED and lacks a certificate, and
+        # nothing verified serves alcohol — so alcohol is the odd one out.
+        "no_alcohol_served": True,
+        "min_menu_posture": "MIXED_SHARED_KITCHEN",
+    }
+    assert api.get("/places", params=params).json() != []
+
+    # Now add a filter no place satisfies alongside the rest.
+    params["min_menu_posture"] = "FULLY_HALAL"
+    params["has_certification"] = True
+    params["min_validation_tier"] = "SELF_ATTESTED"
+    resp = api.get("/places/search-diagnostics", params=params).json()
+
+    # Every promised count must be real: run the search that the advice
+    # describes and check it returns what the diagnostic said it would.
+    for relaxation in resp["single_filter_relaxations"]:
+        relaxed = {k: v for k, v in params.items() if k != relaxation["field"]}
+        actual = api.get("/places", params=relaxed).json()
+        assert len(actual) == relaxation["count_if_removed"], (
+            f"diagnostics promised {relaxation['count_if_removed']} places "
+            f"without {relaxation['field']}, search returned {len(actual)}"
+        )
+
+
+def test_diagnostics_stays_quiet_when_the_area_is_simply_empty(
+    api, factories, db_session
+):
+    """No coverage is a different problem from strict filters, and suggesting
+    a filter change would send the person round in a circle."""
+    _seed_three_distinct_places(api, factories, db_session)
+
+    resp = api.get(
+        "/places/search-diagnostics",
+        params={
+            "q": "ZZZNoSuchPlace",
+            "min_validation_tier": "TRUST_HALAL_VERIFIED",
+            "no_pork": True,
+        },
+    ).json()
+
+    assert resp["total_in_area"] == 0
+    assert resp["single_filter_relaxations"] == []
+    assert resp["without_halal_filters"] == 0
+
+
+def test_diagnostics_requires_search_params(api):
+    resp = api.get("/places/search-diagnostics")
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "PLACES_SEARCH_PARAMS_REQUIRED"

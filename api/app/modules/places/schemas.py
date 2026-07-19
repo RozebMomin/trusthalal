@@ -465,3 +465,39 @@ class OwnedPlaceRead(BaseModel):
     # Drives the picker's "first-time submission" vs "renewal /
     # update" copy on the new-claim screen.
     has_halal_profile: bool = False
+
+class SearchRelaxationRead(BaseModel):
+    """One filter that is individually responsible for an empty result set.
+
+    ``field`` is the machine key so a client can clear exactly that filter
+    rather than nuking all of them. No label: the API stays neutral about how
+    each surface words its own chips (same posture as ``Cuisine``), and the
+    consumer, mobile and owner filter sheets already disagree slightly on
+    wording for good reasons.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    field: str
+    count_if_removed: int
+
+
+class SearchDiagnosticsResponse(BaseModel):
+    """Why a search came back empty, and what would fix it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    #: Places in range before any halal or cuisine filtering. Zero means the
+    #: catalogue doesn't cover here yet — a different problem from filters
+    #: being too strict, and it needs different words on screen.
+    total_in_area: int = 0
+    #: Clear any one of these and you get results. Ordered by how much each
+    #: opens up. Empty when several filters overlap, in which case no single
+    #: change helps and ``without_halal_filters`` is the honest advice.
+    single_filter_relaxations: list[SearchRelaxationRead] = Field(
+        default_factory=list
+    )
+    without_halal_filters: int = 0
+    without_cuisines: int = 0
+    wider_radius_m: Optional[int] = None
+    wider_radius_count: Optional[int] = None

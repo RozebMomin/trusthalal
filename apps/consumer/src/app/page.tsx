@@ -38,7 +38,9 @@ import {
 } from "@/components/discovery-home";
 import {
   clearAllFilters,
+  clearFilterField,
   countActiveFilters,
+  FILTER_LABELS,
   FiltersSheet,
   FiltersTrigger,
 } from "@/components/filters-sheet";
@@ -57,8 +59,10 @@ import {
   type PlaceSearchResult,
   type SearchPlacesParams,
   type ValidationTier,
+  type SearchDiagnostics,
   useCurrentUser,
   useReverseGeocode,
+  useSearchDiagnostics,
   useSearchPlaces,
 } from "@/lib/api/hooks";
 
@@ -370,6 +374,17 @@ function HomePageInner() {
   // them every visit.
   const search = useSearchPlaces(effectiveFilters);
 
+  // Only asked when the search already came back empty — it's several COUNT
+  // queries and there's no reason to pay for them on a search that worked.
+  const WIDER_RADIUS_M = 40234; // 25 mi
+  const diagnostics = useSearchDiagnostics(effectiveFilters, {
+    enabled: Boolean(search.data && search.data.length === 0),
+    widerRadius:
+      effectiveFilters.radius && effectiveFilters.radius < WIDER_RADIUS_M
+        ? WIDER_RADIUS_M
+        : undefined,
+  });
+
   // Analytics — fire a ``search_executed`` event whenever a search
   // resolves. Keyed off the JSON-stringified filter shape so a
   // single user typing "chicago" → "chicago il" gets two events
@@ -596,13 +611,27 @@ function HomePageInner() {
         search.data.length === 0 && (
           <NoResultsState
             mode={nearMeActive !== null ? "geo" : "text"}
+            diagnostics={diagnostics.data}
+            onClearFilter={(field) =>
+              setFilters(clearFilterField(effectiveFilters, field))
+            }
+            // Only offered when widening would actually find something —
+            // a button that produces the same empty screen is worse than
+            // no button, and the server already priced it.
+            widenLabel={
+              diagnostics.data?.wider_radius_count
+                ? `Widen to 25 mi (${diagnostics.data.wider_radius_count})`
+                : undefined
+            }
             onWiden={
-              nearMeActive !== null && nearMeActive.radius < 40234
+              nearMeActive !== null &&
+              nearMeActive.radius < WIDER_RADIUS_M &&
+              (diagnostics.data?.wider_radius_count ?? 0) > 0
                 ? () =>
                     activateNearMe({
                       lat: nearMeActive.lat,
                       lng: nearMeActive.lng,
-                      radius: 40234,
+                      radius: WIDER_RADIUS_M,
                     })
                 : undefined
             }
@@ -752,36 +781,97 @@ function LoadingState() {
   );
 }
 
+/**
+ * The empty state, with a reason attached.
+ *
+ * "Nothing matched — try removing a filter" makes the person guess which of
+ * six filters was the problem. On a catalogue this size most empty searches
+ * are one filter away from something, so the server tells us which one and
+ * how much it would open up, and we say so.
+ *
+ * What this deliberately does NOT do is show near-miss restaurants. Someone
+ * who filtered out alcohol or non-zabihah meat isn't looking for places that
+ * *almost* qualify — those aren't close enough, they're food they can't eat.
+ * Offering them under a friendly "here are some others" would make this
+ * product the thing it exists to protect people from.
+ */
 function NoResultsState({
   mode,
+  diagnostics,
   onWiden,
+  widenLabel,
+  onClearFilter,
   onClearFilters,
 }: {
   mode: "text" | "geo";
-  /** When set, renders a one-tap "Widen to 25 mi" recovery action. */
+  diagnostics?: SearchDiagnostics;
+  /** When set, renders a one-tap widen action. */
   onWiden?: () => void;
+  widenLabel?: string;
+  /** Clear a single named filter. */
+  onClearFilter?: (field: string) => void;
   /** When set, renders a one-tap "Remove filters" recovery action. */
   onClearFilters?: () => void;
 }) {
+  const relaxations = diagnostics?.single_filter_relaxations ?? [];
+  // Nothing here at all is a coverage problem, not a filter problem, and the
+  // two need different words — telling someone to loosen their filters in a
+  // city we haven't ingested yet sends them round in a circle.
+  const areaIsEmpty = diagnostics != null && diagnostics.total_in_area === 0;
+
   return (
     <div className="rounded-2xl border bg-card px-6 py-10 text-center shadow-sm">
-      <h2 className="text-lg font-semibold tracking-tight">
-        Nothing matched
-      </h2>
+      <h2 className="text-lg font-semibold tracking-tight">Nothing matched</h2>
+
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-        {mode === "geo"
-          ? "No halal restaurants found in this area yet — coverage is growing city by city. Try widening the radius, changing the city above, or removing a filter."
-          : "No restaurants matched that name. Try a different spelling, or remove a filter."}
+        {areaIsEmpty
+          ? mode === "geo"
+            ? "We don't have any restaurants here yet — coverage is growing city by city. Try a wider radius or a different city."
+            : "No restaurants matched that name. Try a different spelling."
+          : relaxations.length > 0
+            ? "Your filters are narrower than what's here. Loosening one would help:"
+            : diagnostics && diagnostics.without_halal_filters > 0
+              ? `Your filters rule out everything nearby. There ${
+                  diagnostics.without_halal_filters === 1 ? "is" : "are"
+                } ${diagnostics.without_halal_filters} restaurant${
+                  diagnostics.without_halal_filters === 1 ? "" : "s"
+                } in range that don't meet them.`
+              : mode === "geo"
+                ? "Nothing here matches. Try widening the radius, changing the city, or loosening a filter."
+                : "No restaurants matched that name. Try a different spelling, or loosen a filter."}
       </p>
+
+      {/* One chip per filter that is individually responsible, most
+          productive first. Each says what it would gain, so the choice is
+          informed rather than trial and error. */}
+      {!areaIsEmpty && relaxations.length > 0 && onClearFilter && (
+        <div className="mx-auto mt-4 flex max-w-md flex-wrap items-center justify-center gap-2">
+          {relaxations.slice(0, 3).map((r) => (
+            <button
+              key={r.field}
+              type="button"
+              onClick={() => onClearFilter(r.field)}
+              className="rounded-full border border-primary bg-primary/5 px-3.5 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/10"
+            >
+              Drop &ldquo;{FILTER_LABELS[r.field] ?? r.field}&rdquo;
+              <span className="ml-1.5 font-normal opacity-70">
+                {r.count_if_removed} place
+                {r.count_if_removed === 1 ? "" : "s"}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {(onWiden || onClearFilters) && (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {onWiden && (
             <button
               type="button"
               onClick={onWiden}
-              className="rounded-full border border-primary bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/10"
+              className="rounded-full border border-input bg-background px-4 py-1.5 text-sm font-medium text-foreground transition hover:bg-accent"
             >
-              Widen to 25 mi
+              {widenLabel ?? "Widen to 25 mi"}
             </button>
           )}
           {onClearFilters && (
@@ -790,7 +880,7 @@ function NoResultsState({
               onClick={onClearFilters}
               className="rounded-full border border-input bg-background px-4 py-1.5 text-sm font-medium text-foreground transition hover:bg-accent"
             >
-              Remove filters
+              Remove all filters
             </button>
           )}
         </div>

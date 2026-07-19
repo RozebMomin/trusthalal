@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useCurrentUser, useMyPreferences, useReverseGeocode, useSearchPlaces } from "@/lib/api/hooks";
+import { useCurrentUser, useMyPreferences, useReverseGeocode, useSearchDiagnostics, useSearchPlaces } from "@/lib/api/hooks";
 import type { ConsumerPreferences } from "@/lib/api/types";
 import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
@@ -22,6 +22,7 @@ import { LocationSheet, type PickedLocation } from "@/components/LocationSheet";
 import { capture } from "@/lib/analytics";
 import { MapResults } from "@/components/MapResults";
 import { EmptyState, ErrorState, Loading } from "@/components/States";
+import { FILTER_LABELS } from "@/lib/filter-labels";
 
 const RADII_MI = [1, 3, 5, 10, 25] as const;
 
@@ -125,7 +126,11 @@ export default function Explore() {
   const geo = coords
     ? { lat: coords.lat, lng: coords.lng, radius: radiusMi * M_PER_MI }
     : {};
-  const search = useSearchPlaces({ q: q || undefined, ...geo, ...filters, cuisines: cuisines.length ? cuisines : undefined });
+  // Named so the diagnostics query can ask about exactly the search that
+  // returned nothing — rebuilding the object separately is how the two
+  // drift and the explanation stops matching the result.
+  const searchParams = { q: q || undefined, ...geo, ...filters, cuisines: cuisines.length ? cuisines : undefined };
+  const search = useSearchPlaces(searchParams);
   const city = useReverseGeocode(coords?.lat, coords?.lng);
 
   // Fire on the debounced text query so we capture intentional searches
@@ -182,6 +187,14 @@ export default function Explore() {
       }))
       .sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
   }, [search.data, coords]);
+
+  // Only asked once the search already came back empty — several COUNT
+  // queries, and no reason to pay for them on a search that worked.
+  const WIDER_RADIUS_M = 40234; // 25 mi
+  const diagnostics = useSearchDiagnostics(searchParams, {
+    enabled: Boolean(search.data && search.data.length === 0),
+    widerRadiusM: coords && radiusMi < 25 ? WIDER_RADIUS_M : undefined,
+  });
 
   const hasActiveSearch = Boolean(q) || coords !== null;
   const cityLabel = manualLabel
@@ -414,12 +427,44 @@ export default function Explore() {
       ) : search.isLoading ? (
         <Loading />
       ) : results.length === 0 ? (
+        // Says WHICH filter is responsible rather than "fewer filters" —
+        // on a catalogue this size most empty searches are one filter away
+        // from something, and making the person guess which of six was the
+        // problem is the difference between a next step and a dead end.
+        //
+        // Never offers near-miss restaurants. Someone who filtered out
+        // alcohol or non-zabihah meat isn't looking for places that almost
+        // qualify; those aren't close enough, they're food they can't eat.
         <EmptyState
-          title="Nothing here yet"
-          body="Coverage grows city by city. Try a wider radius, a different city, or fewer filters."
-          actionTitle={coords && radiusMi < 25 ? "Widen to 25 mi" : undefined}
-          onAction={coords && radiusMi < 25 ? () => setRadiusMi(25) : undefined}
+          title="Nothing matched"
+          body={
+            diagnostics.data?.total_in_area === 0
+              ? "We don't have any restaurants here yet — coverage grows city by city. Try a wider radius or another city."
+              : (diagnostics.data?.single_filter_relaxations.length ?? 0) > 0
+                ? "Your filters are narrower than what's here. Loosening one would help:"
+                : (diagnostics.data?.without_halal_filters ?? 0) > 0
+                  ? `Your filters rule out everything nearby. ${diagnostics.data?.without_halal_filters} restaurant${diagnostics.data?.without_halal_filters === 1 ? "" : "s"} in range don't meet them.`
+                  : "Coverage grows city by city. Try a wider radius, a different city, or fewer filters."
+          }
+          actionTitle={
+            coords && radiusMi < 25 && (diagnostics.data?.wider_radius_count ?? 0) > 0
+              ? `Widen to 25 mi (${diagnostics.data?.wider_radius_count})`
+              : undefined
+          }
+          onAction={
+            coords && radiusMi < 25 && (diagnostics.data?.wider_radius_count ?? 0) > 0
+              ? () => setRadiusMi(25)
+              : undefined
+          }
           secondaryActions={[
+            // One action per filter that is individually responsible, each
+            // carrying what it would gain so the choice is informed.
+            ...(diagnostics.data?.single_filter_relaxations ?? [])
+              .slice(0, 2)
+              .map((r) => ({
+                title: `Drop ${FILTER_LABELS[r.field] ?? r.field} (${r.count_if_removed})`,
+                onPress: () => changeFilters({ ...filters, [r.field]: undefined }),
+              })),
             { title: "Change city", onPress: () => setLocOpen(true) },
             ...(countFilters(filters) > 0 || cuisines.length > 0 || q
               ? [{

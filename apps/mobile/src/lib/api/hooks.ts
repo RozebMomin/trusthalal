@@ -24,6 +24,7 @@ import type {
   ReviewReportReason,
   PlaceSearchResult,
   ReviewSort,
+  SearchDiagnostics,
   SearchPlacesParams,
   SubmitVisitInput,
   VerificationVisit,
@@ -149,6 +150,30 @@ export function useSearchPlaces(params: SearchPlacesParams) {
     queryFn: () =>
       apiFetch<PlaceSearchResult[]>(`/places?${searchParamsToQuery(params)}`),
     enabled: hasText || hasGeo,
+  });
+}
+
+/**
+ * Why a search came back empty.
+ *
+ * Only fires once a search has already returned nothing — several COUNT
+ * queries, no reason to pay for them on a search that worked. Same endpoint
+ * and same wording as the web, so a diner who hits a dead end on their phone
+ * and again on their laptop gets one explanation, not two.
+ */
+export function useSearchDiagnostics(
+  params: SearchPlacesParams,
+  opts: { enabled: boolean; widerRadiusM?: number },
+) {
+  return useQuery<SearchDiagnostics>({
+    queryKey: ["places", "search-diagnostics", params, opts.widerRadiusM],
+    queryFn: () => {
+      const u = new URLSearchParams(searchParamsToQuery(params));
+      if (opts.widerRadiusM) u.set("wider_radius", String(opts.widerRadiusM));
+      return apiFetch<SearchDiagnostics>(`/places/search-diagnostics?${u.toString()}`);
+    },
+    enabled: opts.enabled,
+    staleTime: 30_000,
   });
 }
 

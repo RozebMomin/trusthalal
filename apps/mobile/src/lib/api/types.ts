@@ -152,6 +152,24 @@ export type SearchPlacesParams = {
   open_now?: boolean;
 };
 
+/** One filter individually responsible for an empty result set. */
+export type SearchRelaxation = {
+  /** Machine key — clear exactly this one, not all of them. */
+  field: string;
+  count_if_removed: number;
+};
+
+/** Why a search returned nothing. Counts only, never places: someone who
+ *  filtered out alcohol or non-zabihah meat isn't looking for near-misses. */
+export type SearchDiagnostics = {
+  total_in_area: number;
+  single_filter_relaxations: SearchRelaxation[];
+  without_halal_filters: number;
+  without_cuisines: number;
+  wider_radius_m: number | null;
+  wider_radius_count: number | null;
+};
+
 export type FavoriteRead = { saved_at: string; place: PlaceSearchResult };
 
 /** One row of the per-category, per-channel notification matrix.
