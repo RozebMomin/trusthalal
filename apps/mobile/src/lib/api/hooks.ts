@@ -19,6 +19,7 @@ import type {
   PlaceDetail,
   PlaceReviewCreate,
   PlaceReviewListResponse,
+  MyReviewRead,
   PlaceReviewRead,
   ReviewReportReason,
   PlaceSearchResult,
@@ -468,6 +469,23 @@ function invalidateReviews(qc: ReturnType<typeof useQueryClient>, placeId: strin
   // The place detail carries the denormalized aggregate, so it goes stale
   // on every write here too.
   qc.invalidateQueries({ queryKey: ["places", "detail", placeId] });
+}
+
+/**
+ * GET /me/reviews — everything you've written, including hidden and removed.
+ *
+ * The only surface where a moderated review is visible to its author: the
+ * public place listing filters to published, so without this the removal
+ * email is the sole channel and a review that lands in spam disappears with
+ * no explanation the person can reach.
+ */
+export function useMyReviews(enabled = true) {
+  return useQuery<MyReviewRead[]>({
+    queryKey: ["me", "reviews"],
+    queryFn: () => apiFetch<MyReviewRead[]>("/me/reviews"),
+    enabled,
+    staleTime: 10_000,
+  });
 }
 
 export function useCreateReview(placeId: string) {

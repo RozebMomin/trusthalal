@@ -284,19 +284,22 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
  * is defined as having no reply, and "all" sorts by original post date, so a
  * three-month-old review rewritten this morning sits three months down.
  */
-type Bucket = "needs_reply" | "updated" | "all";
+type Bucket = "needs_reply" | "updated" | "reported" | "all";
 
 export default function MyReviewsPage() {
   const [bucket, setBucket] = React.useState<Bucket>("needs_reply");
   const query = useOwnerReviews({
     needsReply: bucket === "needs_reply",
     editedAfterReply: bucket === "updated",
+    hasReport: bucket === "reported",
   });
 
   const empty = {
     needs_reply: "Nothing waiting on you. Reviews you haven't answered show up here.",
     updated:
       "Nothing to revisit. If a diner rewrites a review after you replied, it lands here so your reply doesn't end up answering words that aren't there.",
+    reported:
+      "Nothing contested. Reviews someone has reported show up here while we look at them — worth knowing before you reply, since the tone of a good reply differs.",
     all: "No reviews yet. They'll appear here as diners write them.",
   }[bucket];
 
@@ -319,6 +322,7 @@ export default function MyReviewsPage() {
               "Updated since your reply",
               query.data?.edited_after_reply_count,
             ],
+            ["reported", "Reported", undefined],
             [
               "all",
               "All",

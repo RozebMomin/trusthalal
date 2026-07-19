@@ -1566,11 +1566,13 @@ export function useOwnerReviews(opts: {
   placeId?: string;
   needsReply?: boolean;
   editedAfterReply?: boolean;
+  hasReport?: boolean;
 } = {}) {
   const params = {
     place_id: opts.placeId,
     needs_reply: opts.needsReply ? true : undefined,
     edited_after_reply: opts.editedAfterReply ? true : undefined,
+    has_report: opts.hasReport ? true : undefined,
   };
   return useQuery<OwnerReviewListResponse>({
     queryKey: ownerReviewsQk.inbox(params),

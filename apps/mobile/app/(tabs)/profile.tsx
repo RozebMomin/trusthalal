@@ -82,9 +82,17 @@ export default function Profile() {
           right={chev}
         />
         <Cell
-          last
           onPress={() => router.push("/notifications")}
           left={<><IcBox icon="bell" bg="#EFF6FF" fg="#2563EB" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Notifications</Text></>}
+          right={chev}
+        />
+        {/* Reachable without an email arriving. This is the only surface
+            where a hidden or removed review is visible to its author, so
+            burying it behind a notification would defeat the purpose. */}
+        <Cell
+          last
+          onPress={() => router.push("/my-reviews")}
+          left={<><IcBox icon="message-square" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Your reviews</Text></>}
           right={chev}
         />
       </Card>

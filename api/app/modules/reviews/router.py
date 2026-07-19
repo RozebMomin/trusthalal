@@ -73,6 +73,7 @@ from app.modules.reviews import repo
 from app.modules.reviews.enums import PlaceReviewStatus, ReviewSort
 from app.modules.reviews.models import PlaceReview
 from app.modules.reviews.schemas import (
+    MyReviewRead,
     OwnerReviewListResponse,
     OwnerReviewPlace,
     OwnerReviewRead,
@@ -412,20 +413,58 @@ def create_review(
 
 @me_reviews_router.get(
     "",
-    response_model=list[PlaceReviewRead],
+    response_model=list[MyReviewRead],
     summary="Reviews you've written",
     description=(
         "Includes hidden and removed reviews along with the moderation "
-        "reason — removal is never silent to its author."
+        "reason — removal is never silent to its author.\n\n"
+        "This is the *only* place a moderated review is visible to the "
+        "person who wrote it: the public place listing filters to published, "
+        "so without this surface the email is the sole channel and a review "
+        "that lands in a spam folder simply vanishes."
     ),
 )
 def list_my_reviews(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list[PlaceReviewRead]:
+    photos_storage: StorageClient = Depends(get_photos_storage_client),
+) -> list[MyReviewRead]:
     rows, _total = repo.list_my_reviews(db, author_user_id=user.id)
+
+    # One query for the places, one for the photos — a list across N
+    # restaurants is exactly where a per-row lookup turns into an N+1.
+    places = {
+        p.id: p
+        for p in db.execute(
+            select(Place).where(
+                Place.id.in_([r.place_id for r in rows] or [None])
+            )
+        )
+        .scalars()
+        .all()
+    }
+    photos = _photos_for(db, [r.id for r in rows], photos_storage)
+
     return [
-        _review_read(db, r, viewer_id=user.id, include_moderation_note=True)
+        MyReviewRead(
+            **_review_read(
+                db,
+                r,
+                viewer_id=user.id,
+                include_moderation_note=True,
+                photos=photos.get(r.id, []),
+            ).model_dump(),
+            place=(
+                OwnerReviewPlace(
+                    id=place.id,
+                    name=place.name,
+                    city=place.city,
+                    region=place.region,
+                )
+                if (place := places.get(r.place_id)) is not None
+                else None
+            ),
+        )
         for r in rows
     ]
 
@@ -591,7 +630,10 @@ def report_review(
         "owner replied, so the published reply may no longer match what "
         "it sits under. These are ordered by when they were edited, not "
         "when they were posted: a review written months ago and rewritten "
-        "today is today's problem.\n\n"
+        "today is today's problem.\n"
+        "* `has_report=true` — reviews with an open report against them. "
+        "An owner replying to contested content should know it's contested; "
+        "the tone of a good reply differs.\n\n"
         "Both counts are always returned across every managed place, "
         "because they drive the nav badges — a count that changes when you "
         "click a filter isn't a badge, it's a search result."
@@ -601,6 +643,7 @@ def owner_review_inbox(
     place_id: Optional[UUID] = Query(default=None),
     needs_reply: bool = Query(default=False),
     edited_after_reply: bool = Query(default=False),
+    has_report: bool = Query(default=False),
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     user: CurrentUser = Depends(get_current_user),
@@ -656,6 +699,8 @@ def owner_review_inbox(
         reverse=True,
     )
 
+    all_report_counts = repo.open_report_counts(db, [r.id for r in rows])
+
     # The badge counts across everything they manage, not the current filter
     # — a count that changes when you click a filter isn't a badge, it's a
     # search result.
@@ -670,12 +715,14 @@ def owner_review_inbox(
         selected = stale_replies
     elif needs_reply:
         selected = unanswered
+    elif has_report:
+        selected = [r for r in rows if all_report_counts.get(r.id, 0) > 0]
     else:
         selected = rows
     total = len(selected)
     page = selected[offset : offset + limit]
 
-    counts = repo.open_report_counts(db, [r.id for r in page])
+    counts = all_report_counts
     places = {
         p.id: p
         for p in db.execute(

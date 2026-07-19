@@ -205,10 +205,18 @@ def test_moderation_outage_fails_closed_with_503(
     assert db_session.execute(select(PlaceReview)).scalars().all() == []
 
 
-def test_warn_verdict_still_publishes(api, verified_user, place, moderator):
-    """Anger is legitimate. Only BLOCK stops a post."""
+def test_warn_verdict_publishes_once_acknowledged(
+    api, verified_user, place, moderator
+):
+    """Anger is legitimate — a diner served non-halal food is entitled to be
+    furious. Only BLOCK stops a post outright; WARN asks once and then gets
+    out of the way. See the WARN section below for the full behaviour."""
     moderator.verdict = ModerationVerdict.WARN
-    assert _post(api.as_user(verified_user.id), place.id).status_code == 201
+    api_author = api.as_user(verified_user.id)
+    assert _post(api_author, place.id).status_code == 400
+    assert (
+        _post(api_author, place.id, acknowledged_warning=True).status_code == 201
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1064,3 +1072,249 @@ def test_owner_inbox_surfaces_edited_reviews_in_their_own_bucket(
     needs = api_owner.get("/me/place-reviews?needs_reply=true").json()
     assert [x["id"] for x in needs["items"]] == []
     assert needs["edited_after_reply_count"] == 1
+
+
+# ---------------------------------------------------------------------------
+# The WARN tier: a nudge you can decline
+# ---------------------------------------------------------------------------
+# WARN exists because anger is legitimate here — a diner served non-halal food
+# is entitled to be furious — but "describe what happened" produces a more
+# useful review than "how it felt". Since the check runs on submit rather than
+# while typing, showing that nudge *and* letting them continue takes two
+# requests. The flag on the second must not become a way to skip moderation.
+
+
+def test_heated_text_is_refused_once_then_allowed(
+    api, db_session, verified_user, place, moderator
+):
+    moderator.verdict = ModerationVerdict.WARN
+
+    api_author = api.as_user(verified_user.id)
+    first = _post(api_author, place.id)
+    assert first.status_code == 400
+    assert first.json()["error"]["code"] == "REVIEW_TEXT_WARNING"
+    # Nothing was written — the point is to ask before publishing.
+    assert db_session.execute(select(PlaceReview)).scalars().all() == []
+
+    second = _post(api_author, place.id, acknowledged_warning=True)
+    assert second.status_code == 201, second.text
+    assert second.json()["status"] == "PUBLISHED"
+
+
+def test_acknowledging_a_warning_does_not_bypass_a_block(
+    api, db_session, verified_user, place, moderator
+):
+    """The flag waives the warning it was issued for, nothing else. If it
+    skipped the check entirely, sending acknowledged_warning on the *first*
+    request would be a one-line way around moderation."""
+    moderator.verdict = ModerationVerdict.BLOCK
+    moderator.category = "Profanity"
+
+    resp = _post(api.as_user(verified_user.id), place.id, acknowledged_warning=True)
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "REVIEW_TEXT_REJECTED"
+    assert db_session.execute(select(PlaceReview)).scalars().all() == []
+
+
+def test_acknowledging_still_costs_a_moderation_call(
+    api, verified_user, place, moderator
+):
+    """Re-scored, not trusted. Pinned separately from the block test because
+    the cheap implementation — skip the call when the flag is set — passes
+    that one and is exactly the bypass."""
+    moderator.verdict = ModerationVerdict.WARN
+    api_author = api.as_user(verified_user.id)
+
+    _post(api_author, place.id)
+    calls_after_first = len(moderator.calls)
+    _post(api_author, place.id, acknowledged_warning=True)
+
+    assert len(moderator.calls) == calls_after_first + 1
+
+
+def test_owner_replies_are_warned_too(
+    api, db_session, verified_user, owned_place, moderator
+):
+    """Owners are held to the same bar. A heated owner reply does more damage
+    than the review that provoked it — it carries the platform's implicit
+    endorsement in a way an anonymous review doesn't."""
+    p, owner, _org = owned_place
+    review_id = _post(api.as_user(verified_user.id), p.id).json()["id"]
+
+    moderator.verdict = ModerationVerdict.WARN
+    api_owner = api.as_user(owner.id)
+
+    first = api_owner.post(
+        f"/places/reviews/{review_id}/reply", json={"body": "That is simply untrue."}
+    )
+    assert first.status_code == 400
+    assert first.json()["error"]["code"] == "REVIEW_TEXT_WARNING"
+
+    second = api_owner.post(
+        f"/places/reviews/{review_id}/reply",
+        json={"body": "That is simply untrue.", "acknowledged_warning": True},
+    )
+    assert second.status_code in (200, 201), second.text
+
+
+# ---------------------------------------------------------------------------
+# Moderation outage: fail closed, but never silently
+# ---------------------------------------------------------------------------
+
+
+def test_moderation_outage_is_reported_not_just_returned(
+    api, verified_user, place, moderator, monkeypatch
+):
+    """Failing closed means an outage stops all writing, and the symptom —
+    nobody posts anything — looks exactly like a quiet week. Without this the
+    likeliest way to discover a broken API key is noticing weeks later that
+    reviews stopped."""
+    from app.modules.reviews import router as reviews_router
+
+    captured: list = []
+    events: list = []
+    monkeypatch.setattr(
+        reviews_router, "capture_exception", lambda exc, **kw: captured.append(exc)
+    )
+    monkeypatch.setattr(
+        reviews_router,
+        "track",
+        lambda event, **kw: events.append((event, kw.get("properties"))),
+    )
+
+    moderator.raise_error = True
+    resp = _post(api.as_user(verified_user.id), place.id)
+
+    assert resp.status_code == 503
+    assert len(captured) == 1
+    assert ("review_submit_blocked_by_outage", {"surface": "review_create"}) in events
+
+
+# ---------------------------------------------------------------------------
+# /me/reviews — the surface that keeps moderation from being silent
+# ---------------------------------------------------------------------------
+
+
+def test_my_reviews_shows_removed_ones_with_the_reason(
+    api, db_session, verified_user, place, moderator
+):
+    """The public place list filters to PUBLISHED, so this endpoint is the
+    only place an author can see their own removed review. If it dropped them
+    too, the removal email would be the sole explanation that exists and one
+    spam filter would make someone's words vanish unexplained."""
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, place.id).json()["id"]
+
+    review = db_session.execute(
+        select(PlaceReview).where(PlaceReview.id == review_id)
+    ).scalar_one()
+    review.status = PlaceReviewStatus.REMOVED.value
+    review.moderation_note = "Named a member of staff."
+    db_session.add(review)
+    db_session.commit()
+
+    # Gone from the place page ...
+    public = api.get(f"/places/{place.id}/reviews").json()["items"]
+    assert public == []
+
+    # ... but visible to its author, with the reason.
+    mine = api_author.get("/me/reviews").json()
+    assert [r["id"] for r in mine] == [review_id]
+    assert mine[0]["status"] == "REMOVED"
+    assert mine[0]["moderation_note"] == "Named a member of staff."
+    # And enough place context to render a list across restaurants.
+    assert mine[0]["place"]["name"] == place.name
+
+
+def test_my_reviews_is_scoped_to_the_caller(
+    api, db_session, factories, verified_user, place, moderator
+):
+    from datetime import datetime, timezone
+
+    other = factories.user(email="someone-else@example.com")
+    other.email_verified_at = datetime.now(timezone.utc)
+    db_session.add(other)
+    db_session.commit()
+
+    mine_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+    _post(api.as_user(other.id), place.id, body=BODY_TWO)
+
+    listed = api.as_user(verified_user.id).get("/me/reviews").json()
+    assert [r["id"] for r in listed] == [mine_id]
+
+
+# ---------------------------------------------------------------------------
+# Admin place context
+# ---------------------------------------------------------------------------
+
+
+def test_admin_can_see_every_review_on_a_place(
+    api, db_session, factories, verified_user, place, moderator
+):
+    """One angry review among forty calm ones is a bad night; three
+    near-identical complaints from week-old accounts are a campaign. The
+    reported text alone can't tell those apart."""
+    from datetime import datetime, timezone
+
+    admin = factories.admin(email="context-admin@example.com")
+    db_session.commit()
+
+    subject_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+
+    other = factories.user(email="context-other@example.com")
+    other.email_verified_at = datetime.now(timezone.utc)
+    db_session.add(other)
+    db_session.commit()
+    hidden_id = _post(api.as_user(other.id), place.id, body=BODY_TWO).json()["id"]
+
+    row = db_session.execute(
+        select(PlaceReview).where(PlaceReview.id == hidden_id)
+    ).scalar_one()
+    row.status = PlaceReviewStatus.HIDDEN.value
+    db_session.add(row)
+    db_session.commit()
+
+    resp = api.as_user(admin.id).get(
+        f"/admin/places/{place.id}/reviews?subject_review_id={subject_id}"
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+
+    # Non-published rows are included — a place with hidden reviews is telling
+    # you something a published-only list would conceal.
+    assert body["total"] == 2
+    assert body["hidden_count"] == 1
+    assert {r["id"] for r in body["items"]} == {subject_id, hidden_id}
+    assert [r["id"] for r in body["items"] if r["is_subject"]] == [subject_id]
+
+
+def test_place_context_is_admin_only(api, verified_user, place, moderator):
+    assert (
+        api.as_user(verified_user.id).get(f"/admin/places/{place.id}/reviews").status_code
+        == 403
+    )
+
+
+# ---------------------------------------------------------------------------
+# Owner inbox: the reported bucket
+# ---------------------------------------------------------------------------
+
+
+def test_owner_inbox_can_filter_to_reported_reviews(
+    api, db_session, factories, verified_user, owned_place, moderator
+):
+    """An owner about to reply should know the content is contested — the
+    tone of a good reply differs when a claim is already under review."""
+    p, owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    reported_id = _post(api_author, p.id).json()["id"]
+
+    reporter = factories.user(email="inbox-reporter@example.com")
+    db_session.commit()
+    api.as_user(reporter.id).post(
+        f"/places/reviews/{reported_id}/report", json={"reason": "FALSE_INFO"}
+    )
+
+    listed = api.as_user(owner.id).get("/me/place-reviews?has_report=true").json()
+    assert [x["id"] for x in listed["items"]] == [reported_id]
+    assert listed["items"][0]["open_report_count"] == 1

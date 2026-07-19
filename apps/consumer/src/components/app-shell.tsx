@@ -241,6 +241,16 @@ function PortalHeader({
                     >
                       Saved
                     </Link>
+                    {/* Reachable from the nav rather than only from a
+                        removal email. This is the one place a hidden or
+                        removed review is visible to its author, so it can't
+                        depend on an email arriving. */}
+                    <Link
+                      href="/my-reviews"
+                      className="text-sm hover:underline"
+                    >
+                      Reviews
+                    </Link>
                     <Link
                       href="/preferences"
                       className="text-sm hover:underline"
@@ -357,6 +367,9 @@ function SiteFooter() {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+          <Link href="/my-reviews" className="hover:underline">
+            Your reviews
+          </Link>
           <Link href="/favorites" className="hover:underline">
             Saved
           </Link>

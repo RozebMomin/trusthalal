@@ -404,6 +404,36 @@ function invalidatePlaceReviews(qc: ReturnType<typeof useQueryClient>, placeId: 
   qc.invalidateQueries({ queryKey: qk.placeDetail(placeId) });
 }
 
+/** The author's own review, with enough place context to render a list. */
+export type MyReviewRead = PlaceReviewRead & {
+  place: {
+    id: string;
+    name: string;
+    city: string | null;
+    region: string | null;
+  } | null;
+};
+
+/**
+ * GET /me/reviews — everything you've written, including hidden and removed.
+ *
+ * This is the only surface where a moderated review is visible to the person
+ * who wrote it: the public place listing filters to published, so without
+ * this page the removal email is the sole channel and a review that lands in
+ * a spam folder simply disappears with no explanation.
+ *
+ * Not cached long. Someone opening this page has usually just been told
+ * something about their content and is coming to look.
+ */
+export function useMyReviews(opts: { enabled?: boolean } = {}) {
+  return useQuery<MyReviewRead[]>({
+    queryKey: ["me", "reviews"],
+    queryFn: () => apiFetch<MyReviewRead[]>("/me/reviews"),
+    enabled: opts.enabled ?? true,
+    staleTime: 10_000,
+  });
+}
+
 export function useCreateReview(placeId: string) {
   const qc = useQueryClient();
   return useMutation({

@@ -252,6 +252,18 @@ export type SubmitVisitInput = {
 // Reviews
 // ---------------------------------------------------------------------------
 
+/** The author's own review, with enough place context to render a list.
+ *  The bare read carries only `place_id`, which is unusable on a screen
+ *  listing reviews across restaurants. */
+export type MyReviewRead = PlaceReviewRead & {
+  place: {
+    id: string;
+    name: string;
+    city: string | null;
+    region: string | null;
+  } | null;
+};
+
 export type ReviewSort = "recent" | "rating_high" | "rating_low";
 
 /** Why a review or reply is being reported.

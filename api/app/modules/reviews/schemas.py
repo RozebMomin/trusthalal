@@ -258,6 +258,17 @@ class OwnerReviewPlace(BaseModel):
     region: Optional[str] = None
 
 
+class MyReviewRead(PlaceReviewRead):
+    """The author's own review, with enough place context to render a list.
+
+    The bare read carries only ``place_id``, which is unusable on a page
+    listing reviews across restaurants — "you reviewed 4c7b789d…" tells
+    someone nothing. Same slim embed the owner inbox uses.
+    """
+
+    place: Optional[OwnerReviewPlace] = None
+
+
 class OwnerReviewRead(PlaceReviewRead):
     place: Optional[OwnerReviewPlace] = None
     #: Number of open reports against this review — an owner should know a
