@@ -443,3 +443,17 @@ class AdminReviewStatusRequest(BaseModel):
     moderation_note: Optional[str] = Field(default=None, max_length=2000)
     #: Set to act on the reply instead of the review.
     reply_id: Optional[UUID] = None
+
+
+class BlockedUserRead(BaseModel):
+    """Someone the caller has blocked.
+
+    Carries the display name so the settings screen can say who it is —
+    a list of opaque UUIDs would make unblocking guesswork.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: UUID
+    display_name: Optional[str] = None
+    created_at: datetime

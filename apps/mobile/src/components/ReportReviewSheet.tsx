@@ -16,7 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
-import { useReportReview } from "@/lib/api/hooks";
+import { useBlockUser, useReportReview } from "@/lib/api/hooks";
 import type { PlaceReviewRead, ReviewReportReason } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -74,12 +74,14 @@ export function ReportReviewSheet({
 }) {
   const t = useTheme();
   const report = useReportReview(placeId);
+  const block = useBlockUser();
 
   const [target, setTarget] = useState<"review" | "reply">("review");
   const [reason, setReason] = useState<ReviewReportReason | null>(null);
   const [detail, setDetail] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
   // Reset on open, not on close: leaving the old selection visible during the
   // dismiss animation looks like the sheet forgot what you picked.
@@ -90,6 +92,7 @@ export function ReportReviewSheet({
       setDetail("");
       setErrorMsg(null);
       setDone(false);
+      setBlocked(false);
     }
   }, [visible]);
 
@@ -150,10 +153,53 @@ export function ReportReviewSheet({
               A person reviews every report. Content stays up unless it breaks
               our guidelines, so you may not see an immediate change.
             </Text>
+            {/* Offered after the report, not instead of it. Reporting is what
+                gets abuse looked at; blocking only helps the one person who
+                pressed it. Leading with block would quietly route abuse away
+                from the only people who can act on it. */}
+            {!review.is_mine && !blocked ? (
+              <Pressable
+                onPress={async () => {
+                  try {
+                    await block.mutateAsync(review.author.id);
+                    setBlocked(true);
+                  } catch {
+                    setErrorMsg("Couldn't block them just now. Try again in a moment.");
+                  }
+                }}
+                disabled={block.isPending}
+                style={{
+                  marginTop: space.lg,
+                  borderWidth: 1,
+                  borderColor: t.line,
+                  borderRadius: radii.md,
+                  paddingVertical: 11,
+                  paddingHorizontal: 20,
+                  alignSelf: "stretch",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 13.5 }}>
+                  {block.isPending
+                    ? "Blocking…"
+                    : `Also block ${review.author.display_name ?? "this person"}`}
+                </Text>
+                <Text style={[ty.small, { color: t.sub, marginTop: 3, fontSize: 11, textAlign: "center" }]}>
+                  Hides their reviews from you. They aren&apos;t told.
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {blocked ? (
+              <Text style={[ty.small, { color: t.accentDeep, marginTop: space.md, fontWeight: "600" }]}>
+                ✓ Blocked — you won&apos;t see their reviews any more
+              </Text>
+            ) : null}
+
             <Pressable
               onPress={onClose}
               style={{
-                marginTop: space.lg,
+                marginTop: space.md,
                 backgroundColor: t.ink,
                 borderRadius: radii.md,
                 paddingVertical: 11,

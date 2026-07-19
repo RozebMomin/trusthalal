@@ -10,6 +10,7 @@ import { tokenStore } from "@/lib/auth/token-store";
 import { unregisterPush } from "@/lib/push";
 import type {
   AccountDeletionPreview,
+  BlockedUser,
   ConsumerPreferences,
   FavoriteRead,
   HalalHistoryEvent,
@@ -130,6 +131,55 @@ export function useDeleteAccount() {
       resetAnalytics();
       void qc.invalidateQueries();
     },
+  });
+}
+
+/**
+ * Blocking, required by App Store guideline 1.2 for apps with UGC.
+ *
+ * Separate from reporting on purpose: reporting escalates to staff and can
+ * end with content removed for everyone; blocking is a private, silent,
+ * one-directional filter that changes nothing for anyone else. Mixing them
+ * would mean people reach for the wrong one and are surprised by the result.
+ *
+ * Invalidates place reviews so the blocked person's reviews disappear from
+ * the list immediately rather than on the next cold load.
+ */
+export function useBlockUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    // PUT, not POST: blocking someone already blocked is a success. The
+    // desired state is already true.
+    mutationFn: (blockedUserId: string) =>
+      apiFetch<void>(`/me/blocks/${encodeURIComponent(blockedUserId)}`, {
+        method: "PUT",
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["places"] });
+      void qc.invalidateQueries({ queryKey: ["me", "blocks"] });
+    },
+  });
+}
+
+export function useUnblockUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (blockedUserId: string) =>
+      apiFetch<void>(`/me/blocks/${encodeURIComponent(blockedUserId)}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["places"] });
+      void qc.invalidateQueries({ queryKey: ["me", "blocks"] });
+    },
+  });
+}
+
+export function useMyBlocks(enabled: boolean) {
+  return useQuery<BlockedUser[]>({
+    queryKey: ["me", "blocks"],
+    queryFn: () => apiFetch<BlockedUser[]>("/me/blocks"),
+    enabled,
   });
 }
 

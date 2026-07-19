@@ -27,7 +27,15 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -69,10 +77,17 @@ from app.modules.organizations.models import (
 from app.modules.places.enums import PlaceEventType
 from app.modules.places.models import Place, PlacePhoto
 from app.modules.places.repo import log_place_event
+from app.modules.users.blocks import (
+    block_user,
+    blocked_user_ids,
+    list_blocks,
+    unblock_user,
+)
 from app.modules.reviews import repo
 from app.modules.reviews.enums import PlaceReviewStatus, ReviewSort
 from app.modules.reviews.models import PlaceReview
 from app.modules.reviews.schemas import (
+    BlockedUserRead,
     MyReviewRead,
     OwnerReviewListResponse,
     OwnerReviewPlace,
@@ -300,8 +315,18 @@ def list_reviews(
     if place is None or place.is_deleted:
         raise NotFoundError("PLACE_NOT_FOUND", "That restaurant doesn't exist.")
 
+    # Blocked authors drop out before paging — see list_place_reviews. This is
+    # the read that makes blocking mean anything; without it the button would
+    # store a row and change nothing the person can see.
     rows, total = repo.list_place_reviews(
-        db, place_id=place_id, sort=sort, limit=limit, offset=offset
+        db,
+        place_id=place_id,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+        hidden_author_ids=tuple(
+            blocked_user_ids(db, viewer_id=user.id if user else None)
+        ),
     )
 
     reported: set[UUID] = set()
@@ -900,3 +925,105 @@ def delete_reply(
 
     repo.delete_reply(db, reply=review.reply)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Blocking
+# ---------------------------------------------------------------------------
+# App Store Review Guideline 1.2 requires "the ability to block abusive users
+# from the service" for any app with user-generated content. It became binding
+# the moment reviews shipped.
+#
+# Deliberately separate from reporting, which escalates to staff. Blocking is
+# private and one-directional: it hides someone's reviews from you, tells them
+# nothing, and changes nothing for anyone else.
+
+blocks_router = APIRouter(prefix="/me/blocks", tags=["reviews"])
+
+
+@blocks_router.get(
+    "",
+    response_model=list[BlockedUserRead],
+    summary="People you've blocked",
+    description=(
+        "Newest first. A block you can't find and undo is a trap rather than "
+        "a feature, so this exists purely so the mobile settings screen can "
+        "offer a way back."
+    ),
+)
+def list_my_blocks(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[BlockedUserRead]:
+    rows = list_blocks(db, blocker_id=user.id)
+    names = {
+        u.id: u.display_name
+        for u in db.execute(
+            select(User).where(
+                User.id.in_([r.blocked_user_id for r in rows] or [None])
+            )
+        )
+        .scalars()
+        .all()
+    }
+    return [
+        BlockedUserRead(
+            user_id=r.blocked_user_id,
+            display_name=names.get(r.blocked_user_id),
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
+
+
+@blocks_router.put(
+    "/{blocked_user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Block someone",
+    description=(
+        "Hides this person's reviews from you everywhere. They are not told, "
+        "and nothing changes for anyone else.\n\n"
+        "PUT rather than POST because the operation is idempotent — blocking "
+        "someone already blocked is a success, not a 409. The desired state "
+        "is already true, and an error there would be a baffling response to "
+        "'make this person go away'."
+    ),
+)
+@limiter.limit("60/hour", key_func=user_or_ip_key)
+def block_someone(
+    request: Request,
+    blocked_user_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    target = db.get(User, blocked_user_id)
+    if target is None:
+        raise NotFoundError("USER_NOT_FOUND", "That person doesn't exist.")
+
+    block_user(db, blocker_id=user.id, blocked_id=blocked_user_id)
+    db.commit()
+    track(
+        "user_blocked",
+        distinct_id=user.id,
+        properties={"blocked_user_id": str(blocked_user_id)},
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@blocks_router.delete(
+    "/{blocked_user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Unblock someone",
+    description=(
+        "Their reviews become visible to you again. Unblocking someone who "
+        "wasn't blocked is also a 204 — same idempotence reasoning as the PUT."
+    ),
+)
+def unblock_someone(
+    blocked_user_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    unblock_user(db, blocker_id=user.id, blocked_id=blocked_user_id)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

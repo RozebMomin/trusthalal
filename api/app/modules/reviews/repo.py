@@ -118,15 +118,26 @@ def list_place_reviews(
     sort: ReviewSort = ReviewSort.RECENT,
     limit: int = 10,
     offset: int = 0,
+    hidden_author_ids: Sequence[UUID] = (),
 ) -> tuple[list[PlaceReview], int]:
     """Visible reviews for a place, newest-first by default.
 
     Replies are eager-loaded (``selectin`` on the relationship) so rendering
     a page of reviews with their owner responses is two queries, not eleven.
+
+    ``hidden_author_ids`` are people the viewer has blocked. Filtered in SQL
+    rather than after paging, so a blocked author can't silently shrink
+    someone's page from ten reviews to eight — and ``total`` counts what this
+    viewer can actually see, or "showing 10 of 12" would be a lie told
+    specifically to the person who asked not to see those two.
     """
     base = select(PlaceReview).where(
         PlaceReview.place_id == place_id, PlaceReview.status == _VISIBLE
     )
+    if hidden_author_ids:
+        base = base.where(
+            PlaceReview.author_user_id.notin_(list(hidden_author_ids))
+        )
 
     total = int(
         db.execute(

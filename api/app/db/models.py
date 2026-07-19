@@ -59,3 +59,4 @@ from app.modules.places.photos.reports import (  # noqa: F401
 from app.modules.places.photos.storage_cleanup import (  # noqa: F401
     StorageOrphan,
 )
+from app.modules.users.blocks import UserBlock  # noqa: F401

@@ -179,6 +179,14 @@ export type AccountDeletionPreview = {
   keeps_owner_replies: boolean;
 };
 
+/** Someone you've blocked. Display name so the settings list is readable —
+ *  a column of UUIDs would make unblocking guesswork. */
+export type BlockedUser = {
+  user_id: string;
+  display_name: string | null;
+  created_at: string;
+};
+
 export type FavoriteRead = { saved_at: string; place: PlaceSearchResult };
 
 /** One row of the per-category, per-channel notification matrix.

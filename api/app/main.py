@@ -73,6 +73,7 @@ from app.modules.consumer_preferences.router import (  # noqa: E402
 # separate module — different cardinality (many rows per user vs.
 # one) and totally different reads.
 from app.modules.reviews.router import (  # noqa: E402
+    blocks_router,
     me_reviews_router,
     owner_reviews_router,
     place_reviews_router,
@@ -482,6 +483,7 @@ app.include_router(admin_verification_visits_router)
 app.include_router(admin_verifier_profiles_router)
 app.include_router(place_reviews_router)
 app.include_router(me_reviews_router)
+app.include_router(blocks_router)
 app.include_router(owner_reviews_router)
 app.include_router(admin_reviews_router)
 app.include_router(admin_photos_router)

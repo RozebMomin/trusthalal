@@ -90,9 +90,16 @@ export default function Profile() {
             where a hidden or removed review is visible to its author, so
             burying it behind a notification would defeat the purpose. */}
         <Cell
-          last
           onPress={() => router.push("/my-reviews")}
           left={<><IcBox icon="message-square" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Your reviews</Text></>}
+          right={chev}
+        />
+        {/* A block you can't undo is a trap. Guideline 1.2 requires the
+            ability to block; this is the way back. */}
+        <Cell
+          last
+          onPress={() => router.push("/blocked")}
+          left={<><IcBox icon="slash" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Blocked people</Text></>}
           right={chev}
         />
       </Card>
