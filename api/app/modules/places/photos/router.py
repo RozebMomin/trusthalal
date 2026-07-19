@@ -788,6 +788,7 @@ def report_place_photo(
 
     track(
         "photo_reported",
-        {"place_id": str(place_id), "reason": body.reason.value},
+        distinct_id=user.id,
+        properties={"place_id": str(place_id), "reason": body.reason.value},
     )
     return PhotoReportRead.model_validate(row)

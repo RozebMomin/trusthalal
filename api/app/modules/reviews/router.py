@@ -325,14 +325,18 @@ def create_review(
     log_place_event(
         db,
         place_id=place_id,
-        event_type=PlaceEventType.REVIEW_POSTED.value,
+        event_type=PlaceEventType.REVIEW_POSTED,
         actor_user_id=user.id,
         message=f"{payload.rating}-star review posted.",
     )
     db.commit()
     db.refresh(review)
 
-    track("review_posted", {"place_id": str(place_id), "rating": payload.rating})
+    track(
+        "review_posted",
+        distinct_id=user.id,
+        properties={"place_id": str(place_id), "rating": payload.rating},
+    )
     notify_review_posted(background, db, review=review)
 
     return _review_read(db, review, viewer_id=user.id)
@@ -475,7 +479,8 @@ def report_review(
 
     track(
         "review_reported",
-        {"review_id": str(review_id), "reason": payload.reason.value},
+        distinct_id=user.id,
+        properties={"review_id": str(review_id), "reason": payload.reason.value},
     )
     return ReviewReportRead.model_validate(row)
 
@@ -633,14 +638,18 @@ def create_reply(
     log_place_event(
         db,
         place_id=review.place_id,
-        event_type=PlaceEventType.REVIEW_REPLIED.value,
+        event_type=PlaceEventType.REVIEW_REPLIED,
         actor_user_id=user.id,
         message="Owner replied to a review.",
     )
     db.commit()
     db.refresh(reply)
 
-    track("review_replied", {"place_id": str(review.place_id)})
+    track(
+        "review_replied",
+        distinct_id=user.id,
+        properties={"place_id": str(review.place_id)},
+    )
     notify_review_replied(background, db, review=review, reply=reply)
 
     return _reply_read(db, reply)

@@ -84,7 +84,6 @@ class PlacePhotoReport(Base):
             name="photo_report_reason",
             native_enum=False,
             length=32,
-            values_callable=lambda e: [m.value for m in e],
         ),
         nullable=False,
     )
@@ -96,7 +95,6 @@ class PlacePhotoReport(Base):
             name="photo_report_status",
             native_enum=False,
             length=32,
-            values_callable=lambda e: [m.value for m in e],
         ),
         nullable=False,
         server_default=text("'OPEN'"),

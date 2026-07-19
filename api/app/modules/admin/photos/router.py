@@ -329,7 +329,8 @@ def resolve_photo_report(
 
     track(
         "photo_moderated",
-        {
+        distinct_id=admin.id,
+        properties={
             "photo_id": str(photo_id),
             "decision": payload.decision.value,
             "removed": payload.remove,

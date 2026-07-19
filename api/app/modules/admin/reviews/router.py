@@ -338,7 +338,7 @@ def resolve_review_report(
                 log_place_event(
                     db,
                     place_id=review.place_id,
-                    event_type=PlaceEventType.REVIEW_REMOVED.value,
+                    event_type=PlaceEventType.REVIEW_REMOVED,
                     actor_user_id=admin.id,
                     message="A review was removed by moderation.",
                 )
@@ -355,7 +355,8 @@ def resolve_review_report(
 
     track(
         "review_moderated",
-        {
+        distinct_id=admin.id,
+        properties={
             "review_id": str(review_id),
             "decision": payload.decision.value,
             "action": payload.action.value,
@@ -424,7 +425,7 @@ def set_review_status(
             log_place_event(
                 db,
                 place_id=review.place_id,
-                event_type=PlaceEventType.REVIEW_REMOVED.value,
+                event_type=PlaceEventType.REVIEW_REMOVED,
                 actor_user_id=admin.id,
                 message="A review was removed by moderation.",
             )
@@ -434,7 +435,8 @@ def set_review_status(
 
     track(
         "review_moderated",
-        {"review_id": str(review_id), "action": payload.status.value},
+        distinct_id=admin.id,
+        properties={"review_id": str(review_id), "action": payload.status.value},
     )
     if payload.status != PlaceReviewStatus.PUBLISHED:
         notify_review_moderated(
