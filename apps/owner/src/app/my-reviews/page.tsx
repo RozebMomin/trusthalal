@@ -55,6 +55,7 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
   const [open, setOpen] = React.useState(false);
   const [body, setBody] = React.useState(review.reply?.body ?? "");
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [warning, setWarning] = React.useState<string | null>(null);
   const [needsVerify, setNeedsVerify] = React.useState(false);
   const resendVerify = useResendVerification();
 
@@ -62,19 +63,32 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
   const pending = reply.isPending || editReply.isPending;
   const canSubmit = body.trim().length > 0 && !pending;
 
-  async function submit() {
+  async function submit(acknowledgedWarning = false) {
     if (!canSubmit) return;
     setErrorMsg(null);
+    setWarning(null);
     try {
-      const payload = { reviewId: review.id, body: body.trim() };
+      const payload = {
+        reviewId: review.id,
+        body: body.trim(),
+        acknowledgedWarning,
+      };
       if (editing) await editReply.mutateAsync(payload);
       else await reply.mutateAsync(payload);
       setOpen(false);
     } catch (err) {
       const status = (err as { status?: number })?.status;
+      const code = (err as { code?: string })?.code;
       const { description } = friendlyApiError(err, {
         defaultTitle: "Couldn't post that reply",
       });
+      // Owners get the same nudge diners do. An owner replying angrily in
+      // public does more damage to Trust Halal than the review that provoked
+      // it, so this is the one audience it's most worth asking twice.
+      if (code === "REVIEW_TEXT_WARNING") {
+        setWarning(description);
+        return;
+      }
       // Owners are held to the same content filter as diners. Worth saying
       // plainly rather than letting them wonder what happened.
       // 403 here means the account's email was never confirmed. Accounts
@@ -236,6 +250,34 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
               {errorMsg}
             </p>
           )}
+          {warning && (
+            <div
+              role="alert"
+              className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900"
+            >
+              <span className="block font-semibold">Worth a second look</span>
+              {warning}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setWarning(null)}
+                >
+                  Let me edit it
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => submit(true)}
+                >
+                  {pending ? "Posting…" : "Post anyway"}
+                </Button>
+              </div>
+            </div>
+          )}
           {needsVerify && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 p-3">
               <p className="text-xs leading-relaxed text-amber-900">
@@ -256,7 +298,7 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
             </div>
           )}
           <div className="flex gap-2">
-            <Button size="sm" disabled={!canSubmit} onClick={submit}>
+            <Button size="sm" disabled={!canSubmit} onClick={() => submit(false)}>
               {pending ? "Checking…" : editing ? "Save reply" : "Post reply"}
             </Button>
             <Button

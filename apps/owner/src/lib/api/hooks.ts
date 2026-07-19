@@ -1590,10 +1590,21 @@ function invalidateOwnerReviews(qc: ReturnType<typeof useQueryClient>) {
 export function useReplyToReview() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ reviewId, body }: { reviewId: string; body: string }) =>
+    mutationFn: ({
+      reviewId,
+      body,
+      acknowledgedWarning,
+    }: {
+      reviewId: string;
+      body: string;
+      /** Sent on the retry after the owner has seen the heated-text nudge.
+       *  Owners get the same two-step as diners — they are not exempt from
+       *  the content filter, and a reply carries more implicit weight. */
+      acknowledgedWarning?: boolean;
+    }) =>
       apiFetch<OwnerReviewReply>(`/places/reviews/${reviewId}/reply`, {
         method: "POST",
-        json: { body },
+        json: { body, acknowledged_warning: acknowledgedWarning ?? false },
       }),
     onSuccess: () => invalidateOwnerReviews(qc),
   });
@@ -1602,10 +1613,21 @@ export function useReplyToReview() {
 export function useEditReviewReply() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ reviewId, body }: { reviewId: string; body: string }) =>
+    mutationFn: ({
+      reviewId,
+      body,
+      acknowledgedWarning,
+    }: {
+      reviewId: string;
+      body: string;
+      /** Sent on the retry after the owner has seen the heated-text nudge.
+       *  Owners get the same two-step as diners — they are not exempt from
+       *  the content filter, and a reply carries more implicit weight. */
+      acknowledgedWarning?: boolean;
+    }) =>
       apiFetch<OwnerReviewReply>(`/places/reviews/${reviewId}/reply`, {
         method: "PATCH",
-        json: { body },
+        json: { body, acknowledged_warning: acknowledgedWarning ?? false },
       }),
     onSuccess: () => invalidateOwnerReviews(qc),
   });

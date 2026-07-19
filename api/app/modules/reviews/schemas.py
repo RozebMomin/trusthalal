@@ -211,12 +211,6 @@ class ReviewReportCreate(BaseModel):
     #: Set when reporting the owner's reply rather than the review.
     reply_id: Optional[UUID] = None
 
-    #: Set by the client when re-submitting after seeing the "this reads
-    #: heated" nudge. Waives the WARN verdict only — the text is re-scored on
-    #: the second pass and a BLOCK still refuses, so this can't be used to
-    #: skip moderation by sending it on the first request.
-    acknowledged_warning: bool = False
-
     @model_validator(mode="after")
     def _detail_required_for_other(self):
         # Must be a model_validator, not a field_validator on `detail`:

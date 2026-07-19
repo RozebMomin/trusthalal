@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyFavorites, usePlaceDetail, useToggleFavorite } from "@/lib/api/hooks";
 import { PlaceReviews } from "@/components/PlaceReviews";
 import { primaryHalalSignal } from "@/lib/halal-display";
+import { RatingLine } from "@/components/RatingLine";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
@@ -150,16 +151,17 @@ export default function PlaceDetail() {
                 <Text style={[ty.title, { color: t.ink, fontSize: 28, lineHeight: 34, marginTop: 5 }]}>
                   {place.name}
                 </Text>
-                {place.google_rating != null || place.cuisine_types.length > 0 ? (
+                {place.google_rating != null ||
+                (place.review_count ?? 0) > 0 ||
+                place.cuisine_types.length > 0 ? (
                   <Text style={[ty.body, { color: t.sub }]} numberOfLines={1}>
-                    {place.google_rating != null ? (
-                      <Text style={{ color: t.ink, fontFamily: "Inter_600SemiBold" }}>
-                        <Text style={{ color: "#F59E0B" }}>★ </Text>
-                        {place.google_rating.toFixed(1)}
-                        {place.google_rating_count != null ? ` (${place.google_rating_count})` : ""}
-                      </Text>
-                    ) : null}
-                    {place.google_rating != null && place.cuisine_types.length > 0 ? " · " : ""}
+                    {/* Both ratings, each attributed. A bare star here read
+                        as Trust Halal's own score when it was Google's. */}
+                    <RatingLine place={place} starColor="#F59E0B" labelColor={t.sub} />
+                    {(place.google_rating != null || (place.review_count ?? 0) > 0) &&
+                    place.cuisine_types.length > 0
+                      ? " · "
+                      : ""}
                     {place.cuisine_types.slice(0, 3).map(titleCaseCuisine).join(" · ")}
                   </Text>
                 ) : null}

@@ -81,9 +81,16 @@ export type PlaceSearchResult = {
   hero_photo_url: string | null;
   halal_profile: HalalProfileEmbed | null;
   /** Google star rating (1.0–5.0) + number of ratings. Null until synced.
-   *  Optional so fixtures and older cached payloads stay valid. */
+   *  Optional so fixtures and older cached payloads stay valid.
+   *
+   *  Never render this without saying it's Google's — see RatingLine. */
   google_rating?: number | null;
   google_rating_count?: number | null;
+  /** Trust Halal's own rating, from first-party reviews. Deliberately a
+   *  separate pair from Google's: they measure different things over
+   *  different populations and must never be blended or shown unlabelled. */
+  review_rating_avg?: number | null;
+  review_count?: number;
   /** Computed open/closed from stored hours + place tz. Null when unknown. */
   open_now?: boolean | null;
 };

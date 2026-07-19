@@ -110,6 +110,7 @@ def _moderate(
     surface: str,
     user_id: UUID | None = None,
     acknowledged_warning: bool = False,
+    warn: bool = True,
 ) -> None:
     """Refuse text that trips the content filter. Raises or returns None.
 
@@ -170,7 +171,15 @@ def _moderate(
     # would be a bypass: send anything with acknowledged_warning=true and skip
     # the check entirely. BLOCK is evaluated above on both passes, so the only
     # thing the flag waives is the warning it was issued for.
-    if result.verdict == ModerationVerdict.WARN and not acknowledged_warning:
+    #
+    # ``warn=False`` turns the tier off for text that isn't published. The
+    # nudge argues that describing what happened is more useful *to other
+    # diners* — true of a review, meaningless for a report that only a
+    # moderator reads. Someone reporting a review they believe is a lie about
+    # their restaurant is entitled to be heated about it, and asking them to
+    # soften a private complaint would be both patronising and pointless.
+    # BLOCK still applies: nobody has to read slurs, including staff.
+    if warn and result.verdict == ModerationVerdict.WARN and not acknowledged_warning:
         track(
             "review_text_warned",
             distinct_id=user_id,
@@ -592,7 +601,7 @@ def report_review(
             moderator,
             surface="review_report",
             user_id=user.id,
-            acknowledged_warning=payload.acknowledged_warning,
+            warn=False,
         )
 
     row = repo.create_report(

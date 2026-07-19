@@ -12,6 +12,7 @@
  */
 
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -376,13 +377,32 @@ export type PlaceReviewListResponse = {
   my_review_id: string | null;
 };
 
+export const REVIEWS_PAGE_SIZE = 10;
+
+/**
+ * Paged reviews for a place.
+ *
+ * Infinite rather than a single fixed fetch: the first version asked for
+ * `limit: 10` once and never read `next_offset`, so a place with forty
+ * reviews showed ten, permanently, with a "Show all" button that only
+ * expanded the ten already in hand. The pagination existed on the server the
+ * whole time — nothing called it.
+ */
 export function usePlaceReviews(placeId: string, sort: ReviewSort = "recent") {
-  return useQuery<PlaceReviewListResponse>({
+  return useInfiniteQuery<PlaceReviewListResponse>({
     queryKey: ["places", placeId, "reviews", sort],
-    queryFn: () =>
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
       apiFetch<PlaceReviewListResponse>(`/places/${placeId}/reviews`, {
-        searchParams: { sort, limit: 10 },
+        searchParams: {
+          sort,
+          limit: REVIEWS_PAGE_SIZE,
+          offset: pageParam as number,
+        },
       }),
+    // Server returns null when there's nothing more, so this is the whole
+    // termination condition — no arithmetic on our side to get wrong.
+    getNextPageParam: (last) => last.next_offset ?? undefined,
     enabled: Boolean(placeId),
   });
 }

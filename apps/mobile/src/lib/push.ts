@@ -23,7 +23,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
-import { Platform } from "react-native";
+import { Linking, Platform } from "react-native";
 
 import { apiFetch } from "./api/client";
 
@@ -108,8 +108,39 @@ export async function unregisterPush(): Promise<void> {
   }
 }
 
+/** Origins a push is allowed to send the user to outside the app. */
+const ALLOWED_EXTERNAL_ORIGINS = [
+  "https://owner.trusthalal.org",
+  "https://admin.trusthalal.org",
+  "https://trusthalal.org",
+];
+
 function routeTo(response: Notifications.NotificationResponse): void {
-  const path = response.notification.request.content.data?.path;
+  const data = response.notification.request.content.data ?? {};
+
+  // Owner-side destinations don't exist in this app at all — the owner
+  // portal is a separate web surface — so they arrive as an absolute URL
+  // and leave the app.
+  //
+  // This is not interchangeable with `path`. An owner notification once
+  // carried path "/my-reviews", which used to be a dead route and later
+  // became the *diner's* own reviews screen: tapping "New review for your
+  // restaurant" would have opened your personal review history instead of
+  // the inbox. Same string, two products, silently wrong.
+  //
+  // Allowlisted rather than "any https URL" — the payload is server-set
+  // today, but a push destination is exactly the thing you don't want to
+  // become an open redirect later.
+  const url = data.url;
+  if (
+    typeof url === "string" &&
+    ALLOWED_EXTERNAL_ORIGINS.some((origin) => url.startsWith(`${origin}/`))
+  ) {
+    void Linking.openURL(url);
+    return;
+  }
+
+  const path = data.path;
   // Only follow app-relative paths — never anything that looks like a URL.
   if (typeof path === "string" && path.startsWith("/") && !path.startsWith("//")) {
     router.push(path as never);

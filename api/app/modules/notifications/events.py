@@ -540,7 +540,12 @@ def notify_review_posted(
             },
             push_title=f"New review for {place_name}",
             push_body=f"{stars} — {_review_excerpt(review.body, 80)}",
-            push_data={"path": "/my-reviews"},
+            # An absolute owner-portal URL, not a mobile path. The owner
+            # inbox doesn't exist inside the consumer app, and "/my-reviews"
+            # there is the *diner's* own reviews — an owner tapping this
+            # would have landed on their personal review history. Anything
+            # owner-destined has to leave the app.
+            push_data={"url": inbox_url},
         )
 
 
@@ -607,7 +612,8 @@ def notify_review_edited_after_reply(
                 if rating_changed
                 else "A review you replied to was rewritten"
             ),
-            push_data={"path": "/my-reviews"},
+            # Owner portal URL, not a mobile path — see notify_review_posted.
+            push_data={"url": inbox_url},
         )
 
 

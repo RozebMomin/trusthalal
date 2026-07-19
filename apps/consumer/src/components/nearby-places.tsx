@@ -128,19 +128,19 @@ function NearbyCard({
               if (shown == null) return null;
               return (
                 <>
-                  <span
-                    className="inline-flex items-center gap-0.5 font-medium text-foreground/80"
-                    title={
-                      own != null
-                        ? "Rating from Trust Halal diners"
-                        : "Rating from Google"
-                    }
-                  >
+                  {/* Visible label, not a tooltip. The source has to be
+                      readable on a phone, where hover doesn't exist — and
+                      an unattributed star on a Trust Halal card reads as
+                      Trust Halal's own rating when it's usually Google's. */}
+                  <span className="inline-flex items-center gap-0.5 font-medium text-foreground/80">
                     <Star
                       className="h-3 w-3 fill-amber-400 text-amber-400"
                       aria-hidden
                     />
                     {shown.toFixed(1)}
+                    <span className="ml-0.5 font-normal text-muted-foreground">
+                      {own != null ? "Trust Halal" : "on Google"}
+                    </span>
                   </span>
                   <span aria-hidden>·</span>
                 </>

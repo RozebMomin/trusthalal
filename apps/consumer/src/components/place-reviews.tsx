@@ -329,9 +329,15 @@ export function PlaceReviews({
   const [expanded, setExpanded] = React.useState(false);
 
   const reviews = usePlaceReviews(place.id, sort);
-  const data = reviews.data;
-  const items = data?.items ?? [];
+  // Summary and the caller's own review are page-invariant; take them from
+  // the first page. Items concatenate across every page fetched so far.
+  const data = reviews.data?.pages[0];
+  const items = React.useMemo(
+    () => (reviews.data?.pages ?? []).flatMap((p) => p.items),
+    [reviews.data],
+  );
   const shown = expanded ? items : items.slice(0, 5);
+  const total = data?.total ?? items.length;
 
   const mine = items.find((r) => r.is_mine) ?? null;
 
@@ -402,10 +408,26 @@ export function PlaceReviews({
                 ))}
               </ul>
 
-              {items.length > shown.length && (
+              {/* Two different "more"s, deliberately one button. Collapsed,
+                  it expands the page already in hand; expanded, it fetches
+                  the next page. A place with forty reviews used to show ten
+                  and stop, because nothing ever read next_offset. */}
+              {(items.length > shown.length || reviews.hasNextPage) && (
                 <div className="border-t pt-4 text-center">
-                  <Button variant="outline" size="sm" onClick={() => setExpanded(true)}>
-                    Show all {items.length} reviews
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={reviews.isFetchingNextPage}
+                    onClick={() => {
+                      if (items.length > shown.length) setExpanded(true);
+                      else void reviews.fetchNextPage();
+                    }}
+                  >
+                    {reviews.isFetchingNextPage
+                      ? "Loading…"
+                      : items.length > shown.length
+                        ? `Show all ${total} reviews`
+                        : "Load more reviews"}
                   </Button>
                 </div>
               )}

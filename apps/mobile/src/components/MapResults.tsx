@@ -6,6 +6,7 @@ import MapView, { Circle, Marker } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { primaryHalalSignal } from "@/lib/halal-display";
 import type { PlaceSearchResult } from "@/lib/api/types";
+import { RatingLine } from "@/components/RatingLine";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Tag } from "@/ui/kit";
@@ -414,11 +415,11 @@ export function MapResults({
                   {item.place.name}
                 </Text>
                 <Text numberOfLines={1} style={[ty.small, { color: t.sub }]}>
-                  {item.place.google_rating != null ? (
-                    <Text style={{ color: "#F59E0B", fontFamily: "Inter_700Bold" }}>
-                      {`★ ${item.place.google_rating.toFixed(1)} · `}
-                    </Text>
-                  ) : null}
+                  <RatingLine place={item.place} starColor="#F59E0B" labelColor={t.sub} />
+                  {item.place.google_rating != null ||
+                  (item.place.review_count ?? 0) > 0
+                    ? " · "
+                    : null}
                   {[mi, item.place.cuisine_types[0] && titleCase(item.place.cuisine_types[0]), item.place.city].filter(Boolean).join(" · ")}
                 </Text>
               </View>

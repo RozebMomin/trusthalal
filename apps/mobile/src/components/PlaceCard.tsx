@@ -5,6 +5,7 @@ import { primaryHalalSignal } from "@/lib/halal-display";
 import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
+import { RatingLine } from "@/components/RatingLine";
 import { TierTag } from "./TierTag";
 
 function miles(m?: number) {
@@ -69,12 +70,11 @@ export function PlaceCard({
                 <Text style={{ color: t.sub }}>No hours</Text>
               ) : null}
               {openState ? " · " : null}
-              {place.google_rating != null ? (
-                <Text style={{ color: "#F59E0B", fontFamily: "Inter_700Bold" }}>
-                  {`★ ${place.google_rating.toFixed(1)}`}
-                </Text>
-              ) : null}
-              {place.google_rating != null && (dist || meta) ? " · " : null}
+              <RatingLine place={place} starColor="#F59E0B" labelColor={t.sub} />
+              {(place.google_rating != null || (place.review_count ?? 0) > 0) &&
+              (dist || meta)
+                ? " · "
+                : null}
               {[dist, meta].filter(Boolean).join(" · ")}
             </Text>
           </View>
@@ -145,14 +145,16 @@ export function PlaceCard({
           <Text numberOfLines={1} style={[ty.label, { color: "#fff", fontSize: 16 }]}>
             {place.name}
           </Text>
-          {place.google_rating != null || meta ? (
+          {place.google_rating != null || (place.review_count ?? 0) > 0 || meta ? (
             <Text style={[ty.small, { color: "rgba(255,255,255,0.85)" }]} numberOfLines={1}>
-              {place.google_rating != null ? (
-                <Text style={{ color: "#FCD34D", fontFamily: "Inter_700Bold" }}>
-                  {`★ ${place.google_rating.toFixed(1)}`}
-                </Text>
-              ) : null}
-              {place.google_rating != null && meta ? " · " : null}
+              <RatingLine
+                place={place}
+                starColor="#FCD34D"
+                labelColor="rgba(255,255,255,0.85)"
+              />
+              {(place.google_rating != null || (place.review_count ?? 0) > 0) && meta
+                ? " · "
+                : null}
               {meta}
             </Text>
           ) : null}
