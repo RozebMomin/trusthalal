@@ -11,7 +11,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useReverseGeocode, useSearchPlaces } from "@/lib/api/hooks";
+import { useCurrentUser, useMyPreferences, useReverseGeocode, useSearchPlaces } from "@/lib/api/hooks";
+import type { ConsumerPreferences } from "@/lib/api/types";
 import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -56,6 +57,18 @@ function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng:
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
+/** Saved preferences → the Explore filter shape. Null/false means "no
+ *  preference", so only truthy values become active filters. */
+function prefsToFilters(p: ConsumerPreferences): Filters {
+  const f: Filters = {};
+  if (p.min_validation_tier) f.min_validation_tier = p.min_validation_tier;
+  if (p.min_menu_posture) f.min_menu_posture = p.min_menu_posture;
+  if (p.no_pork) f.no_pork = true;
+  if (p.no_alcohol_served) f.no_alcohol_served = true;
+  if (p.has_certification) f.has_certification = true;
+  return f;
+}
+
 export default function Explore() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -81,6 +94,33 @@ export default function Explore() {
   }
   const [manualLabel, setManualLabel] = useState<string | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
+
+  // --- Saved search defaults ------------------------------------------------
+  // Seed the filter state from the diner's saved preferences ONCE per mount.
+  // Deliberately a one-shot seed rather than a merge on every render: if we
+  // re-applied prefs continuously, clearing a preference-derived filter would
+  // snap right back (the exact bug we hit on the web surface). After the seed,
+  // whatever the user does here wins for the session.
+  const { data: me } = useCurrentUser();
+  const savedPrefs = useMyPreferences(Boolean(me));
+  const seededPrefs = useRef(false);
+  const [prefsApplied, setPrefsApplied] = useState(false);
+
+  useEffect(() => {
+    if (seededPrefs.current || !savedPrefs.data) return;
+    seededPrefs.current = true;
+    const seed = prefsToFilters(savedPrefs.data);
+    if (Object.keys(seed).length > 0) {
+      setFilters(seed);
+      setPrefsApplied(true);
+    }
+  }, [savedPrefs.data]);
+
+  /** Any user-driven filter change takes over from the saved defaults. */
+  const changeFilters: typeof setFilters = (next) => {
+    setPrefsApplied(false);
+    setFilters(next);
+  };
 
   const geo = coords
     ? { lat: coords.lat, lng: coords.lng, radius: radiusMi * M_PER_MI }
@@ -238,14 +278,14 @@ export default function Explore() {
             active={!!filters.open_now}
             label="Open now"
             onPress={() =>
-              setFilters((f) => ({ ...f, open_now: f.open_now ? undefined : true }))
+              changeFilters((f) => ({ ...f, open_now: f.open_now ? undefined : true }))
             }
           />
           <Chip
             active={filters.min_validation_tier === "TRUST_HALAL_VERIFIED"}
             label="✓ Verified"
             onPress={() =>
-              setFilters((f) => ({
+              changeFilters((f) => ({
                 ...f,
                 min_validation_tier:
                   f.min_validation_tier === "TRUST_HALAL_VERIFIED" ? undefined : "TRUST_HALAL_VERIFIED",
@@ -265,6 +305,28 @@ export default function Explore() {
             />
           ))}
         </ScrollView>
+
+        {/* Saved-defaults hint. Shown only while the seeded filters are still
+            untouched, so the diner knows *why* results are narrowed and can
+            widen them in one tap without hunting through the sheet. */}
+        {prefsApplied ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Feather name="sliders" size={12} color={t.sub} />
+            <Text style={[ty.small, { color: t.sub, flex: 1 }]}>
+              Using your saved search defaults.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Search without my saved defaults"
+              onPress={() => changeFilters({})}
+              hitSlop={8}
+            >
+              <Text style={[ty.small, { color: t.accentDeep, fontWeight: "700" }]}>
+                Show all
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {/* Radius: one segmented control, only when location is active.
             No wrapping badge rows — pick one of five, at a glance. */}
@@ -328,7 +390,7 @@ export default function Explore() {
           onRadius={coords ? setRadiusMi : undefined}
           onClearFilters={
             countFilters(filters) > 0 || cuisines.length > 0 || q
-              ? () => { setFilters({}); setCuisines([]); setRawQuery(""); }
+              ? () => { changeFilters({}); setCuisines([]); setRawQuery(""); }
               : undefined
           }
           coldStart={!hasActiveSearch}
@@ -362,7 +424,7 @@ export default function Explore() {
             ...(countFilters(filters) > 0 || cuisines.length > 0 || q
               ? [{
                   title: "Clear filters",
-                  onPress: () => { setFilters({}); setCuisines([]); setRawQuery(""); },
+                  onPress: () => { changeFilters({}); setCuisines([]); setRawQuery(""); },
                 }]
               : []),
           ]}
@@ -405,7 +467,7 @@ export default function Explore() {
           setFiltersOpen(false);
         }}
         filters={filters}
-        onChange={setFilters}
+        onChange={changeFilters}
         resultCount={hasActiveSearch ? results.length : undefined}
       />
     </View>

@@ -77,8 +77,9 @@ export default function Profile() {
       <Seg style={{ marginTop: space.xs }}>Preferences</Seg>
       <Card>
         <Cell
+          onPress={() => router.push("/search-preferences")}
           left={<><IcBox icon="sliders" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Search defaults</Text></>}
-          right={<Tag label="SOON" tone="dashed" />}
+          right={chev}
         />
         <Cell
           last

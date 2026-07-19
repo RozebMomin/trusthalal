@@ -145,6 +145,19 @@ export type NotificationPreferencesResponse = {
 
 export type NotificationChannel = "EMAIL" | "PUSH";
 
+/** GET/PUT /me/preferences — the diner's saved search defaults.
+ *  Null on any field means "no preference". ``updated_at`` is null until the
+ *  first save, which is how we tell "never customized" from "turned it all
+ *  off". PUT is a full replace: sending {} resets everything. */
+export type ConsumerPreferences = {
+  min_validation_tier?: ValidationTier | null;
+  min_menu_posture?: MenuPosture | null;
+  no_pork?: boolean | null;
+  no_alcohol_served?: boolean | null;
+  has_certification?: boolean | null;
+  updated_at?: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Verification visits (verifier surface)
 // ---------------------------------------------------------------------------

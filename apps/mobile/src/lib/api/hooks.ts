@@ -9,6 +9,7 @@ import { capture, identify, resetAnalytics } from "@/lib/analytics";
 import { tokenStore } from "@/lib/auth/token-store";
 import { unregisterPush } from "@/lib/push";
 import type {
+  ConsumerPreferences,
   FavoriteRead,
   HalalHistoryEvent,
   MobileAuthResponse,
@@ -346,6 +347,42 @@ export function useWithdrawVerificationVisit() {
       ),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["me", "verification-visits"] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Search preferences (the diner's saved filter defaults)
+// ---------------------------------------------------------------------------
+
+const SEARCH_PREFS_KEY = ["me", "preferences"] as const;
+
+/** GET /me/preferences. Returns an all-null record when nothing is saved yet,
+ *  so callers can render the same form either way. */
+export function useMyPreferences(enabled: boolean) {
+  return useQuery({
+    queryKey: SEARCH_PREFS_KEY,
+    queryFn: () => apiFetch<ConsumerPreferences>("/me/preferences"),
+    enabled,
+  });
+}
+
+/** PUT /me/preferences — full replace. Pass {} to clear every preference. */
+export function useUpdateMyPreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ConsumerPreferences) =>
+      apiFetch<ConsumerPreferences>("/me/preferences", {
+        method: "PUT",
+        // Strip updated_at — it's server-owned and the schema forbids extras.
+        body: JSON.stringify({
+          min_validation_tier: input.min_validation_tier ?? null,
+          min_menu_posture: input.min_menu_posture ?? null,
+          no_pork: input.no_pork ?? null,
+          no_alcohol_served: input.no_alcohol_served ?? null,
+          has_certification: input.has_certification ?? null,
+        }),
+      }),
+    onSuccess: (data) => qc.setQueryData(SEARCH_PREFS_KEY, data),
   });
 }
 
