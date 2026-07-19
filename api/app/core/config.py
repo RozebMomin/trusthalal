@@ -90,11 +90,15 @@ class Settings(BaseSettings):
     EMAIL_VERIFICATION_TTL_DAYS: int = 3
 
     # ---- Review text moderation -------------------------------------
-    # Off by default so a fresh local checkout can post reviews without a
-    # GCP key. Production sets it true; get_text_moderation_client() logs a
-    # warning whenever it's false, and refuses to start allow-all if it's
-    # true but keyless.
-    TEXT_MODERATION_ENABLED: bool = False
+    # On by default. A config mistake should fail loudly rather than quietly
+    # publishing unscreened text — "we forgot to turn moderation on" is not a
+    # failure anyone notices until it's a problem. When enabled without a key,
+    # get_text_moderation_client() refuses rather than degrading to allow-all.
+    #
+    # Local dev and CI set it false explicitly (see tests/conftest.py), which
+    # is the right shape: opting *out* is a deliberate act in a known-safe
+    # environment, not the default everywhere.
+    TEXT_MODERATION_ENABLED: bool = True
 
     # Deliberately conservative. The failure mode that matters is not
     # profanity slipping through — the report queue catches that — it's a

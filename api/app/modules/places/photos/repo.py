@@ -28,7 +28,12 @@ from app.modules.users.models import User
 # Cap from the planning doc. Lives here as a module constant so
 # tests can monkey-patch it (and a future admin-controlled cap
 # would be a settings lookup).
-MAX_PHOTOS_PER_PLACE = 50
+# Raised from 50 when review photos landed: every review can now attach up to
+# three, so a busy place reaches the old ceiling on review volume alone rather
+# than on owner uploads. 75 is a holding number — if places start hitting it,
+# the better fix is counting review photos separately from the gallery rather
+# than raising this again.
+MAX_PHOTOS_PER_PLACE = 75
 
 
 def list_active_photos_for_place(

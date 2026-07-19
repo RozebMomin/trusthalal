@@ -62,6 +62,15 @@ os.environ.setdefault("DEV_HEADER_AUTH_ENABLED", "true")
 # locally to pin the 429 envelope contract.
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
+# Text moderation defaults to ON in the app, which is the right production
+# posture — a config slip should fail loudly rather than quietly publish
+# unscreened content. The test suite has no GCP key and shouldn't make network
+# calls anyway, so it opts out explicitly here. Tests that care about
+# moderation behaviour inject a fake through
+# ``app.dependency_overrides[get_text_moderation_client]`` (see
+# tests/test_reviews.py) rather than relying on this flag.
+os.environ.setdefault("TEXT_MODERATION_ENABLED", "false")
+
 import pytest
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig

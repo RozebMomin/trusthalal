@@ -232,7 +232,7 @@ def _ensure_own_review(db: Session, *, review_id: UUID, place_id: UUID, user: Cu
         "runs HEIC→JPEG conversion, EXIF strip, dimension extract, "
         "and Cloud Vision SafeSearch BEFORE bytes hit the bucket. "
         "Returns 422 on SafeSearch reject, 415 on bad MIME, 413 on "
-        "size, 409 on per-place cap (50 photos)."
+        "size, 409 on per-place cap (75 photos)."
     ),
 )
 @limiter.limit("30/hour", key_func=user_or_ip_key)
