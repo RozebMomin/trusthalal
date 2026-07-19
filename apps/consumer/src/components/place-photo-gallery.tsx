@@ -26,12 +26,28 @@
  */
 "use client";
 
-import { ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, ImageIcon, Store, X } from "lucide-react";
 import * as React from "react";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { PhotoAttribution, PlacePhotoRead } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
+
+import { ReportPhotoDialog } from "./report-photo-dialog";
+
+/** Which side of the house a photo came from.
+ *
+ *  Two buckets, not four: readers want "the restaurant" vs "diners", and
+ *  folding GOOGLE in with OWNER and REVIEW in with DINER is what they
+ *  actually mean. Four tabs where two will do is furniture. */
+function isOwnerSide(photo: PlacePhotoRead): boolean {
+  return photo.attribution === "OWNER" || photo.attribution === "GOOGLE";
+}
+
+type PhotoTab = "all" | "owner" | "diner";
+
+/** Below this, tabs are furniture — you can see every photo at once. */
+const TABS_MIN_PHOTOS = 6;
 
 /** Human labels for provenance.
  *
@@ -52,12 +68,16 @@ const MAX_VISIBLE_THUMBNAILS = 5;
 export function PlacePhotoGallery({
   photos,
   placeName,
+  placeId,
 }: {
   photos: PlacePhotoRead[];
   placeName: string;
+  placeId: string;
 }) {
   // Hooks before any early return, so the rules-of-hooks invariant holds.
   const [openPhotoId, setOpenPhotoId] = React.useState<string | null>(null);
+  const [tab, setTab] = React.useState<PhotoTab>("all");
+  const [reportPhotoId, setReportPhotoId] = React.useState<string | null>(null);
 
   // Exclude the hero by its flag rather than by position. `slice(1)` was
   // only correct because the API happens to sort hero-first; that coupling
@@ -67,8 +87,36 @@ export function PlacePhotoGallery({
     [photos],
   );
 
-  const visible = galleryPhotos.slice(0, MAX_VISIBLE_THUMBNAILS);
-  const hiddenCount = galleryPhotos.length - visible.length;
+  // Counts come from the unfiltered set so the labels stay put when you
+  // switch tabs. A count that changes when you click a filter isn't a
+  // count, it's a search result.
+  const counts = React.useMemo(() => {
+    const owner = galleryPhotos.filter(isOwnerSide).length;
+    return {
+      all: galleryPhotos.length,
+      owner,
+      diner: galleryPhotos.length - owner,
+    };
+  }, [galleryPhotos]);
+
+  const filtered = React.useMemo(() => {
+    if (tab === "owner") return galleryPhotos.filter(isOwnerSide);
+    if (tab === "diner") return galleryPhotos.filter((p) => !isOwnerSide(p));
+    return galleryPhotos;
+  }, [galleryPhotos, tab]);
+
+  // Tabs only earn their space once there are enough photos to scan, and
+  // only when both sides are actually represented — a "By diners (0)" tab
+  // is a dead end dressed as a choice.
+  const showTabs =
+    galleryPhotos.length >= TABS_MIN_PHOTOS &&
+    counts.owner > 0 &&
+    counts.diner > 0;
+
+  const visible = filtered.slice(0, MAX_VISIBLE_THUMBNAILS);
+  const hiddenCount = filtered.length - visible.length;
+
+  const reportTarget = photos.find((p) => p.id === reportPhotoId) ?? null;
 
   return (
     <section aria-labelledby="photo-gallery-heading" className="space-y-3">
@@ -86,6 +134,38 @@ export function PlacePhotoGallery({
           )}
         </h2>
       </header>
+
+      {showTabs && (
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Filter photos">
+          {(
+            [
+              ["all", "All", counts.all],
+              ["owner", "By the restaurant", counts.owner],
+              ["diner", "By diners", counts.diner],
+            ] as const
+          ).map(([key, label, count]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                tab === key
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}{" "}
+              <span className={tab === key ? "opacity-70" : "opacity-60"}>
+                {count}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {galleryPhotos.length === 0 && (
         <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
@@ -127,6 +207,33 @@ export function PlacePhotoGallery({
                     decoding="async"
                     className="h-full w-full object-cover transition group-hover:scale-105"
                   />
+                  {/* Provenance on the grid itself, not only in the
+                      lightbox. The grid is what people actually scan; an
+                      anonymous wall of thumbnails is precisely the problem
+                      this feature exists to fix. */}
+                  {!isLastVisible && (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute bottom-1 left-1 flex items-center gap-1 rounded-full",
+                        "bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white",
+                      )}
+                    >
+                      {isOwnerSide(photo) ? (
+                        <>
+                          <Store className="h-2.5 w-2.5" />
+                          Restaurant
+                        </>
+                      ) : (
+                        <>
+                          {photo.uploaded_by_display_name?.charAt(0).toUpperCase() ??
+                            "D"}
+                          <span className="sr-only">Diner photo</span>
+                          {photo.attribution === "REVIEW" ? "Review" : "Diner"}
+                        </>
+                      )}
+                    </span>
+                  )}
                   {isLastVisible && hiddenCount > 0 && (
                     <span
                       aria-hidden
@@ -151,6 +258,21 @@ export function PlacePhotoGallery({
           placeName={placeName}
           startPhotoId={openPhotoId}
           onClose={() => setOpenPhotoId(null)}
+          onReport={(id) => {
+            setOpenPhotoId(null);
+            setReportPhotoId(id);
+          }}
+        />
+      )}
+
+      {reportTarget && (
+        <ReportPhotoDialog
+          placeId={placeId}
+          photo={reportTarget}
+          open
+          onOpenChange={(next) => {
+            if (!next) setReportPhotoId(null);
+          }}
         />
       )}
     </section>
@@ -170,11 +292,13 @@ function Lightbox({
   placeName,
   startPhotoId,
   onClose,
+  onReport,
 }: {
   photos: PlacePhotoRead[];
   placeName: string;
   startPhotoId: string;
   onClose: () => void;
+  onReport?: (photoId: string) => void;
 }) {
   const startIndex = React.useMemo(() => {
     const i = photos.findIndex((p) => p.id === startPhotoId);
@@ -313,9 +437,23 @@ function Lightbox({
               )}
             </div>
 
-            <span className="text-white/70">
-              {index + 1} / {photos.length}
-            </span>
+            <div className="flex items-center gap-3">
+              {/* Reporting is the only lever anyone has over someone else's
+                  photo — including the restaurant, which cannot delete it. */}
+              {onReport && photo.id !== "__hero__" && !isOwnerSide(photo) && (
+                <button
+                  type="button"
+                  onClick={() => onReport(photo.id)}
+                  className="flex items-center gap-1 text-white/70 transition hover:text-white"
+                >
+                  <Flag className="h-3 w-3" />
+                  Report
+                </button>
+              )}
+              <span className="text-white/70">
+                {index + 1} / {photos.length}
+              </span>
+            </div>
           </div>
         )}
 

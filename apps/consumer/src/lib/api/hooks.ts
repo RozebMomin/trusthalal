@@ -261,6 +261,38 @@ export type PlacePhotoRead = {
   created_at: string;
 };
 
+/** Why someone flagged a photo. Mirrors PhotoReportReason server-side. */
+export type PhotoReportReason =
+  | "NOT_THIS_PLACE"
+  | "INAPPROPRIATE"
+  | "MISLEADING"
+  | "PERSONAL_INFO"
+  | "COPYRIGHT"
+  | "OTHER";
+
+/** POST /places/{id}/photos/{photoId}/report.
+ *
+ *  This is the only route anyone — including the restaurant — has for a
+ *  diner's photo. Owners can't delete them, matching Google and Yelp, and
+ *  mattering more here because a photo of what was served is evidence. */
+export function useReportPhoto(placeId: string) {
+  return useMutation({
+    mutationFn: ({
+      photoId,
+      reason,
+      detail,
+    }: {
+      photoId: string;
+      reason: PhotoReportReason;
+      detail?: string;
+    }) =>
+      apiFetch<unknown>(
+        `/places/${placeId}/photos/${encodeURIComponent(photoId)}/report`,
+        { method: "POST", json: { reason, detail } },
+      ),
+  });
+}
+
 export type PlaceSearchResult = {
   id: string;
   name: string;

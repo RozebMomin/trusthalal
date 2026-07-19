@@ -264,6 +264,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
           <PlacePhotoGallery
             photos={place.data.photos}
             placeName={place.data.name}
+            placeId={placeId}
           />
 
           <DisputeSection
