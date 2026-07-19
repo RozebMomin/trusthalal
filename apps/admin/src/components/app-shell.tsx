@@ -46,7 +46,46 @@ import { useToast } from "@/lib/hooks/use-toast";
 // the user doesn't have a password yet — they're completing an invite
 // via a token in the URL. The page rejects the token server-side if
 // the user has been deactivated, so there's no impersonation surface.
-const PUBLIC_PATHS = new Set<string>(["/login", "/set-password"]);
+/**
+ * Routes that render without the auth gate.
+ *
+ * Every one of these is reached by someone who is, by definition, not
+ * signed in — or who is proving something with a token rather than a
+ * session. Gating them sends the user to /login, which is the one page
+ * they can't get past:
+ *
+ *   /login, /signup       — obvious.
+ *   /forgot-password      — you're here because you can't sign in.
+ *   /reset-password       — the token IS the credential.
+ *   /verify-email         — the token IS the proof, and these links are
+ *                           routinely opened on a phone or in a mail
+ *                           client where no session exists.
+ *
+ * This list previously held only login and signup, which meant password
+ * reset never worked on this portal: a locked-out user clicking their
+ * reset link landed on the sign-in page. Add a route here whenever it can
+ * be legitimately reached without a session.
+ */
+const PUBLIC_PATHS = new Set<string>([
+  "/login",
+  "/set-password",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+]);
+
+
+/**
+ * Public routes that must ALSO render for a signed-in user.
+ *
+ * The rest of PUBLIC_PATHS bounces an authenticated visitor home — sensible
+ * for /login, wrong for anything carrying a token. A signed-in owner
+ * clicking their own confirmation link would otherwise be redirected away
+ * before the token was ever redeemed, and the link would appear to do
+ * nothing. Same for a reset link opened in a browser where you happen to
+ * still have a session.
+ */
+const TOKEN_PATHS = new Set<string>(["/verify-email", "/reset-password"]);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
@@ -69,6 +108,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     if (!me && !isPublic) {
       router.replace("/login");
+      return;
+    }
+
+    if (me && isPublic && TOKEN_PATHS.has(pathname)) {
+      // Let the token route do its job; it'll offer its own way onward.
       return;
     }
 

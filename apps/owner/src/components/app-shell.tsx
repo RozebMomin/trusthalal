@@ -34,7 +34,46 @@ import { Button } from "@/components/ui/button";
 import { VersionTag } from "@/components/version-tag";
 import { useOwnerReviews, useCurrentUser, useLogout } from "@/lib/api/hooks";
 
-const PUBLIC_PATHS = new Set<string>(["/login", "/signup"]);
+/**
+ * Routes that render without the auth gate.
+ *
+ * Every one of these is reached by someone who is, by definition, not
+ * signed in — or who is proving something with a token rather than a
+ * session. Gating them sends the user to /login, which is the one page
+ * they can't get past:
+ *
+ *   /login, /signup       — obvious.
+ *   /forgot-password      — you're here because you can't sign in.
+ *   /reset-password       — the token IS the credential.
+ *   /verify-email         — the token IS the proof, and these links are
+ *                           routinely opened on a phone or in a mail
+ *                           client where no session exists.
+ *
+ * This list previously held only login and signup, which meant password
+ * reset never worked on this portal: a locked-out user clicking their
+ * reset link landed on the sign-in page. Add a route here whenever it can
+ * be legitimately reached without a session.
+ */
+const PUBLIC_PATHS = new Set<string>([
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+]);
+
+
+/**
+ * Public routes that must ALSO render for a signed-in user.
+ *
+ * The rest of PUBLIC_PATHS bounces an authenticated visitor home — sensible
+ * for /login, wrong for anything carrying a token. A signed-in owner
+ * clicking their own confirmation link would otherwise be redirected away
+ * before the token was ever redeemed, and the link would appear to do
+ * nothing. Same for a reset link opened in a browser where you happen to
+ * still have a session.
+ */
+const TOKEN_PATHS = new Set<string>(["/verify-email", "/reset-password"]);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
@@ -55,7 +94,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (me && isPublic) {
+    if (me && isPublic && !TOKEN_PATHS.has(pathname)) {
       router.replace("/");
     }
   }, [me, isLoading, isPublic, pathname, router]);
