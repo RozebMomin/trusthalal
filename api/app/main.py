@@ -72,6 +72,14 @@ from app.modules.consumer_preferences.router import (  # noqa: E402
 # Mirrors the preferences shape (one router rooted at /me) but a
 # separate module — different cardinality (many rows per user vs.
 # one) and totally different reads.
+from app.modules.reviews.router import (  # noqa: E402
+    me_reviews_router,
+    owner_reviews_router,
+    place_reviews_router,
+)
+from app.modules.admin.reviews.router import (  # noqa: E402
+    admin_reviews_router,
+)
 from app.modules.favorites.router import (  # noqa: E402
     router as favorites_router,
 )
@@ -469,6 +477,10 @@ app.include_router(admin_disputes_router)
 app.include_router(admin_verifiers_router)
 app.include_router(admin_verification_visits_router)
 app.include_router(admin_verifier_profiles_router)
+app.include_router(place_reviews_router)
+app.include_router(me_reviews_router)
+app.include_router(owner_reviews_router)
+app.include_router(admin_reviews_router)
 
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(StorageError, storage_error_handler)

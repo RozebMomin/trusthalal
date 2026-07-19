@@ -485,3 +485,216 @@ def notify_ownership_claim_decided(
             "portal_url": f"{settings.OWNER_PORTAL_ORIGIN.rstrip('/')}{portal_path}",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Reviews
+# ---------------------------------------------------------------------------
+# Split across two categories deliberately (see NotificationCategory): REVIEW
+# is opt-outable engagement volume, REVIEW_MODERATION is transactional and
+# mandatory on email. Push payloads are attached only where the event is
+# genuinely worth a buzz.
+
+
+def _review_excerpt(body: str, limit: int = 140) -> str:
+    body = " ".join(body.split())
+    return body if len(body) <= limit else body[:limit] + "…"
+
+
+def notify_review_posted(
+    background: BackgroundTasks, db: Session, *, review
+) -> None:
+    """Tell the owners of a claimed place that a new review landed.
+
+    Silently no-ops on unclaimed places — ``owner_users_for_place`` returns
+    empty, which is correct: there's nobody to tell. That's also why the
+    consumer page shows a "claim this restaurant to respond" prompt there.
+    """
+    recipients = owner_users_for_place(db, review.place_id)
+    if not recipients:
+        return
+
+    place_name = place_name_for(db, review.place_id)
+    inbox_url = f"{settings.OWNER_PORTAL_ORIGIN.rstrip('/')}/my-reviews"
+    stars = "★" * int(review.rating) + "☆" * (5 - int(review.rating))
+
+    for user in recipients:
+        if not user.email:
+            continue
+        notify(
+            background,
+            db=db,
+            user_id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            category=NotificationCategory.REVIEW,
+            subject=f"New {review.rating}-star review for {place_name}",
+            template="review_posted_owner",
+            context={
+                "preheader": f"Someone reviewed {place_name}.",
+                "place_name": place_name,
+                "rating": int(review.rating),
+                "stars": stars,
+                "excerpt": _review_excerpt(review.body),
+                "inbox_url": inbox_url,
+            },
+            push_title=f"New review for {place_name}",
+            push_body=f"{stars} — {_review_excerpt(review.body, 80)}",
+            push_data={"path": "/my-reviews"},
+        )
+
+
+def notify_review_replied(
+    background: BackgroundTasks, db: Session, *, review, reply
+) -> None:
+    """Tell the diner that the restaurant answered them.
+
+    This is the payoff moment for a reviewer — someone read what they wrote
+    and responded — so it's worth a push as well as an email.
+    """
+    author = db.execute(
+        select(User).where(User.id == review.author_user_id)
+    ).scalar_one_or_none()
+    if author is None or not author.email:
+        return
+
+    place_name = place_name_for(db, review.place_id)
+    place_url = f"{settings.CONSUMER_ORIGIN.rstrip('/')}/places/{review.place_id}"
+
+    notify(
+        background,
+        db=db,
+        user_id=author.id,
+        email=author.email,
+        display_name=author.display_name,
+        category=NotificationCategory.REVIEW,
+        subject=f"{place_name} replied to your review",
+        template="review_replied_author",
+        context={
+            "preheader": f"{place_name} responded to what you wrote.",
+            "place_name": place_name,
+            "reply_excerpt": _review_excerpt(reply.body, 300),
+            "place_url": place_url,
+        },
+        push_title=f"{place_name} replied",
+        push_body=_review_excerpt(reply.body, 80),
+        push_data={"path": f"/places/{review.place_id}"},
+    )
+
+
+def notify_review_moderated(
+    background: BackgroundTasks,
+    db: Session,
+    *,
+    review,
+    status,
+    note: str | None,
+    targeted_reply: bool = False,
+) -> None:
+    """Tell an author their content was hidden or removed, and why.
+
+    Mandatory category: this is the one message a moderated user is owed, and
+    the note is rendered verbatim because it was written *to* them. No push —
+    a buzzing phone is the wrong register for "we took your words down"; the
+    email carries the reasoning and the appeal path.
+
+    When the reply was the target, the recipient is the owner who wrote it,
+    not the diner. Owners get the same treatment and the same explanation.
+    """
+    if targeted_reply and review.reply is not None:
+        recipient_id = review.reply.author_user_id
+        what = "your reply"
+    else:
+        recipient_id = review.author_user_id
+        what = "your review"
+
+    if recipient_id is None:
+        return
+
+    user = db.execute(
+        select(User).where(User.id == recipient_id)
+    ).scalar_one_or_none()
+    if user is None or not user.email:
+        return
+
+    place_name = place_name_for(db, review.place_id)
+    removed = str(status) == "REMOVED"
+
+    notify(
+        background,
+        db=db,
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        category=NotificationCategory.REVIEW_MODERATION,
+        subject=(
+            f"We removed {what} of {place_name}"
+            if removed
+            else f"We've hidden {what} of {place_name}"
+        ),
+        template="review_moderated_author",
+        context={
+            "preheader": f"About {what} of {place_name}.",
+            "place_name": place_name,
+            "what": what,
+            "removed": removed,
+            "reason": (note or "").strip(),
+            # Where to go if they believe the underlying claim is true and
+            # worth investigating. We point; they decide. Filing on their
+            # behalf would put our name on their accusation.
+            "dispute_url": (
+                f"{settings.CONSUMER_ORIGIN.rstrip('/')}/places/{review.place_id}"
+            ),
+        },
+    )
+
+
+def notify_review_report_resolved(
+    background: BackgroundTasks, db: Session, *, review, decision
+) -> None:
+    """Close the loop with everyone who reported this content.
+
+    Reporters who hear nothing stop reporting, and the report queue is the
+    primary defence for text on this platform — so it's worth the emails.
+    """
+    from app.modules.reviews.models import PlaceReviewReport  # local: cycle
+
+    reports = db.execute(
+        select(PlaceReviewReport).where(PlaceReviewReport.review_id == review.id)
+    ).scalars().all()
+    if not reports:
+        return
+
+    place_name = place_name_for(db, review.place_id)
+    upheld = str(decision) == "UPHELD"
+    seen: set = set()
+
+    for report in reports:
+        if report.reporter_user_id in seen:
+            continue
+        seen.add(report.reporter_user_id)
+
+        user = db.execute(
+            select(User).where(User.id == report.reporter_user_id)
+        ).scalar_one_or_none()
+        if user is None or not user.email:
+            continue
+
+        notify(
+            background,
+            db=db,
+            user_id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            category=NotificationCategory.REVIEW,
+            subject=f"We reviewed your report about {place_name}",
+            template="review_report_resolved_reporter",
+            context={
+                "preheader": f"Outcome of your report about {place_name}.",
+                "place_name": place_name,
+                "upheld": upheld,
+                "place_url": (
+                    f"{settings.CONSUMER_ORIGIN.rstrip('/')}/places/{review.place_id}"
+                ),
+            },
+        )

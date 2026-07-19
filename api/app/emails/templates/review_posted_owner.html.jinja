@@ -1,0 +1,31 @@
+{# New-review notification to the place's owners.
+
+   Required context: preheader, place_name, rating, stars, excerpt, inbox_url
+#}{% extends "_base.html.jinja" %}
+
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  New review for {{ place_name }}
+</h1>
+
+<p style="margin: 0 0 8px 0; font-size: 18px; color: #b45309;">{{ stars }}</p>
+
+<p style="margin: 0 0 20px 0; padding: 12px 16px; background-color: #f6f7f6; border-radius: 8px; color: #333;">
+  {{ excerpt }}
+</p>
+
+<p style="margin: 0 0 16px 0; color: #555;">
+  {% if rating <= 3 %}A public, calm reply to criticism is the most useful
+  thing you can do here — thank them, state the facts plainly, and say what
+  changed. Diners read the response as closely as the review.
+  {% else %}Replying takes a few seconds and shows other diners you're paying
+  attention.{% endif %}
+</p>
+
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ inbox_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Read and reply
+  </a>
+</p>
+{% endblock %}

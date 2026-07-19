@@ -51,6 +51,15 @@ class NotificationCategory(StrEnum):
     VERIFIER = "VERIFIER"
     PLACE_VERIFIED = "PLACE_VERIFIED"
 
+    # Reviews are split across two categories on purpose, because they have
+    # opposite mandatory-ness. REVIEW is engagement volume — "someone
+    # reviewed your place", "the owner replied to you" — and an owner with
+    # many restaurants must be able to turn it off. REVIEW_MODERATION is
+    # transactional: telling someone their words were taken down, and why.
+    # Suppressing that would mean removing a person's speech silently.
+    REVIEW = "REVIEW"
+    REVIEW_MODERATION = "REVIEW_MODERATION"
+
 
 # Transactional categories: the user needs these regardless of preferences
 # (they're about actions on their own account/place), so they're always sent
@@ -60,6 +69,10 @@ MANDATORY_CATEGORIES: frozenset[str] = frozenset(
         NotificationCategory.CLAIM_DECISION,
         NotificationCategory.DISPUTE,
         NotificationCategory.VERIFIER,
+        # Not opt-outable: "we removed your review and here's why" is the one
+        # message a moderated user is owed. Note this forces *email* only —
+        # push stays opt-outable for every category, including this one.
+        NotificationCategory.REVIEW_MODERATION,
     }
 )
 

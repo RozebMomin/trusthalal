@@ -1,0 +1,33 @@
+{# Outcome of a report the recipient filed.
+
+   Required context: preheader, place_name, upheld, place_url
+#}{% extends "_base.html.jinja" %}
+
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  We reviewed your report
+</h1>
+
+<p style="margin: 0 0 16px 0;">
+  {% if upheld %}
+  You were right — we agreed with your report about content on
+  {{ place_name }} and have acted on it. Thank you for flagging it.
+  {% else %}
+  We looked at the content you reported on {{ place_name }} and decided to
+  leave it up. That usually means it's a strongly worded but genuine account
+  of someone's experience, which we allow even when it's unflattering.
+  {% endif %}
+</p>
+
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ place_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    View the restaurant
+  </a>
+</p>
+
+<p style="margin: 0; font-size: 13px; color: #888;">
+  Reports like yours are how we keep Trust Halal readable. Please keep sending
+  them.
+</p>
+{% endblock %}

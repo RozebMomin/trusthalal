@@ -44,6 +44,22 @@ class Place(Base):
     google_rating: Mapped[float | None] = mapped_column(Numeric(2, 1), nullable=True)
     google_rating_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # First-party review aggregates, denormalized here for the same reason
+    # the Google ones are: every search result and card needs them, and a
+    # join or subquery per row would be the wrong trade. Recomputed from
+    # PUBLISHED reviews only, in the same transaction as any change that can
+    # move them (see reviews/repo.recompute_place_review_stats).
+    #
+    # These are NOT interchangeable with google_rating. One measures dinner
+    # as rated by Trust Halal diners; the other is Google's whole audience.
+    # Every surface that shows them must label which is which.
+    review_rating_avg: Mapped[float | None] = mapped_column(
+        Numeric(2, 1), nullable=True
+    )
+    review_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+
     # Structured weekly opening hours from Google's ``regularOpeningHours``:
     #   {"periods": [{"open": {"day": 0, "hour": 9, "minute": 0},
     #                 "close": {"day": 0, "hour": 21, "minute": 0}}, ...]}
@@ -304,6 +320,17 @@ class PlacePhoto(Base):
         ForeignKey("app.places.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+
+    # Set when this photo was attached to a diner's review. A review photo is
+    # still a place photo — it appears in the gallery and inherits every
+    # existing moderation and deletion path — it just also belongs to a
+    # review, and goes with it when that review is deleted. Never eligible to
+    # be hero (see the upload route).
+    review_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.place_reviews.id", ondelete="CASCADE"),
+        nullable=True,
     )
 
     # SET NULL on user delete so a photo doesn't disappear when its

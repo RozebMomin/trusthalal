@@ -1,0 +1,49 @@
+{# Content takedown notice. Mandatory category — no unsubscribe.
+
+   The reason is rendered verbatim because it was written TO this person by a
+   moderator, not as an internal note.
+
+   Required context: preheader, place_name, what, removed, reason, dispute_url
+#}{% extends "_base.html.jinja" %}
+
+{% block content %}
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; font-weight: 700; color: #1a1a1a;">
+  {% if removed %}We removed {{ what }}{% else %}We've hidden {{ what }}{% endif %}
+</h1>
+
+<p style="margin: 0 0 16px 0;">
+  This is about {{ what }} of {{ place_name }}.
+</p>
+
+{% if reason %}
+<p style="margin: 0 0 8px 0; color: #555;">Why:</p>
+<p style="margin: 0 0 20px 0; padding: 12px 16px; background-color: #f6f7f6; border-radius: 8px; color: #333;">
+  {{ reason }}
+</p>
+{% endif %}
+
+{% if removed %}
+<p style="margin: 0 0 16px 0; color: #555;">
+  If you believe what you wrote is accurate and worth investigating, you can
+  raise it formally as a dispute about the restaurant's halal information —
+  that goes to our team with evidence attached and is handled separately from
+  reviews.
+</p>
+<p style="margin: 24px 0;">
+  <a class="th-button" href="{{ dispute_url }}"
+     style="display: inline-block; background-color: #6f8b3e; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 8px;">
+    Open the restaurant's page
+  </a>
+</p>
+{% else %}
+<p style="margin: 0 0 16px 0; color: #555;">
+  Hidden isn't permanent. You can edit it and it will be looked at again.
+</p>
+{% endif %}
+
+<p style="margin: 0; font-size: 13px; color: #888;">
+  Honest, critical reviews are welcome on Trust Halal — that's most of what
+  makes the platform worth reading. If you think we got this wrong, reply to
+  this email.
+</p>
+{% endblock %}

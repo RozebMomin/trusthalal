@@ -39,7 +39,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, get_current_user
@@ -186,6 +186,39 @@ def _resolve_uploader_display_names(
 # ---------------------------------------------------------------------------
 
 
+#: Small on purpose. Three photos is enough to show a plate, a menu board and
+#: a certificate; beyond that a review becomes an album and the moderation
+#: surface grows for no extra signal to the reader.
+MAX_PHOTOS_PER_REVIEW = 3
+
+
+def _ensure_own_review(db: Session, *, review_id: UUID, place_id: UUID, user: CurrentUser):
+    """Validate that this review is the caller's, on this place, and not full.
+
+    404 rather than 403 for someone else's review — same
+    existence-non-disclosure posture the rest of the codebase uses.
+    """
+    from app.modules.reviews.models import PlaceReview  # local: avoids a cycle
+
+    review = db.get(PlaceReview, review_id)
+    if review is None or review.author_user_id != user.id or review.place_id != place_id:
+        raise NotFoundError("REVIEW_NOT_FOUND", "That review doesn't exist.")
+
+    attached = db.execute(
+        select(func.count(PlacePhoto.id)).where(
+            PlacePhoto.review_id == review_id,
+            PlacePhoto.deleted_at.is_(None),
+        )
+    ).scalar_one()
+    if int(attached) >= MAX_PHOTOS_PER_REVIEW:
+        raise ConflictError(
+            "REVIEW_PHOTO_LIMIT_REACHED",
+            f"A review can have at most {MAX_PHOTOS_PER_REVIEW} photos.",
+        )
+    return review
+
+
+
 @router.post(
     "/{place_id}/photos",
     response_model=PlacePhotoRead,
@@ -207,12 +240,24 @@ def upload_place_photo(
     request: Request,
     place_id: UUID,
     file: UploadFile = File(...),
+    # Attach this photo to one of the caller's reviews. A review photo IS a
+    # place photo that happens to belong to a review — same table, so it
+    # inherits SafeSearch, EXIF strip, soft-delete and the gallery for free,
+    # rather than growing a parallel pipeline that would need all four again.
+    review_id: Optional[UUID] = Form(default=None),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
     storage: StorageClient = Depends(get_photos_storage_client),
     safesearch: SafeSearchClient = Depends(get_safesearch_client),
 ) -> PlacePhotoRead:
     place = _ensure_place_exists(db, place_id)
+
+    # Review attachment is validated first: it's a pure DB check, and there's
+    # no point paying for image processing + a Vision round-trip on a photo
+    # we're going to refuse anyway.
+    review = None
+    if review_id is not None:
+        review = _ensure_own_review(db, review_id=review_id, place_id=place.id, user=user)
 
     # Pre-flight: cap, MIME, size — cheap rejections before we pay
     # for the image pipeline + SafeSearch.
@@ -326,11 +371,18 @@ def upload_place_photo(
     # happens when there's no existing hero, so an owner who has
     # already curated their hero doesn't get clobbered by a new
     # upload from a consumer.
-    auto_hero = not has_active_hero_for_place(db, place_id=place.id)
+    # A review photo never becomes the hero. The cover image on a search card
+    # is the restaurant's shopfront; a diner's plate photo attached to a
+    # two-star review is not that, and auto-promoting it would let any
+    # reviewer choose how the place is represented across the product.
+    auto_hero = review is None and not has_active_hero_for_place(
+        db, place_id=place.id
+    )
 
     photo = PlacePhoto(
         id=photo_id,
         place_id=place.id,
+        review_id=review.id if review is not None else None,
         uploaded_by_user_id=user.id,
         source=source.value,
         storage_path=storage_path,

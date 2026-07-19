@@ -1,0 +1,24 @@
+{% extends "_base.txt.jinja" %}
+
+{% block content %}
+{% if removed %}We removed {{ what }}{% else %}We've hidden {{ what }}{% endif %}
+
+This is about {{ what }} of {{ place_name }}.
+{% if reason %}
+Why:
+
+  {{ reason }}
+{% endif %}
+{% if removed %}
+If you believe what you wrote is accurate and worth investigating, you can
+raise it formally as a dispute about the restaurant's halal information — that
+goes to our team with evidence attached and is handled separately from reviews.
+
+  {{ dispute_url }}
+{% else %}
+Hidden isn't permanent. You can edit it and it will be looked at again.
+{% endif %}
+
+Honest, critical reviews are welcome on Trust Halal — that's most of what makes
+the platform worth reading. If you think we got this wrong, reply to this email.
+{% endblock %}

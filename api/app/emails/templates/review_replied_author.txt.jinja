@@ -1,0 +1,14 @@
+{% extends "_base.txt.jinja" %}
+
+{% block content %}
+{{ place_name }} replied to your review
+
+They wrote:
+
+  {{ reply_excerpt }}
+
+See the conversation:
+  {{ place_url }}
+
+You can update your review any time if what you saw has changed.
+{% endblock %}

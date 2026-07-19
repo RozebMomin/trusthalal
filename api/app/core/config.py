@@ -89,6 +89,21 @@ class Settings(BaseSettings):
     # realistic failure mode is somebody getting to their email tomorrow.
     EMAIL_VERIFICATION_TTL_DAYS: int = 3
 
+    # ---- Review text moderation -------------------------------------
+    # Off by default so a fresh local checkout can post reviews without a
+    # GCP key. Production sets it true; get_text_moderation_client() logs a
+    # warning whenever it's false, and refuses to start allow-all if it's
+    # true but keyless.
+    TEXT_MODERATION_ENABLED: bool = False
+
+    # Deliberately conservative. The failure mode that matters is not
+    # profanity slipping through — the report queue catches that — it's a
+    # legitimate halal complaint getting silently refused, which produces no
+    # queue entry, no signal, and a user who quietly stops writing reviews.
+    # Read the first ~200 blocks before tightening either number.
+    TEXT_MODERATION_BLOCK_THRESHOLD: float = 0.80
+    TEXT_MODERATION_WARN_THRESHOLD: float = 0.55
+
     # ------------------------------------------------------------------
     # Notifications
     # ------------------------------------------------------------------

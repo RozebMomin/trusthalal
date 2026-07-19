@@ -48,3 +48,8 @@ from app.modules.verifiers.models import (  # noqa: F401
     VerifierApplication,
     VerifierProfile,
 )
+from app.modules.reviews.models import (  # noqa: F401
+    PlaceReview,
+    PlaceReviewReply,
+    PlaceReviewReport,
+)

@@ -189,3 +189,11 @@ class PlaceEventType(StrEnum):
     VERIFIER_VISIT_SUBMITTED = "VERIFIER_VISIT_SUBMITTED"
     VERIFIER_VISIT_ACCEPTED = "VERIFIER_VISIT_ACCEPTED"
     VERIFIER_VISIT_REJECTED = "VERIFIER_VISIT_REJECTED"
+
+    # Reviews. Only the headline transitions cross-write to the place
+    # timeline: a posted review, an owner's public reply, and a moderated
+    # takedown. Edits and reports stay in the reviews module — they'd be
+    # noise in a timeline that's meant to read as one story about the place.
+    REVIEW_POSTED = "REVIEW_POSTED"
+    REVIEW_REPLIED = "REVIEW_REPLIED"
+    REVIEW_REMOVED = "REVIEW_REMOVED"

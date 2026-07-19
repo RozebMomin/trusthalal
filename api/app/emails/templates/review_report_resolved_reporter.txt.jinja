@@ -1,0 +1,17 @@
+{% extends "_base.txt.jinja" %}
+
+{% block content %}
+We reviewed your report
+
+{% if upheld %}You were right — we agreed with your report about content on
+{{ place_name }} and have acted on it. Thank you for flagging it.
+{% else %}We looked at the content you reported on {{ place_name }} and decided
+to leave it up. That usually means it's a strongly worded but genuine account of
+someone's experience, which we allow even when it's unflattering.
+{% endif %}
+
+View the restaurant:
+  {{ place_url }}
+
+Reports like yours are how we keep Trust Halal readable. Please keep sending them.
+{% endblock %}

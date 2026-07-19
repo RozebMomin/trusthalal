@@ -74,3 +74,24 @@ class BadRequestError(AppError):
         super().__init__(
             code=code, status_code=400, detail=detail, extra=extra
         )
+
+
+class ServiceUnavailableError(AppError):
+    """A dependency we require is unreachable — not the caller's fault.
+
+    Used where the correct behaviour is fail-closed: we could not verify
+    something we refuse to skip (e.g. screening review text), so the write is
+    refused and the client is told to retry. Distinct from a 400 so clients
+    can tell "your content was rejected" from "we couldn't check it", which
+    for the user is the difference between an accusation and an apology.
+    """
+
+    def __init__(
+        self,
+        code: str,
+        detail: str = "Service unavailable",
+        extra: dict[str, Any] | list | None = None,
+    ):
+        super().__init__(
+            code=code, status_code=503, detail=detail, extra=extra
+        )

@@ -1,0 +1,619 @@
+"""Integration tests for diner reviews, owner replies, and moderation.
+
+Grouped by the property being protected rather than by endpoint, because the
+properties are what would actually hurt if they broke:
+
+  * the aggregate on ``places`` always matches the visible reviews,
+  * one review per person per place,
+  * a confirmed email is required to post,
+  * text moderation blocks, and fails *closed* on an outage,
+  * owners are held to the same filter as diners,
+  * only the verified owner can reply, once,
+  * moderation is never silent to the author.
+"""
+from __future__ import annotations
+
+from datetime import date, timedelta
+from decimal import Decimal
+from uuid import uuid4
+
+import pytest
+from sqlalchemy import select
+
+from app.core.text_moderation import (
+    ModerationResult,
+    ModerationVerdict,
+    TextModerationError,
+    get_text_moderation_client,
+)
+from app.main import app as fastapi_app
+from app.modules.places.models import Place
+from app.modules.reviews.enums import PlaceReviewStatus
+from app.modules.reviews.models import PlaceReview
+
+BODY = "Ordered the mixed grill and asked about the chicken; they showed me the certificate."
+BODY_TWO = "Came back a second time with family. Same answer, same certificate on the counter."
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+class _FakeModerator:
+    """Scriptable stand-in for Cloud Natural Language.
+
+    ``verdict`` drives the answer; setting ``raise_error`` simulates the
+    outage path, which is the one branch that behaves differently from a
+    rejection and is easy to get backwards.
+    """
+
+    def __init__(self, verdict=ModerationVerdict.ALLOW, category=None):
+        self.verdict = verdict
+        self.category = category
+        self.raise_error = False
+        self.calls: list[str] = []
+
+    def evaluate(self, text: str) -> ModerationResult:
+        self.calls.append(text)
+        if self.raise_error:
+            raise TextModerationError("simulated outage")
+        return ModerationResult(
+            verdict=self.verdict, category=self.category, confidence=0.9
+        )
+
+
+@pytest.fixture
+def moderator():
+    fake = _FakeModerator()
+    fastapi_app.dependency_overrides[get_text_moderation_client] = lambda: fake
+    yield fake
+    fastapi_app.dependency_overrides.pop(get_text_moderation_client, None)
+
+
+@pytest.fixture
+def verified_user(factories, db_session):
+    """A consumer who can actually post — i.e. with a confirmed email."""
+    from datetime import datetime, timezone
+
+    user = factories.user(email=f"reviewer-{uuid4().hex[:8]}@example.com")
+    user.email_verified_at = datetime.now(timezone.utc)
+    db_session.add(user)
+    db_session.commit()
+    return user
+
+
+@pytest.fixture
+def place(factories, db_session):
+    p = factories.place(name="Khan Halal Grill")
+    db_session.commit()
+    return p
+
+
+def _post(api, place_id, body=BODY, rating=5, **extra):
+    payload = {"rating": rating, "body": body, **extra}
+    return api.post(f"/places/{place_id}/reviews", json=payload)
+
+
+# ---------------------------------------------------------------------------
+# Creating
+# ---------------------------------------------------------------------------
+
+
+def test_create_review_publishes_and_updates_aggregate(
+    api, db_session, verified_user, place, moderator
+):
+    api = api.as_user(verified_user.id)
+    resp = _post(api, place.id, rating=4)
+    assert resp.status_code == 201, resp.text
+
+    body = resp.json()
+    assert body["rating"] == 4
+    assert body["status"] == "PUBLISHED"
+    assert body["is_mine"] is True
+
+    db_session.expire_all()
+    refreshed = db_session.get(Place, place.id)
+    assert refreshed.review_count == 1
+    assert Decimal(str(refreshed.review_rating_avg)) == Decimal("4.0")
+
+
+def test_second_review_for_same_place_conflicts_with_existing_id(
+    api, db_session, verified_user, place, moderator
+):
+    """The client needs the existing id so it can switch to editing rather
+    than showing a dead end for something the user thinks is a new action."""
+    api = api.as_user(verified_user.id)
+    first = _post(api, place.id)
+    assert first.status_code == 201
+
+    second = _post(api, place.id, body=BODY_TWO)
+    assert second.status_code == 409
+    err = second.json()["error"]
+    assert err["code"] == "REVIEW_ALREADY_EXISTS"
+    assert err["detail"]["review_id"] == first.json()["id"]
+
+
+def test_unverified_email_cannot_post(api, factories, db_session, place, moderator):
+    user = factories.user(email="unverified@example.com")
+    db_session.commit()
+    assert user.email_verified_at is None
+
+    resp = _post(api.as_user(user.id), place.id)
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "EMAIL_NOT_VERIFIED"
+
+
+def test_anonymous_cannot_post(api, place, moderator):
+    assert _post(api, place.id).status_code == 401
+
+
+def test_short_body_is_rejected(api, verified_user, place, moderator):
+    resp = _post(api.as_user(verified_user.id), place.id, body="Great!")
+    assert resp.status_code == 422
+
+
+def test_whitespace_padded_body_is_rejected(api, verified_user, place, moderator):
+    """20 spaces plus 'ok' clears a naive length check but says nothing."""
+    resp = _post(api.as_user(verified_user.id), place.id, body=" " * 30 + "ok")
+    assert resp.status_code == 422
+
+
+def test_future_visit_date_rejected(api, verified_user, place, moderator):
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    resp = _post(
+        api.as_user(verified_user.id), place.id, visited_on=tomorrow
+    )
+    assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Moderation
+# ---------------------------------------------------------------------------
+
+
+def test_blocked_text_is_refused_and_nothing_is_written(
+    api, db_session, verified_user, place, moderator
+):
+    moderator.verdict = ModerationVerdict.BLOCK
+    moderator.category = "Profanity"
+
+    resp = _post(api.as_user(verified_user.id), place.id)
+    assert resp.status_code == 400
+    err = resp.json()["error"]
+    assert err["code"] == "REVIEW_TEXT_REJECTED"
+    # The user is told which category tripped, in words — not a bare refusal.
+    assert "profanity" in err["message"].lower()
+
+    assert db_session.execute(select(PlaceReview)).scalars().all() == []
+
+
+def test_moderation_outage_fails_closed_with_503(
+    api, db_session, verified_user, place, moderator
+):
+    """Fail closed, matching the photo pipeline — but as a 503, not a 400.
+
+    The distinction is the whole point: a 400 says "we judged your content",
+    a 503 says "we couldn't check it". Getting this backwards during an
+    outage would be the most infuriating bug in the feature.
+    """
+    moderator.raise_error = True
+
+    resp = _post(api.as_user(verified_user.id), place.id)
+    assert resp.status_code == 503
+    assert resp.json()["error"]["code"] == "MODERATION_UNAVAILABLE"
+    assert db_session.execute(select(PlaceReview)).scalars().all() == []
+
+
+def test_warn_verdict_still_publishes(api, verified_user, place, moderator):
+    """Anger is legitimate. Only BLOCK stops a post."""
+    moderator.verdict = ModerationVerdict.WARN
+    assert _post(api.as_user(verified_user.id), place.id).status_code == 201
+
+
+# ---------------------------------------------------------------------------
+# Editing + deleting
+# ---------------------------------------------------------------------------
+
+
+def test_edit_marks_edited_and_recomputes_average(
+    api, db_session, verified_user, place, moderator
+):
+    api = api.as_user(verified_user.id)
+    review_id = _post(api, place.id, rating=5).json()["id"]
+
+    resp = api.patch(f"/me/reviews/{review_id}", json={"rating": 2})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["edited_at"] is not None
+
+    db_session.expire_all()
+    assert Decimal(str(db_session.get(Place, place.id).review_rating_avg)) == Decimal("2.0")
+
+
+def test_edited_body_is_re_moderated(api, verified_user, place, moderator):
+    """Otherwise post something clean, then edit in whatever you like."""
+    api = api.as_user(verified_user.id)
+    review_id = _post(api, place.id).json()["id"]
+
+    moderator.verdict = ModerationVerdict.BLOCK
+    moderator.category = "Insult"
+    resp = api.patch(f"/me/reviews/{review_id}", json={"body": BODY_TWO})
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "REVIEW_TEXT_REJECTED"
+
+
+def test_cannot_edit_another_users_review_and_gets_404(
+    api, factories, db_session, verified_user, place, moderator
+):
+    """404, not 403 — a 403 confirms the id is real."""
+    review_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+
+    other = factories.user(email="other@example.com")
+    db_session.commit()
+    resp = api.as_user(other.id).patch(
+        f"/me/reviews/{review_id}", json={"rating": 1}
+    )
+    assert resp.status_code == 404
+
+
+def test_delete_removes_review_and_resets_aggregate(
+    api, db_session, verified_user, place, moderator
+):
+    api = api.as_user(verified_user.id)
+    review_id = _post(api, place.id).json()["id"]
+
+    assert api.delete(f"/me/reviews/{review_id}").status_code == 204
+
+    db_session.expire_all()
+    refreshed = db_session.get(Place, place.id)
+    assert refreshed.review_count == 0
+    assert refreshed.review_rating_avg is None
+
+
+# ---------------------------------------------------------------------------
+# Listing
+# ---------------------------------------------------------------------------
+
+
+def test_list_returns_summary_with_both_ratings_labeled_separately(
+    api, db_session, factories, place, moderator
+):
+    """The two numbers must stay distinguishable in the payload — conflating
+    them is exactly the bug this feature exists to fix."""
+    from datetime import datetime, timezone
+
+    place.google_rating = 4.5
+    place.google_rating_count = 1204
+    db_session.add(place)
+
+    for i, rating in enumerate((5, 4, 2)):
+        u = factories.user(email=f"lister{i}@example.com")
+        u.email_verified_at = datetime.now(timezone.utc)
+        db_session.add(u)
+        db_session.commit()
+        _post(api.as_user(u.id), place.id, rating=rating, body=BODY)
+
+    resp = api.get(f"/places/{place.id}/reviews")
+    assert resp.status_code == 200, resp.text
+    summary = resp.json()["summary"]
+
+    assert summary["count"] == 3
+    assert summary["average"] == pytest.approx(3.7, abs=0.05)
+    assert summary["google_rating"] == pytest.approx(4.5)
+    assert summary["google_rating_count"] == 1204
+    assert summary["histogram"]["5"] == 1
+    assert summary["histogram"]["3"] == 0
+
+
+def test_list_sorts(api, db_session, factories, place, moderator):
+    from datetime import datetime, timezone
+
+    for i, rating in enumerate((1, 5, 3)):
+        u = factories.user(email=f"sorter{i}@example.com")
+        u.email_verified_at = datetime.now(timezone.utc)
+        db_session.add(u)
+        db_session.commit()
+        _post(api.as_user(u.id), place.id, rating=rating, body=BODY)
+
+    high = api.get(f"/places/{place.id}/reviews", params={"sort": "rating_high"})
+    assert [r["rating"] for r in high.json()["items"]] == [5, 3, 1]
+
+    low = api.get(f"/places/{place.id}/reviews", params={"sort": "rating_low"})
+    assert [r["rating"] for r in low.json()["items"]] == [1, 3, 5]
+
+
+def test_list_is_anonymous_readable(api, verified_user, place, moderator):
+    _post(api.as_user(verified_user.id), place.id)
+    resp = api.get(f"/places/{place.id}/reviews")
+    assert resp.status_code == 200
+    assert resp.json()["can_review"] is False  # anonymous can't
+
+
+def test_author_never_carries_a_role(api, verified_user, place, moderator):
+    """No verifier badge, ever — the field simply isn't exposed."""
+    _post(api.as_user(verified_user.id), place.id)
+    item = api.get(f"/places/{place.id}/reviews").json()["items"][0]
+    assert set(item["author"].keys()) == {"id", "display_name"}
+
+
+# ---------------------------------------------------------------------------
+# Owner replies
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def owned_place(factories, db_session):
+    """A place with an owning org and an owner user who manages it.
+
+    ``managed_place`` already builds the place → org → PlaceOwner →
+    OrganizationMember chain that ``owning_organization_for_place`` walks.
+    """
+    from datetime import datetime, timezone
+
+    owner = factories.owner(email=f"owner-{uuid4().hex[:8]}@example.com")
+    owner.email_verified_at = datetime.now(timezone.utc)
+    db_session.add(owner)
+    p, org = factories.managed_place(owner=owner, place_name="Khan Halal Grill")
+    db_session.commit()
+    return p, owner, org
+
+
+def test_owner_can_reply_once(
+    api, db_session, verified_user, owned_place, moderator
+):
+    p, owner, _org = owned_place
+    review_id = _post(api.as_user(verified_user.id), p.id).json()["id"]
+
+    owner_api = api.as_user(owner.id)
+    first = owner_api.post(
+        f"/places/reviews/{review_id}/reply",
+        json={"body": "Thank you — the certificate is always at the counter."},
+    )
+    assert first.status_code == 201, first.text
+
+    second = owner_api.post(
+        f"/places/reviews/{review_id}/reply", json={"body": "Second thoughts."}
+    )
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "REVIEW_REPLY_EXISTS"
+
+
+def test_non_owner_cannot_reply(
+    api, db_session, factories, verified_user, owned_place, moderator
+):
+    p, _owner, _org = owned_place
+    review_id = _post(api.as_user(verified_user.id), p.id).json()["id"]
+
+    stranger = factories.user(email="stranger@example.com")
+    db_session.commit()
+    resp = api.as_user(stranger.id).post(
+        f"/places/reviews/{review_id}/reply", json={"body": "Hi there"}
+    )
+    assert resp.status_code in (403, 401)
+
+
+def test_owner_reply_is_moderated_the_same_as_a_diner(
+    api, verified_user, owned_place, moderator
+):
+    """Owners are not exempt. Paying to be on the platform doesn't buy a
+    lower bar for conduct — and an owner swearing at a diner in public does
+    more damage than the review that provoked it."""
+    p, owner, _org = owned_place
+    review_id = _post(api.as_user(verified_user.id), p.id).json()["id"]
+
+    moderator.verdict = ModerationVerdict.BLOCK
+    moderator.category = "Insult"
+    resp = api.as_user(owner.id).post(
+        f"/places/reviews/{review_id}/reply",
+        json={"body": "We don't need customers like you spreading lies."},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "REVIEW_TEXT_REJECTED"
+
+
+def test_reply_appears_on_the_public_review(
+    api, verified_user, owned_place, moderator
+):
+    """The byline is the business, not the individual manager — that's why
+    the reply carries organization_id rather than only an author."""
+    p, owner, org = owned_place
+    review_id = _post(api.as_user(verified_user.id), p.id).json()["id"]
+    api.as_user(owner.id).post(
+        f"/places/reviews/{review_id}/reply", json={"body": "Thanks for coming in."}
+    )
+
+    item = api.get(f"/places/{p.id}/reviews").json()["items"][0]
+    assert item["reply"]["body"] == "Thanks for coming in."
+    assert item["reply"]["organization_name"] == org.name
+    assert item["reply"]["organization_id"] == str(org.id)
+
+
+def test_owner_inbox_counts_unanswered(
+    api, db_session, factories, verified_user, owned_place, moderator
+):
+    from datetime import datetime, timezone
+
+    p, owner, _org = owned_place
+    _post(api.as_user(verified_user.id), p.id)
+
+    second = factories.user(email="second-diner@example.com")
+    second.email_verified_at = datetime.now(timezone.utc)
+    db_session.add(second)
+    db_session.commit()
+    _post(api.as_user(second.id), p.id, body=BODY_TWO)
+
+    resp = api.as_user(owner.id).get("/me/place-reviews")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["needs_reply_count"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Reporting + admin moderation
+# ---------------------------------------------------------------------------
+
+
+def test_report_once_only(api, db_session, factories, verified_user, place, moderator):
+    review_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+
+    reporter = factories.user(email="reporter@example.com")
+    db_session.commit()
+    reporter_api = api.as_user(reporter.id)
+
+    first = reporter_api.post(
+        f"/places/reviews/{review_id}/report", json={"reason": "FALSE_INFO"}
+    )
+    assert first.status_code == 201, first.text
+
+    second = reporter_api.post(
+        f"/places/reviews/{review_id}/report", json={"reason": "SPAM"}
+    )
+    assert second.status_code == 409
+
+
+def test_report_reason_other_requires_detail(
+    api, db_session, factories, verified_user, place, moderator
+):
+    review_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+    reporter = factories.user(email="detailless@example.com")
+    db_session.commit()
+
+    resp = api.as_user(reporter.id).post(
+        f"/places/reviews/{review_id}/report", json={"reason": "OTHER"}
+    )
+    assert resp.status_code == 422
+
+
+def test_admin_remove_hides_from_public_and_drops_the_average(
+    api, db_session, factories, verified_user, place, moderator
+):
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, place.id, rating=1).json()["id"]
+
+    reporter = factories.user(email="rep2@example.com")
+    admin = factories.admin(email="mod@example.com")
+    db_session.commit()
+    api.as_user(reporter.id).post(
+        f"/places/reviews/{review_id}/report", json={"reason": "FALSE_INFO"}
+    )
+
+    resp = api.as_user(admin.id).post(
+        f"/admin/review-reports/{review_id}/resolve",
+        json={
+            "decision": "UPHELD",
+            "action": "REMOVE",
+            "resolution_note": "States as fact that the restaurant sells haram "
+            "meat, with no evidence offered.",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+    # Gone from the public list, and no longer dragging the rating down.
+    assert api.get(f"/places/{place.id}/reviews").json()["items"] == []
+    db_session.expire_all()
+    refreshed = db_session.get(Place, place.id)
+    assert refreshed.review_count == 0
+    assert refreshed.review_rating_avg is None
+
+
+def test_removal_is_never_silent_to_the_author(
+    api, db_session, factories, verified_user, place, moderator
+):
+    """The author must be able to see that it happened, and why."""
+    review_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+    admin = factories.admin(email="mod2@example.com")
+    db_session.commit()
+
+    note = "Removed because it names a member of staff."
+    api.as_user(admin.id).post(
+        f"/admin/reviews/{review_id}/status",
+        json={"status": "REMOVED", "moderation_note": note},
+    )
+
+    mine = api.as_user(verified_user.id).get("/me/reviews").json()
+    assert len(mine) == 1
+    assert mine[0]["status"] == "REMOVED"
+    assert mine[0]["moderation_note"] == note
+
+
+def test_hiding_requires_a_note(
+    api, db_session, factories, verified_user, place, moderator
+):
+    review_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+    admin = factories.admin(email="mod3@example.com")
+    db_session.commit()
+
+    resp = api.as_user(admin.id).post(
+        f"/admin/reviews/{review_id}/status", json={"status": "HIDDEN"}
+    )
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "MODERATION_NOTE_REQUIRED"
+
+
+def test_removed_review_cannot_be_edited_back_into_visibility(
+    api, db_session, factories, verified_user, place, moderator
+):
+    review_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+    admin = factories.admin(email="mod4@example.com")
+    db_session.commit()
+    api.as_user(admin.id).post(
+        f"/admin/reviews/{review_id}/status",
+        json={"status": "REMOVED", "moderation_note": "Not acceptable."},
+    )
+
+    resp = api.as_user(verified_user.id).patch(
+        f"/me/reviews/{review_id}", json={"body": BODY_TWO}
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "REVIEW_REMOVED"
+
+
+def test_admin_queue_groups_reports_by_review(
+    api, db_session, factories, verified_user, place, moderator
+):
+    review_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+
+    for i in range(2):
+        r = factories.user(email=f"queue-rep{i}@example.com")
+        db_session.commit()
+        api.as_user(r.id).post(
+            f"/places/reviews/{review_id}/report", json={"reason": "SPAM"}
+        )
+
+    admin = factories.admin(email="mod5@example.com")
+    db_session.commit()
+    body = api.as_user(admin.id).get("/admin/review-reports").json()
+
+    assert body["total"] == 1  # one row, not two
+    assert body["items"][0]["report_count"] == 2
+    assert body["items"][0]["open_report_count"] == 2
+
+
+def test_dismissing_leaves_the_review_up(
+    api, db_session, factories, verified_user, place, moderator
+):
+    """A report can be valid-looking and still not warrant a takedown —
+    verdict and action are separate for exactly this case."""
+    review_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
+    reporter = factories.user(email="rep3@example.com")
+    admin = factories.admin(email="mod6@example.com")
+    db_session.commit()
+    api.as_user(reporter.id).post(
+        f"/places/reviews/{review_id}/report", json={"reason": "OFF_TOPIC"}
+    )
+
+    resp = api.as_user(admin.id).post(
+        f"/admin/review-reports/{review_id}/resolve",
+        json={"decision": "DISMISSED", "action": "NONE"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    assert len(api.get(f"/places/{place.id}/reviews").json()["items"]) == 1
+    db_session.expire_all()
+    reports = db_session.execute(
+        select(PlaceReview).where(PlaceReview.id == review_id)
+    ).scalar_one()
+    assert reports.status == PlaceReviewStatus.PUBLISHED.value
+
+
+def test_non_admin_cannot_reach_the_queue(api, verified_user):
+    assert api.as_user(verified_user.id).get("/admin/review-reports").status_code == 403

@@ -1,0 +1,18 @@
+{% extends "_base.txt.jinja" %}
+
+{% block content %}
+New review for {{ place_name }}
+
+{{ stars }} ({{ rating }}/5)
+
+  {{ excerpt }}
+
+{% if rating <= 3 %}A public, calm reply to criticism is the most useful thing
+you can do here — thank them, state the facts plainly, and say what changed.
+Diners read the response as closely as the review.
+{% else %}Replying takes a few seconds and shows other diners you're paying
+attention.{% endif %}
+
+Read and reply:
+  {{ inbox_url }}
+{% endblock %}
