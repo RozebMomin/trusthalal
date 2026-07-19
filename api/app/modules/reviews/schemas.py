@@ -5,7 +5,7 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.modules.reviews.enums import (
     ModerationAction,
@@ -180,15 +180,16 @@ class ReviewReportCreate(BaseModel):
     #: Set when reporting the owner's reply rather than the review.
     reply_id: Optional[UUID] = None
 
-    @field_validator("detail")
-    @classmethod
-    def _detail_required_for_other(cls, v, info):
-        # "OTHER" with no explanation is unactionable — the moderator has
-        # literally nothing to weigh.
-        reason = info.data.get("reason")
-        if reason == ReviewReportReason.OTHER and not (v or "").strip():
+    @model_validator(mode="after")
+    def _detail_required_for_other(self):
+        # Must be a model_validator, not a field_validator on `detail`:
+        # Pydantic v2 skips field validators when the field is absent and
+        # takes its default, which is exactly the case this rule exists to
+        # catch — "OTHER" with no explanation is unactionable, the moderator
+        # has literally nothing to weigh.
+        if self.reason == ReviewReportReason.OTHER and not (self.detail or "").strip():
             raise ValueError("Tell us what's wrong with it.")
-        return v
+        return self
 
 
 class ReviewReportRead(BaseModel):

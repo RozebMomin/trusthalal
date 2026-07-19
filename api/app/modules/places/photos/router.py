@@ -48,7 +48,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -717,13 +717,14 @@ class PhotoReportCreate(BaseModel):
     reason: PhotoReportReason
     detail: Optional[str] = Field(default=None, max_length=2000)
 
-    @field_validator("detail")
-    @classmethod
-    def _detail_required_for_other(cls, v, info):
-        # "OTHER" with no explanation gives the moderator nothing to weigh.
-        if info.data.get("reason") == PhotoReportReason.OTHER and not (v or "").strip():
+    @model_validator(mode="after")
+    def _detail_required_for_other(self):
+        # model_validator, not field_validator: Pydantic v2 skips field
+        # validators when the field is absent and takes its default, which is
+        # precisely the payload this rule needs to reject.
+        if self.reason == PhotoReportReason.OTHER and not (self.detail or "").strip():
             raise ValueError("Tell us what's wrong with this photo.")
-        return v
+        return self
 
 
 class PhotoReportRead(BaseModel):

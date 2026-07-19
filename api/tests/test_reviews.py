@@ -245,11 +245,21 @@ def test_edited_body_is_re_moderated(api, verified_user, place, moderator):
 def test_cannot_edit_another_users_review_and_gets_404(
     api, factories, db_session, verified_user, place, moderator
 ):
-    """404, not 403 — a 403 confirms the id is real."""
+    """404, not 403 — a 403 would confirm the id is real.
+
+    The other user has to be email-verified, or ``require_verified_email``
+    short-circuits with its own 403 and we'd never reach the ownership check
+    this test exists to pin.
+    """
+    from datetime import datetime, timezone
+
     review_id = _post(api.as_user(verified_user.id), place.id).json()["id"]
 
     other = factories.user(email="other@example.com")
+    other.email_verified_at = datetime.now(timezone.utc)
+    db_session.add(other)
     db_session.commit()
+
     resp = api.as_user(other.id).patch(
         f"/me/reviews/{review_id}", json={"rating": 1}
     )
