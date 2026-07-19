@@ -197,10 +197,14 @@ function RatingHeader({
 
 function ReviewRow({
   review,
+  placeName,
   onReport,
   onEdit,
 }: {
   review: PlaceReviewRead;
+  /** The restaurant, not the organization that owns it — see the reply
+   *  byline below. */
+  placeName: string;
   onReport: (r: PlaceReviewRead) => void;
   onEdit: () => void;
 }) {
@@ -275,9 +279,19 @@ function ReviewRow({
 
       {review.reply && (
         <div className="ml-11 mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+          {/* The restaurant, not the owning organization.
+              `organization_name` is the legal entity — "Khan Restaurants
+              LLC" — which a diner reading a review of Jay's Deli has never
+              heard of and can't connect to the place they're looking at.
+              It also broke a promise the product makes: the owner's
+              composer says "Posting publicly as Jay's Deli", and this
+              rendered something else entirely.
+
+              One org can own several restaurants, so the org name is
+              strictly less specific here too — the reply is from this
+              location. */}
           <div className="text-[11px] font-bold text-primary">
-            ✓ Response from{" "}
-            {review.reply.organization_name ?? "the owner"} ·{" "}
+            ✓ Response from {placeName} ·{" "}
             {relativeDate(review.reply.created_at)}
           </div>
           <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-foreground/85">
@@ -371,6 +385,7 @@ export function PlaceReviews({
                   <ReviewRow
                     key={r.id}
                     review={r}
+                    placeName={place.name}
                     onReport={setReportTarget}
                     onEdit={() => setWriteOpen(true)}
                   />

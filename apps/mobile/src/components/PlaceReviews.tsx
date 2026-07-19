@@ -46,7 +46,14 @@ function relative(iso: string): string {
   return `${Math.floor(days / 365)}y ago`;
 }
 
-function ReviewRow({ review }: { review: PlaceReviewRead }) {
+function ReviewRow({
+  review,
+  placeName,
+}: {
+  review: PlaceReviewRead;
+  /** The restaurant, not the owning organization — see the byline below. */
+  placeName: string;
+}) {
   const t = useTheme();
   const initial = (review.author.display_name ?? "?").charAt(0).toUpperCase();
 
@@ -108,7 +115,9 @@ function ReviewRow({ review }: { review: PlaceReviewRead }) {
           }}
         >
           <Text style={{ color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 10.5 }}>
-            ✓ Response from {review.reply.organization_name ?? "the owner"}
+            {/* The restaurant, not the legal entity that owns it. See the
+                web component for the full reasoning. */}
+            ✓ Response from {placeName}
           </Text>
           <Text style={[ty.small, { color: t.ink, marginTop: 4, lineHeight: 17 }]}>
             {review.reply.body}
@@ -288,7 +297,7 @@ export function PlaceReviews({
           >
             {shown.map((r, i) => (
               <View key={r.id} style={i === 0 ? { paddingTop: 4 } : undefined}>
-                <ReviewRow review={r} />
+                <ReviewRow review={r} placeName={place.name} />
               </View>
             ))}
 
