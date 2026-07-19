@@ -29,7 +29,7 @@ from app.core.text_moderation import (
 from app.main import app as fastapi_app
 from app.modules.places.models import Place
 from app.modules.reviews.enums import PlaceReviewStatus
-from app.modules.reviews.models import PlaceReview
+from app.modules.reviews.models import PlaceReview, PlaceReviewReply
 
 BODY = "Ordered the mixed grill and asked about the chicken; they showed me the certificate."
 BODY_TWO = "Came back a second time with family. Same answer, same certificate on the counter."
@@ -627,3 +627,126 @@ def test_dismissing_leaves_the_review_up(
 
 def test_non_admin_cannot_reach_the_queue(api, verified_user):
     assert api.as_user(verified_user.id).get("/admin/review-reports").status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Deleting a review: what goes with it
+# ---------------------------------------------------------------------------
+# Three FKs point at place_reviews with ON DELETE CASCADE (the reply, the
+# reports, and any attached photos) and delete_review recomputes the place
+# aggregate. Both behaviours are load-bearing and invisible from the calling
+# code, so they're pinned here rather than trusted.
+
+
+def test_deleting_a_review_takes_the_owners_reply_with_it(
+    api, db_session, verified_user, owned_place, moderator
+):
+    """A reply is a response to something. With the review gone there's
+    nothing for it to be a response to, and leaving it would strand a public
+    statement with no context — the same call Google and Yelp make."""
+    p, owner, _org = owned_place
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, p.id).json()["id"]
+
+    api.as_user(owner.id).post(
+        f"/places/reviews/{review_id}/reply",
+        json={"body": "Thanks for coming in, see you next time."},
+    )
+    db_session.expire_all()
+    assert db_session.execute(select(PlaceReviewReply)).scalars().all() != []
+
+    assert api_author.delete(f"/me/reviews/{review_id}").status_code == 204
+
+    db_session.expire_all()
+    assert db_session.execute(select(PlaceReviewReply)).scalars().all() == []
+
+
+def test_deleting_a_review_takes_its_reports_with_it(
+    api, db_session, factories, verified_user, place, moderator
+):
+    from app.modules.reviews.models import PlaceReviewReport
+
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, place.id).json()["id"]
+
+    reporter = factories.user(email="cascade-reporter@example.com")
+    db_session.commit()
+    api.as_user(reporter.id).post(
+        f"/places/reviews/{review_id}/report", json={"reason": "SPAM"}
+    )
+    db_session.expire_all()
+    assert db_session.execute(select(PlaceReviewReport)).scalars().all() != []
+
+    api_author.delete(f"/me/reviews/{review_id}")
+
+    db_session.expire_all()
+    assert db_session.execute(select(PlaceReviewReport)).scalars().all() == []
+
+
+def test_deleting_a_review_rolls_back_the_place_rating_and_count(
+    api, db_session, factories, place, moderator
+):
+    """The aggregate is denormalized onto places, so nothing recomputes it
+    unless delete_review says so. A stale average is worse than a slow one:
+    it's a number the product asserts and can't back up."""
+    from datetime import datetime, timezone
+    from decimal import Decimal
+
+    users = []
+    for i, rating in enumerate((5, 3)):
+        u = factories.user(email=f"cascade{i}@example.com")
+        u.email_verified_at = datetime.now(timezone.utc)
+        db_session.add(u)
+        db_session.commit()
+        users.append((u, _post(api.as_user(u.id), place.id, rating=rating).json()["id"]))
+
+    db_session.expire_all()
+    refreshed = db_session.get(Place, place.id)
+    assert refreshed.review_count == 2
+    assert Decimal(str(refreshed.review_rating_avg)) == Decimal("4.0")
+
+    # Drop the 5 — the average must fall to the remaining 3, not stay at 4.
+    top_user, top_review = users[0]
+    api.as_user(top_user.id).delete(f"/me/reviews/{top_review}")
+
+    db_session.expire_all()
+    refreshed = db_session.get(Place, place.id)
+    assert refreshed.review_count == 1
+    assert Decimal(str(refreshed.review_rating_avg)) == Decimal("3.0")
+
+
+def test_deleting_the_last_review_clears_the_rating_entirely(
+    api, db_session, verified_user, place, moderator
+):
+    """Not 0.0 — null. A place with no reviews has no rating, and rendering
+    a zero would read as the worst possible score."""
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, place.id, rating=5).json()["id"]
+    api_author.delete(f"/me/reviews/{review_id}")
+
+    db_session.expire_all()
+    refreshed = db_session.get(Place, place.id)
+    assert refreshed.review_count == 0
+    assert refreshed.review_rating_avg is None
+
+
+def test_deleted_review_leaves_the_admin_queue_intact(
+    api, db_session, factories, verified_user, place, moderator
+):
+    """The queue groups by review, so a cascaded-away review would leave a
+    row pointing at nothing. The list handler skips those rather than 500."""
+    api_author = api.as_user(verified_user.id)
+    review_id = _post(api_author, place.id).json()["id"]
+
+    reporter = factories.user(email="queue-cascade@example.com")
+    admin = factories.admin(email="queue-cascade-admin@example.com")
+    db_session.commit()
+    api.as_user(reporter.id).post(
+        f"/places/reviews/{review_id}/report", json={"reason": "OFF_TOPIC"}
+    )
+
+    api_author.delete(f"/me/reviews/{review_id}")
+
+    resp = api.as_user(admin.id).get("/admin/review-reports")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["items"] == []
