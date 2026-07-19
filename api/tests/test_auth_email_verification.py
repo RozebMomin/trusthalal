@@ -96,7 +96,9 @@ def test_mobile_signup_mints_token(api, db_session):
             "display_name": "Mobile Signup",
         },
     )
-    assert resp.status_code == 200, resp.text
+    # 201, not 200 — mobile signup declares HTTP_201_CREATED, unlike the web
+    # signup it otherwise mirrors.
+    assert resp.status_code == 201, resp.text
 
     user = db_session.execute(
         select(User).where(User.email == "verify-mobile@example.com")
