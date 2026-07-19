@@ -444,5 +444,32 @@ def search_nearby(
             & (HalalProfile.revoked_at.is_(None)),
         )
     stmt = _apply_cuisine_filter(stmt, cuisines)
+    # Nearest first, then id as a stable tie-break.
+    #
+    # This used to be a bare LIMIT/OFFSET with no ORDER BY, which leaves the
+    # row order up to the planner: the same request could return a different
+    # 50 places twice in a row, and paging could show a place on two pages or
+    # none. It only looked fine because the catalog was smaller than one page.
+    #
+    # Distance is also the ordering clients actually want — the consumer site
+    # re-sorts the page it receives, so an unordered page meant "top rated"
+    # ranked an arbitrary subset of what's nearby rather than the nearest N.
+    #
+    # ST_Distance rather than the `<->` KNN operator: the candidate set is
+    # already bounded by ST_DWithin above, so there's no index-scan win to
+    # chase, and this is unambiguous about units (meters, on geography).
+    stmt = stmt.order_by(
+        text(
+            "ST_Distance("
+            "app.places.geom::geography, "
+            "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography"
+            ")"
+        ),
+        Place.id.asc(),
+    )
+    # Re-bind after adding a second text() clause that references the same
+    # names — the earlier .params() call only bound the parameters that
+    # existed on the statement at that point.
+    stmt = stmt.params(lat=lat, lng=lng, radius_m=radius_m)
     stmt = stmt.limit(limit).offset(offset)
     return [(p, hp) for p, hp in db.execute(stmt).all()]

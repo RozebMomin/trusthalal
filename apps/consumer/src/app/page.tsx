@@ -119,21 +119,12 @@ const VALID_CUISINES: ReadonlySet<string> = new Set<Cuisine>([
 import { capturePostHog } from "@/lib/analytics";
 import { useMyPreferences } from "@/lib/api/preferences";
 import { haversineDistanceMeters } from "@/lib/geo";
+import {
+  compareByGoogleRating,
+  compareByTrustHalalRating,
+} from "@/lib/ranking";
 
 type SortMode = "closest" | "farthest" | "rating_th" | "rating_google";
-
-/**
- * Minimum first-party reviews before a place can be ranked by its Trust
- * Halal rating.
- *
- * Without a floor, a single 5.0 outranks fifty 4.8s, which is both wrong and
- * trivially gameable — one review from a friend puts a restaurant at the top
- * of every search. Three isn't statistically meaningful; it's the smallest
- * number that stops the most obvious abuse while a young platform builds up
- * volume. Places below it fall to the bottom of this sort rather than being
- * hidden: they're still real results, just not rankable on a rating.
- */
-const MIN_REVIEWS_TO_RANK = 3;
 
 const DEBOUNCE_MS = 250;
 
@@ -470,34 +461,13 @@ function HomePageInner() {
       // Two rating sorts, because there are two ratings. This used to be a
       // single "Highest rated" that silently meant Google's — the same
       // conflation the place page now avoids by labelling both.
-      if (sortMode === "rating_th") {
-        // Only places with enough reviews to mean something get ranked on
-        // the rating; the rest sink and are ordered by distance.
-        const qa = (a.place.review_count ?? 0) >= MIN_REVIEWS_TO_RANK;
-        const qb = (b.place.review_count ?? 0) >= MIN_REVIEWS_TO_RANK;
-        if (qa !== qb) return qa ? -1 : 1;
-        if (qa && qb) {
-          const ra = a.place.review_rating_avg ?? -1;
-          const rb = b.place.review_rating_avg ?? -1;
-          if (rb !== ra) return rb - ra;
-          // More reviews at the same average is more confidence.
-          const ca = a.place.review_count ?? 0;
-          const cb = b.place.review_count ?? 0;
-          if (cb !== ca) return cb - ca;
-        }
-        return (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0);
-      }
-      if (sortMode === "rating_google") {
-        // Google's own ranking, unchanged. Its counts are large enough that
-        // a floor would be noise.
-        const ra = a.place.google_rating ?? -1;
-        const rb = b.place.google_rating ?? -1;
-        if (rb !== ra) return rb - ra;
-        const ca = a.place.google_rating_count ?? 0;
-        const cb = b.place.google_rating_count ?? 0;
-        if (cb !== ca) return cb - ca;
-        return (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0);
-      }
+      //
+      // Both comparators live in lib/ranking.ts, where the weighting is
+      // explained and unit-tested. Inlining them here is how the first
+      // version ended up with a review-count floor that silently disabled
+      // the whole sort on a young catalog.
+      if (sortMode === "rating_th") return compareByTrustHalalRating(a, b);
+      if (sortMode === "rating_google") return compareByGoogleRating(a, b);
       const da = a.distanceMeters ?? 0;
       const db = b.distanceMeters ?? 0;
       return sortMode === "closest" ? da - db : db - da;
