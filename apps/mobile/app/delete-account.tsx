@@ -88,6 +88,41 @@ export default function DeleteAccountScreen() {
 
   const counts = preview.data;
 
+  // Bullets are built here rather than inline so the two of them can be
+  // reasoned about together — they have to partition the user's photos, not
+  // overlap. `photos_deleted` is standalone photos only and
+  // `review_photos_deleted` is photos on their own reviews; a photo is in
+  // exactly one. This bullet used to end "and any photos attached to them",
+  // a hedge in the middle of an otherwise exact list, while the count below
+  // it silently included those same photos — so a diner with one review and
+  // one photo on it was shown two bullets describing one file.
+  //
+  // A zero line is dropped instead of printing "0 reviews you've written".
+  // Listing what someone does not have is noise on a screen they are reading
+  // to weigh a loss.
+  const reviews = counts?.reviews_deleted ?? 0;
+  const reviewPhotos = counts?.review_photos_deleted ?? 0;
+  const standalone = counts?.photos_deleted ?? 0;
+
+  let reviewLine: string | null = null;
+  if (reviews > 0) {
+    // "on it" / "on them" agrees with the REVIEW count, not the photo count —
+    // the photos hang off the reviews.
+    const onWhat = reviews === 1 ? "it" : "them";
+    const written = `${reviews} review${reviews === 1 ? "" : "s"} you've written`;
+    reviewLine =
+      reviewPhotos === 0
+        ? written
+        : reviewPhotos === 1
+          ? `${written}, and the photo on ${onWhat}`
+          : `${written}, and the ${reviewPhotos} photos on ${onWhat}`;
+  }
+
+  const photoLine =
+    standalone > 0
+      ? `${standalone} photo${standalone === 1 ? "" : "s"} you've added to restaurants`
+      : null;
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: t.bg }}
@@ -130,16 +165,16 @@ export default function DeleteAccountScreen() {
               <Text style={[ty.small, { color: "#7F1D1D", lineHeight: 19 }]}>
                 • Your account and sign-in
               </Text>
-              <Text style={[ty.small, { color: "#7F1D1D", lineHeight: 19 }]}>
-                • {counts?.reviews_deleted ?? 0} review
-                {counts?.reviews_deleted === 1 ? "" : "s"} you&apos;ve written,
-                and any photos attached to them
-              </Text>
-              <Text style={[ty.small, { color: "#7F1D1D", lineHeight: 19 }]}>
-                • {counts?.photos_deleted ?? 0} photo
-                {counts?.photos_deleted === 1 ? "" : "s"} you&apos;ve added to
-                restaurants
-              </Text>
+              {reviewLine ? (
+                <Text style={[ty.small, { color: "#7F1D1D", lineHeight: 19 }]}>
+                  • {reviewLine}
+                </Text>
+              ) : null}
+              {photoLine ? (
+                <Text style={[ty.small, { color: "#7F1D1D", lineHeight: 19 }]}>
+                  • {photoLine}
+                </Text>
+              ) : null}
               <Text style={[ty.small, { color: "#7F1D1D", lineHeight: 19 }]}>
                 • Your saved places, search defaults and notification settings
               </Text>

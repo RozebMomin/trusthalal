@@ -225,3 +225,96 @@ def test_email_is_reusable_after_deletion(api, db_session, factories, deletable_
         json={"email": email, "password": PASSWORD, "display_name": "Back Again"},
     )
     assert resp.status_code in (200, 201), resp.text
+
+
+def _photo(place_id, user_id, *, review_id=None):
+    return PlacePhoto(
+        place_id=place_id,
+        review_id=review_id,
+        uploaded_by_user_id=user_id,
+        source="CONSUMER",
+        storage_path=f"{place_id}/{uuid4()}.jpg",
+        content_type="image/jpeg",
+        size_bytes=1024,
+    )
+
+
+def test_preview_counts_review_photos_separately_from_standalone_ones(
+    api, db_session, factories, deletable_user, moderator
+):
+    """The two numbers have to partition the user's photos, not overlap.
+
+    ``photos_deleted`` used to be every CONSUMER photo the user uploaded,
+    review-attached ones included — while the confirmation screen was already
+    covering those under the review bullet. Someone with one review and one
+    photo on it saw two bullets describing the same file, on the one screen
+    whose entire purpose is telling them exactly what they are about to lose.
+    """
+    place = factories.place(name="Partition Grill")
+    db_session.commit()
+
+    review_id = (
+        api.as_user(deletable_user.id)
+        .post(f"/places/{place.id}/reviews", json={"rating": 4, "body": BODY})
+        .json()["id"]
+    )
+    db_session.add(_photo(place.id, deletable_user.id, review_id=review_id))
+    db_session.add(_photo(place.id, deletable_user.id))
+    db_session.commit()
+
+    body = api.as_user(deletable_user.id).get("/me/deletion-preview").json()
+    assert body["reviews_deleted"] == 1
+    assert body["photos_deleted"] == 1, "standalone only — not the review photo"
+    assert body["review_photos_deleted"] == 1
+
+
+def test_preview_matches_what_deletion_actually_reports(
+    api, db_session, factories, deletable_user, moderator
+):
+    """The invariant behind the bug, stated directly.
+
+    The preview and the deletion built their photo lists from two different
+    queries, so they could disagree — preview said one photo, deletion
+    reported none. Whatever the screen promises has to be what happens, and
+    the user cannot check afterwards.
+    """
+    from app.modules.users.deletion import delete_account, preview_deletion
+
+    place = factories.place(name="Agreement Grill")
+    db_session.commit()
+
+    review_id = (
+        api.as_user(deletable_user.id)
+        .post(f"/places/{place.id}/reviews", json={"rating": 4, "body": BODY})
+        .json()["id"]
+    )
+    for _ in range(2):
+        db_session.add(_photo(place.id, deletable_user.id, review_id=review_id))
+    db_session.add(_photo(place.id, deletable_user.id))
+    db_session.commit()
+
+    promised = preview_deletion(db_session, user_id=deletable_user.id)
+    actual = delete_account(db_session, user_id=deletable_user.id)
+    db_session.commit()
+
+    assert (promised.reviews_deleted, promised.photos_deleted, promised.review_photos_deleted) == (1, 1, 2)
+    assert promised.reviews_deleted == actual.reviews_deleted
+    assert promised.photos_deleted == actual.photos_deleted
+    assert promised.review_photos_deleted == actual.review_photos_deleted
+
+
+def test_owner_photos_are_in_neither_count(
+    api, db_session, factories, deletable_user, moderator
+):
+    """OWNER-source photos survive deletion, so promising to delete them would
+    be a lie in the other direction."""
+    place = factories.place(name="Owner Count Grill")
+    db_session.commit()
+    owner_photo = _photo(place.id, deletable_user.id)
+    owner_photo.source = "OWNER"
+    db_session.add(owner_photo)
+    db_session.commit()
+
+    body = api.as_user(deletable_user.id).get("/me/deletion-preview").json()
+    assert body["photos_deleted"] == 0
+    assert body["review_photos_deleted"] == 0

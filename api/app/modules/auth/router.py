@@ -208,6 +208,7 @@ def get_deletion_preview(
     return AccountDeletionPreview(
         reviews_deleted=summary.reviews_deleted,
         photos_deleted=summary.photos_deleted,
+        review_photos_deleted=summary.review_photos_deleted,
         keeps_owner_photos=True,
         keeps_owner_replies=True,
     )
@@ -276,13 +277,16 @@ def delete_my_account(
         properties={
             "reviews_deleted": summary.reviews_deleted,
             "photos_deleted": summary.photos_deleted,
+            "review_photos_deleted": summary.review_photos_deleted,
         },
     )
     logger.info(
-        "Account %s deleted: %d review(s), %d photo(s), %d storage object(s) queued",
+        "Account %s deleted: %d review(s), %d standalone photo(s), "
+        "%d review photo(s), %d storage object(s) queued",
         user.id,
         summary.reviews_deleted,
         summary.photos_deleted,
+        summary.review_photos_deleted,
         summary.storage_objects_queued,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

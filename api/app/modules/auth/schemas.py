@@ -349,7 +349,11 @@ class AccountDeletionPreview(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     reviews_deleted: int = 0
+    #: Standalone photos only. Disjoint from ``review_photos_deleted`` — a
+    #: photo is in exactly one of the two, so the screen can list both bullets
+    #: without describing the same file twice.
     photos_deleted: int = 0
+    review_photos_deleted: int = 0
     #: Business records that survive, so the copy can say so honestly rather
     #: than implying every trace is gone.
     keeps_owner_photos: bool = False

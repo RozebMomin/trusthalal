@@ -77,7 +77,13 @@ class DeletionSummary:
     'account deleted'."""
 
     reviews_deleted: int
+    #: Standalone photos only — a diner photo NOT attached to one of their
+    #: reviews. Kept disjoint from ``review_photos_deleted`` so the two can be
+    #: added without double-counting; the confirmation screen prints both.
     photos_deleted: int
+    #: Photos attached to this user's own reviews. These go with the review,
+    #: which is why they are not in ``photos_deleted``.
+    review_photos_deleted: int
     storage_objects_queued: int
     orphaned_organizations: list[UUID]
 
@@ -96,17 +102,38 @@ def preview_deletion(db: Session, *, user_id: UUID) -> DeletionSummary:
             )
         ).scalar_one()
     )
+    # ``review_id IS NULL`` is load-bearing. Without it this counts photos
+    # attached to the user's own reviews too, which ``delete_account`` reports
+    # separately as ``review_photos_deleted`` — so the preview said "1 photo"
+    # while the deletion said 0, and the screen described a single file twice
+    # (once under the review bullet, once under the photo bullet). The two
+    # queries below must stay disjoint and must match the two collections
+    # ``delete_account`` builds, or the confirmation screen overstates the
+    # loss on the one screen whose entire value is being exact.
     photos = int(
         db.execute(
             select(func.count(PlacePhoto.id)).where(
                 PlacePhoto.uploaded_by_user_id == user_id,
                 PlacePhoto.source == PlacePhotoSource.CONSUMER.value,
+                PlacePhoto.review_id.is_(None),
             )
+        ).scalar_one()
+    )
+    # Same join delete_account uses, so "the 2 photos on it" is a real number
+    # rather than the hedge ("and any photos attached to them") this used to
+    # print in the middle of an otherwise exact list.
+    review_photos = int(
+        db.execute(
+            select(func.count(PlacePhoto.id))
+            .select_from(PlacePhoto)
+            .join(PlaceReview, PlaceReview.id == PlacePhoto.review_id)
+            .where(PlaceReview.author_user_id == user_id)
         ).scalar_one()
     )
     return DeletionSummary(
         reviews_deleted=reviews,
         photos_deleted=photos,
+        review_photos_deleted=review_photos,
         storage_objects_queued=0,
         orphaned_organizations=[],
     )
@@ -120,7 +147,7 @@ def delete_account(db: Session, *, user_id: UUID) -> DeletionSummary:
     """
     user = db.get(User, user_id)
     if user is None:  # already gone; deleting twice is not an error
-        return DeletionSummary(0, 0, 0, [])
+        return DeletionSummary(0, 0, 0, 0, [])
 
     # ---- 1. Which places need their rating recomputed afterwards? --------
     # Read now: after the cascade there's no way to find them.
@@ -231,6 +258,7 @@ def delete_account(db: Session, *, user_id: UUID) -> DeletionSummary:
     return DeletionSummary(
         reviews_deleted=review_count,
         photos_deleted=len(own_photos),
+        review_photos_deleted=len(review_photos),
         storage_objects_queued=queued,
         orphaned_organizations=orphaned,
     )

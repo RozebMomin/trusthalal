@@ -199,7 +199,10 @@ export type SearchDiagnostics = {
  *  screen — an irreversible choice deserves better than a generic warning. */
 export type AccountDeletionPreview = {
   reviews_deleted: number;
+  /** Standalone photos only — disjoint from `review_photos_deleted`, so the
+   *  two bullets on the confirmation screen never describe the same file. */
   photos_deleted: number;
+  review_photos_deleted: number;
   keeps_owner_photos: boolean;
   keeps_owner_replies: boolean;
 };
