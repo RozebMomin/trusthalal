@@ -191,7 +191,7 @@ function ReviewCard({ review }: { review: MyReviewRead }) {
             ]}
           >
             {removed
-              ? "Removals are final. If your review described something factual about a restaurant's halal status, you can raise that separately as a dispute on the restaurant's page."
+              ? "Removals are final. If your review described something factual about a restaurant's halal status, you can raise that separately as a dispute on halalfoodnearme.com."
               : "Hidden is reversible. Edit it to address the note above and it can go back up."}
           </Text>
         </View>

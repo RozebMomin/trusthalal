@@ -1,12 +1,11 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Image, Linking, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyFavorites, usePlaceDetail, useToggleFavorite } from "@/lib/api/hooks";
 import { PlaceReviews } from "@/components/PlaceReviews";
-import { primaryHalalSignal } from "@/lib/halal-display";
 import { RatingLine } from "@/components/RatingLine";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -14,7 +13,6 @@ import { Button } from "@/components/Button";
 import { HeartButton } from "@/components/HeartButton";
 import { PhotoViewer } from "@/components/PhotoViewer";
 import { TrustProfileSheet } from "@/components/TrustProfileSheet";
-import { TierTag } from "@/components/TierTag";
 import { ErrorState, Loading } from "@/components/States";
 import type { HalalProfileEmbed, PlaceDetail as PlaceDetailType } from "@/lib/api/types";
 import { capture } from "@/lib/analytics";
@@ -146,9 +144,13 @@ export default function PlaceDetail() {
               }}
             >
               {/* Name / cuisine / address read as one tight group. */}
+              {/* No tier tag here. The trust banner below states the tier in
+                  full sentences a few hundred pixels down; a pill repeating
+                  "CERTIFIED · HMS" above the name made the certifier's name
+                  appear three times in one screen. The tag still earns its
+                  place on search cards, where there's no banner. */}
               <View style={{ gap: 3 }}>
-                <TierTag signal={primaryHalalSignal(place.halal_profile)} />
-                <Text style={[ty.title, { color: t.ink, fontSize: 28, lineHeight: 34, marginTop: 5 }]}>
+                <Text style={[ty.title, { color: t.ink, fontSize: 28, lineHeight: 34 }]}>
                   {place.name}
                 </Text>
                 {place.google_rating != null ||
@@ -228,9 +230,32 @@ export default function PlaceDetail() {
                 emailVerified={me?.email_verified === true}
               />
 
-              <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
-                Spot something wrong? Reporting arrives in the next build — for now, report on
-                halalfoodnearme.com.
+              {/* This used to read "Reporting arrives in the next build".
+                  That was written before review reporting shipped and stayed
+                  after it did, so the app was telling diners a feature it has
+                  doesn't exist — and telling an App Review reviewer that the
+                  1.2 reporting requirement is unimplemented, on the very
+                  screen where the flag icon sits. Reporting a REVIEW is in
+                  the app (the flag on each review); challenging a
+                  RESTAURANT'S halal profile is still web-only, so that half
+                  keeps the link. */}
+              <Text
+                style={[
+                  ty.small,
+                  { color: t.sub, textAlign: "center", marginTop: space.sm, lineHeight: 17 },
+                ]}
+              >
+                Something wrong with a review? Tap the flag on it. To challenge this
+                restaurant&apos;s halal profile, open it on{" "}
+                <Text
+                  style={{ color: t.accentDeep, fontFamily: "Inter_600SemiBold" }}
+                  onPress={() =>
+                    Linking.openURL(`https://halalfoodnearme.com/places/${place.id}`)
+                  }
+                >
+                  halalfoodnearme.com
+                </Text>
+                .
               </Text>
             </View>
           </>
@@ -468,94 +493,358 @@ function HoursCard({ place }: { place: PlaceDetailType }) {
   );
 }
 
+/**
+ * The halal verdict, in the same four-part shape as the web detail page
+ * (``apps/consumer/src/components/place-trust-summary.tsx``). Keep the two
+ * in step — a diner who checks a place on the phone and again on the laptop
+ * should not get two different-looking answers to the same question.
+ *
+ *   1. Banner   — what the kitchen is, in the largest type in the card,
+ *                 over a colour that encodes how well we know it.
+ *   2. Facts    — pork, alcohol, cooking wine.
+ *   3. Meats    — only what's actually served.
+ *   4. Provenance — who checked, when, and the way into the evidence.
+ *
+ * ## What this replaced, and why
+ *
+ * A header row reading "Trust profile / Certified · HMS" above a chip rail
+ * containing "Fully halal menu", "Zabihah · all meats", "No alcohol" and
+ * "Cert · HMS". Stacked under the page's tier tag, which also said
+ * "CERTIFIED · HMS", the certifier's name appeared three times inside one
+ * screen while the question a diner actually opened the page with — is this
+ * kitchen fully halal? — was a chip the same size and weight as everything
+ * else.
+ *
+ * ## The rule not to "simplify" later
+ *
+ * The headline says what the RESTAURANT claims; the colour and proof line
+ * say how much PROOF we hold. They are deliberately separate. A self-attested
+ * fully-halal kitchen and a verifier-inspected one make the identical claim
+ * and are not the same fact. SELF_ATTESTED is therefore never green — a green
+ * banner there would launder the owner's word into Trust Halal's endorsement,
+ * which is the one thing this product exists not to do.
+ */
+
+const TIER_PROOF: Record<string, string> = {
+  TRUST_HALAL_VERIFIED: "A Trust Halal verifier checked this in person",
+  CERTIFICATE_ON_FILE: "Halal certificate on file with us",
+  SELF_ATTESTED: "The owner's own description — nobody has verified it",
+};
+
+const MENU_POSTURE_HEADLINE: Record<string, string> = {
+  FULLY_HALAL: "Fully halal kitchen",
+  MIXED_SEPARATE_KITCHENS: "Halal in a separate kitchen",
+  HALAL_OPTIONS_ADVERTISED: "Halal options on the menu",
+  HALAL_UPON_REQUEST: "Halal options on request",
+  MIXED_SHARED_KITCHEN: "Halal options · shared kitchen",
+};
+
+const ALCOHOL_POLICY_LINE: Record<string, string> = {
+  NONE: "No alcohol served",
+  BEER_AND_WINE_ONLY: "Beer and wine served",
+  FULL_BAR: "Full bar — beer, wine, spirits",
+};
+
+const SLAUGHTER_LABELS: Record<string, string> = {
+  ZABIHAH: "Zabihah",
+  MACHINE: "Machine",
+  NOT_SERVED: "Not served",
+};
+
+/** Banner fill by PROOF level — read the note above before changing. */
+function tierBanner(tier: string, t: ReturnType<typeof useTheme>) {
+  switch (tier) {
+    case "TRUST_HALAL_VERIFIED":
+      return { bg: t.accent, fg: t.onAccent };
+    case "CERTIFICATE_ON_FILE":
+      return { bg: t.accentDeep, fg: t.onAccent };
+    default:
+      // Deliberately not green. Nobody independent has checked this.
+      return { bg: t.zinc, fg: t.card };
+  }
+}
+
 function TrustCard({ profile, onDetails }: { profile: HalalProfileEmbed | null; onDetails?: () => void }) {
   const t = useTheme();
   if (!profile) {
     return (
-      <View style={{ backgroundColor: t.card, borderRadius: radii.xl, padding: space.lg }}>
-        <Text style={[ty.label, { color: t.ink }]}>No halal profile yet</Text>
-        <Text style={[ty.small, { color: t.sub, marginTop: 4 }]}>
-          This restaurant hasn't been verified by Trust Halal. Owners can submit a halal claim
-          through the owner portal.
+      <View
+        style={{
+          borderRadius: radii.xl,
+          borderWidth: 1,
+          borderStyle: "dashed",
+          borderColor: t.line,
+          padding: space.lg,
+          alignItems: "center",
+        }}
+      >
+        <Feather name="info" size={20} color={t.sub} />
+        <Text style={[ty.label, { color: t.ink, marginTop: 8 }]}>No halal information yet</Text>
+        <Text style={[ty.small, { color: t.sub, marginTop: 4, textAlign: "center", lineHeight: 18 }]}>
+          Nobody has told us how this kitchen works, so we can&apos;t say anything about it either
+          way. If you own this restaurant, you can add your halal details.
         </Text>
       </View>
     );
   }
-  const zabihah = (
-    [
-      ["Chicken", profile.chicken_slaughter],
-      ["Beef", profile.beef_slaughter],
-      ["Lamb", profile.lamb_slaughter],
-      ["Goat", profile.goat_slaughter],
-    ] as const
-  ).filter(([, m]) => m && m !== "NOT_SERVED");
 
-  const basis =
-    profile.validation_tier === "TRUST_HALAL_VERIFIED"
-      ? "Confirmed in person"
-      : profile.has_certification
-        ? `Certified · ${profile.certifying_body_name ?? "on file"}`
-        : "Owner-attested";
-
-  const allZabihah = zabihah.length > 0 && zabihah.every(([, m]) => m === "ZABIHAH");
-  const zabihahLabel = allZabihah ? "Zabihah · all meats" : "Zabihah";
-  const certYear = profile.certificate_expires_at
-    ? new Date(profile.certificate_expires_at).getFullYear()
-    : null;
-  const certLabel = `Cert · ${profile.certifying_body_name ?? "on file"}${certYear ? ` · ${certYear}` : ""}`;
+  const banner = tierBanner(profile.validation_tier, t);
+  const headline = MENU_POSTURE_HEADLINE[profile.menu_posture] ?? "Halal information on file";
+  const proof = TIER_PROOF[profile.validation_tier] ?? "";
 
   return (
-    <View style={{ backgroundColor: t.card, borderRadius: radii.xl, padding: space.lg }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <View style={{ width: 36, height: 36, borderRadius: 999, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
-          <Feather name="shield" size={17} color={t.accentDeep} />
+    <View style={{ borderRadius: radii.xl, overflow: "hidden", backgroundColor: t.card }}>
+      {/* The claim, in the largest type in the card. Colour is the proof
+          level, not the claim — see the note above. */}
+      <View style={{ backgroundColor: banner.bg, paddingHorizontal: space.lg, paddingVertical: 14 }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
+          <Feather name="shield" size={18} color={banner.fg} style={{ marginTop: 1 }} />
+          <Text style={[ty.title, { color: banner.fg, fontSize: 18, lineHeight: 23, flex: 1 }]}>
+            {headline}
+          </Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[ty.label, { color: t.ink, fontSize: 16 }]}>Trust profile</Text>
-          <Text style={[ty.small, { color: t.sub, marginTop: 1 }]}>{basis}</Text>
-        </View>
-        {onDetails ? (
-          <Pressable onPress={onDetails} accessibilityLabel="Full trust profile" style={{ flexDirection: "row", alignItems: "center", gap: 1 }}>
-            <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_600SemiBold", fontSize: 13 }]}>Details</Text>
-            <Feather name="chevron-right" size={15} color={t.accentDeep} />
-          </Pressable>
+        {proof ? (
+          <Text style={[ty.small, { color: banner.fg, opacity: 0.9, marginTop: 3, paddingLeft: 27 }]}>
+            {proof}
+          </Text>
         ) : null}
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-        {profile.menu_posture === "FULLY_HALAL" ? <Wash label="Fully halal menu" /> : null}
-        {zabihah.some(([, m]) => m === "ZABIHAH") ? <Wash label={zabihahLabel} /> : null}
-        {profile.alcohol_policy === "NONE" ? <Wash label="No alcohol" /> : null}
-        {/* Pork is only surfaced when it's actually served — a red alert, not a
-            "pork-free" reassurance on every (majority) place. */}
-        {(TEST_FORCE_PORK || profile.has_pork) ? <Wash label="Serves pork" danger /> : null}
-        {profile.has_certification ? <Wash label={certLabel} neutral /> : null}
+
+      <View style={{ padding: space.lg, gap: space.md }}>
+        <KitchenAndPantry profile={profile} />
+
+        {profile.seafood_only ? (
+          <Text style={[ty.small, { color: t.sub }]}>
+            Seafood-only kitchen — no land meat or poultry served.
+          </Text>
+        ) : (
+          <ServedMeats profile={profile} />
+        )}
+
+        {profile.caveats ? (
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 8,
+              backgroundColor: t.amberSoft,
+              borderRadius: radii.md,
+              padding: 11,
+            }}
+          >
+            <Feather name="alert-circle" size={15} color={t.amber} style={{ marginTop: 1 }} />
+            <Text style={[ty.small, { color: t.amber, flex: 1, lineHeight: 17 }]}>
+              {profile.caveats}
+            </Text>
+          </View>
+        ) : null}
+
+        <ProvenanceFooter profile={profile} onDetails={onDetails} />
       </View>
     </View>
   );
 }
 
-function Wash({ label, neutral, danger }: { label: string; neutral?: boolean; danger?: boolean }) {
+/** Pork, alcohol, cooking wine — each a single sentence a diner can scan as
+ *  a yes/no. Menu posture is NOT repeated here; it's the banner headline. */
+function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
   const t = useTheme();
-  const bg = danger ? t.dangerSoft : neutral ? t.zincSoft : t.accentSoft;
-  const fg = danger ? t.danger : neutral ? t.zinc : t.accentDeep;
+  const pork = TEST_FORCE_PORK || profile.has_pork;
+
+  const lines: Array<{ node: ReactNode; text: string; color: string }> = [
+    {
+      node: (
+        <View
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: 999,
+            backgroundColor: pork ? t.dangerSoft : t.accentSoft,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: pork ? t.danger : t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 11 }}>
+            {pork ? "✕" : "✓"}
+          </Text>
+        </View>
+      ),
+      text: pork ? "Pork is served" : "No pork on the menu",
+      color: t.ink,
+    },
+  ];
+
+  if (profile.alcohol_policy) {
+    const none = profile.alcohol_policy === "NONE";
+    lines.push({
+      node: (
+        <View style={{ width: 20, alignItems: "center" }}>
+          <Feather name="x-circle" size={15} color={none ? t.accentDeep : t.amber} />
+        </View>
+      ),
+      text: ALCOHOL_POLICY_LINE[profile.alcohol_policy] ?? "Alcohol policy on file",
+      color: t.ink,
+    });
+  }
+
+  if (profile.alcohol_in_cooking) {
+    lines.push({
+      node: (
+        <View style={{ width: 20, alignItems: "center" }}>
+          <Feather name="alert-circle" size={15} color={t.amber} />
+        </View>
+      ),
+      text: "Some dishes are cooked with alcohol (wine reductions, mirin, etc.).",
+      color: t.amber,
+    });
+  }
+
+  return (
+    <View style={{ gap: 8 }}>
+      {lines.map((line, i) => (
+        <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+          {line.node}
+          <Text style={[ty.small, { color: line.color, flex: 1, fontSize: 13, lineHeight: 18 }]}>
+            {line.text}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Served meats get a chip each; everything absent collapses into one line.
+ *
+ * The old chip rail said "Zabihah · all meats" — one chip for up to four
+ * facts. That reads fine when every meat matches, and hides a real
+ * distinction the moment one doesn't: a place with zabihah chicken and
+ * machine-slaughtered beef could not say so. Machine keeps an amber chip
+ * and must never quietly read as zabihah.
+ */
+function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
+  const t = useTheme();
+  const rows = [
+    { label: "Chicken", method: profile.chicken_slaughter },
+    { label: "Beef", method: profile.beef_slaughter },
+    { label: "Lamb", method: profile.lamb_slaughter },
+    { label: "Goat", method: profile.goat_slaughter },
+  ];
+
+  const served = rows.filter((r) => r.method && r.method !== "NOT_SERVED");
+  const absent = rows.filter((r) => r.method === "NOT_SERVED");
+
+  if (served.length === 0) {
+    return (
+      <Text style={[ty.small, { color: t.sub }]}>
+        No chicken, beef, lamb or goat is served here.
+      </Text>
+    );
+  }
+
+  return (
+    <View style={{ gap: 6 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {served.map((row) => {
+          const machine = row.method === "MACHINE";
+          return (
+            <View
+              key={row.label}
+              style={{
+                flexDirection: "row",
+                alignItems: "baseline",
+                gap: 5,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: machine ? t.amber : t.accentDeep,
+                backgroundColor: machine ? t.amberSoft : t.accentSoft,
+                paddingHorizontal: 9,
+                paddingVertical: 5,
+              }}
+            >
+              <Text style={{ color: machine ? t.amber : t.accentDeep, opacity: 0.75, fontFamily: "Inter_500Medium", fontSize: 12 }}>
+                {row.label}
+              </Text>
+              <Text style={{ color: machine ? t.amber : t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 12 }}>
+                {SLAUGHTER_LABELS[row.method as string] ?? row.method}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      {absent.length > 0 ? (
+        <Text style={[ty.small, { color: t.sub, fontSize: 11 }]}>
+          {absent.map((r) => r.label.toLowerCase()).join(", ")}
+          {absent.length === 1 ? " isn't" : " aren't"} served here.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+/** Who checked, when, and the way into the evidence. Absorbs what used to be
+ *  a separate "Cert · HMS" chip and the header's "Certified · HMS" subtitle —
+ *  the certifier's name now appears exactly once on the screen. */
+function ProvenanceFooter({
+  profile,
+  onDetails,
+}: {
+  profile: HalalProfileEmbed;
+  onDetails?: () => void;
+}) {
+  const t = useTheme();
+  const issuer = profile.certifying_body_name;
+  const checked = relativeDay(profile.last_verified_at);
+
   return (
     <View
       style={{
-        backgroundColor: bg,
-        borderRadius: 999,
-        paddingHorizontal: 11,
-        paddingVertical: 5,
+        borderTopWidth: 1,
+        borderTopColor: t.line,
+        paddingTop: 11,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
       }}
     >
-      <Text
-        style={{
-          color: fg,
-          fontFamily: "Inter_700Bold",
-          fontSize: 11.5,
-        }}
-      >
-        {label}
+      <Feather name="calendar" size={13} color={t.sub} />
+      <Text style={[ty.small, { color: t.sub, flex: 1, fontSize: 11, lineHeight: 16 }]}>
+        {issuer ? (
+          <>
+            Certified by <Text style={{ color: t.ink, fontFamily: "Inter_600SemiBold" }}>{issuer}</Text>
+            {" · "}
+          </>
+        ) : null}
+        {checked ? `Checked ${checked}` : "Checked recently"}
       </Text>
+      {onDetails ? (
+        <Pressable
+          onPress={onDetails}
+          accessibilityLabel="Full trust profile"
+          hitSlop={8}
+          style={{ flexDirection: "row", alignItems: "center", gap: 1 }}
+        >
+          <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 12 }]}>
+            See the evidence
+          </Text>
+          <Feather name="chevron-right" size={14} color={t.accentDeep} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
+
+/** "3 days ago" / "last month" — matches the web's relative freshness line. */
+function relativeDay(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return null;
+  const days = Math.floor(ms / 86_400_000);
+  if (days < 1) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return months === 1 ? "last month" : `${months} months ago`;
+  const years = Math.floor(days / 365);
+  return years === 1 ? "last year" : `${years} years ago`;
+}
+
