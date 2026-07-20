@@ -377,8 +377,13 @@ function Glass({
 }
 
 /** Google-sourced opening hours as a calm card: a status line (Open/Closed +
- *  today's times) over the full week, expanded by default. A quiet "from
- *  Google" line sets freshness. Renders nothing when a place has no hours. */
+ *  today's times) over the full week, collapsed by default. A quiet "from
+ *  Google" line sets freshness. Renders nothing when a place has no hours.
+ *
+ *  Collapsed is the right default because the status line already answers the
+ *  question almost everyone has — can I go now? Expanding to seven rows to
+ *  say that pushed the reviews section a screen further down for the minority
+ *  who wanted Thursday. The chevron is right there for them. */
 // Weekday index Monday=0 .. Sunday=6 (matches Google's Monday-first
 // weekday_text) for "now" in the given IANA timezone. Falls back to the
 // device's local day when tz is missing or unrecognized.
@@ -409,7 +414,7 @@ function weekdayIndexInTz(tz: string | null): number {
 
 function HoursCard({ place }: { place: PlaceDetailType }) {
   const t = useTheme();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   const week = place.opening_hours_weekday_text ?? null;
   const hasHours = !!week && week.length > 0;
