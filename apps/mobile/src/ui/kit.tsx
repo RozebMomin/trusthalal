@@ -249,19 +249,62 @@ export function Cell({
   );
 }
 
-/** .icbox — rounded icon square used in rows. */
+/**
+ * .icbox — rounded icon square used in rows.
+ *
+ * ## Tone is about DESTINATION, not sentiment
+ *
+ *   * ``action``   — the row opens a screen inside the app.
+ *   * ``external`` — the row leaves the app (a web link).
+ *   * ``danger``   — the row destroys something.
+ *
+ * That's the whole rule, and it's the reason the tone lives here rather than
+ * being passed as raw colours per call site. Before this, every caller picked
+ * its own pair, so a settings list read emerald / blue / emerald / grey with
+ * no rule connecting them — and one row hardcoded ``#EFF6FF``/``#2563EB``,
+ * the only literal colours among fifteen call sites. Those are light-mode
+ * values, so in dark mode that row stayed a pale blue chip on a near-black
+ * card while every themed sibling went translucent.
+ *
+ * ``bg``/``fg`` remain as an escape hatch for the genuinely stateful case —
+ * file-visit tints its tile by selection — but new rows should pass a tone.
+ * A colour typed in at a call site is a colour that only works in the mode
+ * its author had open at the time.
+ */
+export type IcBoxTone = "action" | "external" | "danger";
+
 export function IcBox({
   icon,
+  tone = "action",
   bg,
   fg,
 }: {
   icon: keyof typeof Feather.glyphMap;
-  bg: string;
-  fg: string;
+  tone?: IcBoxTone;
+  /** Overrides ``tone``. Only for rows whose tile changes with state. */
+  bg?: string;
+  fg?: string;
 }) {
+  const t = useTheme();
+  const toned =
+    tone === "danger"
+      ? { bg: t.dangerSoft, fg: t.danger }
+      : tone === "external"
+        ? { bg: t.zincSoft, fg: t.zinc }
+        : { bg: t.accentSoft, fg: t.accentDeep };
+
   return (
-    <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}>
-      <Feather name={icon} size={16} color={fg} />
+    <View
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 12,
+        backgroundColor: bg ?? toned.bg,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Feather name={icon} size={16} color={fg ?? toned.fg} />
     </View>
   );
 }

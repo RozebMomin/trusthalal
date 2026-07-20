@@ -10,7 +10,7 @@ export default function LocationPicker() {
   return (
     <UiScreen title="Where to?">
       <Card style={{ borderWidth: 1.5, borderColor: t.accentSoft }}>
-        <Cell last left={<><IcBox icon="navigation" bg={t.accentSoft} fg={t.accentDeep} />
+        <Cell last left={<><IcBox icon="navigation" />
           <View><Text style={[ty.label, { color: t.ink, fontSize: 13 }]}>Use my current location</Text>
           <Text style={[ty.small, { color: t.sub }]}>Asks the system for permission</Text></View></>}
           right={<Feather name="chevron-right" size={16} color={t.sub} />} />

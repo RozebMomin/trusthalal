@@ -15,7 +15,7 @@ export default function Activity() {
       </View>
       {FIXTURE_ACTIVITY.map((a) => (
         <View key={a.title} style={{ backgroundColor: t.card, borderRadius: 20, padding: space.lg, flexDirection: "row", gap: 11, opacity: a.unread ? 1 : 0.7 }}>
-          <IcBox icon={a.icon as never} bg={t.accentSoft} fg={t.accentDeep} />
+          <IcBox icon={a.icon as never} />
           <View style={{ flex: 1 }}>
             <Text style={[ty.label, { color: t.ink, fontSize: 13 }]}>{a.title}</Text>
             <Text style={[ty.small, { color: t.sub, marginTop: 3 }]}>{a.body}</Text>

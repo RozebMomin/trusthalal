@@ -25,7 +25,7 @@ export default function VisitFlow() {
         <Text style={[ty.title, { color: t.ink }]}>Where are you{"\n"}eating?</Text>
         <Card style={{ borderWidth: 2, borderColor: t.accent, padding: space.lg }}>
           <View style={{ flexDirection: "row", gap: 11, alignItems: "center" }}>
-            <IcBox icon="map-pin" bg={t.accentSoft} fg={t.accentDeep} />
+            <IcBox icon="map-pin" />
             <View style={{ flex: 1 }}>
               <Text style={[ty.label, { color: t.ink, fontSize: 13.5 }]}>Karachi Grill House</Text>
               <Text style={[ty.small, { color: t.sub }]}>You're here · 40 ft away</Text>

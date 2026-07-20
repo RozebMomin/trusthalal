@@ -105,7 +105,7 @@ export function LocationSheet({
               onPress={() => { onUseMyLocation(); onClose(); }}
               left={
                 <>
-                  <IcBox icon="navigation" bg={t.accentSoft} fg={t.accentDeep} />
+                  <IcBox icon="navigation" />
                   <View>
                     <Text style={[ty.label, { color: t.ink, fontSize: 13 }]}>Use my current location</Text>
                     <Text style={[ty.small, { color: t.sub }]}>Asks the system for permission</Text>

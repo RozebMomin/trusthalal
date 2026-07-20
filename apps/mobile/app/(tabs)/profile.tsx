@@ -74,16 +74,20 @@ export default function Profile() {
         </View>
       )}
 
+      {/* Every row here opens a screen inside the app, so every tile is
+          `action`. The tone tracks where a row GOES, not how its subject
+          feels — see IcBox. This list previously ran emerald / blue /
+          emerald / grey, which looked like a code and wasn't one. */}
       <Seg style={{ marginTop: space.xs }}>Preferences</Seg>
       <Card>
         <Cell
           onPress={() => router.push("/search-preferences")}
-          left={<><IcBox icon="sliders" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Search defaults</Text></>}
+          left={<><IcBox icon="sliders" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Search defaults</Text></>}
           right={chev}
         />
         <Cell
           onPress={() => router.push("/notifications")}
-          left={<><IcBox icon="bell" bg="#EFF6FF" fg="#2563EB" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Notifications</Text></>}
+          left={<><IcBox icon="bell" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Notifications</Text></>}
           right={chev}
         />
         {/* Reachable without an email arriving. This is the only surface
@@ -91,7 +95,7 @@ export default function Profile() {
             burying it behind a notification would defeat the purpose. */}
         <Cell
           onPress={() => router.push("/my-reviews")}
-          left={<><IcBox icon="message-square" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Your reviews</Text></>}
+          left={<><IcBox icon="message-square" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Your reviews</Text></>}
           right={chev}
         />
         {/* A block you can't undo is a trap. Guideline 1.2 requires the
@@ -99,7 +103,7 @@ export default function Profile() {
         <Cell
           last
           onPress={() => router.push("/blocked")}
-          left={<><IcBox icon="slash" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Blocked people</Text></>}
+          left={<><IcBox icon="slash" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Blocked people</Text></>}
           right={chev}
         />
       </Card>
@@ -113,19 +117,19 @@ export default function Profile() {
           // (signed-out users get the pitch, then sign-in on Apply).
           <Cell
             onPress={() => router.push("/become-a-verifier")}
-            left={<><IcBox icon="shield" bg={t.accentSoft} fg={t.accentDeep} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Become a verifier</Text></>}
+            left={<><IcBox icon="shield" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Become a verifier</Text></>}
             right={chev}
           />
         ) : null}
         <Cell
           onPress={() => Linking.openURL("https://trusthalal.org/ethics")}
-          left={<><IcBox icon="info" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>How Trust Halal uses AI</Text></>}
+          left={<><IcBox icon="info" tone="external" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>How Trust Halal uses AI</Text></>}
           right={rightText("web ↗")}
         />
         <Cell
           last={!SHOW_DEV_TOOLS}
           onPress={() => Linking.openURL("https://owner.trusthalal.org/get-verified")}
-          left={<><IcBox icon="home" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Own a restaurant?</Text></>}
+          left={<><IcBox icon="home" tone="external" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Own a restaurant?</Text></>}
           right={rightText("web ↗")}
         />
         {/* Replay onboarding — dev + beta builds only (see SHOW_DEV_TOOLS). */}
@@ -136,7 +140,7 @@ export default function Profile() {
               await SecureStore.deleteItemAsync("onboarded_v1");
               router.replace("/onboarding");
             }}
-            left={<><IcBox icon="refresh-cw" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Replay onboarding</Text></>}
+            left={<><IcBox icon="refresh-cw" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Replay onboarding</Text></>}
             right={chev}
           />
         ) : null}
@@ -145,7 +149,7 @@ export default function Profile() {
           <Cell
             last
             onPress={() => router.push("/ui-gallery")}
-            left={<><IcBox icon="layers" bg={t.zincSoft} fg={t.zinc} /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>UI gallery (dev)</Text></>}
+            left={<><IcBox icon="layers" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>UI gallery (dev)</Text></>}
             right={chev}
           />
         ) : null}
