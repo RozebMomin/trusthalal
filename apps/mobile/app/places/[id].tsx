@@ -24,6 +24,22 @@ const TEST_FORCE_PORK = false;
  *  moment the hero actually clears the top of the screen. */
 const HERO_HEIGHT = 220;
 
+// Geometry of the floating back / save / share row. These were three copies
+// of the same two numbers; the condensed header has to know both to size
+// itself, and "36" typed in a fourth place is how a bar ends up clipping the
+// buttons it's meant to be sitting behind.
+//
+// HeartButton's glass variant still hardcodes its own 36 — it's a shared
+// component used elsewhere, so it isn't this screen's constant to own. If the
+// row is ever resized, that file needs the same edit.
+const HEADER_BTN = 36;
+const HEADER_BTN_TOP = 6;
+/** Space under the buttons before the header's bottom edge. Was effectively
+ *  zero, which left them wedged against the divider with nowhere to breathe. */
+const HEADER_BTN_BOTTOM = 16;
+/** Total header height below the status bar inset. */
+const HEADER_BAR = HEADER_BTN_TOP + HEADER_BTN + HEADER_BTN_BOTTOM;
+
 function titleCaseCuisine(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase().replaceAll("_", " ");
 }
@@ -338,24 +354,28 @@ export default function PlaceDetail() {
             top: 0,
             left: 0,
             right: 0,
-            height: insets.top + 48,
+            height: insets.top + HEADER_BAR,
             backgroundColor: t.bg,
             borderBottomWidth: 1,
             borderBottomColor: t.line,
             opacity: headerOpacity,
-            justifyContent: "flex-end",
-            paddingBottom: 12,
+            // Title band matches the buttons exactly rather than being
+            // bottom-aligned, so adding room underneath moves the edge down
+            // without dragging the name off-centre from the row.
+            paddingTop: insets.top + HEADER_BTN_TOP,
             // Clears the 36pt buttons plus their 16pt gutters on both sides,
             // so a long name truncates rather than running under them.
             paddingHorizontal: 64,
           }}
         >
-          <Text
-            numberOfLines={1}
-            style={[ty.label, { color: t.ink, fontSize: 15, textAlign: "center" }]}
-          >
-            {place.name}
-          </Text>
+          <View style={{ height: HEADER_BTN, justifyContent: "center" }}>
+            <Text
+              numberOfLines={1}
+              style={[ty.label, { color: t.ink, fontSize: 15, textAlign: "center" }]}
+            >
+              {place.name}
+            </Text>
+          </View>
         </Animated.View>
       ) : null}
 
@@ -365,10 +385,10 @@ export default function PlaceDetail() {
         onPress={() => router.back()}
         style={{
           position: "absolute",
-          top: insets.top + 6,
+          top: insets.top + HEADER_BTN_TOP,
           left: space.lg,
-          width: 36,
-          height: 36,
+          width: HEADER_BTN,
+          height: HEADER_BTN,
           borderRadius: 999,
           // Fixed white glass: this floats over the hero PHOTO, which
           // doesn't theme — matching the save/share buttons.
@@ -386,7 +406,7 @@ export default function PlaceDetail() {
       </Pressable>
 
       {/* Glass save + share over the hero (mockup 3) */}
-      <View style={{ position: "absolute", top: insets.top + 6, right: space.lg, flexDirection: "row", gap: 8 }}>
+      <View style={{ position: "absolute", top: insets.top + HEADER_BTN_TOP, right: space.lg, flexDirection: "row", gap: 8 }}>
         <HeartButton
           glass
           saved={saved}
@@ -458,7 +478,8 @@ function Glass({
         // Fixed white glass over the hero photo — photos don't theme,
         // so neither does this. t.card here made a dark circle in dark
         // mode with a dark icon on it.
-        width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.92)",
+        width: HEADER_BTN, height: HEADER_BTN, borderRadius: 999,
+        backgroundColor: "rgba(255,255,255,0.92)",
         alignItems: "center", justifyContent: "center",
         shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 }, elevation: 4,
