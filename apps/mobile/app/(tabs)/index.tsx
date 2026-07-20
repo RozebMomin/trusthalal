@@ -231,20 +231,27 @@ export default function Explore() {
             </Pressable>
           </View>
           {/* Labeled pills — icon-only circles read as mystery buttons;
-              "Map" and "Filters" say what they do. */}
+              "Map" and "Filters" say what they do.
+
+              Filters first, view toggle last, because that's the order the
+              map screen's floating bar uses. When the two disagreed, the
+              button you'd just tapped to get to the map was on the opposite
+              side from the one that brings you back — so switching views
+              twice meant hunting for a control that had swapped places under
+              your thumb. Keep these two in sync. */}
           <View style={{ flexDirection: "row", gap: 8 }}>
-          <HeaderPill
-            icon={view === "list" ? "map" : "list"}
-            label={view === "list" ? "Map" : "List"}
-            a11y={view === "list" ? "Switch to map view" : "Switch to list view"}
-            onPress={() => toggleView(view === "list" ? "map" : "list")}
-          />
           <HeaderPill
             icon="sliders"
             label="Filters"
             a11y="Open filters"
             count={countFilters(filters)}
             onPress={() => setFiltersOpen(true)}
+          />
+          <HeaderPill
+            icon={view === "list" ? "map" : "list"}
+            label={view === "list" ? "Map" : "List"}
+            a11y={view === "list" ? "Switch to map view" : "Switch to list view"}
+            onPress={() => toggleView(view === "list" ? "map" : "list")}
           />
           </View>
         </View>
