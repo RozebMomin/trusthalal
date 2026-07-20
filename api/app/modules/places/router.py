@@ -631,6 +631,89 @@ def google_forward_geocode(
     )
 
 
+# NOTE ON ORDERING: this static path MUST stay above "/{place_id}" below.
+# FastAPI matches routes in registration order, so with the dynamic route
+# first, a request for /places/search-diagnostics is matched against
+# /places/{place_id} and 422s trying to parse "search-diagnostics" as a UUID.
+# That's how this shipped and why the endpoint was unreachable — the tests
+# caught it, nothing about the code looked wrong.
+@router.get(
+    "/search-diagnostics",
+    response_model=SearchDiagnosticsResponse,
+    summary="Why a search returned nothing, and what would fix it",
+    description=(
+        "Takes the same parameters as `GET /places` and reports which single "
+        "filter is responsible for an empty result set.\n\n"
+        "Exists because 'nothing matched, try removing a filter' makes the "
+        "person guess which one. On a catalogue this size most empty searches "
+        "are one filter away from something, and naming it with a count is "
+        "the difference between a dead end and a next step.\n\n"
+        "Deliberately returns counts and machine field names only — it never "
+        "returns places. A diner who filtered out alcohol or non-zabihah meat "
+        "is not looking for near-misses; those aren't 'close enough', they're "
+        "food they can't eat. The answer to an empty search here is better "
+        "information about the filters, not a consolation list.\n\n"
+        "Every count runs through the same query builders as the real search, "
+        "so it can't promise results the search won't deliver."
+    ),
+)
+def search_diagnostics(
+    q: str | None = Query(default=None, max_length=255),
+    lat: float | None = Query(default=None, ge=-90, le=90),
+    lng: float | None = Query(default=None, ge=-180, le=180),
+    radius: int | None = Query(default=None, gt=0, le=100_000),
+    wider_radius: int | None = Query(
+        default=None,
+        gt=0,
+        le=100_000,
+        description=(
+            "Optional larger radius to price up, so the client can offer a "
+            "'widen to X' action with a real number attached."
+        ),
+    ),
+    min_validation_tier: ValidationTier | None = Query(default=None),
+    min_menu_posture: MenuPosture | None = Query(default=None),
+    chicken_slaughter: list[SlaughterMethod] | None = Query(default=None),
+    beef_slaughter: list[SlaughterMethod] | None = Query(default=None),
+    lamb_slaughter: list[SlaughterMethod] | None = Query(default=None),
+    goat_slaughter: list[SlaughterMethod] | None = Query(default=None),
+    has_certification: bool | None = Query(default=None),
+    no_pork: bool | None = Query(default=None),
+    no_alcohol_served: bool | None = Query(default=None),
+    cuisine: list[Cuisine] | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> SearchDiagnosticsResponse:
+    has_text = q is not None and q.strip() != ""
+    has_geo = lat is not None and lng is not None and radius is not None
+    if not (has_text or has_geo):
+        raise BadRequestError(
+            "PLACES_SEARCH_PARAMS_REQUIRED",
+            "Provide either 'q' for text search or 'lat'+'lng'+'radius' for geo search.",
+        )
+
+    diagnostics = diagnose_empty_search(
+        db,
+        q=q if has_text else None,
+        lat=lat if has_geo else None,
+        lng=lng if has_geo else None,
+        radius_m=radius if has_geo else None,
+        halal_filters=HalalSearchFilters(
+            min_validation_tier=min_validation_tier,
+            min_menu_posture=min_menu_posture,
+            chicken_slaughter=tuple(chicken_slaughter or ()),
+            beef_slaughter=tuple(beef_slaughter or ()),
+            lamb_slaughter=tuple(lamb_slaughter or ()),
+            goat_slaughter=tuple(goat_slaughter or ()),
+            has_certification=has_certification,
+            no_pork=no_pork,
+            no_alcohol_served=no_alcohol_served,
+        ),
+        cuisines=tuple(cuisine or ()),
+        wider_radius_m=wider_radius if has_geo else None,
+    )
+    return SearchDiagnosticsResponse.model_validate(diagnostics)
+
+
 @router.get(
     "/{place_id}",
     response_model=PlaceDetail,
@@ -889,83 +972,6 @@ def get_place_halal_history(
 
     timeline.sort(key=lambda x: x.created_at, reverse=True)
     return timeline
-
-
-@router.get(
-    "/search-diagnostics",
-    response_model=SearchDiagnosticsResponse,
-    summary="Why a search returned nothing, and what would fix it",
-    description=(
-        "Takes the same parameters as `GET /places` and reports which single "
-        "filter is responsible for an empty result set.\n\n"
-        "Exists because 'nothing matched, try removing a filter' makes the "
-        "person guess which one. On a catalogue this size most empty searches "
-        "are one filter away from something, and naming it with a count is "
-        "the difference between a dead end and a next step.\n\n"
-        "Deliberately returns counts and machine field names only — it never "
-        "returns places. A diner who filtered out alcohol or non-zabihah meat "
-        "is not looking for near-misses; those aren't 'close enough', they're "
-        "food they can't eat. The answer to an empty search here is better "
-        "information about the filters, not a consolation list.\n\n"
-        "Every count runs through the same query builders as the real search, "
-        "so it can't promise results the search won't deliver."
-    ),
-)
-def search_diagnostics(
-    q: str | None = Query(default=None, max_length=255),
-    lat: float | None = Query(default=None, ge=-90, le=90),
-    lng: float | None = Query(default=None, ge=-180, le=180),
-    radius: int | None = Query(default=None, gt=0, le=100_000),
-    wider_radius: int | None = Query(
-        default=None,
-        gt=0,
-        le=100_000,
-        description=(
-            "Optional larger radius to price up, so the client can offer a "
-            "'widen to X' action with a real number attached."
-        ),
-    ),
-    min_validation_tier: ValidationTier | None = Query(default=None),
-    min_menu_posture: MenuPosture | None = Query(default=None),
-    chicken_slaughter: list[SlaughterMethod] | None = Query(default=None),
-    beef_slaughter: list[SlaughterMethod] | None = Query(default=None),
-    lamb_slaughter: list[SlaughterMethod] | None = Query(default=None),
-    goat_slaughter: list[SlaughterMethod] | None = Query(default=None),
-    has_certification: bool | None = Query(default=None),
-    no_pork: bool | None = Query(default=None),
-    no_alcohol_served: bool | None = Query(default=None),
-    cuisine: list[Cuisine] | None = Query(default=None),
-    db: Session = Depends(get_db),
-) -> SearchDiagnosticsResponse:
-    has_text = q is not None and q.strip() != ""
-    has_geo = lat is not None and lng is not None and radius is not None
-    if not (has_text or has_geo):
-        raise BadRequestError(
-            "PLACES_SEARCH_PARAMS_REQUIRED",
-            "Provide either 'q' for text search or 'lat'+'lng'+'radius' for geo search.",
-        )
-
-    diagnostics = diagnose_empty_search(
-        db,
-        q=q if has_text else None,
-        lat=lat if has_geo else None,
-        lng=lng if has_geo else None,
-        radius_m=radius if has_geo else None,
-        halal_filters=HalalSearchFilters(
-            min_validation_tier=min_validation_tier,
-            min_menu_posture=min_menu_posture,
-            chicken_slaughter=tuple(chicken_slaughter or ()),
-            beef_slaughter=tuple(beef_slaughter or ()),
-            lamb_slaughter=tuple(lamb_slaughter or ()),
-            goat_slaughter=tuple(goat_slaughter or ()),
-            has_certification=has_certification,
-            no_pork=no_pork,
-            no_alcohol_served=no_alcohol_served,
-        ),
-        cuisines=tuple(cuisine or ()),
-        wider_radius_m=wider_radius if has_geo else None,
-    )
-    return SearchDiagnosticsResponse.model_validate(diagnostics)
 
 
 @router.get(

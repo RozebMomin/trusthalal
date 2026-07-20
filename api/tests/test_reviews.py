@@ -20,13 +20,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 
-from app.core.text_moderation import (
-    ModerationResult,
-    ModerationVerdict,
-    TextModerationError,
-    get_text_moderation_client,
-)
-from app.main import app as fastapi_app
+from app.core.text_moderation import ModerationVerdict
 from app.modules.places.models import Place
 from app.modules.reviews.enums import PlaceReviewStatus
 from app.modules.reviews.models import PlaceReview, PlaceReviewReply
@@ -38,37 +32,6 @@ BODY_TWO = "Came back a second time with family. Same answer, same certificate o
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
-
-
-class _FakeModerator:
-    """Scriptable stand-in for Cloud Natural Language.
-
-    ``verdict`` drives the answer; setting ``raise_error`` simulates the
-    outage path, which is the one branch that behaves differently from a
-    rejection and is easy to get backwards.
-    """
-
-    def __init__(self, verdict=ModerationVerdict.ALLOW, category=None):
-        self.verdict = verdict
-        self.category = category
-        self.raise_error = False
-        self.calls: list[str] = []
-
-    def evaluate(self, text: str) -> ModerationResult:
-        self.calls.append(text)
-        if self.raise_error:
-            raise TextModerationError("simulated outage")
-        return ModerationResult(
-            verdict=self.verdict, category=self.category, confidence=0.9
-        )
-
-
-@pytest.fixture
-def moderator():
-    fake = _FakeModerator()
-    fastapi_app.dependency_overrides[get_text_moderation_client] = lambda: fake
-    yield fake
-    fastapi_app.dependency_overrides.pop(get_text_moderation_client, None)
 
 
 @pytest.fixture

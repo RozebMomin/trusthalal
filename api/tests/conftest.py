@@ -79,6 +79,12 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 # After env vars are set, importing the app is safe.
+from app.core.text_moderation import (
+    ModerationResult,
+    ModerationVerdict,
+    TextModerationError,
+    get_text_moderation_client,
+)
 from app.db import deps as db_deps
 from app.main import app as fastapi_app
 
@@ -258,3 +264,48 @@ def api(db_session: Session) -> Iterator[APIClient]:
 def factories(db_session: Session) -> Factories:
     """Domain factory helpers bound to the per-test session."""
     return Factories(db_session)
+
+
+# ---------------------------------------------------------------------------
+# Text moderation
+# ---------------------------------------------------------------------------
+# Lives here rather than in test_reviews.py because moderation now gates more
+# than reviews: any test that posts a review as setup needs it, including the
+# account-deletion and blocking suites. A module-local fixture is invisible to
+# other files, which surfaces as a confusing collection-time ERROR rather than
+# a missing-fixture message at the call site.
+
+class _FakeModerator:
+    """Scriptable stand-in for Cloud Natural Language.
+
+    ``verdict`` drives the answer; setting ``raise_error`` simulates the
+    outage path, which is the one branch that behaves differently from a
+    rejection and is easy to get backwards.
+    """
+
+    def __init__(self, verdict=ModerationVerdict.ALLOW, category=None):
+        self.verdict = verdict
+        self.category = category
+        self.raise_error = False
+        self.calls: list[str] = []
+
+    def evaluate(self, text: str) -> ModerationResult:
+        self.calls.append(text)
+        if self.raise_error:
+            raise TextModerationError("simulated outage")
+        return ModerationResult(
+            verdict=self.verdict, category=self.category, confidence=0.9
+        )
+
+
+@pytest.fixture
+def moderator():
+    """Injects the fake for the duration of one test.
+
+    Cleaned up in the teardown so a test that flips ``verdict`` to BLOCK
+    can't leak that into the next one through the app-level override dict.
+    """
+    fake = _FakeModerator()
+    fastapi_app.dependency_overrides[get_text_moderation_client] = lambda: fake
+    yield fake
+    fastapi_app.dependency_overrides.pop(get_text_moderation_client, None)

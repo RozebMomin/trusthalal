@@ -621,3 +621,36 @@ def test_diagnostics_requires_search_params(api):
     resp = api.get("/places/search-diagnostics")
     assert resp.status_code == 400
     assert resp.json()["error"]["code"] == "PLACES_SEARCH_PARAMS_REQUIRED"
+
+
+def test_static_place_routes_are_registered_before_the_dynamic_one():
+    """Guard against a whole class of silent breakage.
+
+    FastAPI matches routes in registration order, so any literal path under
+    /places declared *after* /places/{place_id} is unreachable: the dynamic
+    route wins and 422s trying to parse the literal as a UUID. That's exactly
+    how /places/search-diagnostics shipped — the code looked correct, imports
+    resolved, and the endpoint could never be called.
+
+    Asserted against the live route table rather than by reading the file, so
+    it holds however the routes are declared.
+    """
+    from app.main import app
+
+    order = [
+        r.path
+        for r in app.routes
+        if getattr(r, "path", "").startswith("/places")
+        and "GET" in getattr(r, "methods", set())
+    ]
+    dynamic = order.index("/places/{place_id}")
+    literals = [
+        p
+        for p in order
+        if p.startswith("/places/") and "{" not in p
+    ]
+    for literal in literals:
+        assert order.index(literal) < dynamic, (
+            f"{literal} is registered after /places/{{place_id}} and is "
+            "therefore unreachable — move it above the dynamic route."
+        )
