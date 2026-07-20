@@ -36,8 +36,11 @@
 
 import {
   AlertTriangle,
+  Award,
   CalendarClock,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   CircleAlert,
   ExternalLink,
   Info,
@@ -184,9 +187,33 @@ export function PlaceTrustSummary({
           <DisputeBanner state={profile.dispute_state} />
         )}
 
-        <KitchenAndPantry profile={profile} />
+        {/* Two renderings, one DOM, switched at `sm` by CSS rather than by a
+            media-query hook — this page is server-rendered, and reading the
+            viewport in JS would mean the first paint is always the wrong one
+            for somebody. `hidden` is display:none, so assistive tech is
+            offered exactly one of these at any width, never both. */}
 
-        {!profile.seafood_only && <ServedMeats profile={profile} />}
+        {/* >=640px: unchanged. The fold below answers vertical space being
+            scarce, and on a desktop it isn't — there is nothing to buy by
+            hiding the pantry list, so it stays open. */}
+        <div className="hidden sm:block">
+          <KitchenAndPantry profile={profile} />
+        </div>
+        {/* <640px: exceptions only; confirmations move into the disclosure. */}
+        <div className="sm:hidden">
+          <KitchenExceptions profile={profile} />
+        </div>
+
+        {!profile.seafood_only && (
+          <>
+            <div className="hidden sm:block">
+              <ServedMeats profile={profile} />
+            </div>
+            <div className="sm:hidden">
+              <MeatDisclosure profile={profile} />
+            </div>
+          </>
+        )}
 
         {profile.seafood_only && (
           <p className="text-sm text-muted-foreground">
@@ -471,6 +498,260 @@ function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phone-width disclosure (<640px)
+//
+// Everything below renders only under `sm:hidden`. The desktop card is
+// deliberately untouched: the fold exists because a phone has ~600px of
+// vertical space and this card was spending three lines of it confirming what
+// the banner already implied, then pushing the meat sourcing — the part people
+// came for — below the fold. A desktop card is not making that trade, so it
+// does not get the fix for it.
+// ---------------------------------------------------------------------------
+
+/**
+ * The rule that keeps "concise" from turning into "evasive".
+ *
+ * Confirmations fold into the disclosure; exceptions never do. Anything amber
+ * or red renders here at full size whatever it costs in height, because an app
+ * that goes quietest about the facts a diner most needs has been made to read
+ * clean by withholding. Folding good news is editing. Folding bad news is
+ * lying by layout.
+ *
+ * One thing that is not a confirmation: "no pork" at a kitchen that is not
+ * fully halal. "Fully halal kitchen" entails it, so repeating it there is
+ * noise — but nothing entails it at a shared or options-only kitchen, where it
+ * is real news and stays visible.
+ */
+function KitchenExceptions({ profile }: { profile: HalalProfileEmbed }) {
+  const alcohol = profile.alcohol_policy !== "NONE";
+  const parts: string[] = [];
+  if (profile.has_pork) parts.push("Pork is served");
+  if (alcohol) parts.push(ALCOHOL_POLICY_LINE[profile.alcohol_policy]);
+  if (profile.alcohol_in_cooking) parts.push("Alcohol used in some cooking");
+
+  if (parts.length > 0) {
+    const severe = profile.has_pork;
+    return (
+      <div
+        className={cn(
+          "flex items-start gap-2 rounded-md px-3 py-2.5 text-sm",
+          severe
+            ? "bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-200"
+            : "bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200",
+        )}
+      >
+        {severe ? (
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        ) : (
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        )}
+        <span>{parts.join(" · ")}</span>
+      </div>
+    );
+  }
+
+  if (profile.menu_posture !== "FULLY_HALAL") {
+    return (
+      <p className="flex items-center gap-2 text-sm">
+        <span
+          aria-hidden
+          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+        >
+          ✓
+        </span>
+        <span>No pork on the menu</span>
+      </p>
+    );
+  }
+
+  return null;
+}
+
+/** The good news, shown inside the disclosure. Nothing is removed from the
+ *  page — only demoted, so a reader who wants to confirm still can. */
+function KitchenConfirmations({ profile }: { profile: HalalProfileEmbed }) {
+  const lines: string[] = [];
+  if (!profile.has_pork && profile.menu_posture === "FULLY_HALAL") {
+    lines.push("No pork on the menu");
+  }
+  if (profile.alcohol_policy === "NONE") lines.push("No alcohol served");
+  if (lines.length === 0) return null;
+
+  return (
+    <ul className="space-y-1.5 text-sm text-muted-foreground">
+      {lines.map((line) => (
+        <li key={line} className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+          >
+            ✓
+          </span>
+          <span>{line}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function sentenceCase(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+type MeatSummary = { text: string; machine: boolean; collapsible: boolean };
+
+/**
+ * One line standing in for the whole meat block.
+ *
+ * `machine` is true whenever ANY item is machine-slaughtered, deliberately.
+ * A summary that averaged to green would let "6 products" read as uniformly
+ * fine while two of them were not — the exact rounding error the per-product
+ * data was added to fix.
+ *
+ * `collapsible` is false when a slaughter method arrives that this build does
+ * not recognise. The union type is closed at compile time and the API is not,
+ * so rather than fold an unknown into "zabihah" and state something we cannot
+ * support, the section gives up on summarising and renders itself open.
+ */
+function meatSummary(profile: HalalProfileEmbed): MeatSummary {
+  const known = (m: string) => m === "ZABIHAH" || m === "MACHINE";
+  const products = profile.meat_products ?? [];
+
+  if (products.length > 0) {
+    if (!products.every((p) => known(p.slaughter_method))) {
+      return { text: "Meat sourcing", machine: true, collapsible: false };
+    }
+    const machine = products.filter(
+      (p) => p.slaughter_method === "MACHINE",
+    ).length;
+    const zabihah = products.length - machine;
+    const n = `${products.length} product${products.length === 1 ? "" : "s"}`;
+    if (machine === 0)
+      return { text: `${n} · all zabihah`, machine: false, collapsible: true };
+    if (zabihah === 0)
+      return { text: `${n} · all machine`, machine: true, collapsible: true };
+    return {
+      text: `${n} · ${zabihah} zabihah, ${machine} machine`,
+      machine: true,
+      collapsible: true,
+    };
+  }
+
+  const rows = [
+    { label: "chicken", method: profile.chicken_slaughter },
+    { label: "beef", method: profile.beef_slaughter },
+    { label: "lamb", method: profile.lamb_slaughter },
+    { label: "goat", method: profile.goat_slaughter },
+  ];
+  const served = rows.filter((r) => r.method !== "NOT_SERVED");
+
+  if (served.length === 0) {
+    return {
+      text: "No chicken, beef, lamb or goat served",
+      machine: false,
+      collapsible: false,
+    };
+  }
+  if (!served.every((r) => known(r.method))) {
+    return { text: "Meat sourcing", machine: true, collapsible: false };
+  }
+
+  const zabihah = served
+    .filter((r) => r.method === "ZABIHAH")
+    .map((r) => r.label);
+  const machine = served
+    .filter((r) => r.method === "MACHINE")
+    .map((r) => r.label);
+
+  if (machine.length === 0) {
+    return {
+      text: `${sentenceCase(zabihah.join(", "))} · all zabihah`,
+      machine: false,
+      collapsible: true,
+    };
+  }
+  if (zabihah.length === 0) {
+    return {
+      text: `${sentenceCase(machine.join(", "))} · all machine`,
+      machine: true,
+      collapsible: true,
+    };
+  }
+  return {
+    text: `${sentenceCase(zabihah.join(", "))} zabihah · ${machine.join(", ")} machine`,
+    machine: true,
+    collapsible: true,
+  };
+}
+
+/**
+ * The summary doubles as the disclosure control.
+ *
+ * What you click is the fact you came for, not a generic "Details" — so the
+ * row earns its height whether or not anyone opens it, and mixed sourcing,
+ * the case that actually rewards a click, says so before you click.
+ *
+ * The trigger is labelled "Sources" rather than left as a bare chevron: this
+ * line reads like a finished sentence, and nothing about "all zabihah"
+ * suggests there is more behind it.
+ */
+function MeatDisclosure({ profile }: { profile: HalalProfileEmbed }) {
+  const summary = meatSummary(profile);
+  const [open, setOpen] = React.useState(!summary.collapsible);
+  const panelId = React.useId();
+
+  const detail = (
+    <div className="mt-2.5 space-y-3">
+      <ServedMeats profile={profile} />
+      <KitchenConfirmations profile={profile} />
+    </div>
+  );
+
+  if (!summary.collapsible) {
+    return (
+      <div>
+        <p className="text-sm text-muted-foreground">{summary.text}</p>
+        {detail}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        className="flex w-full items-center gap-2 text-left text-sm"
+      >
+        <Award
+          className={cn(
+            "h-4 w-4 shrink-0",
+            summary.machine
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-emerald-600 dark:text-emerald-400",
+          )}
+          aria-hidden
+        />
+        <span className="flex-1">{summary.text}</span>
+        <span className="shrink-0 font-semibold text-emerald-700 dark:text-emerald-400">
+          {open ? "Hide" : "Sources"}
+        </span>
+        {open ? (
+          <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        ) : (
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        )}
+      </button>
+      <div id={panelId} hidden={!open}>
+        {detail}
+      </div>
+    </div>
   );
 }
 
