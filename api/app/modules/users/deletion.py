@@ -27,12 +27,19 @@ it *doesn't* get.
 
 ## The parts the database can't do
 
-**Bucket objects.** Two paths lose photos here and neither runs application
-code: the user's reviews cascade away and take ``place_photos`` rows with
-them, and the photos the user uploaded directly are deleted below. In both
-cases the storage path disappears with the row, so the bytes have to be
-queued for the sweeper *before* anything is deleted. Reordering the steps in
+**Bucket objects.** Deleting a photo row doesn't delete the bytes, and the
+storage path disappears with the row, so paths are read and queued for the
+sweeper *before* anything is deleted. Reordering the steps in
 ``delete_account`` silently starts leaking storage.
+
+**Photos and reviews are deleted through the ORM, not left to the cascade.**
+The foreign keys would do it, but the session is holding those objects: the
+rows vanish underneath SQLAlchemy and the next autoflush tries to write a
+photo whose review no longer exists, which surfaces as a foreign-key
+violation from a line that looks like a harmless SELECT. Deleting them
+explicitly keeps the identity map in step with the database. This is the
+kind of bug that only appears once real objects are in the session, which is
+why it survived every static check and showed up on the first test run.
 
 **Owner-side photos stay.** A photo uploaded with ``source = OWNER`` is the
 restaurant's content, published on behalf of a business that still exists —
@@ -128,18 +135,27 @@ def delete_account(db: Session, *, user_id: UUID) -> DeletionSummary:
     )
 
     # ---- 2. Collect every storage path that's about to disappear --------
-    # (a) photos attached to this user's reviews. These vanish via a
-    #     DB-level cascade (place_photos.review_id -> place_reviews), so no
-    #     application code will ever see them again.
-    review_photo_paths = list(
+    # (a) photos attached to this user's reviews.
+    #
+    # Loaded as ORM objects and deleted explicitly below, NOT left to the
+    # database cascade. Relying on the cascade here corrupts the session: the
+    # rows disappear underneath SQLAlchemy, which still holds the objects, and
+    # the next autoflush (``recompute_place_review_stats`` runs a SELECT)
+    # tries to write a photo whose review is being deleted in the same flush —
+    # "insert or update on table place_photos violates foreign key constraint".
+    #
+    # Deleting them through the ORM keeps the identity map honest and makes
+    # the removal explicit rather than a side effect two tables away.
+    review_photos = list(
         db.execute(
-            select(PlacePhoto.storage_path)
+            select(PlacePhoto)
             .join(PlaceReview, PlaceReview.id == PlacePhoto.review_id)
             .where(PlaceReview.author_user_id == user_id)
         )
         .scalars()
         .all()
     )
+    review_photo_paths = [p.storage_path for p in review_photos]
 
     # (b) standalone photos the user uploaded as a diner. Not attached to a
     #     review, so nothing cascades them — deleted explicitly below.
@@ -179,8 +195,19 @@ def delete_account(db: Session, *, user_id: UUID) -> DeletionSummary:
         .all()
     )
 
-    for photo in own_photos:
+    # Photos first, and through the ORM, so nothing is left pointing at a row
+    # that's about to vanish. Reviews next for the same reason — the DB would
+    # cascade them from the user, but doing it here keeps SQLAlchemy's view of
+    # the world in step with the database's.
+    for photo in review_photos + own_photos:
         db.delete(photo)
+    db.flush()
+
+    for review in db.execute(
+        select(PlaceReview).where(PlaceReview.author_user_id == user_id)
+    ).scalars().all():
+        db.delete(review)
+    db.flush()
 
     # Everything else rides the foreign keys.
     db.delete(user)
