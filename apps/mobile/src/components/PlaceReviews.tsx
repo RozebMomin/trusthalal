@@ -78,7 +78,15 @@ function RatingHistogram({ summary }: { summary: ReviewSummary }) {
         const count = counts[String(n)] ?? 0;
         return (
           <View key={n} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Text style={[ty.small, { color: t.sub, fontSize: 10, width: 14 }]}>{n}★</Text>
+            {/* width 22 + numberOfLines: at width 14 the star wrapped onto a
+                second line, turning five 5px rows into a block taller than
+                the score beside it. */}
+            <Text
+              numberOfLines={1}
+              style={[ty.small, { color: t.sub, fontSize: 10, width: 22 }]}
+            >
+              {n}★
+            </Text>
             <View
               style={{
                 flex: 1,

@@ -1,8 +1,8 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
-import { useEffect, useState, type ReactNode } from "react";
-import { Alert, Image, Linking, Pressable, ScrollView, Share, Text, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Alert, Animated, Image, Linking, Pressable, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyFavorites, usePlaceDetail, useToggleFavorite } from "@/lib/api/hooks";
 import { PlaceReviews } from "@/components/PlaceReviews";
@@ -18,6 +18,11 @@ import type { HalalProfileEmbed, PlaceDetail as PlaceDetailType } from "@/lib/ap
 import { capture } from "@/lib/analytics";
 
 const TEST_FORCE_PORK = false;
+
+/** Hero image height. Shared by the <Image> and by the header-fade thresholds
+ *  so the two can't drift — the fade is meaningless if it isn't pinned to the
+ *  moment the hero actually clears the top of the screen. */
+const HERO_HEIGHT = 220;
 
 function titleCaseCuisine(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase().replaceAll("_", " ");
@@ -48,6 +53,23 @@ export default function PlaceDetail() {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [trustOpen, setTrustOpen] = useState(false);
   const photoCount = place?.photos.length ?? 0;
+
+  // Drives the condensed header (see where it's rendered). Native-driven, so
+  // the fade tracks the finger instead of arriving a frame late on Android.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  // Where the name sits before scrolling — under the hero when there is one,
+  // just under the status bar when there isn't. A photoless place starts its
+  // content near the top, so a threshold tuned to a 220pt hero would leave a
+  // stretch with the title gone and no bar yet to replace it.
+  const fadeEnd = place?.hero_photo_url ? HERO_HEIGHT - 36 : insets.top + 52;
+  const headerOpacity = scrollY.interpolate({
+    // Finish as the last of the hero leaves, so the bar is already solid when
+    // content would otherwise start sliding under the status bar, rather than
+    // racing it up the screen.
+    inputRange: [Math.max(0, fadeEnd - 60), fadeEnd],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
 
   // Distance for the Directions button — best-effort from the last known
   // location (no prompt); label just hides if we can't resolve it.
@@ -86,7 +108,13 @@ export default function PlaceDetail() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
+      <Animated.ScrollView
+        contentContainerStyle={{ paddingBottom: 48 }}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
+      >
         {detail.isLoading ? (
           <Loading />
         ) : detail.error || !place ? (
@@ -110,7 +138,7 @@ export default function PlaceDetail() {
                 <Image
                   source={{ uri: place.hero_photo_url }}
                   accessibilityLabel={place.name}
-                  style={{ height: 220, width: "100%" }}
+                  style={{ height: HERO_HEIGHT, width: "100%" }}
                   resizeMode="cover"
                 />
                 {photoCount > 0 ? (
@@ -282,7 +310,54 @@ export default function PlaceDetail() {
             </View>
           </>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
+
+      {/*
+        Condensed header, faded in once the hero has scrolled away.
+
+        Without it the page had no top chrome at all: the glass back/save/share
+        buttons are pinned at insets.top, so as you scrolled, the restaurant
+        name, then the trust banner, then whatever came next slid underneath
+        them and under the status bar. The screenshot that prompted this had
+        "Fully halal kitchen" rendering through the clock and the notch, with
+        a back chevron sitting on top of the word.
+
+        The buttons can't simply move — a back affordance has to stay reachable
+        — so the fix is to give them something to sit on. It appears exactly
+        when the hero stops covering that job, and carries the place name,
+        which by then has scrolled out of view.
+
+        pointerEvents="none" so it never eats a tap meant for the buttons
+        layered above it.
+      */}
+      {place ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: insets.top + 48,
+            backgroundColor: t.bg,
+            borderBottomWidth: 1,
+            borderBottomColor: t.line,
+            opacity: headerOpacity,
+            justifyContent: "flex-end",
+            paddingBottom: 12,
+            // Clears the 36pt buttons plus their 16pt gutters on both sides,
+            // so a long name truncates rather than running under them.
+            paddingHorizontal: 64,
+          }}
+        >
+          <Text
+            numberOfLines={1}
+            style={[ty.label, { color: t.ink, fontSize: 15, textAlign: "center" }]}
+          >
+            {place.name}
+          </Text>
+        </Animated.View>
+      ) : null}
 
       {/* Floating back button (glass) */}
       <Pressable
