@@ -7935,6 +7935,34 @@
         "title": "PlaceSearchResult",
         "type": "object"
       },
+      "PlaceSignal": {
+        "description": "What someone did. Weighting belongs to whatever computes trending, not\nhere \u2014 the capture layer's job is to record what happened, not to decide\nin advance what it's worth. Weights get tuned against real data; a signal\nthrown away at write time is gone.",
+        "enum": [
+          "VIEWED",
+          "DIRECTIONS",
+          "CALLED",
+          "SHARED",
+          "FAVORITED",
+          "REVIEWED",
+          "PHOTO_ADDED"
+        ],
+        "title": "PlaceSignal",
+        "type": "string"
+      },
+      "PlaceSignalCreate": {
+        "additionalProperties": false,
+        "description": "One reported interaction. Deliberately tiny \u2014 no timestamp (the server\ndates it, so a client can't write into the past or the future) and no\nactor (the server derives one it can trust).",
+        "properties": {
+          "signal": {
+            "$ref": "#/components/schemas/PlaceSignal"
+          }
+        },
+        "required": [
+          "signal"
+        ],
+        "title": "PlaceSignalCreate",
+        "type": "object"
+      },
       "PlaceUnlinkExternalRequest": {
         "additionalProperties": false,
         "description": "Optional justification attached to unlinking a provider.\n\nSame shape + limits as ``PlaceDeleteRequest`` / ``PlaceRestoreRequest``\nso the admin UI's \"why are you unlinking this?\" dialog has consistent\nvalidation. Reason is logged on the EDITED event row that records the\nunlink, so the event history shows *why* a provider link went away.",
@@ -25639,6 +25667,54 @@
               "title": "Place Id",
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
           }
         ],
         "responses": {
@@ -26662,6 +26738,101 @@
         "summary": "Write a review",
         "tags": [
           "reviews"
+        ]
+      }
+    },
+    "/places/{place_id}/signals": {
+      "post": {
+        "description": "Fire-and-forget beacon for interactions that leave the app \u2014 `DIRECTIONS`, `CALLED`, `SHARED`. Anonymous-friendly. Always 204, including when the signal was already recorded for you today; clients should ignore the response entirely.\n\n`VIEWED` is rejected: it is recorded server-side on the place read.",
+        "operationId": "report_place_signal_places__place_id__signals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceSignalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report an engagement signal for a place",
+        "tags": [
+          "places"
         ]
       }
     },
