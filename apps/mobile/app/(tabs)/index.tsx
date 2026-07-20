@@ -22,7 +22,7 @@ import { LocationSheet, type PickedLocation } from "@/components/LocationSheet";
 import { capture } from "@/lib/analytics";
 import { MapResults } from "@/components/MapResults";
 import { EmptyState, ErrorState, Loading } from "@/components/States";
-import { FILTER_LABELS } from "@/lib/filter-labels";
+import { FILTER_BUTTON_LABELS } from "@/lib/filter-labels";
 
 const RADII_MI = [1, 3, 5, 10, 25] as const;
 
@@ -469,7 +469,9 @@ export default function Explore() {
             ...(diagnostics.data?.single_filter_relaxations ?? [])
               .slice(0, 2)
               .map((r) => ({
-                title: `Drop ${FILTER_LABELS[r.field] ?? r.field} (${r.count_if_removed})`,
+                // Button vocabulary, not the sentence vocabulary the body
+                // copy uses — see FILTER_BUTTON_LABELS.
+                title: `Drop ${FILTER_BUTTON_LABELS[r.field] ?? r.field} (${r.count_if_removed})`,
                 onPress: () => changeFilters({ ...filters, [r.field]: undefined }),
               })),
             { title: "Change city", onPress: () => setLocOpen(true) },

@@ -54,10 +54,29 @@ export function EmptyState({
           <Button title={actionTitle} onPress={onAction} />
         </View>
       ) : null}
+      {/* Wraps. This was a plain row with flex:1 on every child, which divided
+          the width by however many actions there happened to be — fine for the
+          two it was designed around ("Change city · Clear filters"), and not
+          fine once the empty state started naming the filter to drop. Three
+          actions on a small phone gave each ~100pt, which is narrower than the
+          word "verification", so it broke mid-word and that one button stood
+          three lines tall beside two one-line siblings.
+
+          minWidth caps it at two per row; a third wraps to its own line at
+          full width instead of squeezing the others. */}
       {secondaryActions && secondaryActions.length > 0 ? (
-        <View style={{ flexDirection: "row", gap: space.sm, alignSelf: "stretch", marginTop: space.xs }}>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: space.sm,
+            alignSelf: "stretch",
+            marginTop: space.xs,
+          }}
+        >
           {secondaryActions.map((a) => (
-            <View key={a.title} style={{ flex: 1 }}>
+            <View key={a.title} style={{ flexGrow: 1, flexBasis: 0, minWidth: 132 }}>
               <Button title={a.title} variant="secondary" onPress={a.onPress} />
             </View>
           ))}
