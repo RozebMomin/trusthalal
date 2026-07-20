@@ -252,11 +252,22 @@ export function Cell({
 /**
  * .icbox — rounded icon square used in rows.
  *
- * ## Tone is about DESTINATION, not sentiment
+ * ## Tone is about DESTINATION, with one exception
  *
  *   * ``action``   — the row opens a screen inside the app.
  *   * ``external`` — the row leaves the app (a web link).
+ *   * ``safety``   — the row is a moderation or safety surface.
  *   * ``danger``   — the row destroys something.
+ *
+ * ``safety`` is the deliberate exception to the destination rule: "Blocked
+ * people" opens an ordinary in-app list, so by destination it's ``action``,
+ * but a reader scanning a settings column should be able to find the
+ * who-can-reach-me controls without reading every label. It's red because
+ * that's where the eye goes first, not because the row is dangerous — the
+ * slash glyph carries "blocking", and the row itself only ever shows a list
+ * you can undo from. If a genuinely destructive row ever needs a tile, use
+ * ``danger``; keeping the two names separate is what stops red from meaning
+ * both "careful" and "over here".
  *
  * That's the whole rule, and it's the reason the tone lives here rather than
  * being passed as raw colours per call site. Before this, every caller picked
@@ -271,7 +282,7 @@ export function Cell({
  * A colour typed in at a call site is a colour that only works in the mode
  * its author had open at the time.
  */
-export type IcBoxTone = "action" | "external" | "danger";
+export type IcBoxTone = "action" | "external" | "safety" | "danger";
 
 export function IcBox({
   icon,
@@ -287,7 +298,7 @@ export function IcBox({
 }) {
   const t = useTheme();
   const toned =
-    tone === "danger"
+    tone === "danger" || tone === "safety"
       ? { bg: t.dangerSoft, fg: t.danger }
       : tone === "external"
         ? { bg: t.zincSoft, fg: t.zinc }

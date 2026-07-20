@@ -74,10 +74,10 @@ export default function Profile() {
         </View>
       )}
 
-      {/* Every row here opens a screen inside the app, so every tile is
-          `action`. The tone tracks where a row GOES, not how its subject
-          feels — see IcBox. This list previously ran emerald / blue /
-          emerald / grey, which looked like a code and wasn't one. */}
+      {/* Tiles are `action` (an in-app screen) except Blocked people, which
+          is `safety` — see IcBox for why that one earns an exception. This
+          list previously ran emerald / blue / emerald / grey: four tones, no
+          rule, which looks like a code the reader is failing to crack. */}
       <Seg style={{ marginTop: space.xs }}>Preferences</Seg>
       <Card>
         <Cell
@@ -99,11 +99,16 @@ export default function Profile() {
           right={chev}
         />
         {/* A block you can't undo is a trap. Guideline 1.2 requires the
-            ability to block; this is the way back. */}
+            ability to block; this is the way back.
+
+            The one red tile in the column, and the one row here that isn't
+            a preference — it's the who-can-reach-me control. Someone opens
+            this list because another person is bothering them, which is not
+            a state you want to be reading four labels to escape. */}
         <Cell
           last
           onPress={() => router.push("/blocked")}
-          left={<><IcBox icon="slash" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Blocked people</Text></>}
+          left={<><IcBox icon="slash" tone="safety" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Blocked people</Text></>}
           right={chev}
         />
       </Card>
