@@ -192,8 +192,11 @@ export default function PrivacyPage() {
               profile in the app, or ask us for a copy of your data.
             </li>
             <li>
-              <strong>Delete your account</strong> — request deletion any time
-              (see Contact below); we&apos;ll remove your personal data.
+              <strong>Delete your account</strong> — in the app, under Profile →
+              Delete account. It removes your account along with the reviews and
+              photos you posted. Photos published on behalf of a restaurant you
+              manage stay, because they belong to the business rather than to
+              you. You can also email us if you&apos;d rather we did it.
             </li>
             <li>
               <strong>Location</strong> — grant or revoke it in your device
