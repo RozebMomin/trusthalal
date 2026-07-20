@@ -5,7 +5,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev test test-db seed seed-users reset-db export-openapi migrate
+.PHONY: help dev test test-db seed seed-users reset-db export-openapi migrate demo-account
 
 help:  ## Show available targets
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -48,3 +48,6 @@ migrate:  ## Apply alembic migrations to head
 
 export-openapi:  ## Regenerate openapi.json from the FastAPI app
 	poetry run python -m scripts.export_openapi
+
+demo-account:  ## Create/reset the pre-verified App Review demo account
+	poetry run python -m scripts.create_review_demo_account
