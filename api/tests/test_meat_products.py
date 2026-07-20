@@ -153,11 +153,18 @@ def test_search_omits_products_rather_than_sending_an_empty_list(
     listed no products."""
     profile, _ = approved_claim_profile([_products()])
     db_session.commit()
-    r = api.get("/places/search", params={"q": "", "limit": 50})
+
+    # The listing is GET /places, not /places/search — there is no such
+    # route, so that path falls through to /places/{place_id} and 422s trying
+    # to parse "search" as a UUID. Geo search needs lat+lng+radius; the place
+    # factory defaults to 40.7128/-74.006.
+    r = api.get(
+        "/places",
+        params={"lat": 40.7128, "lng": -74.006, "radius": 5000, "limit": 200},
+    )
     assert r.status_code == 200, r.text
-    rows = [
-        row for row in r.json()
-        if row.get("halal_profile") and row["id"] == str(profile.place_id)
-    ]
-    if rows:  # search may filter this fixture out; the assertion only
-        assert rows[0]["halal_profile"]["meat_products"] is None
+
+    rows = [row for row in r.json() if row["id"] == str(profile.place_id)]
+    assert rows, "seeded place should be within 5km of the search origin"
+    assert rows[0]["halal_profile"] is not None
+    assert rows[0]["halal_profile"]["meat_products"] is None
