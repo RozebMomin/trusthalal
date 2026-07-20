@@ -1073,12 +1073,32 @@ function KitchenDetail({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={`Meat sourcing: ${summary.text}`}
+        accessibilityHint={open ? "Hides the sourcing detail" : "Shows suppliers and per-product sourcing"}
         hitSlop={6}
         style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
       >
         <Feather name="award" size={15} color={tone} />
         <Text style={[ty.small, { color: t.ink, flex: 1, fontSize: 13, lineHeight: 18 }]}>
           {summary.text}
+        </Text>
+        {/* A bare caret is an affordance you have to already know to look for,
+            and this one sits at the end of a line that reads like a finished
+            sentence — nothing about "all zabihah" suggests there is more
+            behind it. The word carries the invitation; the caret only carries
+            the direction.
+
+            It says what is behind the tap rather than "Tap to expand": the
+            instruction is the part a sighted user can infer from a caret
+            anyway, and "Sources" is also the honest answer to why someone
+            would bother. Naming the action, not the gesture, keeps it true
+            for keyboard and switch control too. */}
+        <Text
+          style={[
+            ty.small,
+            { color: t.accentDeep, fontFamily: "Inter_600SemiBold", fontSize: 12 },
+          ]}
+        >
+          {open ? "Hide" : "Sources"}
         </Text>
         <Feather name={open ? "chevron-up" : "chevron-down"} size={16} color={t.sub} />
       </Pressable>
