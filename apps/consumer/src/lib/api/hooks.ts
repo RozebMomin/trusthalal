@@ -219,6 +219,33 @@ export type HalalProfileEmbed = {
   expires_at: string | null;
   revoked_at: string | null;
   updated_at: string;
+  /** Per-product sourcing, as the OWNER described it.
+   *
+   *  `null` means this surface didn't load it — search results don't, since
+   *  a result card only renders the rolled-up per-meat labels. `[]` means
+   *  the restaurant listed no products. Don't collapse the two: showing
+   *  "no products on file" on a search card would be a claim about the
+   *  restaurant that the payload never made. */
+  meat_products: MeatProduct[] | null;
+};
+
+/**
+ * One product and where the restaurant says it comes from.
+ *
+ * Everything here is the owner's account of their own supply chain, not a
+ * Trust Halal finding — verifier visits record observations as free text, so
+ * nothing structurally confirms a supplier. Any UI rendering `supplier_name`
+ * must attribute it, or the restaurant's claim starts reading as our
+ * verification.
+ */
+export type MeatProduct = {
+  meat_type: string;
+  product_name: string;
+  slaughter_method: SlaughterMethod;
+  supplier_name: string | null;
+  supplier_city: string | null;
+  supplier_state: string | null;
+  certifying_authority: string | null;
 };
 
 /**

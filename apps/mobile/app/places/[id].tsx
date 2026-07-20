@@ -14,7 +14,12 @@ import { HeartButton } from "@/components/HeartButton";
 import { PhotoViewer } from "@/components/PhotoViewer";
 import { TrustProfileSheet } from "@/components/TrustProfileSheet";
 import { ErrorState, Loading } from "@/components/States";
-import type { HalalProfileEmbed, PlaceDetail as PlaceDetailType } from "@/lib/api/types";
+import type {
+  HalalProfileEmbed,
+  MeatProduct,
+  PlaceDetail as PlaceDetailType,
+  SlaughterMethod,
+} from "@/lib/api/types";
 import { capture } from "@/lib/analytics";
 import { reportPlaceSignal } from "@/lib/api/signals";
 
@@ -879,6 +884,17 @@ function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
   const served = rows.filter((r) => r.method && r.method !== "NOT_SERVED");
   const absent = rows.filter((r) => r.method === "NOT_SERVED");
 
+  // When the restaurant listed individual products, show those instead of
+  // the rollup. The rollup is least-conservative-wins, so a kitchen with
+  // zabihah breast and machine nuggets reports MACHINE for all chicken —
+  // safe to round that way, but it leaves someone unable to see which
+  // product is which. It also covers turkey, duck and fish, which have no
+  // profile column at all and are otherwise invisible.
+  const products = profile.meat_products ?? [];
+  if (products.length > 0) {
+    return <ServedProducts products={products} absent={absent} />;
+  }
+
   if (served.length === 0) {
     return (
       <Text style={[ty.small, { color: t.sub }]}>
@@ -994,3 +1010,89 @@ function relativeDay(iso: string | null | undefined): string | null {
   return years === 1 ? "last year" : `${years} years ago`;
 }
 
+
+/**
+ * Per-product sourcing: what the restaurant serves, and where they say it
+ * comes from.
+ *
+ * ## The attribution is the point
+ *
+ * "Chicken · Zabihah" with nothing behind it asks to be taken on faith,
+ * which is the one thing this product exists not to do. But the fix isn't to
+ * state the supplier as fact — nobody has checked it. Verifier visits record
+ * observations as free text, so there is no structured confirmation that a
+ * given supplier is real.
+ *
+ * So the supplier line is explicitly framed as the restaurant's own account
+ * ("Restaurant says"), set in the muted colour, and sits under the product
+ * rather than beside it. A diner should be able to tell in one read which
+ * part we stand behind and which part we're relaying. Presenting the
+ * supplier as flatly true would launder the owner's word into our finding —
+ * the same mistake as a green banner on a self-attested place.
+ */
+function ServedProducts({
+  products,
+  absent,
+}: {
+  products: MeatProduct[];
+  absent: { label: string; method: SlaughterMethod | null }[];
+}) {
+  const t = useTheme();
+
+  return (
+    <View style={{ gap: 8 }}>
+      {products.map((p, i) => {
+        const machine = p.slaughter_method === "MACHINE";
+        const tone = machine ? t.amber : t.accentDeep;
+        // City and state are separate columns; either can be missing.
+        const where = [p.supplier_city, p.supplier_state].filter(Boolean).join(", ");
+        return (
+          <View
+            key={`${p.product_name}-${i}`}
+            style={{
+              borderRadius: radii.md,
+              borderWidth: 1,
+              borderColor: machine ? t.amber : t.accentDeep,
+              backgroundColor: machine ? t.amberSoft : t.accentSoft,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              gap: 3,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
+              <Text
+                style={{ color: tone, fontFamily: "Inter_700Bold", fontSize: 12.5, flex: 1 }}
+                numberOfLines={1}
+              >
+                {p.product_name}
+              </Text>
+              <Text style={{ color: tone, fontFamily: "Inter_700Bold", fontSize: 11.5 }}>
+                {SLAUGHTER_LABELS[p.slaughter_method] ?? p.slaughter_method}
+              </Text>
+            </View>
+            {p.supplier_name ? (
+              <Text style={[ty.small, { color: t.sub, fontSize: 11, lineHeight: 15 }]}>
+                Restaurant says: {p.supplier_name}
+                {where ? ` · ${where}` : ""}
+                {p.certifying_authority ? ` · certified by ${p.certifying_authority}` : ""}
+              </Text>
+            ) : (
+              // Saying nothing here would read as "supplier withheld". Saying
+              // this reads as "we asked and they didn't fill it in", which is
+              // the truth and is itself a signal worth having.
+              <Text style={[ty.small, { color: t.sub, fontSize: 11, lineHeight: 15 }]}>
+                No supplier listed
+              </Text>
+            )}
+          </View>
+        );
+      })}
+      {absent.length > 0 ? (
+        <Text style={[ty.small, { color: t.sub, fontSize: 11 }]}>
+          {absent.map((r) => r.label.toLowerCase()).join(", ")}
+          {absent.length === 1 ? " isn't" : " aren't"} served here.
+        </Text>
+      ) : null}
+    </View>
+  );
+}

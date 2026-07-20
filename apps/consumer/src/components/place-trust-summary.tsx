@@ -57,6 +57,7 @@ import {
 import type {
   AlcoholPolicy,
   HalalProfileEmbed,
+  MeatProduct,
   MenuPosture,
   SlaughterMethod,
   ValidationTier,
@@ -271,6 +272,17 @@ function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
   const served = rows.filter((r) => r.method !== "NOT_SERVED");
   const absent = rows.filter((r) => r.method === "NOT_SERVED");
 
+  // Prefer the per-product list when the restaurant supplied one. The rollup
+  // above is least-conservative-wins, so a kitchen with zabihah breast and
+  // machine nuggets reports MACHINE for all chicken — the safe direction to
+  // round, but it leaves a diner unable to see which product is which. It
+  // also covers turkey, duck and fish, which have no profile column and are
+  // otherwise invisible entirely.
+  const products = profile.meat_products ?? [];
+  if (products.length > 0) {
+    return <ServedProducts products={products} absent={absent} />;
+  }
+
   // Nothing on the list is served and it isn't a seafood kitchen — say so
   // plainly rather than rendering an empty row.
   if (served.length === 0) {
@@ -298,6 +310,83 @@ function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
             </span>
           </li>
         ))}
+      </ul>
+      {absent.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {absent.map((r) => r.label.toLowerCase()).join(", ")}
+          {absent.length === 1 ? " isn't" : " aren't"} served here.
+        </p>
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * Per-product sourcing: what the restaurant serves, and where they say it
+ * comes from.
+ *
+ * ## The attribution is the whole point
+ *
+ * "Chicken · Zabihah" with nothing behind it asks to be taken on faith,
+ * which is the one thing this platform exists not to do. But the fix isn't
+ * to state the supplier as fact — nobody has checked it. Verifier visits
+ * record observations as free text, so there is no structured confirmation
+ * that a named supplier is real or that the restaurant actually buys from
+ * them.
+ *
+ * So the supplier line is explicitly framed as the restaurant's own account,
+ * set muted, and placed under the product rather than beside it. A reader
+ * should be able to tell at a glance which half we stand behind and which
+ * half we're relaying. Presenting the supplier flatly would launder the
+ * owner's word into our finding — the same mistake as a green banner on a
+ * self-attested place, which the note at the top of this file exists to
+ * prevent.
+ */
+function ServedProducts({
+  products,
+  absent,
+}: {
+  products: MeatProduct[];
+  absent: Array<{ label: string; method: SlaughterMethod }>;
+}) {
+  return (
+    <div className="space-y-2">
+      <ul className="space-y-1.5">
+        {products.map((p, i) => {
+          const where = [p.supplier_city, p.supplier_state]
+            .filter(Boolean)
+            .join(", ");
+          return (
+            <li
+              key={`${p.product_name}-${i}`}
+              className={cn(
+                "rounded-md border px-2.5 py-2",
+                SLAUGHTER_TONE[p.slaughter_method],
+              )}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-semibold">{p.product_name}</span>
+                <span className="shrink-0 text-xs font-semibold">
+                  {SLAUGHTER_LABELS[p.slaughter_method] ?? p.slaughter_method}
+                </span>
+              </div>
+              {p.supplier_name ? (
+                <p className="mt-0.5 text-xs opacity-75">
+                  Restaurant says: {p.supplier_name}
+                  {where && ` · ${where}`}
+                  {p.certifying_authority &&
+                    ` · certified by ${p.certifying_authority}`}
+                </p>
+              ) : (
+                /* Silence here would read as "supplier withheld". This reads
+                   as "we asked and they left it blank", which is both true
+                   and itself worth knowing. */
+                <p className="mt-0.5 text-xs opacity-60">No supplier listed</p>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {absent.length > 0 && (
         <p className="text-xs text-muted-foreground">

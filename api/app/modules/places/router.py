@@ -23,7 +23,10 @@ from app.modules.halal_claims.models import HalalClaimEvent
 from app.modules.verifiers.models import VerifierProfile
 from app.modules.users.models import User
 from app.modules.places.enums import Cuisine
-from app.modules.halal_profiles.repo import get_public_halal_profile
+from app.modules.halal_profiles.repo import (
+    get_public_halal_profile,
+    public_meat_products,
+)
 from app.modules.halal_profiles.schemas import HalalProfileRead
 from app.modules.places.integrations.google import (
     extract_locality_from_geocode,
@@ -52,6 +55,7 @@ from app.modules.places.schemas import (
     GoogleAutocompletePrediction,
     HalalHistoryEventRead,
     HalalProfileEmbed,
+    MeatProductRead,
     OwnedPlaceRead,
     OwnedPlaceUpdate,
     ForwardGeocodeMatch,
@@ -80,6 +84,34 @@ from app.modules.users.enums import UserRole
 from sqlalchemy import select
 
 router = APIRouter(prefix="/places", tags=["places"])
+
+
+def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
+    """Embed a halal profile for a DETAIL response, with per-product sourcing.
+
+    Detail only. Search deliberately doesn't call this: resolving products is
+    a join per place, and a result card renders the rolled-up per-meat labels
+    anyway. Leaving ``meat_products`` as None there is the honest signal that
+    the surface didn't load it, as opposed to the restaurant having none —
+    see the note on the field.
+    """
+    if profile is None:
+        return None
+    embed = HalalProfileEmbed.model_validate(profile, from_attributes=True)
+    # Converted rather than assigned straight across. `public_meat_products`
+    # returns halal_profiles.schemas.MeatProductRead; this field is typed with
+    # the duplicated copy in places.schemas (see its docstring for why the
+    # duplication exists). HalalProfileEmbed has no validate_assignment, so a
+    # direct assignment would store foreign objects unchecked and leave
+    # Pydantic duck-typing them at serialization — which happens to work today
+    # only because the two shapes are identical, and stops the moment they
+    # aren't.
+    embed.meat_products = [
+        MeatProductRead.model_validate(p, from_attributes=True)
+        for p in public_meat_products(db, profile=profile)
+    ]
+    return embed
+
 
 
 def _place_is_claimed(db: Session, place_id) -> bool:
@@ -239,11 +271,7 @@ def patch_owned_place(
     # get back a consistent snapshot. The embedded halal_profile read
     # is the same single fetch the public endpoint uses.
     profile = get_public_halal_profile(db, place_id=place.id)
-    halal_embed = (
-        HalalProfileEmbed.model_validate(profile, from_attributes=True)
-        if profile is not None
-        else None
-    )
+    halal_embed = _embed_with_products(db, profile)
     photos_payload, hero_url = serialize_photos_for_place(
         db, place=place, storage=photos_storage
     )
@@ -763,11 +791,7 @@ def get_place_by_id(
     # not revoked. Single-fetch pattern — frontends rendering a
     # place page get name + address + halal posture in one trip.
     profile = get_public_halal_profile(db, place_id=place_id)
-    halal_embed = (
-        HalalProfileEmbed.model_validate(profile, from_attributes=True)
-        if profile is not None
-        else None
-    )
+    halal_embed = _embed_with_products(db, profile)
 
     # Photos are loaded eagerly via the Place.photos relationship
     # (selectin), so this is a pure transform — no extra DB hit
@@ -863,7 +887,9 @@ def get_place_halal_profile(
             "HALAL_PROFILE_NOT_FOUND",
             "This place doesn't have a current halal profile.",
         )
-    return HalalProfileRead.model_validate(profile)
+    read = HalalProfileRead.model_validate(profile)
+    read.meat_products = public_meat_products(db, profile=profile)
+    return read
 
 
 # Profile-lifecycle events surfaced verbatim on the consumer timeline (their

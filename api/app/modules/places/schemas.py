@@ -241,6 +241,27 @@ class PlaceDetail(BaseModel):
     halal_profile: "HalalProfileEmbed | None" = None
 
 
+class MeatProductRead(BaseModel):
+    """Mirror of ``halal_profiles.schemas.MeatProductRead``.
+
+    Duplicated for the same reason ``HalalProfileEmbed`` below is — see its
+    docstring. Keep the two in lock-step; the canonical one carries the
+    reasoning, including why ``certificate_number`` is deliberately absent
+    and why a client must attribute ``supplier_name`` to the owner rather
+    than presenting it as a platform finding.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    meat_type: str
+    product_name: str
+    slaughter_method: str
+    supplier_name: str | None = None
+    supplier_city: str | None = None
+    supplier_state: str | None = None
+    certifying_authority: str | None = None
+
+
 class HalalProfileEmbed(BaseModel):
     """Inline halal-profile shape, kept here (rather than imported
     from app.modules.halal_profiles.schemas) to avoid a Pydantic-
@@ -282,6 +303,13 @@ class HalalProfileEmbed(BaseModel):
     last_verified_at: datetime
     expires_at: datetime | None
     revoked_at: datetime | None
+
+    # Per-product sourcing — the owner's own account of which supplier each
+    # product comes from. Three-state: None means this surface didn't load it
+    # (search results don't; see _embed_with_products), [] means the
+    # restaurant listed none. Collapsing those two would make every search
+    # card claim the place has no products on file.
+    meat_products: list[MeatProductRead] | None = None
     updated_at: datetime
 
 

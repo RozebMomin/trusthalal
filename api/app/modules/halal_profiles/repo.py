@@ -22,6 +22,8 @@ along so the UI can render a "conflicting reports" badge.
 """
 from __future__ import annotations
 
+import logging
+
 from typing import Optional
 from uuid import UUID
 
@@ -29,6 +31,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.halal_profiles.models import HalalProfile
+
+logger = logging.getLogger(__name__)
 
 
 def get_public_halal_profile(
@@ -52,3 +56,71 @@ def get_public_halal_profile(
             HalalProfile.revoked_at.is_(None),
         )
     ).scalar_one_or_none()
+
+
+def public_meat_products(
+    db: Session, *, profile: HalalProfile
+) -> list["MeatProductRead"]:
+    """Per-product sourcing for a profile, projected for public reading.
+
+    The profile's per-meat columns are a rollup of exactly this list, so the
+    two can't contradict each other: both derive from the same approved
+    claim, and there is no path that edits profile columns after approval.
+    If one is ever added, it has to rewrite the claim or this stops being
+    true and the detail page starts arguing with itself.
+
+    Returns ``[]`` rather than raising when anything is missing — no source
+    claim (the FK is ``ON DELETE SET NULL``), no questionnaire, or a
+    questionnaire that predates the ``meat_products`` field. This is
+    supplementary context on a page that already renders without it; a
+    restaurant whose claim was tidied up in support shouldn't 500 the place
+    it belongs to.
+
+    Malformed entries are skipped individually rather than failing the whole
+    list. The column is owner-authored JSON that has been through several
+    schema revisions, so one bad row losing the other five would be the
+    wrong trade.
+    """
+    from app.modules.halal_claims.models import HalalClaim
+    from app.modules.halal_profiles.schemas import MeatProductRead
+
+    if profile.source_claim_id is None:
+        return []
+
+    response = db.execute(
+        select(HalalClaim.structured_response).where(
+            HalalClaim.id == profile.source_claim_id
+        )
+    ).scalar_one_or_none()
+    if not isinstance(response, dict):
+        return []
+
+    raw = response.get("meat_products")
+    if not isinstance(raw, list):
+        return []
+
+    out: list[MeatProductRead] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            out.append(
+                MeatProductRead(
+                    meat_type=entry["meat_type"],
+                    product_name=entry["product_name"],
+                    slaughter_method=entry["slaughter_method"],
+                    supplier_name=entry.get("supplier_name"),
+                    supplier_city=entry.get("supplier_city"),
+                    supplier_state=entry.get("supplier_state"),
+                    certifying_authority=entry.get("certifying_authority"),
+                )
+            )
+        except Exception:  # noqa: BLE001 — see docstring
+            logger.warning(
+                "skipping malformed meat_products entry on claim %s",
+                profile.source_claim_id,
+            )
+    # NOT_SERVED entries are an artefact of the questionnaire's symmetry —
+    # an entry exists because the product is served. Showing "Lamb chops:
+    # not served" would be noise; the absent-meats line already covers it.
+    return [p for p in out if p.slaughter_method.value != "NOT_SERVED"]

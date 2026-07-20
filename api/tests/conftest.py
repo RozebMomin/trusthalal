@@ -309,3 +309,79 @@ def moderator():
     fastapi_app.dependency_overrides[get_text_moderation_client] = lambda: fake
     yield fake
     fastapi_app.dependency_overrides.pop(get_text_moderation_client, None)
+
+
+# ---------------------------------------------------------------------------
+# Approved halal profile with per-product sourcing
+# ---------------------------------------------------------------------------
+# Lives here rather than in test_meat_products.py because the same shape is
+# useful anywhere a test needs a real profile — and a module-local fixture is
+# invisible to other files, which surfaces as a confusing collection-time
+# ERROR rather than a missing-fixture message at the call site. That mistake
+# already cost a debugging session once in this suite (see the moderator
+# fixture above).
+@pytest.fixture
+def approved_claim_profile(api, factories, db_session):
+    """Build a place whose halal profile was derived from a real approved
+    claim carrying the given ``meat_products``.
+
+    Goes through the actual HTTP create → submit → approve flow rather than
+    inserting a HalalProfile directly. That matters for these tests
+    specifically: the per-meat rollup columns are computed by the approval
+    service, so hand-writing them would let a test assert that products and
+    rollup agree while proving nothing about the code that derives one from
+    the other.
+
+    Returns ``(profile, claim)``.
+    """
+    from sqlalchemy import select as _select
+
+    from app.modules.halal_claims.models import HalalClaim
+    from app.modules.halal_profiles.models import HalalProfile
+
+    def _build(meat_products: list[dict], *, validation_tier="CERTIFICATE_ON_FILE"):
+        admin = factories.admin()
+        owner = factories.owner()
+        place = factories.place()
+        org = factories.org_for_user(user=owner)
+        factories.place_owner_link(place=place, organization=org)
+        db_session.commit()
+
+        questionnaire = {
+            "questionnaire_version": 1,
+            "menu_posture": "FULLY_HALAL",
+            "has_pork": False,
+            "alcohol_policy": "NONE",
+            "alcohol_in_cooking": False,
+            "meat_products": meat_products,
+            "seafood_only": False,
+            "caveats": None,
+        }
+
+        created = api.as_user(owner).post(
+            "/me/halal-claims",
+            json={
+                "place_id": str(place.id),
+                "organization_id": str(org.id),
+                "structured_response": questionnaire,
+            },
+        )
+        assert created.status_code == 201, created.text
+        claim_id = created.json()["id"]
+
+        submitted = api.as_user(owner).post(f"/me/halal-claims/{claim_id}/submit")
+        assert submitted.status_code == 200, submitted.text
+
+        approved = api.as_user(admin).post(
+            f"/admin/halal-claims/{claim_id}/approve",
+            json={"validation_tier": validation_tier},
+        )
+        assert approved.status_code == 200, approved.text
+
+        profile = db_session.execute(
+            _select(HalalProfile).where(HalalProfile.place_id == place.id)
+        ).scalar_one()
+        claim = db_session.get(HalalClaim, claim_id)
+        return profile, claim
+
+    return _build
