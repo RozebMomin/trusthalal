@@ -17,14 +17,27 @@ const TONE = { positive: "solid", trusted: "amber", neutral: "zinc", muted: "das
 const RADII_MI = [1, 3, 5, 10, 25] as const;
 const M_PER_MI = 1609.34;
 
-/** Mockup-2 pin hierarchy: size communicates TIER (verified biggest),
- *  selection adds emphasis on top. */
+/**
+ * Mockup-2 pin hierarchy: size communicates TIER (verified biggest),
+ * selection adds emphasis on top.
+ *
+ * Colours come from the canonical tier tokens (docs/brand-tier-colors.md), so
+ * a place is the same colour as a pin, as a card badge, and as the banner on
+ * its detail page. Two of these were previously hardcoded — `#F59E0B` for
+ * certified and `#A1A1AA` for the rest — sitting alongside a themed
+ * `t.accent` for verified, so the set was neither consistent with the rest of
+ * the app nor responsive to dark mode.
+ *
+ * The tier fills are used rather than the pill washes because a pin sits on
+ * map tiles, not on a card: it needs to be solid at 22–32px against terrain
+ * of unpredictable lightness.
+ */
 function pinFor(p: PlaceSearchResult, t: ReturnType<typeof useTheme>) {
   const tone = primaryHalalSignal(p.halal_profile).tone;
-  if (tone === "positive") return { size: 32, color: t.accent, check: true };
-  if (tone === "trusted") return { size: 26, color: "#F59E0B", check: false };
+  if (tone === "positive") return { size: 32, color: t.tierVerified, check: true };
+  if (tone === "trusted") return { size: 26, color: t.tierCertified, check: false };
   if (tone === "warning") return { size: 26, color: t.danger, check: false };
-  return { size: 22, color: "#A1A1AA", check: false };
+  return { size: 22, color: t.tierAttested, check: false };
 }
 
 export function MapResults({

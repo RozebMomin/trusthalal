@@ -23,6 +23,26 @@ export const light = {
   zincSoft: "#F2F2F4",
   danger: "#E02424",
   dangerSoft: "#FDE8E8",
+
+  // --- Tier fills -------------------------------------------------------
+  // Solid backgrounds for the place-detail verdict banner, one per
+  // validation tier. Identical in light and dark: a tier's colour is a
+  // brand constant, and a banner that shifted hue between themes would be
+  // the one element on the page whose meaning depends on a setting.
+  //
+  // Separated by HUE (160deg / 26deg / 240deg), not by lightness. See
+  // docs/brand-tier-colors.md — the short version is that a diner sees one
+  // badge, not two side by side, so "darker green means better" is a
+  // distinction nobody can make at a glance, and getting it wrong sends
+  // someone to eat at a place they'd have refused.
+  //
+  // Deeper than the pill colours because these carry white text down to the
+  // ~12px proof line: white on brand emerald #0E9F6E is 3.39:1 and fails.
+  // Measured white-on-fill here: 5.48 / 5.02 / 10.35:1.
+  tierVerified: "#047857",
+  tierCertified: "#B45309",
+  tierAttested: "#334155",
+  onTier: "#FFFFFF",
 };
 
 export const dark: typeof light = {
@@ -42,6 +62,12 @@ export const dark: typeof light = {
   zincSoft: "rgba(161,161,170,0.12)",
   danger: "#F87171",
   dangerSoft: "rgba(248,113,113,0.12)",
+
+  // Deliberately identical to light — see the note there.
+  tierVerified: "#047857",
+  tierCertified: "#B45309",
+  tierAttested: "#334155",
+  onTier: "#FFFFFF",
 };
 
 export type Palette = typeof light;

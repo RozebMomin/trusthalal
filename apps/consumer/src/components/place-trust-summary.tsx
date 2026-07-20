@@ -84,19 +84,32 @@ const TIER_DESCRIPTION: Record<ValidationTier, string> = {
     "The owner submitted this info themselves. No third-party verification.",
 };
 
-/** Banner fill. Encodes how much proof we hold — NOT how halal the place
- *  claims to be. See the note at the top of this file before changing it. */
+/**
+ * Banner fill. Encodes how much proof we hold — NOT how halal the place
+ * claims to be. See the note at the top of this file before changing it, and
+ * docs/brand-tier-colors.md for the canonical palette.
+ *
+ * One hue per tier: emerald 160°, amber 26°, slate 240°. This used to be
+ * `bg-primary` over `emerald-700` over slate — two greens a shade apart at
+ * the top, which is a severity ramp. A ramp only works if you can see both
+ * ends at once, and nobody ever does: a diner opens one restaurant and gets
+ * one banner. The amber matches the pill this same place already wears on the
+ * search card and the map pin, so the colour survives the tap instead of
+ * changing family halfway through the journey.
+ */
 const TIER_BANNER: Record<ValidationTier, string> = {
-  TRUST_HALAL_VERIFIED: "bg-primary text-primary-foreground",
-  CERTIFICATE_ON_FILE: "bg-emerald-700 text-white dark:bg-emerald-800",
-  // Deliberately not green. Nobody independent has checked this.
+  // Deeper than `bg-primary`: white on the brand emerald is 3.39:1, which
+  // the ~14px proof sub-line under the headline fails. 5.48:1 here.
+  TRUST_HALAL_VERIFIED: "bg-emerald-700 text-white dark:bg-emerald-800",
+  CERTIFICATE_ON_FILE: "bg-amber-700 text-white dark:bg-amber-800",
+  // Deliberately not green, not even a pale one. Nobody has checked this.
   SELF_ATTESTED: "bg-slate-700 text-white dark:bg-slate-800",
 };
 
 /** Border of the whole block, matched to the banner. */
 const TIER_EDGE: Record<ValidationTier, string> = {
-  TRUST_HALAL_VERIFIED: "border-primary",
-  CERTIFICATE_ON_FILE: "border-emerald-700 dark:border-emerald-800",
+  TRUST_HALAL_VERIFIED: "border-emerald-700 dark:border-emerald-800",
+  CERTIFICATE_ON_FILE: "border-amber-700 dark:border-amber-800",
   SELF_ATTESTED: "border-slate-700 dark:border-slate-800",
 };
 

@@ -556,16 +556,28 @@ const SLAUGHTER_LABELS: Record<string, string> = {
   NOT_SERVED: "Not served",
 };
 
-/** Banner fill by PROOF level — read the note above before changing. */
+/**
+ * Banner fill by tier. The canonical tier colours live in the palette and are
+ * specified in docs/brand-tier-colors.md — emerald / amber / slate, one hue
+ * each, the same three colours the pills, map markers and the marketing site
+ * use.
+ *
+ * This function used to return `accent` for verified and `accentDeep` for
+ * certified: two greens one shade apart. That reads as a severity ramp, which
+ * is a comparison — and a diner scanning results sees one banner, never two
+ * side by side, so there's nothing to compare it against. At arm's length it
+ * just read "green, probably fine", which is the exact conclusion a
+ * certificate-on-file place has not earned.
+ */
 function tierBanner(tier: string, t: ReturnType<typeof useTheme>) {
   switch (tier) {
     case "TRUST_HALAL_VERIFIED":
-      return { bg: t.accent, fg: t.onAccent };
+      return { bg: t.tierVerified, fg: t.onTier };
     case "CERTIFICATE_ON_FILE":
-      return { bg: t.accentDeep, fg: t.onAccent };
+      return { bg: t.tierCertified, fg: t.onTier };
     default:
-      // Deliberately not green. Nobody independent has checked this.
-      return { bg: t.zinc, fg: t.card };
+      // Never green, not even a pale one. Nobody independent has checked this.
+      return { bg: t.tierAttested, fg: t.onTier };
   }
 }
 
