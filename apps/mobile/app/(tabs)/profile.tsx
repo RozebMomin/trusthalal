@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
@@ -197,7 +198,11 @@ export default function Profile() {
       </Pressable>
 
       <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
-        Trust Halal · v0.1.0{"\n"}Community-built · Muslim-led
+        {/* Read from the build, not typed in. A hardcoded string here
+            silently disagreed with the version analytics reports (which
+            already reads expoConfig), so a crash report and a support
+            message could name two different releases of the same app. */}
+        Trust Halal · v{Constants.expoConfig?.version ?? "—"}{"\n"}Community-built · Muslim-led
       </Text>
     </ScrollView>
     </View>
