@@ -31,6 +31,14 @@ It doesn't write reviews on the demo account's behalf. A reviewer needs to
 *post* one to test the flow, and one-review-per-place would block them on
 whichever place we'd pre-seeded. Better to hand them an empty account and let
 them use it.
+
+## It tells you which database it's about to touch
+
+The credentials only matter on production, but the script connects to whatever
+``DATABASE_URL`` is set — which, from a dev shell, is localhost. Creating the
+demo account on a local database looks exactly like success and fails a week
+later at Apple's sign-in screen. So the target is printed first, and anything
+that isn't obviously local asks for confirmation before writing.
 """
 from __future__ import annotations
 
@@ -39,7 +47,9 @@ import sys
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
+from sqlalchemy.engine import make_url
 
+from app.core.config import settings
 from app.core.password_hashing import hash_password
 from app.core.password_policy import validate_password_strength
 from app.db.session import SessionLocal
@@ -57,7 +67,38 @@ def main() -> int:
     parser.add_argument("--email", default=DEFAULT_EMAIL)
     parser.add_argument("--password", default=DEFAULT_PASSWORD)
     parser.add_argument("--display-name", default=DEFAULT_NAME)
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip the confirmation prompt (for non-interactive use).",
+    )
     args = parser.parse_args()
+
+    # Where are we actually writing? Print it before doing anything, because
+    # "it worked" against localhost is indistinguishable from "it worked"
+    # against production until Apple tries to sign in.
+    if not settings.DATABASE_URL:
+        print("DATABASE_URL is not set — nothing to connect to.")
+        return 1
+    url = make_url(settings.DATABASE_URL)
+    host = url.host or "(local socket)"
+    target = f"{url.database} on {host}  [ENV={settings.ENV}]"
+    is_local = host in {"localhost", "127.0.0.1", "::1", "(local socket)"}
+
+    print(f"Target database: {target}")
+    if is_local:
+        print(
+            "  ^ this is a LOCAL database. The demo account only helps Apple "
+            "if it exists on production."
+        )
+    elif not args.yes:
+        # Non-local means this write is probably the one that counts. Make the
+        # person say so, rather than discovering later which environment they
+        # were pointed at.
+        answer = input("Write the demo account to this database? [y/N] ")
+        if answer.strip().lower() not in {"y", "yes"}:
+            print("Aborted.")
+            return 1
 
     # Fail here rather than at the login screen a week later. The API enforces
     # this policy on signup, so a demo password that doesn't meet it would
@@ -99,7 +140,7 @@ def main() -> int:
     finally:
         db.close()
 
-    print(f"{'Created' if created else 'Reset'} demo account")
+    print(f"{'Created' if created else 'Reset'} demo account on {target}")
     print(f"  email:    {user.email}")
     print(f"  password: {args.password}")
     print(f"  role:     {user.role}")

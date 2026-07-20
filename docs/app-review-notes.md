@@ -9,8 +9,17 @@ changes; a reviewer reading stale notes is worse than one reading none.
 Tick **Sign-in required**, and use the account created by:
 
 ```
-cd api && make demo-account
+DATABASE_URL='<production url>' make demo-account
 ```
+
+The script prints which database it is about to write to and asks for
+confirmation on anything non-local. Run from a plain `make demo-account` in a
+dev shell and it will hit **localhost**, which looks like success and fails at
+Apple's sign-in screen a week later. Make sure the target it prints is
+production.
+
+If it fails with `column users.email_verified_at does not exist`, that
+database hasn't had migrations applied — run `make migrate` against it first.
 
 | Field    | Value                                     |
 |----------|-------------------------------------------|
