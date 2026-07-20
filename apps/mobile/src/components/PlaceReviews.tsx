@@ -194,7 +194,13 @@ export function PlaceReviews({
   const summary = data?.summary;
 
   return (
-    <View style={{ marginTop: space.lg }}>
+    // No marginTop. The place-detail column that renders this already sets
+    // `gap: space.md` between its cards; a self-margin here stacked on top of
+    // that gap, making the hours/reviews seam 28px while every other seam on
+    // the page was 12. Spacing between siblings belongs to the parent that
+    // arranges them — if this ever needs more air, widen the gap there so
+    // every card moves together.
+    <View>
       <Text style={[ty.seg, { color: t.sub, marginBottom: space.sm }]}>Reviews</Text>
 
       <View
