@@ -1,6 +1,33 @@
 {
   "components": {
     "schemas": {
+      "AccountDeletionPreview": {
+        "description": "What deleting your account would remove.\n\nShown on the confirmation screen. Someone making an irreversible choice\nshould see its actual scope \u2014 \"4 reviews and 7 photos\" is a different\ndecision from an unqualified \"delete account\".",
+        "properties": {
+          "keeps_owner_photos": {
+            "default": false,
+            "title": "Keeps Owner Photos",
+            "type": "boolean"
+          },
+          "keeps_owner_replies": {
+            "default": false,
+            "title": "Keeps Owner Replies",
+            "type": "boolean"
+          },
+          "photos_deleted": {
+            "default": 0,
+            "title": "Photos Deleted",
+            "type": "integer"
+          },
+          "reviews_deleted": {
+            "default": 0,
+            "title": "Reviews Deleted",
+            "type": "integer"
+          }
+        },
+        "title": "AccountDeletionPreview",
+        "type": "object"
+      },
       "AdminAttachmentSignedUrl": {
         "additionalProperties": false,
         "description": "Response shape for the signed-URL endpoint. Same shape as\nthe org and ownership-request signed-URL endpoints \u2014 short TTL,\nURL + filename + MIME so the client can render the download\nlabel without a second fetch.",
@@ -869,6 +896,38 @@
         "title": "AlcoholPolicy",
         "type": "string"
       },
+      "BlockedUserRead": {
+        "description": "Someone the caller has blocked.\n\nCarries the display name so the settings screen can say who it is \u2014\na list of opaque UUIDs would make unblocking guesswork.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "created_at"
+        ],
+        "title": "BlockedUserRead",
+        "type": "object"
+      },
       "Body_unsubscribe_confirm_notifications_unsubscribe_post": {
         "properties": {
           "token": {
@@ -1482,6 +1541,30 @@
         ],
         "title": "Cuisine",
         "type": "string"
+      },
+      "DeleteAccountRequest": {
+        "additionalProperties": false,
+        "description": "Reauthentication for account deletion.\n\nApple permits (and the guidance explicitly endorses) verifying identity\nbefore deleting. The password is the least surprising way to do that for\nan account that signs in with one.",
+        "properties": {
+          "confirmation": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Confirmation",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "confirmation"
+        ],
+        "title": "DeleteAccountRequest",
+        "type": "object"
       },
       "DeviceRegisterRequest": {
         "description": "Expo push token from the mobile app.",
@@ -8260,6 +8343,76 @@
         "title": "ReviewSummary",
         "type": "object"
       },
+      "SearchDiagnosticsResponse": {
+        "description": "Why a search came back empty, and what would fix it.",
+        "properties": {
+          "single_filter_relaxations": {
+            "items": {
+              "$ref": "#/components/schemas/SearchRelaxationRead"
+            },
+            "title": "Single Filter Relaxations",
+            "type": "array"
+          },
+          "total_in_area": {
+            "default": 0,
+            "title": "Total In Area",
+            "type": "integer"
+          },
+          "wider_radius_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wider Radius Count"
+          },
+          "wider_radius_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wider Radius M"
+          },
+          "without_cuisines": {
+            "default": 0,
+            "title": "Without Cuisines",
+            "type": "integer"
+          },
+          "without_halal_filters": {
+            "default": 0,
+            "title": "Without Halal Filters",
+            "type": "integer"
+          }
+        },
+        "title": "SearchDiagnosticsResponse",
+        "type": "object"
+      },
+      "SearchRelaxationRead": {
+        "description": "One filter that is individually responsible for an empty result set.\n\n``field`` is the machine key so a client can clear exactly that filter\nrather than nuking all of them. No label: the API stays neutral about how\neach surface words its own chips (same posture as ``Cuisine``), and the\nconsumer, mobile and owner filter sheets already disagree slightly on\nwording for good reasons.",
+        "properties": {
+          "count_if_removed": {
+            "title": "Count If Removed",
+            "type": "integer"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "count_if_removed"
+        ],
+        "title": "SearchRelaxationRead",
+        "type": "object"
+      },
       "SetPasswordRequest": {
         "additionalProperties": false,
         "description": "POST /auth/set-password body.\n\n``password`` minimum is 8 characters to match the login flow's\ncurrent expectation. No max-complexity rules right now \u2014 we can\nlayer a zxcvbn check later if the risk profile warrants it.",
@@ -9650,7 +9803,7 @@
         "type": "object"
       },
       "_AdminAttachmentSignedUrl": {
-        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
+        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -9707,8 +9860,8 @@
         "title": "_MyOrgAttachmentSignedUrl",
         "type": "object"
       },
-      "app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl": {
-        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
+      "app__modules__admin__organizations__router___AdminAttachmentSignedUrl": {
+        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -11977,7 +12130,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/app__modules__admin__organizations__router___AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -12996,7 +13149,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -18714,6 +18867,89 @@
       }
     },
     "/me": {
+      "delete": {
+        "description": "Permanently removes the account and the personal content attached to it: reviews, review photos, diner-uploaded photos, favorites, saved preferences, and device registrations. Bucket objects are queued for deletion rather than left orphaned.\n\nBusiness and audit records survive with the person detached \u2014 disputes stay on file anonymised, organizations they created remain, and an owner reply keeps standing because it speaks for a restaurant rather than for the individual who typed it.\n\nRequires the current password and a typed confirmation. Apple's account-deletion guidance explicitly permits verifying identity before deleting; it does not permit routing people to a support email, which is why this endpoint exists at all.\n\nRate-limited at 5/hour.",
+        "operationId": "delete_my_account_me_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete your account",
+        "tags": [
+          "auth"
+        ]
+      },
       "get": {
         "description": "Resolves the session cookie to the user's id, role, display name, and email. Frontends call this on every page load to decide what to render \u2014 it's the source of truth for 'am I signed in?' and 'what role am I?'.",
         "operationId": "get_me_me_get",
@@ -18790,6 +19026,342 @@
           }
         },
         "summary": "Current authenticated user",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/me/blocks": {
+      "get": {
+        "description": "Newest first. A block you can't find and undo is a trap rather than a feature, so this exists purely so the mobile settings screen can offer a way back.",
+        "operationId": "list_my_blocks_me_blocks_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BlockedUserRead"
+                  },
+                  "title": "Response List My Blocks Me Blocks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "People you've blocked",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/me/blocks/{blocked_user_id}": {
+      "delete": {
+        "description": "Their reviews become visible to you again. Unblocking someone who wasn't blocked is also a 204 \u2014 same idempotence reasoning as the PUT.",
+        "operationId": "unblock_someone_me_blocks__blocked_user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "blocked_user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Blocked User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unblock someone",
+        "tags": [
+          "reviews"
+        ]
+      },
+      "put": {
+        "description": "Hides this person's reviews from you everywhere. They are not told, and nothing changes for anyone else.\n\nPUT rather than POST because the operation is idempotent \u2014 blocking someone already blocked is a success, not a 409. The desired state is already true, and an error there would be a baffling response to 'make this person go away'.",
+        "operationId": "block_someone_me_blocks__blocked_user_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "blocked_user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Blocked User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Block someone",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/me/deletion-preview": {
+      "get": {
+        "description": "Read-only. Powers the confirmation screen so an irreversible choice is made against its actual scope rather than a generic warning.",
+        "operationId": "get_deletion_preview_me_deletion_preview_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletionPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "What deleting your account would remove",
         "tags": [
           "auth"
         ]
@@ -24750,6 +25322,306 @@
         "summary": "Report a review or an owner reply",
         "tags": [
           "reviews"
+        ]
+      }
+    },
+    "/places/search-diagnostics": {
+      "get": {
+        "description": "Takes the same parameters as `GET /places` and reports which single filter is responsible for an empty result set.\n\nExists because 'nothing matched, try removing a filter' makes the person guess which one. On a catalogue this size most empty searches are one filter away from something, and naming it with a count is the difference between a dead end and a next step.\n\nDeliberately returns counts and machine field names only \u2014 it never returns places. A diner who filtered out alcohol or non-zabihah meat is not looking for near-misses; those aren't 'close enough', they're food they can't eat. The answer to an empty search here is better information about the filters, not a consolation list.\n\nEvery count runs through the same query builders as the real search, so it can't promise results the search won't deliver.",
+        "operationId": "search_diagnostics_places_search_diagnostics_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lat"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lng"
+            }
+          },
+          {
+            "in": "query",
+            "name": "radius",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 100000,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Radius"
+            }
+          },
+          {
+            "description": "Optional larger radius to price up, so the client can offer a 'widen to X' action with a real number attached.",
+            "in": "query",
+            "name": "wider_radius",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 100000,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional larger radius to price up, so the client can offer a 'widen to X' action with a real number attached.",
+              "title": "Wider Radius"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_validation_tier",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ValidationTier"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Validation Tier"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_menu_posture",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MenuPosture"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Menu Posture"
+            }
+          },
+          {
+            "in": "query",
+            "name": "chicken_slaughter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/SlaughterMethod"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chicken Slaughter"
+            }
+          },
+          {
+            "in": "query",
+            "name": "beef_slaughter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/SlaughterMethod"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Beef Slaughter"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lamb_slaughter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/SlaughterMethod"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lamb Slaughter"
+            }
+          },
+          {
+            "in": "query",
+            "name": "goat_slaughter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/SlaughterMethod"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Goat Slaughter"
+            }
+          },
+          {
+            "in": "query",
+            "name": "has_certification",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Certification"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no_pork",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "No Pork"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no_alcohol_served",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "No Alcohol Served"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cuisine",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/Cuisine"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cuisine"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchDiagnosticsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Why a search returned nothing, and what would fix it",
+        "tags": [
+          "places"
         ]
       }
     },
