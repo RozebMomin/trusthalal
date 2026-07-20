@@ -14,6 +14,11 @@ export const light = {
   ink: "#0B0B0E",
   sub: "#7A7A83",
   line: "#ECECEF",
+  // Unrated star in the review input. NOT `line` — a border colour is meant
+  // to be almost invisible (1.18:1 on card), which is fine for a hairline and
+  // wrong for the five shapes telling someone where to tap. 3.24:1 clears the
+  // WCAG 1.4.11 bar for a control while staying obviously "off" next to amber.
+  starOff: "#8E8E99",
   accent: "#0E9F6E",
   accentDeep: "#057A55",
   accentSoft: "#E6F7F0",
@@ -53,6 +58,8 @@ export const dark: typeof light = {
   ink: "#F4F4F5",
   sub: "#8E8E96",
   line: "#26262B",
+  //: 3.43:1 on the dark card — same reasoning as light.
+  starOff: "#6B6B76",
   accent: "#34D399",
   accentDeep: "#6EE7B7",
   accentSoft: "rgba(52,211,153,0.12)",

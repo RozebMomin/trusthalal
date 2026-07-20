@@ -20,7 +20,7 @@
  * signed out or unverified. Collapsing any two of these tells someone their
  * writing was refused when it wasn't.
  */
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { router, useLocalSearchParams } from "expo-router";
@@ -438,12 +438,22 @@ export default function WriteReviewScreen() {
         >
           <View style={{ flexDirection: "row", gap: 8 }}>
             {[1, 2, 3, 4, 5].map((n) => (
+              // Ionicons, not Feather: Feather ships outline glyphs only, so
+              // a chosen star was an amber outline while every other rating in
+              // the app — result cards, review lists, the histogram — is a
+              // solid ★. The input was the one place a rating didn't look like
+              // a rating. Ionicons is already bundled elsewhere in the app, so
+              // this costs no extra font.
+              //
+              // Unselected stays solid too, in the muted tone. An outline
+              // among solids reads as a different kind of thing rather than
+              // the same thing switched off, which is the entire job of this
+              // control.
               <Pressable key={n} onPress={() => setRating(n)} hitSlop={6}>
-                <Feather
+                <Ionicons
                   name="star"
                   size={30}
-                  color={n <= rating ? "#F59E0B" : t.line}
-                  style={n <= rating ? undefined : { opacity: 0.9 }}
+                  color={n <= rating ? "#F59E0B" : t.starOff}
                 />
               </Pressable>
             ))}
