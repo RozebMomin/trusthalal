@@ -228,6 +228,28 @@ export default function PlaceDetail() {
                 place={place}
                 signedIn={Boolean(me)}
                 emailVerified={me?.email_verified === true}
+                onOpenPhoto={(photoId) => {
+                  // A review carries a slim {id, url}; the viewer wants the
+                  // full PlacePhoto. Resolve by id against the place's own
+                  // list so the photo opens with its real "from a 4★ review"
+                  // credit and the pager can carry on into the rest.
+                  //
+                  // The lookup is expected to hit: the API's
+                  // serialize_photos_for_place returns the whole
+                  // Place.photos relationship, unfiltered by review_id and
+                  // untruncated, so review photos are always in there. The
+                  // guard is for the photo being removed between the detail
+                  // fetch and the tap, where doing nothing is correct —
+                  // there's no longer anything to show.
+                  const idx = place.photos.findIndex((ph) => ph.id === photoId);
+                  if (idx < 0) return;
+                  capture("photo_viewed", {
+                    place_id: place.id,
+                    place_name: place.name,
+                    source: "review",
+                  });
+                  setViewerIndex(idx);
+                }}
               />
 
               {/* This used to read "Reporting arrives in the next build".

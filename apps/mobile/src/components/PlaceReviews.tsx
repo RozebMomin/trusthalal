@@ -52,12 +52,16 @@ function ReviewRow({
   placeName,
   signedIn,
   onReport,
+  onOpenPhoto,
 }: {
   review: PlaceReviewRead;
   /** The restaurant, not the owning organization — see the byline below. */
   placeName: string;
   signedIn: boolean;
   onReport: (review: PlaceReviewRead) => void;
+  /** Open the full-screen viewer on this photo. Omitted on surfaces that
+   *  don't host a viewer, where the thumbnails stay non-interactive. */
+  onOpenPhoto?: (photoId: string) => void;
 }) {
   const t = useTheme();
   const initial = (review.author.display_name ?? "?").charAt(0).toUpperCase();
@@ -97,14 +101,32 @@ function ReviewRow({
         {review.body}
       </Text>
 
+      {/* Tappable. These were bare <Image>s, so the only way to see a photo
+          full-size was to scroll back to the gallery at the top of the page
+          and find it again among every other photo of the place — having
+          just been shown it, in context, next to the words explaining it. */}
       {review.photos.length > 0 ? (
         <View style={{ flexDirection: "row", gap: 6, marginTop: 8 }}>
-          {review.photos.map((p) => (
-            <Image
+          {review.photos.map((p, i) => (
+            <Pressable
               key={p.id}
-              source={{ uri: p.url }}
-              style={{ width: 56, height: 56, borderRadius: 9, backgroundColor: t.zincSoft }}
-            />
+              onPress={onOpenPhoto ? () => onOpenPhoto(p.id) : undefined}
+              disabled={!onOpenPhoto}
+              accessibilityRole={onOpenPhoto ? "imagebutton" : "image"}
+              accessibilityLabel={
+                onOpenPhoto
+                  ? `View photo ${i + 1} of ${review.photos.length} from ${
+                      review.author.display_name ?? "this diner"
+                    }'s review`
+                  : undefined
+              }
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
+              <Image
+                source={{ uri: p.url }}
+                style={{ width: 56, height: 56, borderRadius: 9, backgroundColor: t.zincSoft }}
+              />
+            </Pressable>
           ))}
         </View>
       ) : null}
@@ -175,10 +197,16 @@ export function PlaceReviews({
   place,
   signedIn,
   emailVerified,
+  onOpenPhoto,
 }: {
   place: PlaceDetail;
   signedIn: boolean;
   emailVerified: boolean;
+  /** Open the place's photo viewer on a specific photo id. The viewer is
+   *  owned by the detail screen, so this section asks rather than hosting a
+   *  second one — a review photo opens in the same pager as everything else,
+   *  keeping its "from a 4★ review" credit and letting you swipe onward. */
+  onOpenPhoto?: (photoId: string) => void;
 }) {
   const t = useTheme();
   const [sort, setSort] = useState<ReviewSort>("recent");
@@ -352,6 +380,7 @@ export function PlaceReviews({
                   placeName={place.name}
                   signedIn={signedIn}
                   onReport={setReporting}
+                  onOpenPhoto={onOpenPhoto}
                 />
               </View>
             ))}
