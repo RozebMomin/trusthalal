@@ -208,8 +208,24 @@ def main() -> int:
     render_knockout(ROOT / "apps/mobile/assets/notification-icon.png",
                     ADAPTIVE_R, (1, 1, 1))
 
+    # Splash. Transparent ground, cream star, check knocked through to
+    # whatever sits behind — which the plugin config sets to GROUND, so the
+    # check reads the same colour it does on the app icon and the launch
+    # image is visibly the same mark rather than a lookalike.
+    #
+    # STAR_R, not ADAPTIVE_R: nothing crops a splash. ADAPTIVE_R exists only
+    # because Android shears the outer third off a launcher icon.
+    #
+    # Deliberately NOT icon.png. That file has its own opaque GROUND square
+    # baked in, so any future drift between it and the plugin's
+    # backgroundColor would show up as a faint square outline on the launch
+    # screen — the kind of thing nobody notices until it ships.
+    render_knockout(ROOT / "apps/mobile/assets/splash-icon.png",
+                    STAR_R, _hex(CREAM))
+
     print("regenerated icon assets from GROUND=%s STAR_R=%d" % (GROUND, STAR_R))
-    print("reminder: app.json android.adaptiveIcon.backgroundColor must equal", GROUND)
+    print("reminder: app.json android.adaptiveIcon.backgroundColor AND the")
+    print("          expo-splash-screen backgroundColor must both equal", GROUND)
     return 0
 
 
