@@ -17,7 +17,12 @@ import { Image, Pressable, Text, View } from "react-native";
 
 import { ReportReviewSheet } from "@/components/ReportReviewSheet";
 import { usePlaceReviews } from "@/lib/api/hooks";
-import type { PlaceDetail, PlaceReviewRead, ReviewSort } from "@/lib/api/types";
+import type {
+  PlaceDetail,
+  PlaceReviewRead,
+  ReviewSort,
+  ReviewSummary,
+} from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 
@@ -45,6 +50,63 @@ function relative(iso: string): string {
   if (days < 30) return `${days}d ago`;
   if (days < 365) return `${Math.floor(days / 30)}mo ago`;
   return `${Math.floor(days / 365)}y ago`;
+}
+
+/**
+ * The 5→1 star breakdown, ported from the web
+ * (apps/consumer/src/components/place-reviews.tsx). Mobile has been receiving
+ * `summary.histogram` from the API and had it typed since reviews shipped; it
+ * just never drew it.
+ *
+ * Bars are scaled to the LARGEST bucket, not to the total. With a handful of
+ * reviews, total-relative bars are all stubs and the shape — which is the
+ * only thing a distribution is for — is invisible. Max-relative means the
+ * tallest bar always fills, so "mostly fives with one angry one" reads
+ * immediately at n=6.
+ *
+ * The count sits at the end of every row precisely because of that scaling:
+ * a full bar next to "2" can't be mistaken for a popular place.
+ */
+function RatingHistogram({ summary }: { summary: ReviewSummary }) {
+  const t = useTheme();
+  const counts = summary.histogram ?? {};
+  const max = Math.max(1, ...Object.values(counts));
+
+  return (
+    <View style={{ flex: 1, gap: 3, minWidth: 96 }}>
+      {[5, 4, 3, 2, 1].map((n) => {
+        const count = counts[String(n)] ?? 0;
+        return (
+          <View key={n} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={[ty.small, { color: t.sub, fontSize: 10, width: 14 }]}>{n}★</Text>
+            <View
+              style={{
+                flex: 1,
+                height: 5,
+                borderRadius: 999,
+                backgroundColor: t.zincSoft,
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={{
+                  width: `${(count / max) * 100}%`,
+                  height: "100%",
+                  borderRadius: 999,
+                  backgroundColor: "#F59E0B",
+                }}
+              />
+            </View>
+            <Text
+              style={[ty.small, { color: t.sub, fontSize: 10, width: 16, textAlign: "right" }]}
+            >
+              {count}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
 }
 
 function ReviewRow({
@@ -242,7 +304,7 @@ export function PlaceReviews({
       >
         {/* Both ratings, each labelled. */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-          <View>
+          <View style={{ flexShrink: 0 }}>
             <Text
               style={{
                 fontFamily: "Inter_700Bold",
@@ -270,10 +332,18 @@ export function PlaceReviews({
             )}
           </View>
 
+          {summary && summary.count > 0 ? (
+            <RatingHistogram summary={summary} />
+          ) : null}
+
           {summary?.google_rating != null ? (
             <>
               <View style={{ width: 1, height: 52, backgroundColor: t.line }} />
-              <View>
+              {/* flexShrink 0: the histogram between these two columns is
+                  flex:1, so without this the Google column is what gives on a
+                  narrow phone and "301 ratings" wraps. The bars are the
+                  elastic element here — they're meaningful at any width. */}
+              <View style={{ flexShrink: 0 }}>
                 <Text
                   style={{
                     fontFamily: "Inter_700Bold",
