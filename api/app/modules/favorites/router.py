@@ -46,6 +46,7 @@ from app.modules.favorites.schemas import FavoriteRead
 from app.modules.halal_profiles.models import HalalProfile
 from app.modules.places.models import Place, PlacePhoto
 from app.modules.places.schemas import HalalProfileEmbed, PlaceSearchResult
+from app.modules.places.signals import PlaceSignal, record_signal
 
 
 router = APIRouter(prefix="/me/favorites", tags=["consumer-favorites"])
@@ -122,6 +123,25 @@ def add_my_favorite(
     response.status_code = (
         status.HTTP_201_CREATED if was_created else status.HTTP_200_OK
     )
+
+    # Engagement capture for a future trending surface, on first save only.
+    # `add_favorite` is idempotent — re-saving an already-saved place returns
+    # 200 and changes nothing — so gating on `was_created` keeps a toggle
+    # tapped twice from reading as two separate acts of interest. Nothing
+    # reads this yet; see app/modules/places/signals.py.
+    #
+    # Needs its own commit: unlike most repos here, `add_favorite` commits
+    # internally, so by this point the transaction it ran in is already
+    # closed and an uncommitted signal row would be discarded when the
+    # session closes.
+    if was_created:
+        record_signal(
+            db,
+            place_id=place_id,
+            signal=PlaceSignal.FAVORITED,
+            subject=f"u:{user.id}",
+        )
+        db.commit()
 
     # Resolve the embedded place + halal profile in the same shape the
     # listing endpoint produces so the frontend can drop the response

@@ -121,6 +121,22 @@ class Settings(BaseSettings):
     # but still override with a real random value in prod.
     NOTIFICATION_UNSUBSCRIBE_SECRET: str = "dev-insecure-change-me"
 
+    # ------------------------------------------------------------------
+    # Engagement capture
+    # ------------------------------------------------------------------
+    # Salt for the pseudonymised actor hash on ``place_signals``. Its own
+    # value rather than a shared secret, because the two have opposite
+    # rotation properties: rotating the unsubscribe secret invalidates live
+    # links and is something you'd do after a leak, whereas rotating this one
+    # silently breaks per-day deduplication for the day it changes. Keep them
+    # separate so neither decision is forced by the other.
+    #
+    # Not a security boundary — it stops the column being trivially reversed
+    # by dictionary attack on a small user base. The real protection is that
+    # the hash already folds in the date, place and signal, so it can't be
+    # used to follow one person around.
+    PLACE_SIGNAL_SECRET: str = "dev-insecure-change-me"
+
     # How long an invite token is valid. 7 days is the common default
     # for admin-onboarding links — long enough that a new hire can
     # complete setup on their own schedule, short enough that an

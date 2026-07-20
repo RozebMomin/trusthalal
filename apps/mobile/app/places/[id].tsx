@@ -16,6 +16,7 @@ import { TrustProfileSheet } from "@/components/TrustProfileSheet";
 import { ErrorState, Loading } from "@/components/States";
 import type { HalalProfileEmbed, PlaceDetail as PlaceDetailType } from "@/lib/api/types";
 import { capture } from "@/lib/analytics";
+import { reportPlaceSignal } from "@/lib/api/signals";
 
 const TEST_FORCE_PORK = false;
 
@@ -224,6 +225,12 @@ export default function PlaceDetail() {
                     icon="navigation"
                     onPress={() => {
                       capture("directions_tapped", { place_id: place.id, place_name: place.name, has_distance: distanceMi != null });
+                      // First-party capture for a future trending surface.
+                      // Separate from the PostHog line above on purpose: that
+                      // one is for reading dashboards, this one is a durable
+                      // signal a product feature will rank on, and a feature
+                      // shouldn't depend on an analytics vendor's retention.
+                      reportPlaceSignal(place.id, "DIRECTIONS");
                       Linking.openURL(
                         `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
                       );
@@ -237,6 +244,7 @@ export default function PlaceDetail() {
                     icon="phone"
                     onPress={() => {
                       capture("call_tapped", { place_id: place.id, place_name: place.name });
+                      reportPlaceSignal(place.id, "CALLED");
                       Linking.openURL(`tel:${place.phone}`);
                     }}
                   />
@@ -434,9 +442,12 @@ export default function PlaceDetail() {
         <Glass
           ion="share-outline"
           label="Share"
-          onPress={() =>
-            Share.share({ url: `https://halalfoodnearme.com/places/${id}` }).catch(() => undefined)
-          }
+          onPress={() => {
+            reportPlaceSignal(id, "SHARED");
+            Share.share({ url: `https://halalfoodnearme.com/places/${id}` }).catch(
+              () => undefined,
+            );
+          }}
         />
       </View>
 

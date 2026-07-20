@@ -35,6 +35,7 @@ from app.modules.reviews.enums import (
     ReviewReportStatus,
     ReviewSort,
 )
+from app.modules.places.signals import PlaceSignal, record_signal
 from app.modules.reviews.models import (
     PlaceReview,
     PlaceReviewReply,
@@ -292,6 +293,18 @@ def create_review(
     db.add(row)
     db.flush()
     recompute_place_review_stats(db, place_id=place_id)
+
+    # Engagement capture for a future trending surface. Recorded from the repo
+    # rather than the router so it fires on every path that creates a review,
+    # including any future admin or import path — a signal wired into one
+    # handler is a signal that goes missing the moment a second handler
+    # appears. Deduplicated per person per day; nothing reads it yet.
+    record_signal(
+        db,
+        place_id=place_id,
+        signal=PlaceSignal.REVIEWED,
+        subject=f"u:{author_user_id}",
+    )
     return row
 
 

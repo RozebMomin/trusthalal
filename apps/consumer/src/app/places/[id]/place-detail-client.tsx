@@ -71,6 +71,7 @@ import {
 } from "@/lib/api/hooks";
 import { useMyPreferences } from "@/lib/api/preferences";
 import { matchProfileToPreferences } from "@/lib/preferences/match";
+import { reportPlaceSignal } from "@/lib/api/signals";
 
 const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
   OPEN: "Open — awaiting review",
@@ -372,6 +373,7 @@ function PlaceActionCard({
           href={directionsUrl}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => reportPlaceSignal(place.id, "DIRECTIONS")}
           className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
         >
           <MapPin className="h-4 w-4" aria-hidden />
@@ -380,6 +382,7 @@ function PlaceActionCard({
         {place.phone && (
           <a
             href={`tel:${place.phone.replace(/[^+\d]/g, "")}`}
+            onClick={() => reportPlaceSignal(place.id, "CALLED")}
             className="inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition hover:bg-accent"
           >
             <Phone className="h-4 w-4" aria-hidden />

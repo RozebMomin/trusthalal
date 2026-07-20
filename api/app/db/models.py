@@ -60,3 +60,4 @@ from app.modules.places.photos.storage_cleanup import (  # noqa: F401
     StorageOrphan,
 )
 from app.modules.users.blocks import UserBlock  # noqa: F401
+from app.modules.places.signals import PlaceSignalRow  # noqa: F401

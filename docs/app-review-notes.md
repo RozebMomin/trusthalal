@@ -98,7 +98,10 @@ cryptography.
       `assets/icon.png`, both of which are gitignored
 - [ ] Screenshots re-shot **after** the icon change if any of them show the
       app icon or a splash screen
-- [ ] Migrations applied to production (`storage_orphans`, `user_blocks`)
+- [ ] `PLACE_SIGNAL_SECRET` set to a real random value in production (falls
+      back to a known default otherwise, which weakens the actor hash)
+- [ ] Migrations applied to production (`storage_orphans`, `user_blocks`,
+      `place_signals`)
 - [ ] API deployed **before** the mobile build reaches TestFlight
 - [ ] `make demo-account` run against **production**, not staging
 - [ ] Demo credentials above match what's in App Store Connect

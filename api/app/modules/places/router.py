@@ -3,7 +3,8 @@ from __future__ import annotations
 from functools import lru_cache as _lru_cache
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, require_roles
@@ -67,7 +68,13 @@ from app.modules.places.enums import PlaceEventType
 from app.modules.places.hours import is_open_now
 from app.modules.places.photos.repo import serialize_photos_for_place
 from app.modules.organizations.deps import assert_can_manage_place
-from app.core.auth import CurrentUser, get_current_user
+from app.core.auth import CurrentUser, get_current_user, get_current_user_optional
+from app.modules.places.signals import (
+    CLIENT_REPORTABLE,
+    PlaceSignal,
+    record_signal,
+    request_subject,
+)
 from app.core.storage import StorageClient, get_photos_storage_client
 from app.modules.users.enums import UserRole
 from sqlalchemy import select
@@ -729,13 +736,28 @@ def search_diagnostics(
 )
 def get_place_by_id(
     place_id: UUID,
+    request: Request,
     db: Session = Depends(get_db),
     photos_storage: StorageClient = Depends(get_photos_storage_client),
+    viewer: CurrentUser | None = Depends(get_current_user_optional),
 ) -> PlaceDetail:
     # Ensure place exists
     place = get_place(db, place_id)
     if not place:
         raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
+
+    # Engagement capture for a future trending surface. Recorded here rather
+    # than accepted from clients because a view counter a client can post to
+    # is a view counter anyone can inflate. Deduplicated per person per day by
+    # the table's own constraint, and swallows its own failures — see
+    # app/modules/places/signals.py. Nothing reads this yet.
+    record_signal(
+        db,
+        place_id=place_id,
+        signal=PlaceSignal.VIEWED,
+        subject=request_subject(request, viewer.id if viewer else None),
+    )
+    db.commit()
 
     # Embed the consumer-facing halal profile if one is present and
     # not revoked. Single-fetch pattern — frontends rendering a
@@ -1220,3 +1242,71 @@ def search_places(
         results = results[offset : offset + limit]
 
     return results
+
+# ---------------------------------------------------------------------------
+# Engagement beacon
+# ---------------------------------------------------------------------------
+# Directions, call and share are the highest-intent things a diner does and
+# the only ones that never touch this API — the client opens Maps or the
+# dialler and we never hear about it. So they're reported explicitly.
+#
+# Views are NOT accepted here. They're written server-side on the detail read
+# (see get_place_by_id); a view counter clients can post to is a view counter
+# anyone can inflate, and view volume is exactly what a trending ranking would
+# lean on hardest.
+#
+# Registered after /{place_id} is safe because the path has a literal suffix
+# (/signals) that can't be swallowed by the UUID converter — unlike the
+# /places/search-diagnostics case, which had to move above it.
+
+
+class PlaceSignalCreate(BaseModel):
+    """One reported interaction. Deliberately tiny — no timestamp (the server
+    dates it, so a client can't write into the past or the future) and no
+    actor (the server derives one it can trust)."""
+
+    model_config = {"extra": "forbid"}
+
+    signal: PlaceSignal
+
+
+@router.post(
+    "/{place_id}/signals",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Report an engagement signal for a place",
+    description=(
+        "Fire-and-forget beacon for interactions that leave the app — "
+        "`DIRECTIONS`, `CALLED`, `SHARED`. Anonymous-friendly. Always 204, "
+        "including when the signal was already recorded for you today; "
+        "clients should ignore the response entirely.\n\n"
+        "`VIEWED` is rejected: it is recorded server-side on the place read."
+    ),
+)
+@limiter.limit("60/minute", key_func=ip_key)
+@limiter.limit("600/hour", key_func=ip_key)
+def report_place_signal(
+    place_id: UUID,
+    payload: PlaceSignalCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    viewer: CurrentUser | None = Depends(get_current_user_optional),
+) -> Response:
+    if payload.signal not in CLIENT_REPORTABLE:
+        raise BadRequestError(
+            "SIGNAL_NOT_REPORTABLE",
+            f"{payload.signal.value} is not a client-reportable signal.",
+        )
+
+    # 404 rather than silently accepting: a signal for a place that doesn't
+    # exist is a client bug, and swallowing it would hide the bug forever.
+    if not get_place(db, place_id):
+        raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
+
+    record_signal(
+        db,
+        place_id=place_id,
+        signal=payload.signal,
+        subject=request_subject(request, viewer.id if viewer else None),
+    )
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
