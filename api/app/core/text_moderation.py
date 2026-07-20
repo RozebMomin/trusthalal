@@ -62,14 +62,33 @@ _ENDPOINT = "https://language.googleapis.com/v2/documents:moderateText"
 # "Religion & Belief" and "Politics") which are *topics*, not harms — acting
 # on those would mean blocking reviews for mentioning halal, which on this
 # platform is every review.
+#
+# "Violent" and "Death, Harm & Tragedy" were in this set and are not any more.
+# They are topic labels too, and this platform's topic is ritual slaughter.
+# A five-star review reading "Amazing place. Serves up zabihah!" was refused
+# as violent content — the single most important word in our vocabulary,
+# used approvingly, in the shortest possible positive review. No threshold
+# fixes that, because the model is not wrong: zabihah IS slaughter. The
+# category is simply mismatched to the domain.
+#
+# What survives here is person-directed harm: how a writer treats another
+# human being, which is orthogonal to subject matter and is what actually
+# needs policing on a review. Weapons stays because no review of a
+# restaurant needs it, and it is not slaughter vocabulary.
+#
+# The cost is named honestly: a genuine threat phrased without profanity or
+# insult now gets through this gate. That is what the report queue and a
+# human moderator are for, and the trade is the right way round — a filter
+# that silently eats correct halal reviews destroys the product's reason to
+# exist, and leaves no queue entry, no signal, and a diner who quietly stops
+# writing. Both categories are still SCORED and still logged, so the calls
+# can be reviewed.
 _BLOCKING_CATEGORIES: frozenset[str] = frozenset(
     {
         "Profanity",
         "Insult",
         "Derogatory",
         "Sexual",
-        "Violent",
-        "Death, Harm & Tragedy",
         "Firearms & Weapons",
     }
 )
@@ -288,10 +307,12 @@ def rejection_message(result: ModerationResult) -> str:
     a user who reads the block as "no complaints allowed" is a user lost.
     """
     label = _CATEGORY_LABELS.get(result.category or "", "language we don't allow")
+    # Does NOT open with "This can't be posted as written". Both clients use
+    # that as the banner heading and then print this underneath, so saying it
+    # here made every rejection state it twice.
     return (
-        f"This can't be posted as written — it contains {label}. "
-        "Edit the wording and try again. Strong criticism is welcome; "
-        "we just need it kept civil."
+        f"Our content check flagged {label}. Edit the wording and try again. "
+        "Strong criticism is welcome; we just need it kept civil."
     )
 
 

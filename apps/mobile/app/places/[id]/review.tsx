@@ -347,7 +347,7 @@ export default function WriteReviewScreen() {
               {failure.kind === "outage"
                 ? "That's on us, not your review. Your draft is saved — try again in a moment."
                 : failure.kind === "rejected"
-                  ? `${failure.message} Strong criticism is welcome; we just need it kept civil.`
+                  ? failure.message
                   : failure.kind === "warning"
                   ? failure.message
                   : failure.kind === "verify"
