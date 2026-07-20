@@ -275,6 +275,13 @@ export default function PlaceDetail() {
                     capture("trust_profile_opened", { place_id: place.id, place_name: place.name });
                     setTrustOpen(true);
                   }}
+                  onExpand={() =>
+                    capture("trust_detail_expanded", {
+                      place_id: place.id,
+                      place_name: place.name,
+                      validation_tier: place.halal_profile?.validation_tier,
+                    })
+                  }
                 />
               </View>
 
@@ -715,7 +722,18 @@ function tierBanner(tier: string, t: ReturnType<typeof useTheme>) {
   }
 }
 
-function TrustCard({ profile, onDetails }: { profile: HalalProfileEmbed | null; onDetails?: () => void }) {
+function TrustCard({
+  profile,
+  onDetails,
+  onExpand,
+}: {
+  profile: HalalProfileEmbed | null;
+  onDetails?: () => void;
+  /** Fired the first time the meat detail is opened on this render. Whether
+   *  people bother to expand is the only evidence that says if folding the
+   *  detail informed them or just hid it from them. */
+  onExpand?: () => void;
+}) {
   const t = useTheme();
   if (!profile) {
     return (
@@ -762,16 +780,20 @@ function TrustCard({ profile, onDetails }: { profile: HalalProfileEmbed | null; 
       </View>
 
       <View style={{ padding: space.lg, gap: space.md }}>
-        <KitchenAndPantry profile={profile} />
+        {/* Exceptions only. Confirmations ride along inside the disclosure
+            below — see KitchenExceptions for the asymmetry rule. */}
+        <KitchenExceptions profile={profile} />
 
         {profile.seafood_only ? (
           <Text style={[ty.small, { color: t.sub }]}>
             Seafood-only kitchen — no land meat or poultry served.
           </Text>
         ) : (
-          <ServedMeats profile={profile} />
+          <KitchenDetail profile={profile} onExpand={onExpand} />
         )}
 
+        {/* A caveat is the owner flagging something irregular, so it is an
+            exception by definition and never folds. */}
         {profile.caveats ? (
           <View
             style={{
@@ -795,70 +817,272 @@ function TrustCard({ profile, onDetails }: { profile: HalalProfileEmbed | null; 
   );
 }
 
-/** Pork, alcohol, cooking wine — each a single sentence a diner can scan as
- *  a yes/no. Menu posture is NOT repeated here; it's the banner headline. */
-function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
+/**
+ * The one rule that keeps "concise" from becoming "evasive".
+ *
+ * This card used to print every pantry fact it held, including the good news:
+ * a green tick for no pork, another for no alcohol, another for no cooking
+ * wine. Three lines to confirm what the banner already implied and what
+ * everyone expects of a halal kitchen anyway. On a phone that is most of a
+ * screen spent saying nothing, and it pushed the meat sourcing — the part
+ * people actually came for — below the fold.
+ *
+ * So confirmations fold into the disclosure and exceptions never do. Anything
+ * amber or red renders here at full size no matter what it costs in height,
+ * because the moment we make the app quietest about the facts a diner most
+ * needs, we have built something that reads clean by withholding. Folding good
+ * news is editing; folding bad news is lying by layout.
+ *
+ * One thing does NOT count as a confirmation: "no pork" at a restaurant that
+ * is not a fully-halal kitchen. "Fully halal kitchen" entails it, so repeating
+ * it there is noise — but at a shared or options-only kitchen nothing entails
+ * it, and it is real news worth a line.
+ */
+function KitchenExceptions({ profile }: { profile: HalalProfileEmbed }) {
   const t = useTheme();
   const pork = TEST_FORCE_PORK || profile.has_pork;
+  const alcohol = profile.alcohol_policy && profile.alcohol_policy !== "NONE";
 
-  const lines: Array<{ node: ReactNode; text: string; color: string }> = [
-    {
-      node: (
+  const parts: string[] = [];
+  if (pork) parts.push("Pork is served");
+  if (alcohol) parts.push(ALCOHOL_POLICY_LINE[profile.alcohol_policy as string] ?? "Alcohol served");
+  if (profile.alcohol_in_cooking) parts.push("Alcohol used in some cooking");
+
+  if (parts.length > 0) {
+    const severe = Boolean(pork);
+    const fg = severe ? t.danger : t.amber;
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 8,
+          alignItems: "flex-start",
+          backgroundColor: severe ? t.dangerSoft : t.amberSoft,
+          borderRadius: radii.md,
+          padding: 11,
+        }}
+      >
+        <Feather
+          name={severe ? "alert-triangle" : "alert-circle"}
+          size={15}
+          color={fg}
+          style={{ marginTop: 1 }}
+        />
+        <Text style={[ty.small, { color: fg, flex: 1, fontSize: 12.5, lineHeight: 17 }]}>
+          {parts.join(" · ")}
+        </Text>
+      </View>
+    );
+  }
+
+  // Nothing to warn about. The only line that still earns level 1 is a
+  // no-pork confirmation the banner does not already imply.
+  if (profile.menu_posture !== "FULLY_HALAL") {
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
         <View
           style={{
             width: 20,
             height: 20,
             borderRadius: 999,
-            backgroundColor: pork ? t.dangerSoft : t.accentSoft,
+            backgroundColor: t.accentSoft,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Text style={{ color: pork ? t.danger : t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 11 }}>
-            {pork ? "✕" : "✓"}
-          </Text>
+          <Text style={{ color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 11 }}>✓</Text>
         </View>
-      ),
-      text: pork ? "Pork is served" : "No pork on the menu",
-      color: t.ink,
-    },
-  ];
-
-  if (profile.alcohol_policy) {
-    const none = profile.alcohol_policy === "NONE";
-    lines.push({
-      node: (
-        <View style={{ width: 20, alignItems: "center" }}>
-          <Feather name="x-circle" size={15} color={none ? t.accentDeep : t.amber} />
-        </View>
-      ),
-      text: ALCOHOL_POLICY_LINE[profile.alcohol_policy] ?? "Alcohol policy on file",
-      color: t.ink,
-    });
+        <Text style={[ty.small, { color: t.ink, flex: 1, fontSize: 13, lineHeight: 18 }]}>
+          No pork on the menu
+        </Text>
+      </View>
+    );
   }
 
-  if (profile.alcohol_in_cooking) {
-    lines.push({
-      node: (
-        <View style={{ width: 20, alignItems: "center" }}>
-          <Feather name="alert-circle" size={15} color={t.amber} />
-        </View>
-      ),
-      text: "Some dishes are cooked with alcohol (wine reductions, mirin, etc.).",
-      color: t.amber,
-    });
-  }
+  return null;
+}
+
+/** The good news, shown inside the disclosure. Nothing here is deleted from
+ *  the app — only demoted, so someone who wants to confirm can still confirm. */
+function KitchenConfirmations({ profile }: { profile: HalalProfileEmbed }) {
+  const t = useTheme();
+  const pork = TEST_FORCE_PORK || profile.has_pork;
+
+  const lines: string[] = [];
+  if (!pork && profile.menu_posture === "FULLY_HALAL") lines.push("No pork on the menu");
+  if (profile.alcohol_policy === "NONE") lines.push("No alcohol served");
+  if (!lines.length) return null;
 
   return (
-    <View style={{ gap: 8 }}>
-      {lines.map((line, i) => (
-        <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
-          {line.node}
-          <Text style={[ty.small, { color: line.color, flex: 1, fontSize: 13, lineHeight: 18 }]}>
-            {line.text}
+    <View style={{ gap: 6 }}>
+      {lines.map((line) => (
+        <View key={line} style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+          <View
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 999,
+              backgroundColor: t.accentSoft,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 10 }}>✓</Text>
+          </View>
+          <Text style={[ty.small, { color: t.sub, flex: 1, fontSize: 12.5, lineHeight: 17 }]}>
+            {line}
           </Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+function sentenceCase(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+type MeatSummary = { text: string; machine: boolean; collapsible: boolean };
+
+/**
+ * One line standing in for the whole meat block.
+ *
+ * `machine` drives the colour, and it is deliberately true whenever ANY item
+ * is machine-slaughtered. A summary that averaged to green would let "6
+ * products" read as uniformly fine while two of them were not, which is the
+ * exact rounding error the per-product data was added to fix.
+ *
+ * `collapsible` is false when a slaughter method arrives that this build does
+ * not recognise — a value added to the enum after this app shipped. Rather
+ * than fold an unknown into "zabihah" and state something we cannot support,
+ * the section gives up on summarising and renders itself open.
+ */
+function meatSummary(profile: HalalProfileEmbed): MeatSummary {
+  const products = profile.meat_products ?? [];
+  const known = (m: string) => m === "ZABIHAH" || m === "MACHINE";
+
+  if (products.length > 0) {
+    if (!products.every((p) => known(p.slaughter_method))) {
+      return { text: "Meat sourcing", machine: true, collapsible: false };
+    }
+    const machine = products.filter((p) => p.slaughter_method === "MACHINE").length;
+    const zabihah = products.length - machine;
+    const n = `${products.length} product${products.length === 1 ? "" : "s"}`;
+    if (machine === 0) return { text: `${n} · all zabihah`, machine: false, collapsible: true };
+    if (zabihah === 0) return { text: `${n} · all machine`, machine: true, collapsible: true };
+    return {
+      text: `${n} · ${zabihah} zabihah, ${machine} machine`,
+      machine: true,
+      collapsible: true,
+    };
+  }
+
+  const rows = [
+    { label: "chicken", method: profile.chicken_slaughter },
+    { label: "beef", method: profile.beef_slaughter },
+    { label: "lamb", method: profile.lamb_slaughter },
+    { label: "goat", method: profile.goat_slaughter },
+  ];
+  const served = rows.filter((r) => r.method && r.method !== "NOT_SERVED");
+
+  if (served.length === 0) {
+    return {
+      text: "No chicken, beef, lamb or goat served",
+      machine: false,
+      collapsible: false,
+    };
+  }
+  if (!served.every((r) => known(r.method as string))) {
+    return { text: "Meat sourcing", machine: true, collapsible: false };
+  }
+
+  const zabihah = served.filter((r) => r.method === "ZABIHAH").map((r) => r.label);
+  const machine = served.filter((r) => r.method === "MACHINE").map((r) => r.label);
+
+  if (machine.length === 0) {
+    return { text: `${sentenceCase(zabihah.join(", "))} · all zabihah`, machine: false, collapsible: true };
+  }
+  if (zabihah.length === 0) {
+    return { text: `${sentenceCase(machine.join(", "))} · all machine`, machine: true, collapsible: true };
+  }
+  return {
+    text: `${sentenceCase(zabihah.join(", "))} zabihah · ${machine.join(", ")} machine`,
+    machine: true,
+    collapsible: true,
+  };
+}
+
+/**
+ * Level 2: the meat summary doubles as the disclosure control.
+ *
+ * The row people tap is the fact they came for, not a generic "Details" —
+ * so the summary earns its height whether or not anyone opens it, and the
+ * chevron reads as "there is more of this" rather than "there is more of
+ * something". Uniform sourcing is one line and stays one line; mixed sourcing
+ * is the case that genuinely rewards a tap, and it says so in the summary.
+ */
+function KitchenDetail({
+  profile,
+  onExpand,
+}: {
+  profile: HalalProfileEmbed;
+  onExpand?: () => void;
+}) {
+  const t = useTheme();
+  const summary = meatSummary(profile);
+  const [open, setOpen] = useState(!summary.collapsible);
+
+  const rows = [
+    { label: "Chicken", method: profile.chicken_slaughter },
+    { label: "Beef", method: profile.beef_slaughter },
+    { label: "Lamb", method: profile.lamb_slaughter },
+    { label: "Goat", method: profile.goat_slaughter },
+  ];
+  const absent = rows.filter((r) => r.method === "NOT_SERVED");
+  const products = profile.meat_products ?? [];
+
+  const tone = summary.machine ? t.amber : t.accentDeep;
+
+  const body = open ? (
+    <View style={{ gap: space.md, marginTop: 10 }}>
+      {products.length > 0 ? (
+        <ServedProducts products={products} absent={absent} />
+      ) : (
+        <ServedMeatChips profile={profile} absent={absent} />
+      )}
+      <KitchenConfirmations profile={profile} />
+    </View>
+  ) : null;
+
+  if (!summary.collapsible) {
+    return (
+      <View>
+        <Text style={[ty.small, { color: t.sub, fontSize: 12.5 }]}>{summary.text}</Text>
+        {body}
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      <Pressable
+        onPress={() => {
+          if (!open) onExpand?.();
+          setOpen((v) => !v);
+        }}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`Meat sourcing: ${summary.text}`}
+        hitSlop={6}
+        style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+      >
+        <Feather name="award" size={15} color={tone} />
+        <Text style={[ty.small, { color: t.ink, flex: 1, fontSize: 13, lineHeight: 18 }]}>
+          {summary.text}
+        </Text>
+        <Feather name={open ? "chevron-up" : "chevron-down"} size={16} color={t.sub} />
+      </Pressable>
+      {body}
     </View>
   );
 }
@@ -872,7 +1096,13 @@ function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
  * machine-slaughtered beef could not say so. Machine keeps an amber chip
  * and must never quietly read as zabihah.
  */
-function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
+function ServedMeatChips({
+  profile,
+  absent,
+}: {
+  profile: HalalProfileEmbed;
+  absent: { label: string; method: SlaughterMethod | null }[];
+}) {
   const t = useTheme();
   const rows = [
     { label: "Chicken", method: profile.chicken_slaughter },
@@ -880,20 +1110,7 @@ function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
     { label: "Lamb", method: profile.lamb_slaughter },
     { label: "Goat", method: profile.goat_slaughter },
   ];
-
   const served = rows.filter((r) => r.method && r.method !== "NOT_SERVED");
-  const absent = rows.filter((r) => r.method === "NOT_SERVED");
-
-  // When the restaurant listed individual products, show those instead of
-  // the rollup. The rollup is least-conservative-wins, so a kitchen with
-  // zabihah breast and machine nuggets reports MACHINE for all chicken —
-  // safe to round that way, but it leaves someone unable to see which
-  // product is which. It also covers turkey, duck and fish, which have no
-  // profile column at all and are otherwise invisible.
-  const products = profile.meat_products ?? [];
-  if (products.length > 0) {
-    return <ServedProducts products={products} absent={absent} />;
-  }
 
   if (served.length === 0) {
     return (
