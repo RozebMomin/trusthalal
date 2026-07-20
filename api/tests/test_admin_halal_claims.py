@@ -269,9 +269,16 @@ def test_non_admin_blocked(api, factories, db_session):
 # ---------------------------------------------------------------------------
 # Approve — profile derivation
 # ---------------------------------------------------------------------------
-def test_approve_creates_profile_first_time(api, factories, db_session):
+def test_approve_creates_profile_first_time(
+    api, factories, db_session, fake_storage
+):
     # Seed a HALAL_CERTIFICATE attachment so the data-driven
     # certification derivation has something to work with.
+    #
+    # ``fake_storage`` is for the upload inside the helper. Without it the
+    # attachment goes through ``get_storage_client``, which builds a real
+    # Supabase client from .env — so this test was doing a live network
+    # upload and passed only while those credentials worked.
     admin, _, place, _, claim_id = _submit_pending_claim(
         api, factories, db_session, with_certificate=True
     )
@@ -369,7 +376,7 @@ def test_approve_publishes_certificate_to_public_bucket(
 
 
 def test_approve_without_storage_wired_skips_cert_publish(
-    api, factories, db_session
+    api, factories, db_session, fake_storage
 ):
     """When the optional storage clients resolve to None (no fake +
     no env config in tests), the cert-publishing step is skipped
@@ -380,9 +387,17 @@ def test_approve_without_storage_wired_skips_cert_publish(
     Defends the best-effort posture — a transient bucket outage on
     approval shouldn't 500 the request or stall the workflow.
     """
-    # The test env has SUPABASE_URL set in .env, so the optional
-    # resolver returns a real client. Override both to None so the
-    # publish step short-circuits without ever hitting the network.
+    # ``fake_storage`` is requested for the SETUP upload only. Without it,
+    # ``_submit_pending_claim(with_certificate=True)`` uploads the attachment
+    # through ``get_storage_client`` — the strict resolver, which this test
+    # never overrode — so the setup performed a real network upload to
+    # Supabase and the test only passed on a machine with working credentials.
+    # It's an in-memory fake now, and the test is hermetic.
+    #
+    # The fixture also points the OPTIONAL resolver at that fake, which is the
+    # opposite of what's being tested here. The overrides below run after
+    # fixture setup and win, so the publish step still sees None — which is
+    # the actual subject of the test.
     from app.main import app as fastapi_app
 
     fastapi_app.dependency_overrides[get_storage_client_optional] = lambda: None

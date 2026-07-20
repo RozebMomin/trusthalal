@@ -171,6 +171,14 @@ def record_signal(
     day = on or datetime.now(timezone.utc).date()
     try:
         with db.begin_nested():
+            # RETURNING, not rowcount. An INSERT ... ON CONFLICT DO NOTHING
+            # that conflicts reports rowcount as -1 through this driver, and
+            # bool(-1) is True — so the suppressed insert claimed to have
+            # written a row. The table was correct the whole time (the dedup
+            # test passed); only the return value lied, which is the more
+            # dangerous failure, because a caller branching on it would have
+            # been wrong silently. RETURNING yields no row when the insert is
+            # suppressed, which is unambiguous and driver-independent.
             result = db.execute(
                 pg_insert(PlaceSignalRow.__table__)
                 .values(
@@ -183,8 +191,9 @@ def record_signal(
                     ),
                 )
                 .on_conflict_do_nothing(constraint="uq_place_signals_dedup")
+                .returning(PlaceSignalRow.__table__.c.id)
             )
-            return bool(result.rowcount)
+            return result.first() is not None
     except Exception:  # noqa: BLE001 — see docstring
         logger.warning(
             "place signal not recorded (place_id=%s signal=%s)",
