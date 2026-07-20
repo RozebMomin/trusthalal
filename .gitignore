@@ -35,3 +35,6 @@ Thumbs.db
 # --- Logs / tmp ---
 *.log
 tmp/
+
+# generated during icon regeneration
+brand-assets/__pycache__/

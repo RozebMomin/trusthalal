@@ -91,6 +91,13 @@ cryptography.
 
 ## Before you submit, check
 
+- [ ] New app icon is in the uploaded build — the mark changed from the
+      crescent to the eight-point star. Run `python3
+      brand-assets/generate_icons.py`, then rebuild; `npx expo prebuild`
+      regenerates the iOS asset catalogue and Android `res/` from
+      `assets/icon.png`, both of which are gitignored
+- [ ] Screenshots re-shot **after** the icon change if any of them show the
+      app icon or a splash screen
 - [ ] Migrations applied to production (`storage_orphans`, `user_blocks`)
 - [ ] API deployed **before** the mobile build reaches TestFlight
 - [ ] `make demo-account` run against **production**, not staging

@@ -2,24 +2,58 @@
 
 Logo, app icon, and wordmark for the consumer-facing product, **Trust Halal**.
 
-The mark is a **crescent cradling a verification check** — halal identity
-(crescent) plus the platform's core promise (a check a real person stood
-behind). It's built in the app's v2 clean-modern language, not the retired
-olive/cream system.
+The mark is an **eight-point star with a verification check knocked out of
+it** — Islamic geometry (the rub-el-hizb proportion: inner/outer radius
+= 1/√2, which is exactly two overlapping squares) plus the platform's core
+promise, a check a real person stood behind.
+
+It replaced a crescent-and-check mark that was too close to a competitor's.
+The star was chosen over the other candidates because it drops the disputed
+element entirely rather than rearranging it, and because it stays a readable
+silhouette at 16px, which a seal or a minaret does not.
+
+> **Everything in `icon/` is generated.** Run `python3
+> brand-assets/generate_icons.py` after changing anything; don't hand-edit the
+> SVGs or PNGs. The script also writes into `apps/brand`, `apps/consumer` and
+> `apps/mobile/assets`, so those stay in step by construction.
+
+## Three rules that are easy to break
+
+**The check is a knockout, not a stroke.** In the flat app icon it's painted
+in the ground colour, which is fine because the ground is opaque. In the three
+transparent assets it is genuinely transparent. Painting it instead looks
+right over a known background and fails on an Android launcher plate of any
+colour, and in the notification tray, which keeps alpha only and would swallow
+a painted check into a solid blob.
+
+**Gold never goes on green.** `#C8A96A` on the emerald ground measures
+**2.28:1**. On ink it's 7.74:1. Gold is a print and decal colour.
+
+**`android.adaptiveIcon.backgroundColor` in `app.json` must equal the icon
+ground.** The check knocks through the foreground onto that plate; if they
+drift, the tick renders in the wrong colour.
 
 ## Palette
 
 | Token | Hex | Use |
 |-------|-----|-----|
-| Emerald (accent) | `#0E9F6E` | Icon ground, mark tile |
+| Icon ground | `#0E7C66` | Icon ground, mark tile, adaptive plate |
+| Emerald (app accent) | `#0E9F6E` | In-app accent — unchanged, see note |
 | Emerald deep | `#057A55` | Pressed / secondary accent |
 | Ink | `#0B0B0E` | Wordmark on light |
 | Light ink | `#F4F4F5` | Wordmark on dark |
 | Sub | `#52525B` | Tagline |
-| White | `#FFFFFF` | The mark itself |
+| Cream | `#F6F2E9` | The mark itself |
+| Gold | `#C8A96A` | Print and decals only — never on green |
 
 Dark-mode accent (if the mark ever needs to sit on a near-black surface as a
 tint) is `#34D399`, matching the app theme.
+
+**Why the icon ground is not the app accent.** Cream on `#0E9F6E` measures
+3.03:1; on `#0E7C66` it's 4.59:1. This mark leans on that separation once the
+check is cut out of the star, so the icon uses the darker green. The in-app
+accent token stays `#0E9F6E` — the icon is a static asset, so nothing in the
+UI had to move, and the two are never adjacent.
 
 **Wordmark type:** Inter, 600 weight, `letter-spacing: -1`. (The PNG lockups
 are rendered in a metric-neutral grotesque as a stand-in; regenerate from the

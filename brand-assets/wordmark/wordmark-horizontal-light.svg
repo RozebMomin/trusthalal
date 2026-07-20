@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="700" height="200" viewBox="0 0 700 200" role="img" aria-label="Trust Halal">
   <!-- Horizontal lockup — light background. Ink #0B0B0E wordmark. -->
-  <g>
-    <rect x="20" y="20" width="160" height="160" rx="36" fill="#0E9F6E"/>
-    <circle cx="93.13" cy="100" r="46.56" fill="#FFFFFF"/>
-    <circle cx="107.19" cy="87.97" r="40.94" fill="#0E9F6E"/>
-    <path d="M98.75 102.5 L107.66 111.88 L123.13 93.28" fill="none" stroke="#FFFFFF"
-          stroke-width="8.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Mark: generated geometry, kept in step with
+       brand-assets/generate_icons.py. Only the tile moves between
+       lockups; the wordmark type below is untouched. -->
+  <g transform="translate(20,20) scale(0.156250)">
+    <rect width="1024" height="1024" rx="230" fill="#0E7C66"/>
+    <path d="M 650.5 177.6 L 693.0 331.0 L 846.4 373.5 L 768.0 512.0 L 846.4 650.5 L 693.0 693.0 L 650.5 846.4 L 512.0 768.0 L 373.5 846.4 L 331.0 693.0 L 177.6 650.5 L 256.0 512.0 L 177.6 373.5 L 331.0 331.0 L 373.5 177.6 L 512.0 256.0 Z" fill="#F6F2E9" stroke="#F6F2E9" stroke-width="12" stroke-linejoin="round"/>
+    <path d="M 400 522 L 476 598 L 640 424" fill="none" stroke="#0E7C66" stroke-width="82" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
   <text x="212" y="127" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
         font-size="76" font-weight="600" letter-spacing="-1" fill="#0B0B0E">Trust Halal</text>

@@ -144,6 +144,8 @@ eas build  -p android --profile production   # generates the upload keystore
 eas submit -p android --latest
 ```
 
-The adaptive icon (emerald background + crescent-check foreground) is already
-configured in `app.json`. Play has its own data-safety form (the equivalent of
+The adaptive icon (emerald plate + star-and-check foreground) is already
+configured in `app.json`. The plate colour must stay equal to the icon ground
+in `brand-assets/generate_icons.py` — the check is knocked out of the
+foreground and shows the plate through it. Play has its own data-safety form (the equivalent of
 App Privacy) and content-rating questionnaire.
