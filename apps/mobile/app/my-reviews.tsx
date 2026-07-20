@@ -13,7 +13,6 @@
  * moderator's note verbatim, and hidden ones keep a path back to the editor
  * — hidden is reversible, and fixing it is the entire point of the state.
  */
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
@@ -24,7 +23,7 @@ import { useCurrentUser, useMyReviews } from "@/lib/api/hooks";
 import type { MyReviewRead } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card } from "@/ui/kit";
+import { Card, ScreenHeader } from "@/ui/kit";
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -74,12 +73,7 @@ export default function MyReviewsScreen() {
         gap: space.sm,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Feather name="chevron-left" size={22} color={t.ink} />
-        </Pressable>
-        <Text style={[ty.title, { color: t.ink, fontSize: 22 }]}>Your reviews</Text>
-      </View>
+      <ScreenHeader title="Your reviews" onBack={() => router.back()} />
       <Text style={[ty.small, { color: t.sub, marginBottom: space.sm }]}>
         Everything you&apos;ve written, including anything moderation acted on.
       </Text>

@@ -26,7 +26,6 @@
  * "unnecessarily difficult", so that's the whole gate — no retention offer,
  * no survey, no cool-down.
  */
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -48,6 +47,7 @@ import {
 } from "@/lib/api/hooks";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
+import { ScreenHeader } from "@/ui/kit";
 
 export default function DeleteAccountScreen() {
   const t = useTheme();
@@ -102,14 +102,7 @@ export default function DeleteAccountScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Feather name="chevron-left" size={22} color={t.ink} />
-          </Pressable>
-          <Text style={[ty.title, { color: t.ink, fontSize: 22 }]}>
-            Delete account
-          </Text>
-        </View>
+        <ScreenHeader title="Delete account" onBack={() => router.back()} />
 
         <Text style={[ty.body, { color: t.sub, lineHeight: 21 }]}>
           This permanently deletes your Trust Halal account. It can&apos;t be

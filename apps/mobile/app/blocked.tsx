@@ -9,7 +9,6 @@
  * Deliberately plain. There's nothing to configure here and no reason to make
  * the list feel like a management console; it's a list of names and a way out.
  */
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyBlocks, useUnblockUser } from "@/lib/api/hooks";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card } from "@/ui/kit";
+import { Card, ScreenHeader } from "@/ui/kit";
 
 export default function BlockedScreen() {
   const t = useTheme();
@@ -36,12 +35,10 @@ export default function BlockedScreen() {
         gap: space.sm,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Feather name="chevron-left" size={22} color={t.ink} />
-        </Pressable>
-        <Text style={[ty.title, { color: t.ink, fontSize: 22 }]}>Blocked</Text>
-      </View>
+      {/* "Blocked people", matching the Profile row that opens it. The title
+          said just "Blocked", so the row you tapped and the screen you landed
+          on disagreed about the name of the thing. */}
+      <ScreenHeader title="Blocked people" onBack={() => router.back()} />
 
       <Text style={[ty.small, { color: t.sub, marginBottom: space.sm, lineHeight: 18 }]}>
         You don&apos;t see reviews from these people. They haven&apos;t been

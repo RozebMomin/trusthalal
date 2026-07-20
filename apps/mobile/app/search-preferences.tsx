@@ -1,4 +1,3 @@
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -19,7 +18,7 @@ import {
 import type { ConsumerPreferences, MenuPosture, ValidationTier } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card, Chip, Seg } from "@/ui/kit";
+import { Card, Chip, ScreenHeader, Seg } from "@/ui/kit";
 
 /**
  * Search defaults — the filters every search starts from.
@@ -81,17 +80,6 @@ export default function SearchPreferences() {
     setDraft((d) => ({ ...d, ...patch }));
   };
 
-  const back = (
-    <Pressable
-      onPress={() => router.back()}
-      accessibilityLabel="Back"
-      style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-    >
-      <Feather name="chevron-left" size={20} color={t.sub} />
-      <Text style={[ty.label, { color: t.sub, fontSize: 14 }]}>Profile</Text>
-    </Pressable>
-  );
-
   const shell = (children: React.ReactNode) => (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView
@@ -103,10 +91,7 @@ export default function SearchPreferences() {
           gap: space.md,
         }}
       >
-        {back}
-        <Text style={[ty.title, { color: t.ink, marginTop: 12 }]}>
-          Search defaults
-        </Text>
+        <ScreenHeader title="Search defaults" onBack={() => router.back()} />
         {children}
       </ScrollView>
     </View>

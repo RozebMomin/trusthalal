@@ -22,7 +22,7 @@ import {
 import { registerForPush } from "@/lib/push";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card, Seg } from "@/ui/kit";
+import { Card, ScreenHeader, Seg } from "@/ui/kit";
 
 /**
  * Notification settings — per category, per channel.
@@ -100,17 +100,6 @@ export default function NotificationSettings() {
     }, []),
   );
 
-  const back = (
-    <Pressable
-      onPress={() => router.back()}
-      accessibilityLabel="Back"
-      style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-    >
-      <Feather name="chevron-left" size={20} color={t.sub} />
-      <Text style={[ty.label, { color: t.sub, fontSize: 14 }]}>Profile</Text>
-    </Pressable>
-  );
-
   const shell = (children: React.ReactNode) => (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView
@@ -122,10 +111,7 @@ export default function NotificationSettings() {
           gap: space.md,
         }}
       >
-        {back}
-        <Text style={[ty.title, { color: t.ink, marginTop: 12 }]}>
-          Notifications
-        </Text>
+        <ScreenHeader title="Notifications" onBack={() => router.back()} />
         {children}
       </ScrollView>
     </View>

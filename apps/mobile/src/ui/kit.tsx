@@ -18,6 +18,58 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { radii, space, type as ty, type Palette } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 
+/**
+ * ScreenHeader — the back affordance and title for a pushed detail screen.
+ *
+ * ## Why this is a component
+ *
+ * Seven screens hang off Profile and they had grown three different headers.
+ * Search defaults, Notifications and Become a verifier used a small grey
+ * chevron labelled with where back goes, then the page title beneath it.
+ * Your reviews, Blocked and Delete account used a larger ink chevron with the
+ * title inline beside it and no destination named. Verifier application had a
+ * third arrangement: the grey chevron, but labelled "Back".
+ *
+ * All three are defensible on their own; the problem is that which one you
+ * get depends on which week the screen was written. The labelled version wins
+ * because it's the only one that answers "where does this take me" — on a
+ * stack this shallow that's the difference between tapping and guessing —
+ * and because it separates the title from the control, so a long title wraps
+ * without shoving the chevron around.
+ *
+ * ``backLabel`` defaults to "Profile" since that's where six of the seven
+ * return to. Pass it explicitly when the screen is pushed from somewhere else
+ * (Verifier application comes from Become a verifier, not Profile) — naming
+ * the wrong destination is worse than naming none.
+ */
+export function ScreenHeader({
+  title,
+  backLabel = "Profile",
+  onBack,
+}: {
+  title: string;
+  /** Where the chevron goes, named. */
+  backLabel?: string;
+  onBack: () => void;
+}) {
+  const t = useTheme();
+  return (
+    <View>
+      <Pressable
+        onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel={`Back to ${backLabel}`}
+        hitSlop={10}
+        style={{ flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start" }}
+      >
+        <Feather name="chevron-left" size={20} color={t.sub} />
+        <Text style={[ty.label, { color: t.sub, fontSize: 14 }]}>{backLabel}</Text>
+      </Pressable>
+      <Text style={[ty.title, { color: t.ink, marginTop: 12 }]}>{title}</Text>
+    </View>
+  );
+}
+
 /** .tag — v2 tier/status tag. tone: solid|wash|amber|zinc|danger|dashed|glass */
 export function Tag({
   label,
