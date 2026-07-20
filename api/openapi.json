@@ -19,6 +19,11 @@
             "title": "Photos Deleted",
             "type": "integer"
           },
+          "review_photos_deleted": {
+            "default": 0,
+            "title": "Review Photos Deleted",
+            "type": "integer"
+          },
           "reviews_deleted": {
             "default": 0,
             "title": "Reviews Deleted",
@@ -2634,6 +2639,20 @@
             "title": "Last Verified At",
             "type": "string"
           },
+          "meat_products": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/app__modules__places__schemas__MeatProductRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meat Products"
+          },
           "menu_posture": {
             "title": "Menu Posture",
             "type": "string"
@@ -2806,6 +2825,20 @@
             "format": "date-time",
             "title": "Last Verified At",
             "type": "string"
+          },
+          "meat_products": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MeatProductRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meat Products"
           },
           "menu_posture": {
             "$ref": "#/components/schemas/MenuPosture"
@@ -3287,6 +3320,74 @@
           "role"
         ],
         "title": "MeResponse",
+        "type": "object"
+      },
+      "MeatProductRead": {
+        "additionalProperties": false,
+        "description": "One product the restaurant serves, with where it came from.\n\n## Why this exists\n\nThe per-meat columns on the profile (``chicken_slaughter`` and friends)\nare a rollup, and the rollup is deliberately least-conservative-wins: a\nkitchen with zabihah chicken breast and machine-slaughtered nuggets\nreports MACHINE for all chicken. That's the safe direction to round, but\nit leaves a diner unable to see which product is which \u2014 and in the other\ndirection, a bare \"Chicken \u00b7 Zabihah\" asks to be taken on faith, which is\nthe opposite of what this platform is for.\n\nThis is the same data the owner already filled in on the claim, projected\nfor public reading.\n\n## What is deliberately NOT here\n\n``certificate_number`` from the owner's questionnaire. A cert or batch\nnumber is traceability detail for staff resolving a dispute, not\nsomething a diner needs, and publishing it hands anyone the string needed\nto impersonate the restaurant's paperwork to a certifier.\n\n## What the client must not do with this\n\nEvery field here is the OWNER'S account of their own supply chain. It is\nnot verified unless a Trust Halal verifier visited, and visits record\nobservations as free text \u2014 so there is no structured link saying \"we\nconfirmed this supplier\". Rendering ``supplier_name`` as a bare fact\nturns the restaurant's claim into something that looks like our finding.\nAttribute it on its face.",
+        "properties": {
+          "certifying_authority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Authority"
+          },
+          "meat_type": {
+            "title": "Meat Type",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "slaughter_method": {
+            "$ref": "#/components/schemas/SlaughterMethod"
+          },
+          "supplier_city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier City"
+          },
+          "supplier_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Name"
+          },
+          "supplier_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier State"
+          }
+        },
+        "required": [
+          "meat_type",
+          "product_name",
+          "slaughter_method"
+        ],
+        "title": "MeatProductRead",
         "type": "object"
       },
       "MeatProductSourcing": {
@@ -9915,6 +10016,74 @@
           "content_type"
         ],
         "title": "_AdminAttachmentSignedUrl",
+        "type": "object"
+      },
+      "app__modules__places__schemas__MeatProductRead": {
+        "description": "Mirror of ``halal_profiles.schemas.MeatProductRead``.\n\nDuplicated for the same reason ``HalalProfileEmbed`` below is \u2014 see its\ndocstring. Keep the two in lock-step; the canonical one carries the\nreasoning, including why ``certificate_number`` is deliberately absent\nand why a client must attribute ``supplier_name`` to the owner rather\nthan presenting it as a platform finding.",
+        "properties": {
+          "certifying_authority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Authority"
+          },
+          "meat_type": {
+            "title": "Meat Type",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "slaughter_method": {
+            "title": "Slaughter Method",
+            "type": "string"
+          },
+          "supplier_city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier City"
+          },
+          "supplier_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Name"
+          },
+          "supplier_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier State"
+          }
+        },
+        "required": [
+          "meat_type",
+          "product_name",
+          "slaughter_method"
+        ],
+        "title": "MeatProductRead",
         "type": "object"
       }
     }
