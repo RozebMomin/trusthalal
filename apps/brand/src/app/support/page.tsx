@@ -11,6 +11,7 @@ import type { Metadata } from "next";
 import { Footer, Header } from "@/components/chrome";
 import {
   CONSUMER_URL,
+  DELETE_ACCOUNT_PATH,
   OWNER_GET_VERIFIED_URL,
   PRIVACY_PATH,
   SUPPORT_CONTACT_EMAIL,
@@ -120,13 +121,15 @@ export default function SupportPage() {
 
           <SubHeader>How do I delete my account or data?</SubHeader>
           <p>
-            Email us at{" "}
+            Profile → Delete account in the app, or email us at{" "}
             <a href={`mailto:${SUPPORT_CONTACT_EMAIL}`}>
               {SUPPORT_CONTACT_EMAIL}
             </a>{" "}
-            from the address on your account and ask us to delete it. We&apos;ll
-            remove your personal data — see our{" "}
-            <a href={PRIVACY_PATH}>privacy policy</a> for details.
+            from the address on your account if you&apos;ve already
+            uninstalled it. Our{" "}
+            <a href={DELETE_ACCOUNT_PATH}>account deletion page</a> lists the
+            steps and exactly what is deleted and what is kept — see also the{" "}
+            <a href={PRIVACY_PATH}>privacy policy</a>.
           </p>
 
           <SubHeader>Why don&apos;t I see many places near me?</SubHeader>

@@ -20,6 +20,9 @@ export const ETHICS_PATH = "/ethics";
 export const PRIVACY_PATH = "/privacy";
 /** Required by App Store Guideline 1.2 — see the page for why. */
 export const TERMS_PATH = "/terms";
+/** Required on the Google Play listing: a page a user can reach to request
+ *  account deletion after they've already uninstalled the app. */
+export const DELETE_ACCOUNT_PATH = "/delete-account";
 export const SUPPORT_PATH = "/support";
 export const CONTACT_EMAIL = "hello@trusthalal.org";
 export const ETHICS_CONTACT_EMAIL = "ethics@trusthalal.org";

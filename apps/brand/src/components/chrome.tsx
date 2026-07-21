@@ -14,6 +14,7 @@ import {
   ETHICS_PATH,
   OWNER_URL,
   PRIVACY_PATH,
+  DELETE_ACCOUNT_PATH,
   TERMS_PATH,
   SUPPORT_PATH,
   VERIFIER_URL,
@@ -140,6 +141,7 @@ export function Footer() {
               { label: "AI ethics", href: ETHICS_PATH },
               { label: "Privacy", href: PRIVACY_PATH },
               { label: "Terms", href: TERMS_PATH },
+              { label: "Delete account", href: DELETE_ACCOUNT_PATH },
               { label: "Support", href: SUPPORT_PATH },
               {
                 label: CONTACT_EMAIL,
