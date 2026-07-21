@@ -1,4 +1,3 @@
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -8,10 +7,23 @@ import { useLogin } from "@/lib/api/hooks";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
+import { BrandMark } from "@/components/BrandMark";
 
-/** Email sign-in for v0. Sign in with Apple + Google land with the
- *  /auth/mobile/apple|google backend endpoints (see docs/api-and-auth.md)
- *  — required before App Store submission. */
+/**
+ * Email sign-in.
+ *
+ * Sign in with Apple and Google were laid out here ahead of the backend, as
+ * two buttons that caught the tap and answered "arrives with the next
+ * build". A control that exists and refuses is worse than one that doesn't:
+ * it reads as broken rather than absent, and a reviewer following guideline
+ * 2.1 sees a non-functional feature on the first screen behind an account.
+ *
+ * Removed rather than disabled, and the "or" divider with them — it existed
+ * only to separate social auth from email, so with nothing above it, it
+ * divided one thing. Reinstate both when /auth/mobile/apple|google exist
+ * (docs/api-and-auth.md). Note that shipping Google sign-in without Apple's
+ * is itself a guideline 4.8 problem, so they land together.
+ */
 export default function SignIn() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -59,22 +71,13 @@ export default function SignIn() {
       <Pressable accessibilityLabel="Close" onPress={() => router.back()}>
         <Text style={[ty.label, { color: t.sub }]}>✕</Text>
       </Pressable>
-      <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.accent, alignItems: "center", justifyContent: "center", marginTop: space.md }}>
-        <Feather name="check" size={22} color={t.onAccent} />
+      <View style={{ marginTop: space.md }}>
+        <BrandMark size={44} />
       </View>
       <Text style={[ty.title, { color: t.ink }]}>Welcome back</Text>
       <Text style={[ty.body, { color: t.sub }]}>
         Sign in to save places and set your halal preferences.
       </Text>
-      {/* Social sign-in per mockup 12 — backend endpoints land next build. */}
-      <Button title=" Continue with Apple" onPress={() => setError("Apple sign-in arrives with the next build — use email for now.")} />
-      <Button title="Continue with Google" variant="secondary" onPress={() => setError("Google sign-in arrives with the next build — use email for now.")} />
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <View style={{ flex: 1, height: 1, backgroundColor: t.line }} />
-        <Text style={[ty.seg, { color: t.sub }]}>or</Text>
-        <View style={{ flex: 1, height: 1, backgroundColor: t.line }} />
-      </View>
-
       <TextInput
         style={field}
         placeholder="Email"

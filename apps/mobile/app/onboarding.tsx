@@ -8,6 +8,7 @@ import { Image, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
+import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/Button";
 import { capture } from "@/lib/analytics";
 
@@ -48,9 +49,7 @@ export default function Onboarding() {
           </View>
           {/* Copy + CTA anchored together at the bottom, close by design. */}
           <View style={{ paddingHorizontal: space.xl, gap: space.md }}>
-            <View style={{ width: 48, height: 48, borderRadius: radii.md, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-              <Feather name="check" size={24} color={t.onAccent} />
-            </View>
+            <BrandMark size={48} />
             <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 34 }]}>
               The last word{"\n"}on halal.
             </Text>
