@@ -126,6 +126,35 @@ export default function SignUp() {
       </View>
       {error ? <Text style={[ty.small, { color: t.danger }]}>{error}</Text> : null}
 
+      {/* Guideline 1.2 requires users of an app hosting user-generated
+          content to agree to terms that state there is no tolerance for
+          objectionable content or abusive users. Pressing the button below
+          IS that agreement, so the sentence sits above it — in reading
+          order, and in VoiceOver's focus order, before the action rather
+          than after it. Consumer and owner place it the same way.
+
+          Not the "we never sell your data" line, which stays under the
+          button: that is reassurance about what happens next, not a term
+          being agreed to, and putting it up here would dilute the sentence
+          that has a job. */}
+      <Text style={[ty.small, { color: t.sub, textAlign: "center", lineHeight: 18 }]}>
+        By creating an account you agree to our{" "}
+        <Text
+          style={{ color: t.accentDeep, fontFamily: "Inter_600SemiBold" }}
+          onPress={() => Linking.openURL("https://trusthalal.org/terms")}
+        >
+          Terms of Service
+        </Text>{" "}
+        and{" "}
+        <Text
+          style={{ color: t.accentDeep, fontFamily: "Inter_600SemiBold" }}
+          onPress={() => Linking.openURL("https://trusthalal.org/privacy")}
+        >
+          Privacy Policy
+        </Text>
+        .
+      </Text>
+
       <Button
         title="Create account"
         variant="accent"
@@ -133,30 +162,8 @@ export default function SignUp() {
         disabled={!name.trim() || !email || !passwordOk}
         onPress={submit}
       />
-      {/* Guideline 1.2 requires users of an app hosting user-generated
-          content to agree to terms that state there is no tolerance for
-          objectionable content or abusive users. This is where that
-          agreement happens; the clause itself is the first section of the
-          terms. The app previously linked to neither document from
-          anywhere, which both stores also ask for. */}
-      <View style={{ alignItems: "center", gap: 6 }}>
-        <Text style={[ty.small, { color: t.sub, textAlign: "center", lineHeight: 18 }]}>
-          By creating an account you agree to our{" "}
-          <Text
-            style={{ color: t.accentDeep, fontFamily: "Inter_600SemiBold" }}
-            onPress={() => Linking.openURL("https://trusthalal.org/terms")}
-          >
-            Terms of Service
-          </Text>{" "}
-          and{" "}
-          <Text
-            style={{ color: t.accentDeep, fontFamily: "Inter_600SemiBold" }}
-            onPress={() => Linking.openURL("https://trusthalal.org/privacy")}
-          >
-            Privacy Policy
-          </Text>
-          .
-        </Text>
+
+      <View style={{ alignItems: "center" }}>
         <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
           We never sell your data or send marketing pushes.
         </Text>
