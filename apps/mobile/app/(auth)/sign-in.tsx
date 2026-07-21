@@ -90,7 +90,10 @@ export default function SignIn() {
       />
       <View>
         <TextInput
-          style={field}
+          // paddingRight clears the toggle. Without it a long password runs
+          // underneath "Show" — which only became visible once the label was
+          // given a colour that draws the eye.
+          style={[field, { paddingRight: 68 }]}
           placeholder="Password"
           placeholderTextColor={t.sub}
           secureTextEntry={!show}

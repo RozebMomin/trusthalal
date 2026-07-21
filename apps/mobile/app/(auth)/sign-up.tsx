@@ -16,6 +16,10 @@ export default function SignUp() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Reveal toggle. This matters more here than on sign-in: you're inventing
+  // a password against four visible rules, and without this the only way to
+  // tell why a rule hasn't gone green is to guess at what you typed.
+  const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const passwordOk = isPasswordValid(password);
@@ -81,15 +85,31 @@ export default function SignUp() {
         value={email}
         onChangeText={setEmail}
       />
-      <TextInput
-        style={field}
-        placeholder="Password"
-        placeholderTextColor={t.sub}
-        secureTextEntry
-        autoComplete="new-password"
-        value={password}
-        onChangeText={setPassword}
-      />
+      <View>
+        <TextInput
+          // Right padding clears the toggle so a long password doesn't run
+          // underneath it.
+          style={[field, { paddingRight: 68 }]}
+          placeholder="Password"
+          placeholderTextColor={t.sub}
+          secureTextEntry={!show}
+          autoComplete="new-password"
+          value={password}
+          onChangeText={setPassword}
+        />
+        {/* Same control as sign-in and delete-account. */}
+        <Pressable
+          onPress={() => setShow((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel={show ? "Hide password" : "Show password"}
+          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+          style={{ position: "absolute", right: space.lg, top: 0, bottom: 0, justifyContent: "center" }}
+        >
+          <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_600SemiBold" }]}>
+            {show ? "Hide" : "Show"}
+          </Text>
+        </Pressable>
+      </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
         {PASSWORD_RULES.map((rule) => {
           const met = rule.ok(password);
