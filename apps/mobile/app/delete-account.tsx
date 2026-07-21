@@ -57,6 +57,12 @@ export default function DeleteAccountScreen() {
   const del = useDeleteAccount();
 
   const [password, setPassword] = useState("");
+  // Reveal toggle. This screen asks for a password to authorise something
+  // irreversible, and a mistyped one is answered with "That password doesn't
+  // match" — indistinguishable from having the wrong password, on a screen
+  // people arrive at already unsure. Being able to look is what turns that
+  // into a two-second fix. Defaults hidden; same pattern as sign-in.
+  const [showPassword, setShowPassword] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -213,25 +219,43 @@ export default function DeleteAccountScreen() {
           <Text style={[ty.label, { color: t.ink, fontSize: 13 }]}>
             Your password
           </Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete="current-password"
-            placeholder="Enter your password"
-            placeholderTextColor={t.sub}
-            style={{
-              borderWidth: 1,
-              borderColor: t.line,
-              borderRadius: radii.md,
-              backgroundColor: t.card,
-              padding: 12,
-              color: t.ink,
-              fontFamily: "Inter_400Regular",
-              fontSize: 15,
-            }}
-          />
+          <View>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              placeholderTextColor={t.sub}
+              style={{
+                borderWidth: 1,
+                borderColor: t.line,
+                borderRadius: radii.md,
+                backgroundColor: t.card,
+                padding: 12,
+                // Room for the toggle so a long password doesn't run under it.
+                paddingRight: 68,
+                color: t.ink,
+                fontFamily: "Inter_400Regular",
+                fontSize: 15,
+              }}
+            />
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+              // Sized to its own text, with hitSlop doing the work — the same
+              // fix the profile footer needed. A full-width tap target here
+              // would sit on top of the field it belongs to.
+              hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+              style={{ position: "absolute", right: 12, top: 0, bottom: 0, justifyContent: "center" }}
+            >
+              <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_600SemiBold" }]}>
+                {showPassword ? "Hide" : "Show"}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={{ gap: 6 }}>

@@ -98,11 +98,18 @@ export default function SignIn() {
           value={password}
           onChangeText={setPassword}
         />
+        {/* Same control as the one on delete-account: accentDeep because a
+            grey "Show" doesn't read as tappable, hitSlop because the label
+            is small, and a real label because "Show" alone tells a screen
+            reader nothing about what it shows. */}
         <Pressable
           onPress={() => setShow((s) => !s)}
-          style={{ position: "absolute", right: space.lg, top: 14 }}
+          accessibilityRole="button"
+          accessibilityLabel={show ? "Hide password" : "Show password"}
+          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+          style={{ position: "absolute", right: space.lg, top: 0, bottom: 0, justifyContent: "center" }}
         >
-          <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_600SemiBold" }]}>
+          <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_600SemiBold" }]}>
             {show ? "Hide" : "Show"}
           </Text>
         </Pressable>
