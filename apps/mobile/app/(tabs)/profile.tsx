@@ -132,9 +132,19 @@ export default function Profile() {
           left={<><IcBox icon="info" tone="external" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>How Trust Halal uses AI</Text></>}
           right={rightText("web ↗")}
         />
+        {/* The brand site, not the owner portal.
+
+            /get-verified is a roadmap of an owner's own claims and correctly
+            requires a session, so this row was dropping a cold restaurant
+            owner onto a bare sign-in form with no explanation of what they
+            had just tapped. trusthalal.org already makes the case — the hero
+            carries a "Verify your restaurant" CTA and "Free for restaurants,
+            forever", with the tiers and the claim flow below it — and hands
+            off to the portal afterwards, which is the same route every link
+            on the brand site takes. Pitch first, gate second. */}
         <Cell
           last={!SHOW_DEV_TOOLS}
-          onPress={() => Linking.openURL("https://owner.trusthalal.org/get-verified")}
+          onPress={() => Linking.openURL("https://trusthalal.org")}
           left={<><IcBox icon="home" tone="external" /><Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Own a restaurant?</Text></>}
           right={rightText("web ↗")}
         />
