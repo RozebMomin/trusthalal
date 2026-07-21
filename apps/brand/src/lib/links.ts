@@ -28,6 +28,14 @@ export const ETHICS_CONTACT_EMAIL = "ethics@trusthalal.org";
 // submitting (e.g. both → hello@trusthalal.org).
 export const SUPPORT_CONTACT_EMAIL = "support@trusthalal.org";
 export const PRIVACY_CONTACT_EMAIL = "privacy@trusthalal.org";
+/**
+ * Formal legal notices — DMCA complaints and counter-notices, disputes,
+ * anything from a lawyer. Separate from support so a takedown notice with a
+ * statutory clock on it doesn't sit in a queue behind "what are your hours".
+ * Create the alias before publishing: an unmonitored DMCA address is worse
+ * than none, because it's the address the safe harbour depends on.
+ */
+export const LEGAL_CONTACT_EMAIL = "legal@trusthalal.org";
 
 /**
  * Alpha test-build invite links, used by the /get download page.

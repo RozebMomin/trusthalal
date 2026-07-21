@@ -23,7 +23,12 @@ from __future__ import annotations
 
 #: Must match the "Last updated" date on trusthalal.org/terms.
 #: apps/brand/src/app/terms/page.tsx is the document this refers to.
-TERMS_VERSION = "2026-07-20"
+#:
+#: 2026-07-21 — V2. Legal review: definitions, indemnity, DMCA process,
+#: expanded warranty and liability disclaimers, owner representations, API
+#: and automated-access terms, force majeure. Material, so the bump is
+#: correct and everyone is asked again.
+TERMS_VERSION = "2026-07-21"
 
 
 def acceptance_required(accepted_version: str | None) -> bool:

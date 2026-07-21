@@ -17,11 +17,19 @@ doesn't exist, the reply bounces and the person concludes we ignored them.
 | `verifiers@trusthalal.org` | Verifier programme | Consumer site: `become-a-verifier` page and `verifier-gate` component |
 | `ethics@trusthalal.org` | AI-ethics feedback | `content/ethics/ai-ethics.md`, brand site links |
 | `privacy@trusthalal.org` | Privacy / data requests | Privacy policy, brand site links |
+| `legal@trusthalal.org` | Formal legal notices, DMCA | Terms of service (`apps/brand/src/app/terms/page.tsx`), brand site links |
 
 `privacy@` matters more than its single reference suggests: the published
 privacy policy names it as the route for GDPR and CCPA requests, which are
 legally time-boxed. A bounce there is the one on this list with a deadline
 attached.
+
+`legal@` is now a second one with a deadline attached, and it is the newer
+risk. The terms of service publish it as the address for DMCA takedown
+notices and counter-notices, and DMCA safe harbour depends on notices
+actually being received and acted on. An unmonitored `legal@` is worse than
+publishing no address at all — it advertises a channel we are ignoring.
+**Create this alias before the terms page goes live.**
 
 ## Must exist — machine
 
