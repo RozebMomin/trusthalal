@@ -171,62 +171,89 @@ export default function Profile() {
         ) : null}
       </Card>
 
+      {/* Account actions live in a Card like everything else on this screen.
+          They used to be loose centred Pressables stacked under the last
+          card, which read as leftovers rather than a section — and, because
+          a Pressable in a column stretches, each one's tap target ran the
+          full width of the content. You could tap level with "Sign out",
+          nowhere near the words, and sign out. */}
       {me ? (
         <>
-          <Pressable onPress={() => logout.mutate()} accessibilityRole="button">
-            <Text style={[ty.label, { color: t.danger, textAlign: "center", paddingVertical: space.md }]}>
-              {logout.isPending ? "Signing out…" : "Sign out"}
-            </Text>
-          </Pressable>
-
-          {/* Account deletion has to be reachable from account settings —
-              App Store guideline 5.1.1(v), and Apple's guidance says to make
-              it easy to find rather than buried. Quieter than Sign out
-              because it's the rarer and more destructive of the two, but
-              plainly labelled and one tap away. */}
-          <Pressable
-            onPress={() => router.push("/delete-account")}
-            accessibilityRole="button"
-          >
-            <Text style={[ty.small, { color: t.sub, textAlign: "center", paddingBottom: space.md }]}>
-              Delete account
-            </Text>
-          </Pressable>
+          <Seg>Account</Seg>
+          <Card>
+            {/* Not red. Red on this screen means irreversible — it's what
+                Delete account and Blocked people use. Signing out costs you
+                nothing you can't undo by signing back in, and spending the
+                warning colour on it leaves nothing louder for the row
+                directly beneath that erases your reviews. */}
+            <Cell
+              onPress={() => logout.mutate()}
+              left={
+                <>
+                  <IcBox icon="log-out" tone="external" />
+                  <Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>
+                    {logout.isPending ? "Signing out…" : "Sign out"}
+                  </Text>
+                </>
+              }
+              right={chev}
+            />
+            {/* Account deletion has to be reachable from account settings —
+                App Store guideline 5.1.1(v), and Apple's guidance says make
+                it easy to find rather than buried. It is the only
+                irreversible row in the app, so it is the only one that gets
+                the danger tile and a red label. */}
+            <Cell
+              last
+              onPress={() => router.push("/delete-account")}
+              left={
+                <>
+                  <IcBox icon="trash-2" tone="danger" />
+                  <Text style={[ty.body, { color: t.danger, fontWeight: "600" }]}>
+                    Delete account
+                  </Text>
+                </>
+              }
+              right={chev}
+            />
+          </Card>
         </>
       ) : null}
 
-      {/* Published contact information — required for apps with
-          user-generated content (guideline 1.2), and the app had no way to
-          reach us at all before reviews shipped. */}
-      <Pressable
-        onPress={() => Linking.openURL("mailto:support@trusthalal.org")}
-        accessibilityRole="button"
-      >
-        <Text style={[ty.small, { color: t.accentDeep, textAlign: "center", fontWeight: "600" }]}>
-          Contact support
-        </Text>
-      </Pressable>
+      {/* Support and the two legal documents, one quiet row.
+          Each Pressable wraps its own text rather than filling the column,
+          so the tap target is the words. hitSlop puts the touchable area
+          back to roughly 44pt without making the link look bigger — a small
+          target and a small hitbox are different problems, and only the
+          second one was worth fixing.
 
-      {/* Reachable after signup, not only at it. Both stores expect a
-          privacy policy reachable from inside the app, and this app linked
-          to neither document from anywhere before now. */}
-      <View style={{ flexDirection: "row", justifyContent: "center", gap: 16 }}>
-        <Pressable
+          Contact info is required for apps with user-generated content
+          (guideline 1.2); both stores expect a privacy policy reachable
+          in-app, not only at signup. */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "center",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 10,
+          marginTop: space.sm,
+        }}
+      >
+        <FooterLink
+          label="Contact support"
+          onPress={() => Linking.openURL("mailto:support@trusthalal.org")}
+        />
+        <Separator />
+        <FooterLink
+          label="Terms"
           onPress={() => Linking.openURL("https://trusthalal.org/terms")}
-          accessibilityRole="button"
-        >
-          <Text style={[ty.small, { color: t.sub, textDecorationLine: "underline" }]}>
-            Terms
-          </Text>
-        </Pressable>
-        <Pressable
+        />
+        <Separator />
+        <FooterLink
+          label="Privacy"
           onPress={() => Linking.openURL("https://trusthalal.org/privacy")}
-          accessibilityRole="button"
-        >
-          <Text style={[ty.small, { color: t.sub, textDecorationLine: "underline" }]}>
-            Privacy
-          </Text>
-        </Pressable>
+        />
       </View>
 
       <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
@@ -238,5 +265,42 @@ export default function Profile() {
       </Text>
     </ScrollView>
     </View>
+  );
+}
+
+/** One footer link. Sized to its own text — the whole point is that the
+ *  tappable area is the word and not the row it sits in. */
+function FooterLink({ label, onPress }: { label: string; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="link"
+      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+    >
+      {({ pressed }) => (
+        <Text
+          style={[
+            ty.small,
+            { color: t.sub, textDecorationLine: "underline", opacity: pressed ? 0.55 : 1 },
+          ]}
+        >
+          {label}
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
+/** The dot between footer links. t.sub, not t.line: the line token is a
+ *  hairline colour measuring 1.18:1 against the background, which is correct
+ *  for a 1px rule and invisible as a glyph. accessible={false} so VoiceOver
+ *  reads three links rather than "Terms, middle dot, Privacy". */
+function Separator() {
+  const t = useTheme();
+  return (
+    <Text accessible={false} style={[ty.small, { color: t.sub, opacity: 0.6 }]}>
+      ·
+    </Text>
   );
 }
