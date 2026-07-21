@@ -18,6 +18,8 @@ export const VERIFIER_URL = "https://halalfoodnearme.com/become-a-verifier";
 export const ADMIN_URL = "https://admin.trusthalal.org";
 export const ETHICS_PATH = "/ethics";
 export const PRIVACY_PATH = "/privacy";
+/** Required by App Store Guideline 1.2 — see the page for why. */
+export const TERMS_PATH = "/terms";
 export const SUPPORT_PATH = "/support";
 export const CONTACT_EMAIL = "hello@trusthalal.org";
 export const ETHICS_CONTACT_EMAIL = "ethics@trusthalal.org";

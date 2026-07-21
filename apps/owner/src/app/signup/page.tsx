@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
+import { PRIVACY_URL, TERMS_URL } from "@/lib/links";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
@@ -257,6 +258,34 @@ export default function SignupPage() {
               {errorMsg}
             </p>
           )}
+
+        {/* Guideline 1.2 requires users of an app hosting user-generated
+            content to agree to terms that state there is no tolerance for
+            objectionable content or abusive users. This line is where that
+            agreement happens; the clause itself is the first section of the
+            terms. Placed above the button, so it is read before the action
+            rather than after it. */}
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            By creating an account you agree to our{" "}
+            <a
+              href={TERMS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground underline underline-offset-2"
+            >
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a
+              href={PRIVACY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground underline underline-offset-2"
+            >
+              Privacy Policy
+            </a>
+            .
+          </p>
 
           <Button
             type="submit"

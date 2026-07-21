@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError } from "@/lib/api/client";
 import { useSignup } from "@/lib/api/hooks";
@@ -113,7 +113,30 @@ export default function SignUp() {
         disabled={!name.trim() || !email || !passwordOk}
         onPress={submit}
       />
-      <View style={{ alignItems: "center" }}>
+      {/* Guideline 1.2 requires users of an app hosting user-generated
+          content to agree to terms that state there is no tolerance for
+          objectionable content or abusive users. This is where that
+          agreement happens; the clause itself is the first section of the
+          terms. The app previously linked to neither document from
+          anywhere, which both stores also ask for. */}
+      <View style={{ alignItems: "center", gap: 6 }}>
+        <Text style={[ty.small, { color: t.sub, textAlign: "center", lineHeight: 18 }]}>
+          By creating an account you agree to our{" "}
+          <Text
+            style={{ color: t.accentDeep, fontFamily: "Inter_600SemiBold" }}
+            onPress={() => Linking.openURL("https://trusthalal.org/terms")}
+          >
+            Terms of Service
+          </Text>{" "}
+          and{" "}
+          <Text
+            style={{ color: t.accentDeep, fontFamily: "Inter_600SemiBold" }}
+            onPress={() => Linking.openURL("https://trusthalal.org/privacy")}
+          >
+            Privacy Policy
+          </Text>
+          .
+        </Text>
         <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
           We never sell your data or send marketing pushes.
         </Text>

@@ -37,6 +37,13 @@ export const SITE_URL = (
 
 /** Trust Halal platform URL — target for the "Powered by" attribution. */
 export const TRUST_HALAL_URL = "https://trusthalal.org";
+/**
+ * Legal pages live on the brand domain, not here — one copy, one place to
+ * update. Both stores require a reachable privacy policy, and Guideline 1.2
+ * requires the terms.
+ */
+export const TERMS_URL = `${TRUST_HALAL_URL}/terms`;
+export const PRIVACY_URL = `${TRUST_HALAL_URL}/privacy`;
 
 /**
  * Owner-portal entrypoint a restaurant operator should land on when

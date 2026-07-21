@@ -14,6 +14,7 @@ import {
   ETHICS_PATH,
   OWNER_URL,
   PRIVACY_PATH,
+  TERMS_PATH,
   SUPPORT_PATH,
   VERIFIER_URL,
 } from "@/lib/links";
@@ -138,6 +139,7 @@ export function Footer() {
             links={[
               { label: "AI ethics", href: ETHICS_PATH },
               { label: "Privacy", href: PRIVACY_PATH },
+              { label: "Terms", href: TERMS_PATH },
               { label: "Support", href: SUPPORT_PATH },
               {
                 label: CONTACT_EMAIL,

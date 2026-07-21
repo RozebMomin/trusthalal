@@ -30,6 +30,8 @@ import {
   BRAND_NAME,
   OWNER_GET_VERIFIED_URL,
   OWNER_PORTAL_URL,
+  PRIVACY_URL,
+  TERMS_URL,
   TRUST_HALAL_URL,
 } from "@/lib/branding";
 import { useCurrentUser, useLogout } from "@/lib/api/hooks";
@@ -386,6 +388,25 @@ function SiteFooter() {
             className="hover:underline"
           >
             Own a restaurant? Claim your listing →
+          </a>
+          {/* Both legal pages live on the brand domain — one copy of each,
+              one place to update. This footer had neither, on a site whose
+              users write reviews and upload photos. */}
+          <a
+            href={TERMS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            Terms
+          </a>
+          <a
+            href={PRIVACY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            Privacy
           </a>
           <VersionTag />
         </div>

@@ -207,6 +207,28 @@ export default function Profile() {
         </Text>
       </Pressable>
 
+      {/* Reachable after signup, not only at it. Both stores expect a
+          privacy policy reachable from inside the app, and this app linked
+          to neither document from anywhere before now. */}
+      <View style={{ flexDirection: "row", justifyContent: "center", gap: 16 }}>
+        <Pressable
+          onPress={() => Linking.openURL("https://trusthalal.org/terms")}
+          accessibilityRole="button"
+        >
+          <Text style={[ty.small, { color: t.sub, textDecorationLine: "underline" }]}>
+            Terms
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => Linking.openURL("https://trusthalal.org/privacy")}
+          accessibilityRole="button"
+        >
+          <Text style={[ty.small, { color: t.sub, textDecorationLine: "underline" }]}>
+            Privacy
+          </Text>
+        </Pressable>
+      </View>
+
       <Text style={[ty.small, { color: t.sub, textAlign: "center", marginTop: space.sm }]}>
         {/* Read from the build, not typed in. A hardcoded string here
             silently disagreed with the version analytics reports (which
