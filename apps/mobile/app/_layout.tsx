@@ -13,6 +13,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { TermsGate } from "@/components/TermsGate";
 import { StatusBar } from "expo-status-bar";
 import { useCurrentUser } from "@/lib/api/hooks";
 import { usePushNotifications } from "@/lib/push";
@@ -72,6 +73,12 @@ function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <PushBridge />
+        {/* Renders nothing unless the signed-in account owes an
+            acknowledgement. Sits beside PushBridge, inside the query
+            provider, so it sees the same /me every screen sees — and above
+            the Stack so it covers whatever screen someone happens to be on
+            when they open the app. */}
+        <TermsGate />
         <StatusBar style={scheme === "dark" ? "light" : "dark"} />
         <Stack
           screenOptions={{

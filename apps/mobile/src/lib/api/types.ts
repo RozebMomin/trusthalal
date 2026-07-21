@@ -27,6 +27,10 @@ export type MobileUser = {
    *  and nothing else — browsing and saving stay open. Optional because the
    *  field post-dates this type and older cached payloads won't carry it. */
   email_verified?: boolean;
+  /** True when this account has never accepted the terms, or accepted an
+   *  older version. Computed server-side — the client never compares version
+   *  strings. Optional because the field post-dates this type. */
+  terms_acceptance_required?: boolean;
 };
 
 export type MobileAuthResponse = {

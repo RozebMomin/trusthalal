@@ -35,6 +35,7 @@ import {
   TRUST_HALAL_URL,
 } from "@/lib/branding";
 import { useCurrentUser, useLogout } from "@/lib/api/hooks";
+import { TermsGate } from "@/components/terms-gate";
 import { safeNextPath } from "@/lib/utils";
 
 const PUBLIC_BARE_PATHS = new Set<string>(["/login", "/signup"]);
@@ -83,6 +84,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <PortalHeader me={me ?? null} />
       <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
       <SiteFooter />
+      {/* Renders nothing unless the signed-in account owes an
+          acknowledgement. Deliberately NOT in the bare branch above — /login
+          and /signup have no session to attach an acceptance to, and a
+          blocking dialog over a sign-in form would lock out the one action
+          that could resolve it. */}
+      <TermsGate />
     </div>
   );
 }

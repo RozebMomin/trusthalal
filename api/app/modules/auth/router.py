@@ -12,6 +12,7 @@ from app.core.analytics import track
 from app.core.auth import CurrentUser, get_current_user
 from app.core.config import settings
 from app.core.exceptions import BadRequestError, ConflictError, UnauthorizedError
+from app.core.legal import TERMS_VERSION, acceptance_required
 from app.core.password_hashing import hash_password, verify_password
 from app.core.rate_limit import ip_key, limiter, user_or_ip_key
 from app.db.deps import get_db
@@ -188,6 +189,57 @@ def get_me(
         display_name=user_row.display_name,
         email=user_row.email,
         email_verified=user_row.email_verified_at is not None,
+        terms_acceptance_required=acceptance_required(user_row.terms_version),
+    )
+
+
+@me_router.post(
+    "/accept-terms",
+    response_model=MeResponse,
+    summary="Accept the current terms of service",
+    description=(
+        "Records that the signed-in user has accepted the current version of "
+        "the terms. Called by the in-app acknowledgement prompt, which exists "
+        "for accounts created before acceptance was recorded and for anyone "
+        "whose accepted version is behind the current one.\n\n"
+        "Returns the refreshed `/me` payload so the client can dismiss the "
+        "prompt from the response rather than refetching."
+    ),
+)
+def accept_terms(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MeResponse:
+    """Stamp the current terms version against this account.
+
+    Idempotent: accepting twice just moves the timestamp. There is no
+    "unaccept" — withdrawing agreement is what deleting the account is for,
+    and a half-state where someone is signed in having rejected the terms
+    is not a state the product has any answer for.
+    """
+    user_row = db.get(User, user.id)
+    if user_row is None:
+        raise UnauthorizedError(
+            "INVALID_CREDENTIALS",
+            "Your session is no longer valid. Please sign in again.",
+        )
+
+    user_row.terms_accepted_at = datetime.now(timezone.utc)
+    user_row.terms_version = TERMS_VERSION
+    db.commit()
+
+    track(
+        "terms_accepted",
+        distinct_id=user.id,
+        properties={"terms_version": TERMS_VERSION, "surface": "prompt"},
+    )
+    return MeResponse(
+        id=user_row.id,
+        role=UserRole(user_row.role),
+        display_name=user_row.display_name,
+        email=user_row.email,
+        email_verified=user_row.email_verified_at is not None,
+        terms_acceptance_required=acceptance_required(user_row.terms_version),
     )
 
 
@@ -427,12 +479,18 @@ def signup(
 
     display_name = payload.display_name.strip()
 
+    # The signup screens display the agreement notice above the button, so
+    # reaching this line IS the acceptance. Stamped here rather than left for
+    # the prompt to collect, or every new account would be born owing an
+    # acknowledgement it had already given.
     user = User(
         email=payload.email.strip(),
         display_name=display_name,
         password_hash=hash_password(payload.password),
         role=payload.role.value,
         is_active=True,
+        terms_accepted_at=datetime.now(timezone.utc),
+        terms_version=TERMS_VERSION,
     )
     db.add(user)
     db.flush()
@@ -1039,12 +1097,15 @@ def mobile_signup(
             "An account with that email already exists.",
         )
 
+    # Same as the web path — the mobile sign-up screen shows the notice.
     user = User(
         email=normalized_email,
         password_hash=hash_password(payload.password),
         display_name=payload.display_name.strip(),
         role=UserRole.CONSUMER,
         is_active=True,
+        terms_accepted_at=datetime.now(timezone.utc),
+        terms_version=TERMS_VERSION,
     )
     db.add(user)
     db.flush()

@@ -33,6 +33,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { VersionTag } from "@/components/version-tag";
 import { useOwnerReviews, useCurrentUser, useLogout } from "@/lib/api/hooks";
+import { TermsGate } from "@/components/terms-gate";
 
 /**
  * Routes that render without the auth gate.
@@ -139,6 +140,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <BottomTabBar />
+      {/* Renders nothing unless this account owes an acknowledgement. Below
+          the role gate on purpose: a non-OWNER never reaches the portal, and
+          a public path has no session to attach an acceptance to. */}
+      <TermsGate />
     </div>
   );
 }

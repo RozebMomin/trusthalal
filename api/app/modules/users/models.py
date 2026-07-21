@@ -56,6 +56,20 @@ class User(Base):
         """Convenience for the common boolean read."""
         return self.email_verified_at is not None
 
+    # When this user accepted the terms, and which version they accepted.
+    #
+    # Both NULL for every account that predates acceptance being recorded.
+    # Deliberately not backfilled — stamping an acceptance nobody gave would
+    # manufacture evidence of consent, and NULL is what makes the in-app
+    # prompt fire for exactly the people who never saw any terms.
+    #
+    # Version rather than a boolean so a revision re-prompts everyone by
+    # bumping app.core.legal.TERMS_VERSION. See that module.
+    terms_accepted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    terms_version: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

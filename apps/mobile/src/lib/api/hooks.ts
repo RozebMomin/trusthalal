@@ -49,6 +49,26 @@ export function useCurrentUser() {
   });
 }
 
+/**
+ * Accept the current terms. Used by the acknowledgement prompt, which exists
+ * for accounts created before acceptance was recorded.
+ *
+ * The response IS the refreshed /me payload, so it's written straight into
+ * the cache rather than invalidated — an invalidate would refetch and leave
+ * the prompt on screen for the length of that request, which on a blocking
+ * modal reads as the button not having worked.
+ */
+export function useAcceptTerms() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<MobileUser>("/me/accept-terms", { method: "POST" }),
+    onSuccess: (me) => {
+      qc.setQueryData(["me"], me);
+      capture("terms_accepted");
+    },
+  });
+}
+
 async function storeAuth(body: MobileAuthResponse) {
   await tokenStore.set({ access: body.access_token, refresh: body.refresh_token });
   return body;

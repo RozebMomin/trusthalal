@@ -41,6 +41,9 @@ export type MeRead = {
   /** Whether the account has confirmed its email address. Gates posting
    *  reviews and owner replies; nothing else. */
   email_verified?: boolean;
+  /** True when this account has never accepted the terms, or accepted an
+   *  older version. Computed server-side — no client compares versions. */
+  terms_acceptance_required?: boolean;
 };
 
 /**
@@ -1295,6 +1298,20 @@ export function useWithdrawVisit() {
  * query so the next user's data doesn't reuse the prior user's
  * fetched rows.
  */
+/**
+ * Accept the current terms. The response is the refreshed /me payload, so it
+ * goes straight into the cache — invalidating would refetch and leave the
+ * blocking dialog up for the length of that request, which reads as the
+ * button not having worked.
+ */
+export function useAcceptTerms() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<MeRead>("/me/accept-terms", { method: "POST" }),
+    onSuccess: (me) => qc.setQueryData(["me"], me),
+  });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({

@@ -30,6 +30,12 @@ class MeResponse(BaseModel):
     # timestamp column; the timestamp itself isn't exposed because no client
     # needs it and it's noise in the payload.
     email_verified: bool = False
+    #: True when this user has never accepted the terms, or accepted an
+    #: older version than the current one. Computed server-side so no client
+    #: has to know what the current version is, or compare version strings —
+    #: three clients each getting that comparison right is three chances to
+    #: get it wrong.
+    terms_acceptance_required: bool = False
 
 
 class LoginRequest(BaseModel):

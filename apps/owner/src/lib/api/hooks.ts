@@ -406,6 +406,9 @@ export type MeRead = {
   /** Whether the account has confirmed its email address. Gates posting
    *  reviews and owner replies; nothing else. */
   email_verified?: boolean;
+  /** True when this account has never accepted the terms, or accepted an
+   *  older version. Computed server-side — no client compares versions. */
+  terms_acceptance_required?: boolean;
 };
 
 export type LoginRequest = {
@@ -456,6 +459,19 @@ const qk = {
  * to null here so AppShell can branch on "is there a logged-in
  * user?" without wiring catch blocks everywhere).
  */
+/**
+ * Accept the current terms. Response is the refreshed /me, written straight
+ * to the cache so the blocking dialog closes on the response rather than
+ * after a second roundtrip.
+ */
+export function useAcceptTerms() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<MeRead>("/me/accept-terms", { method: "POST" }),
+    onSuccess: (me) => qc.setQueryData(["me"], me),
+  });
+}
+
 export function useCurrentUser() {
   return useQuery<MeRead | null>({
     queryKey: qk.me(),
