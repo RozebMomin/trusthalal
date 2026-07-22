@@ -74,21 +74,31 @@ export function Turnstile({
     let widgetId: string | null = null;
     let cancelled = false;
 
-    loadScript()
-      .then(() => {
-        if (cancelled || !ref.current || !window.turnstile) return;
-        ref.current.innerHTML = "";
-        widgetId = window.turnstile.render(ref.current, {
-          sitekey: SITE_KEY,
-          theme: "auto",
-          callback: (token) => onVerify(token),
-          // A spent or timed-out token must not be resubmitted — clear it so
-          // the form knows it needs a fresh challenge.
-          "expired-callback": () => onVerify(null),
-          "error-callback": () => onVerify(null),
-        });
-      })
-      .catch(() => onVerify(null));
+    // The script's onload can fire a beat before window.turnstile is fully
+    // initialised, so rendering in a bare .then() raced and — because it
+    // early-returned on a not-yet-ready API and never retried — the widget
+    // silently never rendered, leaving the form with no token and a disabled
+    // button. Poll for the API, then render.
+    let tries = 0;
+    const render = () => {
+      if (cancelled || !ref.current) return;
+      if (!window.turnstile) {
+        if (tries++ < 50) window.setTimeout(render, 100); // up to ~5s
+        return;
+      }
+      ref.current.innerHTML = "";
+      widgetId = window.turnstile.render(ref.current, {
+        sitekey: SITE_KEY,
+        theme: "auto",
+        callback: (token) => onVerify(token),
+        // A spent or timed-out token must not be resubmitted — clear it so
+        // the form knows it needs a fresh challenge.
+        "expired-callback": () => onVerify(null),
+        "error-callback": () => onVerify(null),
+      });
+    };
+
+    loadScript().then(render).catch(() => onVerify(null));
 
     return () => {
       cancelled = true;
