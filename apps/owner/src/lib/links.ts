@@ -12,3 +12,13 @@ export const TRUST_HALAL_URL = "https://trusthalal.org";
 export const TERMS_URL = `${TRUST_HALAL_URL}/terms`;
 export const PRIVACY_URL = `${TRUST_HALAL_URL}/privacy`;
 export const SUPPORT_EMAIL = "support@trusthalal.org";
+
+/**
+ * Public social presence, shared across the brand. Instagram and TikTok
+ * both use the trusthalal.app handle; Facebook's page vanity is
+ * trusthalalapp (the dotted handle was taken there), so the FB URL is
+ * spelled out rather than derived from a shared handle.
+ */
+export const INSTAGRAM_URL = "https://www.instagram.com/trusthalal.app";
+export const TIKTOK_URL = "https://www.tiktok.com/@trusthalal.app";
+export const FACEBOOK_URL = "https://www.facebook.com/trusthalalapp";

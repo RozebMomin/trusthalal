@@ -58,3 +58,13 @@ export const OWNER_PORTAL_URL = "https://owner.trusthalal.org";
  * bare portal root so the CTA drops them straight into onboarding.
  */
 export const OWNER_GET_VERIFIED_URL = `${OWNER_PORTAL_URL}/get-verified`;
+
+/**
+ * Public social presence, shared across the brand. Instagram and TikTok
+ * both use the trusthalal.app handle; Facebook's page vanity is
+ * trusthalalapp (the dotted handle was taken there), so the FB URL is
+ * spelled out rather than derived from a shared handle.
+ */
+export const INSTAGRAM_URL = "https://www.instagram.com/trusthalal.app";
+export const TIKTOK_URL = "https://www.tiktok.com/@trusthalal.app";
+export const FACEBOOK_URL = "https://www.facebook.com/trusthalalapp";

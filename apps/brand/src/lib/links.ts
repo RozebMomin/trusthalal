@@ -41,6 +41,16 @@ export const PRIVACY_CONTACT_EMAIL = "privacy@trusthalal.org";
 export const LEGAL_CONTACT_EMAIL = "legal@trusthalal.org";
 
 /**
+ * Public social presence. Instagram and TikTok both use the trusthalal.app
+ * handle. Facebook's page vanity is trusthalalapp — the dotted handle was
+ * already taken there — so the FB URL is spelled out rather than derived
+ * from a shared handle constant.
+ */
+export const INSTAGRAM_URL = "https://www.instagram.com/trusthalal.app";
+export const TIKTOK_URL = "https://www.tiktok.com/@trusthalal.app";
+export const FACEBOOK_URL = "https://www.facebook.com/trusthalalapp";
+
+/**
  * Alpha test-build invite links, used by the /get download page.
  *
  * ⚠️ REPLACE THE PLACEHOLDERS before launch:
