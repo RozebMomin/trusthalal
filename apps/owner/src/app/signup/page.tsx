@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import { useSignup } from "@/lib/api/hooks";
+import { Turnstile, turnstileConfigured } from "@/components/turnstile";
 import {
   PASSWORD_MIN_LENGTH,
   PASSWORD_RULES,
@@ -47,6 +48,8 @@ export default function SignupPage() {
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [errorMsg, setErrorMsg] = React.useState<React.ReactNode | null>(null);
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = React.useState(0);
 
   // Cheap client-side guards so the user gets immediate feedback
   // instead of a server roundtrip. The server still enforces these
@@ -61,7 +64,8 @@ export default function SignupPage() {
     !password ||
     !confirmPassword ||
     passwordWeak ||
-    passwordMismatch;
+    passwordMismatch ||
+    (turnstileConfigured && !captchaToken);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,6 +86,7 @@ export default function SignupPage() {
         email,
         password,
         display_name: displayName.trim(),
+        turnstile_token: captchaToken ?? undefined,
       });
       // Server returns redirect_path="/" for OWNER; route home and let
       // AppShell do the rest. The session cookie was just set on the
@@ -115,6 +120,8 @@ export default function SignupPage() {
             .
           </span>,
         );
+        setCaptchaToken(null);
+        setCaptchaReset((n) => n + 1);
         return;
       }
 
@@ -123,6 +130,8 @@ export default function SignupPage() {
           ? "Something went wrong on our end. Please try again in a moment."
           : description,
       );
+      setCaptchaToken(null);
+      setCaptchaReset((n) => n + 1);
     }
   }
 
@@ -258,6 +267,9 @@ export default function SignupPage() {
               {errorMsg}
             </p>
           )}
+
+          {/* Bot challenge — nothing in dev, gates the button in prod. */}
+          <Turnstile onVerify={setCaptchaToken} resetSignal={captchaReset} />
 
         {/* Guideline 1.2 requires users of an app hosting user-generated
             content to agree to terms that state there is no tolerance for

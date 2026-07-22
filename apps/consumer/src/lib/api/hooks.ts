@@ -77,6 +77,9 @@ export type SignupRequest = {
   password: string;
   display_name?: string | null;
   role?: UserRole;
+  /** Cloudflare Turnstile token; omitted in dev where the API's captcha is
+   *  off. See components/turnstile.tsx. */
+  turnstile_token?: string;
 };
 
 export type SignupResponse = {

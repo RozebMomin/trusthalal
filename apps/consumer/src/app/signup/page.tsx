@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import { useSignup } from "@/lib/api/hooks";
+import { Turnstile, turnstileConfigured } from "@/components/turnstile";
 import { syncLocalToServerOnLogin } from "@/lib/api/preferences";
 import { BRAND_NAME, PRIVACY_URL, TERMS_URL } from "@/lib/branding";
 import { safeNextPath } from "@/lib/utils";
@@ -58,6 +59,8 @@ function SignupPageInner() {
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [errorMsg, setErrorMsg] = React.useState<React.ReactNode | null>(null);
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = React.useState(0);
 
   // Cheap client-side guards so the user gets immediate feedback
   // instead of a server roundtrip. The server still enforces these
@@ -72,7 +75,10 @@ function SignupPageInner() {
     !password ||
     !confirmPassword ||
     passwordWeak ||
-    passwordMismatch;
+    passwordMismatch ||
+    // In prod (site key configured) wait for the challenge to resolve;
+    // in dev there's no widget and this stays false.
+    (turnstileConfigured && !captchaToken);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -93,6 +99,7 @@ function SignupPageInner() {
         email,
         password,
         display_name: displayName.trim(),
+        turnstile_token: captchaToken ?? undefined,
       });
       // Migrate any anonymous-saved preferences to the new account
       // before redirecting. Best-effort — a failure here doesn't
@@ -117,6 +124,8 @@ function SignupPageInner() {
             .
           </span>,
         );
+        setCaptchaToken(null);
+        setCaptchaReset((n) => n + 1);
         return;
       }
 
@@ -128,6 +137,9 @@ function SignupPageInner() {
           ? "Something went wrong on our end. Please try again in a moment."
           : description,
       );
+      // The token is single-use; a failed attempt spent it. Fresh challenge.
+      setCaptchaToken(null);
+      setCaptchaReset((n) => n + 1);
     }
   }
 
@@ -249,6 +261,10 @@ function SignupPageInner() {
               {errorMsg}
             </p>
           )}
+
+          {/* Bot challenge. Renders nothing in dev (no site key); in prod
+              the submit button waits on its token — see formInvalid. */}
+          <Turnstile onVerify={setCaptchaToken} resetSignal={captchaReset} />
 
         {/* Guideline 1.2 requires users of an app hosting user-generated
             content to agree to terms that state there is no tolerance for

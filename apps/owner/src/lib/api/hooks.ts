@@ -428,6 +428,9 @@ export type SignupRequest = {
   email: string;
   password: string;
   display_name: string;
+  /** Cloudflare Turnstile token; omitted in dev where the API's captcha is
+   *  off. See components/turnstile.tsx. */
+  turnstile_token?: string;
 };
 
 // Same wire shape as LoginResponse — signup auto-logs the user in via
