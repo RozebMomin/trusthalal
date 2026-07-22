@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -164,9 +164,21 @@ def _screen_signup_email(db: Session, raw_email: str) -> str:
             "Please sign up with a permanent email address — disposable "
             "inboxes aren't accepted.",
         )
+    normalized = raw_email.strip().lower()
     canonical = canonical_email(raw_email)
+    # Two clauses OR'd. The exact case-insensitive match on ``email`` is the
+    # reliable baseline: it mirrors the DB unique constraint and catches a
+    # duplicate even for accounts whose ``email_canonical`` is NULL — legacy
+    # rows that pre-date the backfill, and any created outside the signup path.
+    # The canonical match is the added layer that catches Gmail dot/plus
+    # aliases the exact check would miss.
     clash = db.execute(
-        select(User).where(User.email_canonical == canonical)
+        select(User).where(
+            or_(
+                func.lower(User.email) == normalized,
+                User.email_canonical == canonical,
+            )
+        )
     ).scalar_one_or_none()
     if clash is not None:
         raise ConflictError(

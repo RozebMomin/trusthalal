@@ -25,6 +25,7 @@ from app.modules.organizations.models import (
     OrganizationMember,
     PlaceOwner,
 )
+from app.core.email_hygiene import canonical_email
 from app.modules.ownership_requests.enums import OwnershipRequestStatus
 from app.modules.ownership_requests.models import PlaceOwnershipRequest
 from app.modules.places.models import Place
@@ -49,12 +50,17 @@ class Factories:
         display_name: str | None = None,
         is_active: bool = True,
     ) -> User:
+        addr = email or f"user-{_short()}@example.com"
         u = User(
             role=role.value if isinstance(role, UserRole) else role,
             # example.com is IANA-reserved for documentation/testing and
             # passes Pydantic EmailStr's reserved-TLD filter (unlike .test
             # and .local which Pydantic >=2.12 rejects).
-            email=email or f"user-{_short()}@example.com",
+            email=addr,
+            # Mirror production, where the w6c7d8e9f0a1 migration backfills
+            # this. A factory user with NULL canonical wouldn't exercise the
+            # canonical dedup path the same way a real signed-up user does.
+            email_canonical=canonical_email(addr),
             display_name=display_name or f"Test User {_short()}",
             is_active=is_active,
         )
