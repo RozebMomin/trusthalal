@@ -2643,7 +2643,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/app__modules__places__schemas__MeatProductRead"
+                  "$ref": "#/components/schemas/MeatProductRead"
                 },
                 "type": "array"
               },
@@ -2830,7 +2830,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/MeatProductRead"
+                  "$ref": "#/components/schemas/app__modules__halal_profiles__schemas__MeatProductRead"
                 },
                 "type": "array"
               },
@@ -3313,6 +3313,11 @@
           },
           "role": {
             "$ref": "#/components/schemas/UserRole"
+          },
+          "terms_acceptance_required": {
+            "default": false,
+            "title": "Terms Acceptance Required",
+            "type": "boolean"
           }
         },
         "required": [
@@ -3323,8 +3328,7 @@
         "type": "object"
       },
       "MeatProductRead": {
-        "additionalProperties": false,
-        "description": "One product the restaurant serves, with where it came from.\n\n## Why this exists\n\nThe per-meat columns on the profile (``chicken_slaughter`` and friends)\nare a rollup, and the rollup is deliberately least-conservative-wins: a\nkitchen with zabihah chicken breast and machine-slaughtered nuggets\nreports MACHINE for all chicken. That's the safe direction to round, but\nit leaves a diner unable to see which product is which \u2014 and in the other\ndirection, a bare \"Chicken \u00b7 Zabihah\" asks to be taken on faith, which is\nthe opposite of what this platform is for.\n\nThis is the same data the owner already filled in on the claim, projected\nfor public reading.\n\n## What is deliberately NOT here\n\n``certificate_number`` from the owner's questionnaire. A cert or batch\nnumber is traceability detail for staff resolving a dispute, not\nsomething a diner needs, and publishing it hands anyone the string needed\nto impersonate the restaurant's paperwork to a certifier.\n\n## What the client must not do with this\n\nEvery field here is the OWNER'S account of their own supply chain. It is\nnot verified unless a Trust Halal verifier visited, and visits record\nobservations as free text \u2014 so there is no structured link saying \"we\nconfirmed this supplier\". Rendering ``supplier_name`` as a bare fact\nturns the restaurant's claim into something that looks like our finding.\nAttribute it on its face.",
+        "description": "Mirror of ``halal_profiles.schemas.MeatProductRead``.\n\nDuplicated for the same reason ``HalalProfileEmbed`` below is \u2014 see its\ndocstring. Keep the two in lock-step; the canonical one carries the\nreasoning, including why ``certificate_number`` is deliberately absent\nand why a client must attribute ``supplier_name`` to the owner rather\nthan presenting it as a platform finding.",
         "properties": {
           "certifying_authority": {
             "anyOf": [
@@ -3346,7 +3350,8 @@
             "type": "string"
           },
           "slaughter_method": {
-            "$ref": "#/components/schemas/SlaughterMethod"
+            "title": "Slaughter Method",
+            "type": "string"
           },
           "supplier_city": {
             "anyOf": [
@@ -8872,6 +8877,18 @@
             "title": "Email",
             "type": "string"
           },
+          "email_verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Verified At"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -10018,8 +10035,9 @@
         "title": "_AdminAttachmentSignedUrl",
         "type": "object"
       },
-      "app__modules__places__schemas__MeatProductRead": {
-        "description": "Mirror of ``halal_profiles.schemas.MeatProductRead``.\n\nDuplicated for the same reason ``HalalProfileEmbed`` below is \u2014 see its\ndocstring. Keep the two in lock-step; the canonical one carries the\nreasoning, including why ``certificate_number`` is deliberately absent\nand why a client must attribute ``supplier_name`` to the owner rather\nthan presenting it as a platform finding.",
+      "app__modules__halal_profiles__schemas__MeatProductRead": {
+        "additionalProperties": false,
+        "description": "One product the restaurant serves, with where it came from.\n\n## Why this exists\n\nThe per-meat columns on the profile (``chicken_slaughter`` and friends)\nare a rollup, and the rollup is deliberately least-conservative-wins: a\nkitchen with zabihah chicken breast and machine-slaughtered nuggets\nreports MACHINE for all chicken. That's the safe direction to round, but\nit leaves a diner unable to see which product is which \u2014 and in the other\ndirection, a bare \"Chicken \u00b7 Zabihah\" asks to be taken on faith, which is\nthe opposite of what this platform is for.\n\nThis is the same data the owner already filled in on the claim, projected\nfor public reading.\n\n## What is deliberately NOT here\n\n``certificate_number`` from the owner's questionnaire. A cert or batch\nnumber is traceability detail for staff resolving a dispute, not\nsomething a diner needs, and publishing it hands anyone the string needed\nto impersonate the restaurant's paperwork to a certifier.\n\n## What the client must not do with this\n\nEvery field here is the OWNER'S account of their own supply chain. It is\nnot verified unless a Trust Halal verifier visited, and visits record\nobservations as free text \u2014 so there is no structured link saying \"we\nconfirmed this supplier\". Rendering ``supplier_name`` as a bare fact\nturns the restaurant's claim into something that looks like our finding.\nAttribute it on its face.",
         "properties": {
           "certifying_authority": {
             "anyOf": [
@@ -10041,8 +10059,7 @@
             "type": "string"
           },
           "slaughter_method": {
-            "title": "Slaughter Method",
-            "type": "string"
+            "$ref": "#/components/schemas/SlaughterMethod"
           },
           "supplier_city": {
             "anyOf": [
@@ -19223,6 +19240,88 @@
           }
         },
         "summary": "Current authenticated user",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/me/accept-terms": {
+      "post": {
+        "description": "Records that the signed-in user has accepted the current version of the terms. Called by the in-app acknowledgement prompt, which exists for accounts created before acceptance was recorded and for anyone whose accepted version is behind the current one.\n\nReturns the refreshed `/me` payload so the client can dismiss the prompt from the response rather than refetching.",
+        "operationId": "accept_terms_me_accept_terms_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept the current terms of service",
         "tags": [
           "auth"
         ]
