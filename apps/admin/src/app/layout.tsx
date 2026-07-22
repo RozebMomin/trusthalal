@@ -7,8 +7,11 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "trusthalal admin",
-  description: "Admin panel for trusthalal-api",
+  title: {
+    default: "Trust Halal · Admin",
+    template: "Trust Halal · %s",
+  },
+  description: "Trust Halal admin console.",
 };
 
 /*

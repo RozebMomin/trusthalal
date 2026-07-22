@@ -6,7 +6,10 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trust Halal · Owner portal",
+  title: {
+    default: "Trust Halal · Owner Portal",
+    template: "Trust Halal · %s",
+  },
   description:
     "Claim, verify, and manage your restaurant on Trust Halal — the source of truth for halal.",
 };

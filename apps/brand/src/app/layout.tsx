@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-const TITLE = "Trust Halal — the source of truth for halal restaurants";
+// Brand-first titles, standardized across every web surface: the mark leads,
+// then the page. Sub-pages (e.g. Terms) inherit the template and become
+// "Trust Halal · Terms of Service" instead of losing the brand entirely.
+const BRAND = "Trust Halal";
+const TITLE = `${BRAND} · The source of truth for halal restaurants`;
 const DESCRIPTION =
   "Trust Halal is the definitive record of halal restaurants. Every claim is checked at the source — supplier, slaughter method, certificate on file, and an in-person visit — so no one has to call the kitchen and hope.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://trusthalal.org"),
-  title: TITLE,
+  title: {
+    default: TITLE,
+    template: `${BRAND} · %s`,
+  },
   description: DESCRIPTION,
   openGraph: {
     type: "website",

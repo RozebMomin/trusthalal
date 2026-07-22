@@ -192,8 +192,10 @@ def main() -> int:
     render_knockout(ICON / "notification-icon-1024.png", ADAPTIVE_R, (1, 1, 1))
 
     # --- distribute --------------------------------------------------------
-    # Next.js serves app/icon.svg and app/apple-icon.png automatically.
-    for app in ("brand", "consumer"):
+    # Next.js serves app/icon.svg and app/apple-icon.png automatically. All
+    # four web surfaces get the same mark — owner and admin were previously
+    # left out and shipped with no favicon at all.
+    for app in ("brand", "consumer", "owner", "admin"):
         shutil.copyfile(ICON / "trust-halal-icon.svg",
                         ROOT / f"apps/{app}/src/app/icon.svg")
         rasterise(ICON / "trust-halal-icon.svg",

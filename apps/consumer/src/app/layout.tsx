@@ -50,7 +50,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: `${BRAND_NAME} · Verified halal restaurants near you`,
-    template: `%s · ${BRAND_NAME}`,
+    // Brand-first, standardized with the other web surfaces: a place page
+    // becomes "Trust Halal · Jay's Deli" (was "Jay's Deli · Trust Halal").
+    template: `${BRAND_NAME} · %s`,
   },
   description: BRAND_DESCRIPTION,
   applicationName: BRAND_NAME,
