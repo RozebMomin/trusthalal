@@ -109,6 +109,20 @@ class Settings(BaseSettings):
     TEXT_MODERATION_WARN_THRESHOLD: float = 0.55
 
     # ------------------------------------------------------------------
+    # Bot protection (Cloudflare Turnstile)
+    # ------------------------------------------------------------------
+    # Off by default so a fresh checkout / dev env doesn't need a key.
+    # Production sets it true once TURNSTILE_SECRET_KEY is provisioned.
+    TURNSTILE_ENABLED: bool = False
+    TURNSTILE_SECRET_KEY: str | None = None
+    # Emergency valve: accept signups when Cloudflare is unreachable. Default
+    # closed — see app.core.turnstile for the trade.
+    TURNSTILE_FAIL_OPEN: bool = False
+    # Require a token on the MOBILE signup path too. Leave false until the app
+    # ships a Turnstile widget, or you'll break signup in the released app.
+    TURNSTILE_REQUIRE_MOBILE: bool = False
+
+    # ------------------------------------------------------------------
     # Notifications
     # ------------------------------------------------------------------
     # Public base URL of THIS API — used to build one-click unsubscribe

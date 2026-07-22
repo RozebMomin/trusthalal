@@ -24,6 +24,14 @@ class User(Base):
     )
 
     email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True, index=True)
+    # Dedup key: the form of ``email`` that reaches the same inbox (gmail dots
+    # / +tags collapsed). Signup checks this to stop one inbox opening many
+    # accounts; ``email`` itself stays as-typed for delivery. Nullable +
+    # non-unique on purpose — see the w6c7d8e9f0a1 migration. Computed by
+    # app.core.email_hygiene.canonical_email.
+    email_canonical: Mapped[Optional[str]] = mapped_column(
+        String(320), nullable=True, index=True
+    )
     display_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
 
     # Argon2id hash produced by ``app.core.password_hashing.hash_password``.

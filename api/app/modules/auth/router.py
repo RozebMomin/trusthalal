@@ -11,6 +11,8 @@ from uuid import UUID
 from app.core.analytics import track
 from app.core.auth import CurrentUser, get_current_user
 from app.core.config import settings
+from app.core.email_hygiene import canonical_email, is_disposable_domain
+from app.core.turnstile import _client_ip, verify_signup_captcha
 from app.core.exceptions import BadRequestError, ConflictError, UnauthorizedError
 from app.core.legal import TERMS_VERSION, acceptance_required
 from app.core.password_hashing import hash_password, verify_password
@@ -143,6 +145,35 @@ def _clear_session_cookie(response: Response) -> None:
 # ---------------------------------------------------------------------------
 
 logger = logging.getLogger(__name__)
+
+
+def _screen_signup_email(db: Session, raw_email: str) -> str:
+    """Reject throwaway inboxes and inbox-collision duplicates; return the
+    canonical dedup key to store on the new row.
+
+    Runs on BOTH signup paths (web + mobile) so the mobile endpoint can't be
+    used as an unprotected side door. Raises ConflictError with EMAIL_TAKEN on
+    a canonical collision — the same code the exact-match check raises, so the
+    client's "already registered?" copy still fires — and a BadRequestError on
+    a disposable domain, which is a different situation the user can fix by
+    using a real address.
+    """
+    if is_disposable_domain(raw_email):
+        raise BadRequestError(
+            "EMAIL_NOT_ALLOWED",
+            "Please sign up with a permanent email address — disposable "
+            "inboxes aren't accepted.",
+        )
+    canonical = canonical_email(raw_email)
+    clash = db.execute(
+        select(User).where(User.email_canonical == canonical)
+    ).scalar_one_or_none()
+    if clash is not None:
+        raise ConflictError(
+            "EMAIL_TAKEN",
+            "An account with that email already exists. Try signing in instead.",
+        )
+    return canonical
 
 me_router = APIRouter(prefix="/me", tags=["auth"])
 
@@ -466,16 +497,11 @@ def signup(
     (forcing a verify-by-email flow) outweighs the marginal disclosure
     here. Login itself remains a black box.
     """
-    normalized_email = payload.email.strip().lower()
-
-    existing = db.execute(
-        select(User).where(func.lower(User.email) == normalized_email)
-    ).scalar_one_or_none()
-    if existing is not None:
-        raise ConflictError(
-            "EMAIL_TAKEN",
-            "An account with that email already exists. Try signing in instead.",
-        )
+    # Bot screen (captcha) first — cheapest rejection, no DB touch — then
+    # email hygiene, which also catches the exact-match case via the canonical
+    # key (me@ and m.e+x@gmail collide).
+    verify_signup_captcha(payload.turnstile_token, remote_ip=_client_ip(request))
+    email_canonical = _screen_signup_email(db, payload.email)
 
     display_name = payload.display_name.strip()
 
@@ -485,6 +511,7 @@ def signup(
     # acknowledgement it had already given.
     user = User(
         email=payload.email.strip(),
+        email_canonical=email_canonical,
         display_name=display_name,
         password_hash=hash_password(payload.password),
         role=payload.role.value,
@@ -1087,19 +1114,19 @@ def mobile_signup(
     background: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> MobileAuthResponse:
+    # Captcha is gated behind TURNSTILE_REQUIRE_MOBILE (default off) because
+    # the app can't produce a token until its WebView widget ships; email
+    # hygiene runs unconditionally so the mobile endpoint isn't a side door.
+    verify_signup_captcha(
+        payload.turnstile_token, remote_ip=_client_ip(request), mobile=True
+    )
     normalized_email = payload.email.strip().lower()
-    existing = db.execute(
-        select(User).where(func.lower(User.email) == normalized_email)
-    ).scalar_one_or_none()
-    if existing is not None:
-        raise ConflictError(
-            "EMAIL_TAKEN",
-            "An account with that email already exists.",
-        )
+    email_canonical = _screen_signup_email(db, payload.email)
 
     # Same as the web path — the mobile sign-up screen shows the notice.
     user = User(
         email=normalized_email,
+        email_canonical=email_canonical,
         password_hash=hash_password(payload.password),
         display_name=payload.display_name.strip(),
         role=UserRole.CONSUMER,

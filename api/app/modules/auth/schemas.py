@@ -151,6 +151,10 @@ class SignupRequest(BaseModel):
             "passes CONSUMER explicitly."
         ),
     )
+    # Cloudflare Turnstile token from the widget. Optional at the schema layer
+    # so an unconfigured/dev env still validates; the router enforces presence
+    # when TURNSTILE_ENABLED. See app.core.turnstile.
+    turnstile_token: str | None = None
 
 
 class SignupResponse(BaseModel):
@@ -334,6 +338,9 @@ class MobileSignupRequest(BaseModel):
     email: EmailStr
     password: NewPassword
     display_name: str = Field(..., min_length=1, max_length=120)
+    # See SignupRequest.turnstile_token. Only enforced on mobile when
+    # TURNSTILE_REQUIRE_MOBILE is set (default off).
+    turnstile_token: str | None = None
 
 
 class MobileRefreshRequest(BaseModel):
