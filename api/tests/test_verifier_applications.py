@@ -48,47 +48,45 @@ VALID_PAYLOAD = {
 }
 
 
-def test_submit_application_anonymous_creates_pending_row(
-    api, factories, db_session
-):
+def test_submit_application_requires_login(api):
+    """Was anonymous-OK, which let bots POST applications with no account.
+    Now it 401s without a session, so the endpoint inherits the signup
+    captcha — reaching it at all means the caller cleared Turnstile."""
     resp = api.post("/verifier-applications", json=VALID_PAYLOAD)
-    assert resp.status_code == 201
-    body = resp.json()
-    assert body["status"] == VerifierApplicationStatus.PENDING.value
-    assert body["applicant_email"] == VALID_PAYLOAD["applicant_email"]
-    assert body["applicant_user_id"] is None
-    assert body["decided_at"] is None
-
-    row = db_session.execute(
-        select(VerifierApplication).where(
-            VerifierApplication.id == body["id"]
-        )
-    ).scalar_one()
-    assert row.applicant_user_id is None
-    assert row.applicant_email == VALID_PAYLOAD["applicant_email"]
+    assert resp.status_code == 401
 
 
-def test_submit_application_signed_in_captures_user_id(
+def test_submit_application_uses_session_email_not_body(
     api, factories, db_session
 ):
+    """Signed-in submit records the caller's user_id AND takes the applicant
+    email from the account, ignoring whatever the body claims — so a caller
+    can't file under someone else's address."""
     consumer = factories.consumer()
     resp = api.as_user(consumer).post(
-        "/verifier-applications", json=VALID_PAYLOAD
+        "/verifier-applications",
+        json={**VALID_PAYLOAD, "applicant_email": "spoofed@evil.example.com"},
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     body = resp.json()
     assert body["applicant_user_id"] == str(consumer.id)
+    assert body["applicant_email"] == consumer.email
+    assert body["applicant_email"] != "spoofed@evil.example.com"
 
 
-def test_submit_application_rejects_short_motivation(api):
+def test_submit_application_rejects_short_motivation(api, factories):
     payload = {**VALID_PAYLOAD, "motivation": "too short"}
-    resp = api.post("/verifier-applications", json=payload)
+    resp = api.as_user(factories.consumer()).post(
+        "/verifier-applications", json=payload
+    )
     assert resp.status_code == 422
 
 
-def test_submit_application_rejects_unknown_field(api):
+def test_submit_application_rejects_unknown_field(api, factories):
     payload = {**VALID_PAYLOAD, "secret_admin_flag": True}
-    resp = api.post("/verifier-applications", json=payload)
+    resp = api.as_user(factories.consumer()).post(
+        "/verifier-applications", json=payload
+    )
     assert resp.status_code == 422
 
 
@@ -108,13 +106,19 @@ def test_submit_application_duplicate_per_user_blocked(
     assert dup.json()["error"]["code"] == "VERIFIER_APPLICATION_DUPLICATE"
 
 
-def test_submit_application_duplicate_per_email_blocked(api):
-    """Two anonymous submissions with the same email should collide."""
-    first = api.post("/verifier-applications", json=VALID_PAYLOAD)
+def test_submit_application_second_from_same_account_blocked(api, factories):
+    """One active application per account. Changing the display name on a
+    second submit doesn't get you a second row."""
+    consumer = factories.consumer()
+    first = api.as_user(consumer).post(
+        "/verifier-applications", json=VALID_PAYLOAD
+    )
     assert first.status_code == 201
 
-    dup_payload = {**VALID_PAYLOAD, "applicant_name": "Different Name"}
-    dup = api.post("/verifier-applications", json=dup_payload)
+    dup = api.as_user(consumer).post(
+        "/verifier-applications",
+        json={**VALID_PAYLOAD, "applicant_name": "Different Name"},
+    )
     assert dup.status_code == 409
     assert dup.json()["error"]["code"] == "VERIFIER_APPLICATION_DUPLICATE"
 
@@ -274,7 +278,9 @@ def test_admin_list_applications_returns_rows(api, factories, db_session):
     admin = factories.admin()
     factories.consumer()  # noise: a user with no application
 
-    api.post("/verifier-applications", json=VALID_PAYLOAD)
+    api.as_user(factories.consumer()).post(
+        "/verifier-applications", json=VALID_PAYLOAD
+    )
 
     resp = api.as_user(admin).get("/admin/verifier-applications")
     assert resp.status_code == 200

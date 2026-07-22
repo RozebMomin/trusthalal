@@ -1014,9 +1014,10 @@ export function useResendVerification() {
  * side ``VerifierApplicationCreate`` schema — see
  * ``api/app/modules/verifiers/schemas.py`` for the canonical spec.
  *
- * The endpoint is anonymous-OK: applicants can submit without a
- * Trust Halal account. Signed-in users get their user id linked
- * server-side via ``get_current_user_optional``.
+ * Requires a signed-in account (was anonymous-OK, which let bots
+ * submit). The applicant email is taken from the session server-side,
+ * not this payload — the field is sent for shape compatibility but
+ * ignored. See the become-a-verifier page for the sign-in gating.
  */
 export type VerifierApplicationCreate = {
   applicant_email: string;

@@ -22,7 +22,6 @@ Admin review (``/admin/verifier-applications/*``,
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Optional
 from uuid import UUID, uuid4
 
 from fastapi import (
@@ -41,10 +40,9 @@ from sqlalchemy.orm import Session
 from app.core.auth import (
     CurrentUser,
     get_current_user,
-    get_current_user_optional,
     require_roles,
 )
-from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
+from app.core.exceptions import BadRequestError, ConflictError, NotFoundError, UnauthorizedError
 from app.core.rate_limit import limiter, user_or_ip_key
 from app.core.storage import StorageClient, StorageError, get_storage_client
 from app.db.deps import get_db
@@ -52,6 +50,7 @@ from app.modules.users.enums import UserRole
 from app.modules.verifiers.enums import VerificationVisitStatus
 from app.modules.verifiers.models import VerificationVisitAttachment
 from app.modules.places.models import Place
+from app.modules.users.models import User
 from app.modules.verifiers.repo import (
     get_application_for_applicant,
     get_public_verifier_by_handle,
@@ -177,12 +176,14 @@ public_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     summary="Submit a verifier application",
     description=(
-        "Open a verifier application. Anonymous-OK: applicants may "
-        "submit before creating an account, so the form captures "
-        "applicant_email + applicant_name independently of any "
-        "session. When a session is present, the applicant's user_id "
-        "is recorded for admin context. Rate-limited (5/hour per "
-        "user-or-IP) to keep noise out of the admin queue."
+        "Open a verifier application. **Requires a signed-in account** — "
+        "this used to be anonymous-OK, which let bots POST applications "
+        "with no account at all. Gating it behind a session means it "
+        "inherits the signup captcha: a bot can't reach here without first "
+        "clearing Turnstile to create an account.\n\n"
+        "The applicant's email is taken from the authenticated account, not "
+        "the request body, so it can't be spoofed and always names an account "
+        "an admin can act on. Rate-limited (5/hour per user-or-IP)."
     ),
 )
 @limiter.limit("5/hour", key_func=user_or_ip_key)
@@ -190,12 +191,20 @@ def submit_verifier_application(
     request: Request,
     payload: VerifierApplicationCreate,
     db: Session = Depends(get_db),
-    user: Optional[CurrentUser] = Depends(get_current_user_optional),
+    user: CurrentUser = Depends(get_current_user),
 ) -> VerifierApplicationRead:
+    # Authoritative email from the session, not the body. CurrentUser is a
+    # slim dataclass (no email), so load the row — the same lookup /me does.
+    user_row = db.get(User, user.id)
+    if user_row is None:
+        raise UnauthorizedError(
+            "INVALID_CREDENTIALS",
+            "Your session is no longer valid. Please sign in again.",
+        )
     application = submit_application(
         db,
-        payload=payload,
-        applicant_user_id=user.id if user is not None else None,
+        payload=payload.model_copy(update={"applicant_email": user_row.email}),
+        applicant_user_id=user.id,
     )
     return VerifierApplicationRead.model_validate(application)
 

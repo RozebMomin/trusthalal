@@ -34,26 +34,66 @@ const MOTIVATION_MIN_LENGTH = 20;
 const MOTIVATION_MAX_LENGTH = 2000;
 const BACKGROUND_MAX_LENGTH = 2000;
 
+// Signing in returns here, landing on the form. The login page's
+// safeNextPath keeps this to a same-origin path (no open redirect).
+const APPLY_NEXT = "/become-a-verifier";
+
 export default function BecomeAVerifierPage() {
   const { data: me } = useCurrentUser();
+  const signedIn = Boolean(me);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
-      <Hero />
+      <Hero signedIn={signedIn} />
       <HowItWorks />
       <DisclosureCallout />
       <div id="apply" className="scroll-mt-20 pt-2">
-        <VerifierApplicationForm
-          prefillEmail={me?.email ?? ""}
-          prefillName={me?.display_name ?? ""}
-        />
+        {/* The pitch above is public; applying is not. Requiring a session
+            here means the form inherits the signup captcha — a bot can't
+            reach it without first clearing Turnstile to make an account,
+            which is what was letting the anonymous applications through. */}
+        {signedIn ? (
+          <VerifierApplicationForm
+            prefillEmail={me?.email ?? ""}
+            prefillName={me?.display_name ?? ""}
+          />
+        ) : (
+          <SignInToApply />
+        )}
       </div>
       <FooterHelp />
     </main>
   );
 }
 
-function Hero() {
+/** Shown at #apply for signed-out visitors, in place of the form. */
+function SignInToApply() {
+  return (
+    <section className="rounded-lg border border-border bg-card p-5 text-center sm:p-6">
+      <h2 className="mb-1 tracking-tight text-2xl font-semibold sm:text-3xl">
+        Sign in to apply
+      </h2>
+      <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">
+        Verifiers put their name behind a listing, so applications come from a
+        Trust Halal account. It only takes a minute to make one.
+      </p>
+      <div className="flex flex-col justify-center gap-3 sm:flex-row">
+        <Button asChild size="lg">
+          <Link href={`/login?next=${encodeURIComponent(APPLY_NEXT)}`}>
+            Sign in to apply
+          </Link>
+        </Button>
+        <Button asChild size="lg" variant="outline">
+          <Link href={`/signup?next=${encodeURIComponent(APPLY_NEXT)}`}>
+            Create a free account
+          </Link>
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function Hero({ signedIn }: { signedIn: boolean }) {
   return (
     <section className="mb-10">
       <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-primary">
@@ -67,9 +107,20 @@ function Hero() {
         you file a short honest report on each one — and your name
         helps the community trust the listing.
       </p>
-      <Button asChild size="lg">
-        <a href="#apply">Apply — takes 5 minutes</a>
-      </Button>
+      {/* Same destination either way (#apply), but signed-out visitors are
+          told up front that applying needs an account, rather than scrolling
+          to a form that would bounce them. */}
+      {signedIn ? (
+        <Button asChild size="lg">
+          <a href="#apply">Apply — takes 5 minutes</a>
+        </Button>
+      ) : (
+        <Button asChild size="lg">
+          <Link href={`/login?next=${encodeURIComponent(APPLY_NEXT)}`}>
+            Sign in to apply
+          </Link>
+        </Button>
+      )}
     </section>
   );
 }
@@ -268,18 +319,21 @@ function VerifierApplicationForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="applicant_email">
-              Email<span className="text-destructive"> *</span>
-            </Label>
+            <Label htmlFor="applicant_email">Email</Label>
+            {/* Read-only: the server takes the applicant email from the
+                signed-in account, so an editable field would be misleading —
+                whatever's typed here is ignored. */}
             <Input
               id="applicant_email"
               type="email"
               value={form.applicant_email}
-              onChange={(e) => update("applicant_email", e.target.value)}
-              placeholder="you@example.com"
-              required
+              readOnly
+              className="bg-muted/40 text-muted-foreground"
               autoComplete="email"
             />
+            <p className="text-xs text-muted-foreground">
+              From your Trust Halal account.
+            </p>
           </div>
         </div>
 
