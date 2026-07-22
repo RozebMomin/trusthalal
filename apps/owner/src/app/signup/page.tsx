@@ -268,6 +268,7 @@ export default function SignupPage() {
             </p>
           )}
 
+          {/* Live only when NEXT_PUBLIC_TURNSTILE_SITE_KEY is set (prod). */}
           {/* Bot challenge — nothing in dev, gates the button in prod. */}
           <Turnstile onVerify={setCaptchaToken} resetSignal={captchaReset} />
 

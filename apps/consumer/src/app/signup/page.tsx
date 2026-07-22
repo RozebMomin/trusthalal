@@ -262,6 +262,7 @@ function SignupPageInner() {
             </p>
           )}
 
+          {/* Live only when NEXT_PUBLIC_TURNSTILE_SITE_KEY is set (prod). */}
           {/* Bot challenge. Renders nothing in dev (no site key); in prod
               the submit button waits on its token — see formInvalid. */}
           <Turnstile onVerify={setCaptchaToken} resetSignal={captchaReset} />
