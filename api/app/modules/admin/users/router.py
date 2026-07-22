@@ -45,6 +45,7 @@ def _to_admin_read(decorated: UserWithAccountState) -> UserAdminRead:
         is_active=user.is_active,
         account_state=decorated.account_state,
         invite_expires_at=decorated.invite_expires_at,
+        email_verified_at=user.email_verified_at,
         created_at=user.created_at,
         updated_at=user.updated_at,
     )

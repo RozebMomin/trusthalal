@@ -132,6 +132,10 @@ export type UserAccountState =
 type _UserAccountStateExtras = {
   account_state: UserAccountState;
   invite_expires_at: string | null;
+  // Layered on the same way, until the next codegen pass. Timestamp (or
+  // null if never verified) rather than a bool — an operator wants "when",
+  // not just "whether".
+  email_verified_at: string | null;
 };
 
 export type UserAdminRead =

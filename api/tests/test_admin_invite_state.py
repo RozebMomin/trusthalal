@@ -200,6 +200,34 @@ def test_get_user_returns_account_state(api, factories, db_session):
     assert body["invite_expires_at"] is not None
 
 
+def test_user_response_exposes_email_verification(api, factories, db_session):
+    """The admin has no other way to see whether an email is confirmed —
+    account_state is about invites and passwords, not verification, and a
+    user can be ACTIVE with an unconfirmed email (which gates posting
+    reviews). Exposed as a timestamp so the operator learns when, not only
+    whether.
+    """
+    from datetime import datetime, timezone
+
+    admin = factories.admin()
+    unverified = factories.user(email="unverified@example.com")
+    verified = factories.user(email="verified@example.com")
+    verified.email_verified_at = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    db_session.commit()
+
+    unv = api.as_user(admin).get(f"/admin/users/{unverified.id}").json()
+    assert unv["email_verified_at"] is None
+
+    ver = api.as_user(admin).get(f"/admin/users/{verified.id}").json()
+    assert ver["email_verified_at"] is not None
+    assert ver["email_verified_at"].startswith("2026-07-01")
+
+    # And the list endpoint carries it too, so the shape doesn't diverge.
+    listed = api.as_user(admin).get("/admin/users").json()
+    rows = listed["items"] if isinstance(listed, dict) else listed
+    assert all("email_verified_at" in r for r in rows)
+
+
 # ---------------------------------------------------------------------------
 # POST /admin/users/{id}/resend-invite — happy path
 # ---------------------------------------------------------------------------

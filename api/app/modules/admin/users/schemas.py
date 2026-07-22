@@ -40,6 +40,13 @@ class UserAdminRead(BaseModel):
     # admin UI can say "Invite expires in 3 days" without a second
     # round-trip.
     invite_expires_at: datetime | None = None
+    # When the user confirmed their email, or null if they never have.
+    # A timestamp rather than a bool for the same reason the User column is
+    # one: it answers "verified?" (is it null) and also "when?", which is what
+    # an operator investigating an account actually wants. Distinct from
+    # account_state, which tracks the invite/password lifecycle and says
+    # nothing about email confirmation.
+    email_verified_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

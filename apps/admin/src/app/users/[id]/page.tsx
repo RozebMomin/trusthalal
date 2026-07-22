@@ -157,6 +157,27 @@ export default function UserDetailPage() {
                   </Badge>
                 )}
               </Field>
+              {/* Email verification. Distinct from Account state, which is
+                  about invites and passwords — a user can be ACTIVE and still
+                  have an unconfirmed email, which gates posting reviews and
+                  owner replies. Shows the date when known, since "when" is
+                  what an operator investigating an account is usually after. */}
+              <Field label="Email verified">
+                {user.email_verified_at ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="default" className="uppercase tracking-wide">
+                      Yes
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {formatTimestamp(user.email_verified_at)}
+                    </span>
+                  </div>
+                ) : (
+                  <Badge variant="outline" className="uppercase tracking-wide">
+                    No
+                  </Badge>
+                )}
+              </Field>
               <Field label="Created">{formatTimestamp(user.created_at)}</Field>
               <Field label="Last updated">
                 {formatTimestamp(user.updated_at)}
