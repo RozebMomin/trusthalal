@@ -30,6 +30,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { VersionTag } from "@/components/version-tag";
 import { useOwnerReviews, useCurrentUser, useLogout } from "@/lib/api/hooks";
@@ -191,25 +192,7 @@ function PortalHeader() {
           href="/"
           className="flex items-center gap-2.5 transition hover:opacity-80"
         >
-          {/* Logo mark — emerald rounded square + white check, matching the
-              app icon and the consumer/brand sites' BrandMark. */}
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </span>
+          <BrandMark className="h-8 w-8" />
           <span className="text-lg font-semibold tracking-tight">
             Trust Halal
           </span>

@@ -33,6 +33,7 @@ import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
 import { AppNav } from "@/components/app-nav";
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { VersionTag } from "@/components/version-tag";
 import { useCurrentUser, useLogout } from "@/lib/api/hooks";
@@ -288,23 +289,7 @@ function AuthedShell({
           <Menu className="h-5 w-5" aria-hidden />
         </button>
         <div className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </span>
+          <BrandMark className="h-7 w-7" />
           <div className="flex items-baseline gap-2">
             <span className="text-base font-semibold tracking-tight">
               Trust Halal
