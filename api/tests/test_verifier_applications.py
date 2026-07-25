@@ -29,6 +29,8 @@ from app.modules.verifiers.models import (
     VerifierApplication,
     VerifierProfile,
 )
+from app.modules.verifiers.repo import submit_application
+from app.modules.verifiers.schemas import VerifierApplicationCreate
 
 
 # ---------------------------------------------------------------------------
@@ -401,21 +403,27 @@ def test_admin_redecide_blocked(api, factories, db_session):
     )
 
 
-def test_admin_approve_blocked_when_no_user_matches(api, factories):
-    """Anonymous applicant whose email never gets a Trust Halal
-    account → 409 telling admin to ask them to sign up."""
+def test_admin_approve_blocked_when_no_user_matches(api, factories, db_session):
+    """A legacy anonymous application (applicant_user_id NULL) whose email
+    never became a Trust Halal account → 409 telling admin to ask them to
+    sign up.
+
+    The public submit endpoint now requires login, so it always stamps
+    applicant_user_id — this NULL-user shape can only arise from rows created
+    before the gate (or from the repo's still-supported anonymous path). We
+    build one straight through ``submit_application`` to exercise the approval
+    guard that resolves those rows by email and finds nobody."""
     admin = factories.admin()
-    create = api.post(
-        "/verifier-applications",
-        json={
-            **VALID_PAYLOAD,
-            "applicant_email": "noaccount@example.com",
-        },
+    application = submit_application(
+        db_session,
+        payload=VerifierApplicationCreate(
+            **{**VALID_PAYLOAD, "applicant_email": "noaccount@example.com"}
+        ),
+        applicant_user_id=None,
     )
-    app_id = create.json()["id"]
 
     resp = api.as_user(admin).post(
-        f"/admin/verifier-applications/{app_id}/decide",
+        f"/admin/verifier-applications/{application.id}/decide",
         json={"decision": "APPROVED"},
     )
     assert resp.status_code == 409
@@ -426,12 +434,15 @@ def test_admin_approve_blocked_when_no_user_matches(api, factories):
 
 
 def test_admin_approve_blocked_for_owner_role(api, factories, db_session):
+    """An OWNER can file an application (submit is open to any signed-in
+    user), but approval refuses to promote them — only CONSUMER accounts
+    flow to VERIFIER through this path."""
     admin = factories.admin()
     owner = factories.owner(email="owns@example.com")
-    create = api.post(
-        "/verifier-applications",
-        json={**VALID_PAYLOAD, "applicant_email": "owns@example.com"},
+    create = api.as_user(owner).post(
+        "/verifier-applications", json=VALID_PAYLOAD
     )
+    assert create.status_code == 201, create.text
     resp = api.as_user(admin).post(
         f"/admin/verifier-applications/{create.json()['id']}/decide",
         json={"decision": "APPROVED"},
