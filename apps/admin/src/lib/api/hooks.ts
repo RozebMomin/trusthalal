@@ -89,6 +89,47 @@ export type PlaceDetail = components["schemas"]["PlaceDetail"];
 export type PlaceEventRead = components["schemas"]["PlaceEventRead"];
 export type PlaceIngestRequest = components["schemas"]["PlaceIngestRequest"];
 export type PlaceIngestResponse = components["schemas"]["PlaceIngestResponse"];
+
+// Bulk add-places types. Hand-written to mirror the server schemas
+// (PlaceBulkPreview*/PlaceBulkImport*) pending the next
+// ``make export-openapi && (cd apps/admin && npm run codegen)`` pass, after
+// which they can be swapped for ``components["schemas"][...]`` — identical
+// shape, so the swap is mechanical. Kept local so the admin app typechecks
+// before codegen runs (same pattern as the org-address extras above).
+export type PlaceBulkPreviewStatus = "NEW" | "EXISTS" | "SOFT_DELETED";
+export type PlaceBulkPreviewRequest = { google_place_ids: string[] };
+export type PlaceBulkPreviewItem = {
+  google_place_id: string;
+  status: PlaceBulkPreviewStatus;
+  existing_place_id?: string | null;
+  existing_name?: string | null;
+};
+export type PlaceBulkPreviewResponse = { items: PlaceBulkPreviewItem[] };
+
+export type PlaceBulkImportOutcome =
+  | "CREATED"
+  | "EXISTED"
+  | "SOFT_DELETED"
+  | "FAILED";
+export type PlaceBulkImportRequest = { google_place_ids: string[] };
+export type PlaceBulkImportItem = {
+  google_place_id: string;
+  outcome: PlaceBulkImportOutcome;
+  place_id?: string | null;
+  place_name?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
+};
+export type PlaceBulkImportSummary = {
+  created: number;
+  existed: number;
+  soft_deleted: number;
+  failed: number;
+};
+export type PlaceBulkImportResponse = {
+  items: PlaceBulkImportItem[];
+  summary: PlaceBulkImportSummary;
+};
 export type PlaceLinkExternalRequest =
   components["schemas"]["PlaceLinkExternalRequest"];
 export type PlaceLinkExternalResponse =
@@ -483,6 +524,45 @@ export function useIngestPlace() {
   return useMutation({
     mutationFn: (payload: PlaceIngestRequest) =>
       apiFetch<PlaceIngestResponse>("/admin/places/ingest", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => {
+      void invalidatePlaces(qc);
+    },
+  });
+}
+
+/**
+ * Bulk preview — cheap dedup check for a staged batch of Google IDs.
+ *
+ * Read-only (no writes, no billed Google call), so it deliberately does NOT
+ * invalidate the places cache. The response tags each ID NEW / EXISTS /
+ * SOFT_DELETED so the dialog can deselect duplicates before the admin spends
+ * import calls.
+ */
+export function useBulkPreviewPlaces() {
+  return useMutation({
+    mutationFn: (payload: PlaceBulkPreviewRequest) =>
+      apiFetch<PlaceBulkPreviewResponse>("/admin/places/bulk/preview", {
+        method: "POST",
+        json: payload,
+      }),
+  });
+}
+
+/**
+ * Bulk import — ingest the selected Google IDs, one transaction each.
+ *
+ * Returns a per-item outcome (CREATED / EXISTED / SOFT_DELETED / FAILED) plus
+ * roll-up counts; a single bad row never sinks the batch. Invalidates the
+ * places cache on success so any newly-created rows show up in the list.
+ */
+export function useBulkImportPlaces() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: PlaceBulkImportRequest) =>
+      apiFetch<PlaceBulkImportResponse>("/admin/places/bulk/import", {
         method: "POST",
         json: payload,
       }),

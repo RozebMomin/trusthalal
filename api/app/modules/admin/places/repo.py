@@ -36,6 +36,40 @@ from app.modules.places.repo import (
 _ORDER_BY_VALUES = ("updated_at", "name", "city", "country")
 
 
+def admin_bulk_preview_places(
+    db: Session, *, google_place_ids: list[str]
+) -> dict[str, tuple[UUID, str, bool]]:
+    """Look up which of these Google IDs already exist in the catalog.
+
+    Returns a map ``external_id -> (place_id, place_name, is_deleted)`` for
+    every supplied ID that already has a ``(GOOGLE, external_id)`` link. IDs
+    with no row are simply absent from the map — the caller treats those as
+    "new". One query for the whole batch (``external_id IN (...)``); no Google
+    call, so this is the cheap dedup check behind the bulk preview.
+
+    Soft-deleted places are included (the ``is_deleted`` flag distinguishes
+    them) so preview can flag a Google ID that maps to a deleted row rather
+    than mislabelling it "new" and letting a confusing no-op import happen.
+    """
+    normalized = sorted(
+        {gid.strip() for gid in google_place_ids if gid and gid.strip()}
+    )
+    if not normalized:
+        return {}
+    rows = db.execute(
+        select(
+            PlaceExternalId.external_id,
+            Place.id,
+            Place.name,
+            Place.is_deleted,
+        )
+        .join(Place, Place.id == PlaceExternalId.place_id)
+        .where(PlaceExternalId.provider == ExternalIdProvider.GOOGLE)
+        .where(PlaceExternalId.external_id.in_(normalized))
+    ).all()
+    return {r.external_id: (r.id, r.name, r.is_deleted) for r in rows}
+
+
 def admin_list_places(
     db: Session,
     *,

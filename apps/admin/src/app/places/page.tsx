@@ -30,6 +30,7 @@ import {
   useAdminPlaces,
 } from "@/lib/api/hooks";
 
+import { BulkAddPlacesDialog } from "./_components/bulk-add-dialog";
 import { NewPlaceDialog } from "./_components/new-place-dialog";
 
 // Radix <Select> can't hold an empty-string value, so the "All countries"
@@ -57,6 +58,7 @@ export default function PlacesPage() {
   const [orderBy, setOrderBy] = React.useState<PlacesOrderBy>("updated_at");
   const [includeDeleted, setIncludeDeleted] = React.useState(false);
   const [newOpen, setNewOpen] = React.useState(false);
+  const [bulkOpen, setBulkOpen] = React.useState(false);
 
   // Debounce text inputs so we don't fire a request on every keystroke.
   // City uses the same 250ms as q for consistency — admins moving between
@@ -99,12 +101,25 @@ export default function PlacesPage() {
             Browse, edit, and soft-delete places in the catalog.
           </p>
         </div>
-        <Button onClick={() => setNewOpen(true)} className="w-full sm:w-auto">
-          New place
-        </Button>
+        <div className="flex w-full gap-2 sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={() => setBulkOpen(true)}
+            className="flex-1 sm:flex-none"
+          >
+            Bulk add
+          </Button>
+          <Button
+            onClick={() => setNewOpen(true)}
+            className="flex-1 sm:flex-none"
+          >
+            New place
+          </Button>
+        </div>
       </header>
 
       <NewPlaceDialog open={newOpen} onOpenChange={setNewOpen} />
+      <BulkAddPlacesDialog open={bulkOpen} onOpenChange={setBulkOpen} />
 
       <div className="flex flex-wrap items-center gap-3 border-b pb-3">
         <div className="flex-1 min-w-[240px]">

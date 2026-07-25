@@ -1,8 +1,24 @@
 from datetime import datetime
+from enum import Enum
+from typing import Annotated
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.places.enums import ExternalIdProvider
+
+
+# Upper bound on a single bulk preview/import batch. Deliberately small: the
+# admin flow is "search a handful of names, select, import," not "seed a city."
+# The cap keeps the synchronous import loop well inside the request timeout
+# (each import is a billed, up-to-~10s Google Place Details call) and bounds
+# the blast radius of a mistaken paste. Raise it only alongside an async /
+# chunked execution model — see the bulk router for the loop.
+BULK_PLACE_LIMIT = 25
+
+# A single Google Place ID as it arrives from the browser Autocomplete widget:
+# opaque to us, but never empty and never absurdly long. Reused by both bulk
+# request bodies so the per-item validation is identical.
+GooglePlaceId = Annotated[str, Field(min_length=1, max_length=255)]
 
 
 class PlaceAdminRead(BaseModel):
@@ -64,6 +80,133 @@ class PlaceIngestResponse(BaseModel):
     place: PlaceAdminRead
     existed: bool
     was_deleted: bool
+
+
+# ---------------------------------------------------------------------------
+# Bulk add — stage a handful of Google places, preview their dedup status,
+# then import the selected subset. Both endpoints reuse the single-place
+# ingest machinery; the only new concept is the batch wrapper + per-item
+# results. See app/modules/admin/places/router.py for the loop.
+# ---------------------------------------------------------------------------
+
+
+class PlaceBulkPreviewStatus(str, Enum):
+    """What a staged Google place would do on import — the cheap, Google-free
+    signal the preview step surfaces so the admin can deselect duplicates
+    before spending a billed import call.
+
+    * ``NEW``          — no catalog row for this Google ID; import creates one.
+    * ``EXISTS``       — already a live place; import is a safe no-op.
+    * ``SOFT_DELETED`` — a soft-deleted place carries this Google ID; import
+                         will NOT auto-restore it (matches single ingest).
+    """
+
+    NEW = "NEW"
+    EXISTS = "EXISTS"
+    SOFT_DELETED = "SOFT_DELETED"
+
+
+class PlaceBulkPreviewRequest(BaseModel):
+    """Ask the API which of these Google IDs already exist in the catalog.
+
+    Pure DB lookup on ``(GOOGLE, external_id)`` — no Google Place Details
+    call, so preview costs nothing. The admin UI already has each place's
+    name/address from the Autocomplete widget, so the response only needs to
+    add a dedup verdict per ID.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    google_place_ids: list[GooglePlaceId] = Field(
+        ..., min_length=1, max_length=BULK_PLACE_LIMIT
+    )
+
+
+class PlaceBulkPreviewItem(BaseModel):
+    """One staged Google ID's dedup verdict.
+
+    ``existing_place_id`` / ``existing_name`` are populated only when the ID
+    already maps to a catalog row (EXISTS or SOFT_DELETED), letting the UI
+    link to and name the place it collides with.
+    """
+
+    model_config = ConfigDict(from_attributes=False)
+
+    google_place_id: str
+    status: PlaceBulkPreviewStatus
+    existing_place_id: UUID | None = None
+    existing_name: str | None = None
+
+
+class PlaceBulkPreviewResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=False)
+
+    items: list[PlaceBulkPreviewItem]
+
+
+class PlaceBulkImportOutcome(str, Enum):
+    """Per-item result of a bulk import.
+
+    * ``CREATED``      — new place ingested from Google.
+    * ``EXISTED``      — already a live place; ingest returned it unchanged.
+    * ``SOFT_DELETED`` — Google ID maps to a soft-deleted place; left as-is
+                         (restore is a deliberate, separate admin action).
+    * ``FAILED``       — this item errored (bad Google payload, fetch failure,
+                         etc.); other items in the batch are unaffected.
+    """
+
+    CREATED = "CREATED"
+    EXISTED = "EXISTED"
+    SOFT_DELETED = "SOFT_DELETED"
+    FAILED = "FAILED"
+
+
+class PlaceBulkImportRequest(BaseModel):
+    """Import the selected Google IDs. Each is ingested in its own
+    transaction so one failure never rolls back the rest of the batch.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    google_place_ids: list[GooglePlaceId] = Field(
+        ..., min_length=1, max_length=BULK_PLACE_LIMIT
+    )
+
+
+class PlaceBulkImportItem(BaseModel):
+    """Outcome for one imported Google ID.
+
+    ``place_id`` / ``place_name`` are set on any non-FAILED outcome (the
+    place that was created or matched); ``error_code`` / ``error_message``
+    are set only on FAILED so the UI can explain what went wrong per row.
+    """
+
+    model_config = ConfigDict(from_attributes=False)
+
+    google_place_id: str
+    outcome: PlaceBulkImportOutcome
+    place_id: UUID | None = None
+    place_name: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+class PlaceBulkImportSummary(BaseModel):
+    """Roll-up counts for the batch, for the results toast/header."""
+
+    model_config = ConfigDict(from_attributes=False)
+
+    created: int = 0
+    existed: int = 0
+    soft_deleted: int = 0
+    failed: int = 0
+
+
+class PlaceBulkImportResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=False)
+
+    items: list[PlaceBulkImportItem]
+    summary: PlaceBulkImportSummary
 
 
 class PlaceLinkExternalRequest(BaseModel):

@@ -1,10 +1,13 @@
+import logging
 from uuid import UUID
 from fastapi import APIRouter, Body, Depends, Query, status
 
 from app.core.auth import CurrentUser, require_roles
 from app.core.exception_handlers import ErrorResponse
+from app.core.exceptions import AppError
 from app.db.deps import get_db
 from app.modules.admin.places.repo import (
+    admin_bulk_preview_places,
     admin_get_place_by_id,
     admin_list_place_countries,
     admin_list_place_events,
@@ -20,6 +23,15 @@ from app.modules.admin.places.repo import (
 from app.modules.admin.places.schemas import (
     PlaceAdminPatch,
     PlaceAdminRead,
+    PlaceBulkImportItem,
+    PlaceBulkImportOutcome,
+    PlaceBulkImportRequest,
+    PlaceBulkImportResponse,
+    PlaceBulkImportSummary,
+    PlaceBulkPreviewItem,
+    PlaceBulkPreviewRequest,
+    PlaceBulkPreviewResponse,
+    PlaceBulkPreviewStatus,
     PlaceDeleteRequest,
     PlaceEventRead,
     PlaceExternalIdAdminRead,
@@ -43,6 +55,8 @@ from app.modules.users.enums import UserRole
 
 from sqlalchemy.orm import Session
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/places", tags=["admin: places"])
 
@@ -174,6 +188,185 @@ def ingest_place_admin(
         existed=result.existed,
         was_deleted=result.was_deleted,
     )
+
+
+@router.post(
+    "/bulk/preview",
+    response_model=PlaceBulkPreviewResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Preview a batch of Google Place IDs (dedup status, no Google call)",
+    description=(
+        "Given up to 25 Google Place IDs, returns a per-ID dedup verdict — "
+        "NEW / EXISTS / SOFT_DELETED — via a single database lookup. Makes "
+        "no Google Place Details calls, so it costs nothing: the admin UI "
+        "already has each place's name/address from the browser Autocomplete "
+        "widget and only needs to know which ones are already in the catalog "
+        "before spending billed import calls. Within-batch duplicate IDs are "
+        "collapsed to one item."
+    ),
+    responses={
+        401: {"model": ErrorResponse, "description": "Missing/invalid X-User-Id."},
+        403: {"model": ErrorResponse, "description": "Not an admin."},
+        422: {
+            "model": ErrorResponse,
+            "description": (
+                "Body failed validation — empty list, more than 25 IDs, or an"
+                " empty/oversized ID. PlaceBulkPreviewRequest uses"
+                " extra='forbid'."
+            ),
+        },
+    },
+)
+def bulk_preview_places_admin(
+    payload: PlaceBulkPreviewRequest,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> PlaceBulkPreviewResponse:
+    """Cheap dedup preview for a staged batch of Google places.
+
+    One DB query resolves which IDs already exist; everything else is NEW.
+    Preserves the order the admin staged them in and collapses within-batch
+    duplicates so the preview table has one row per distinct place.
+    """
+    existing = admin_bulk_preview_places(
+        db, google_place_ids=payload.google_place_ids
+    )
+
+    items: list[PlaceBulkPreviewItem] = []
+    seen: set[str] = set()
+    for raw in payload.google_place_ids:
+        gid = raw.strip()
+        if not gid or gid in seen:
+            continue
+        seen.add(gid)
+        hit = existing.get(gid)
+        if hit is None:
+            items.append(
+                PlaceBulkPreviewItem(
+                    google_place_id=gid,
+                    status=PlaceBulkPreviewStatus.NEW,
+                )
+            )
+            continue
+        place_id, place_name, is_deleted = hit
+        items.append(
+            PlaceBulkPreviewItem(
+                google_place_id=gid,
+                status=(
+                    PlaceBulkPreviewStatus.SOFT_DELETED
+                    if is_deleted
+                    else PlaceBulkPreviewStatus.EXISTS
+                ),
+                existing_place_id=place_id,
+                existing_name=place_name,
+            )
+        )
+    return PlaceBulkPreviewResponse(items=items)
+
+
+@router.post(
+    "/bulk/import",
+    response_model=PlaceBulkImportResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Import a batch of Google Place IDs (per-item, fault-isolated)",
+    description=(
+        "Ingests up to 25 Google Place IDs by looping the same idempotent "
+        "single-place ingest used by the New Place modal. Each ID is its own "
+        "transaction, so one bad payload or fetch failure fails only that "
+        "row — the rest still import. Returns a per-item outcome (CREATED / "
+        "EXISTED / SOFT_DELETED / FAILED) plus roll-up counts. Idempotent: "
+        "re-importing IDs already in the catalog is safe and reported as "
+        "EXISTED. Soft-deleted places are reported but NOT auto-restored."
+    ),
+    responses={
+        401: {"model": ErrorResponse, "description": "Missing/invalid X-User-Id."},
+        403: {"model": ErrorResponse, "description": "Not an admin."},
+        422: {
+            "model": ErrorResponse,
+            "description": (
+                "Body failed validation — empty list, more than 25 IDs, or an"
+                " empty/oversized ID."
+            ),
+        },
+    },
+)
+def bulk_import_places_admin(
+    payload: PlaceBulkImportRequest,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> PlaceBulkImportResponse:
+    """Import the selected Google places, one transaction each.
+
+    The per-item try/except is the whole point: ``ingest_google_place``
+    commits (or rolls back) its own transaction, and a raised error from the
+    Google fetch or an incomplete payload must not poison the session for the
+    remaining IDs. On any failure we roll back to a clean session and record
+    the error against that row, then keep going. Within-batch duplicate IDs
+    are collapsed so the same place isn't ingested twice in one call.
+    """
+    items: list[PlaceBulkImportItem] = []
+    summary = PlaceBulkImportSummary()
+    seen: set[str] = set()
+
+    for raw in payload.google_place_ids:
+        gid = raw.strip()
+        if not gid or gid in seen:
+            continue
+        seen.add(gid)
+
+        try:
+            result = ingest_google_place(
+                db, google_place_id=gid, actor_user_id=user.id
+            )
+        except AppError as exc:
+            # Known, expected failure (GOOGLE_PLACE_NOT_FOUND,
+            # GOOGLE_PAYLOAD_INCOMPLETE, etc.). Reset the session so the next
+            # ID starts clean, record the code/message for the row.
+            db.rollback()
+            summary.failed += 1
+            items.append(
+                PlaceBulkImportItem(
+                    google_place_id=gid,
+                    outcome=PlaceBulkImportOutcome.FAILED,
+                    error_code=exc.code,
+                    error_message=exc.detail,
+                )
+            )
+            continue
+        except Exception:  # noqa: BLE001 — one bad row must not kill the batch
+            db.rollback()
+            logger.exception("Bulk import: unexpected error for place_id=%s", gid)
+            summary.failed += 1
+            items.append(
+                PlaceBulkImportItem(
+                    google_place_id=gid,
+                    outcome=PlaceBulkImportOutcome.FAILED,
+                    error_code="INTERNAL_ERROR",
+                    error_message="Unexpected error importing this place.",
+                )
+            )
+            continue
+
+        if not result.existed:
+            outcome = PlaceBulkImportOutcome.CREATED
+            summary.created += 1
+        elif result.was_deleted:
+            outcome = PlaceBulkImportOutcome.SOFT_DELETED
+            summary.soft_deleted += 1
+        else:
+            outcome = PlaceBulkImportOutcome.EXISTED
+            summary.existed += 1
+
+        items.append(
+            PlaceBulkImportItem(
+                google_place_id=gid,
+                outcome=outcome,
+                place_id=result.place.id,
+                place_name=result.place.name,
+            )
+        )
+
+    return PlaceBulkImportResponse(items=items, summary=summary)
 
 
 @router.post(
