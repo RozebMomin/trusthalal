@@ -2,7 +2,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Alert, Animated, Image, Linking, Pressable, Share, Text, View } from "react-native";
+import { ActionSheetIOS, Alert, Animated, Image, Linking, Platform, Pressable, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentUser, useMyFavorites, usePlaceDetail, useToggleFavorite } from "@/lib/api/hooks";
 import { PlaceReviews } from "@/components/PlaceReviews";
@@ -48,6 +48,47 @@ const HEADER_BAR = HEADER_BTN_TOP + HEADER_BTN + HEADER_BTN_BOTTOM;
 
 function titleCaseCuisine(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase().replaceAll("_", " ");
+}
+
+/**
+ * Hand the user off to a maps app for directions.
+ *
+ * App Review rejected v1.0.0 for wiring Directions straight to Google Maps —
+ * Apple requires that users not be locked into a third-party map. On iOS we
+ * present a chooser so Apple Maps is a first-class option alongside Google
+ * Maps. On Android the ``geo:`` intent defers to the system's own app picker
+ * (which already lets the user pick their preferred map), so no in-app sheet
+ * is needed there.
+ */
+function openDirections(place: { lat: number; lng: number; name: string | null }) {
+  const { lat, lng } = place;
+  const label = encodeURIComponent(place.name ?? "Destination");
+  // Universal links: maps.apple.com opens Apple Maps, the google.com/maps
+  // dir URL opens the Google Maps app when installed (else the web).
+  const appleUrl = `http://maps.apple.com/?daddr=${lat},${lng}&q=${label}&dirflg=d`;
+  const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+  if (Platform.OS === "ios") {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: "Get directions",
+        options: ["Apple Maps", "Google Maps", "Cancel"],
+        cancelButtonIndex: 2,
+      },
+      (index) => {
+        if (index === 0) void Linking.openURL(appleUrl);
+        else if (index === 1) void Linking.openURL(googleUrl);
+      },
+    );
+    return;
+  }
+
+  // Android: geo: opens the default maps app (or a chooser when several are
+  // installed). Fall back to the Google web URL if nothing handles geo:.
+  const geoUrl = `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+  void Linking.openURL(geoUrl).catch(() => {
+    void Linking.openURL(googleUrl);
+  });
 }
 
 /** Straight-line miles between two coords — for the "Directions · X mi" label. */
@@ -236,9 +277,11 @@ export default function PlaceDetail() {
                       // signal a product feature will rank on, and a feature
                       // shouldn't depend on an analytics vendor's retention.
                       reportPlaceSignal(place.id, "DIRECTIONS");
-                      Linking.openURL(
-                        `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
-                      );
+                      openDirections({
+                        lat: place.lat,
+                        lng: place.lng,
+                        name: place.name,
+                      });
                     }}
                   />
                 </View>
