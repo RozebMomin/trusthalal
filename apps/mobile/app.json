@@ -20,8 +20,8 @@
       },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "So we can show halal restaurants near you.",
-        "NSCameraUsageDescription": "So you can snap photos of your visit while you're there.",
-        "NSPhotoLibraryUsageDescription": "So you can attach photos of your visit — the cert on the wall, the menu, your meal."
+        "NSCameraUsageDescription": "Trust Halal uses the camera so you can take a photo to add to a restaurant review — for example, the halal certificate on the wall, the menu board, or your meal.",
+        "NSPhotoLibraryUsageDescription": "Trust Halal needs access to your photos so you can attach an existing picture to a restaurant review — for example, the halal certificate on the wall, the menu board, or your meal."
       },
       "appleTeamId": "3623JG9XS4"
     },
@@ -54,8 +54,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "So you can attach photos of your visit — the cert on the wall, the menu, your meal.",
-          "cameraPermission": "So you can snap photos of your visit while you're there."
+          "photosPermission": "Trust Halal needs access to your photos so you can attach an existing picture to a restaurant review — for example, the halal certificate on the wall, the menu board, or your meal.",
+          "cameraPermission": "Trust Halal uses the camera so you can take a photo to add to a restaurant review — for example, the halal certificate on the wall, the menu board, or your meal."
         }
       ],
       [

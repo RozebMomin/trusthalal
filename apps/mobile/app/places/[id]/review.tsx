@@ -110,6 +110,9 @@ export default function WriteReviewScreen() {
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
+  // Flips true the first time someone taps Post with the form incomplete, so
+  // the "what's missing" hint escalates from quiet guidance to a clear prompt.
+  const [triedSubmit, setTriedSubmit] = useState(false);
   const resendVerify = useResendVerification();
   const hydrated = useRef(false);
 
@@ -177,11 +180,29 @@ export default function WriteReviewScreen() {
 
   const trimmed = body.trim();
   const pending = create.isPending || update.isPending;
-  const canSubmit =
-    rating > 0 && trimmed.length >= BODY_MIN && !pending && !uploadingPhotos;
+  const busy = pending || uploadingPhotos;
+
+  // What still has to happen before this can post. Surfaced inline next to the
+  // Post button (below) so the button is never a silently-dead control — App
+  // Review flagged exactly that (2.1(a)): the button sat inactive after the
+  // text was filled, with nothing saying a star rating was still required.
+  const charsToGo = BODY_MIN - trimmed.length;
+  const missingRequirement =
+    rating === 0
+      ? "Tap a star above to add your rating."
+      : charsToGo > 0
+        ? `Add at least ${charsToGo} more character${charsToGo === 1 ? "" : "s"} to your review.`
+        : null;
+  const ready = missingRequirement === null;
 
   async function submit(acknowledgedWarning = false) {
-    if (!canSubmit) return;
+    if (busy) return;
+    if (!ready) {
+      // Don't silently no-op: record the attempt so the inline hint beside the
+      // button turns emphatic and points straight at the missing field.
+      setTriedSubmit(true);
+      return;
+    }
     setFailure(null);
     setPhotoWarning(null);
     try {
@@ -598,18 +619,23 @@ export default function WriteReviewScreen() {
           // Wrapped, not passed directly: Pressable hands the handler a
           // GestureResponderEvent, which as `acknowledgedWarning` is truthy
           // — every post would have silently waived the nudge it exists for.
+          //
+          // Disabled ONLY while a post is in flight — never because the form is
+          // incomplete. An incomplete form keeps the button live; tapping it
+          // surfaces the missing requirement inline (below) instead of leaving
+          // a dead button with no explanation, which App Review flagged (2.1a).
           onPress={() => submit(false)}
-          disabled={!canSubmit}
+          disabled={busy}
           style={{
             backgroundColor: t.accent,
             borderRadius: radii.md,
             paddingVertical: 14,
             alignItems: "center",
-            opacity: canSubmit ? 1 : 0.5,
+            opacity: busy ? 0.6 : 1,
             marginTop: space.sm,
           }}
         >
-          {pending || uploadingPhotos ? (
+          {busy ? (
             <ActivityIndicator color={t.onAccent} />
           ) : (
             <Text
@@ -619,6 +645,21 @@ export default function WriteReviewScreen() {
             </Text>
           )}
         </Pressable>
+
+        {!ready ? (
+          <Text
+            style={[
+              ty.small,
+              {
+                color: triedSubmit ? t.danger : t.sub,
+                textAlign: "center",
+                marginTop: 6,
+              },
+            ]}
+          >
+            {missingRequirement}
+          </Text>
+        ) : null}
 
         {existing ? (
           <Pressable
