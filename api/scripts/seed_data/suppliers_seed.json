@@ -1,0 +1,499 @@
+{
+  "as_of": "2026-08-11",
+  "default_tier": "LISTED",
+  "tier_note": "Public-info only. Do not surface above LISTED without a document on file or a traced audit.",
+  "suppliers": [
+    {
+      "name": "Crescent Foods",
+      "slug": "crescent-foods",
+      "aliases": [
+        "Crescent Halal",
+        "Crescent Hand-Cut"
+      ],
+      "website_url": "https://crescentfoods.com",
+      "city": "Chicago",
+      "region": "IL",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "Halal Monitoring Services (HMS) / Shariah Board of America",
+      "notes": "States every bird hand-slaughtered by a Muslim, non-stunned, Qiblah-facing; HMS chain-monitored.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "chicken (whole & parts)",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NON_STUNNED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "HMS",
+          "source_url": "https://crescentfoods.com/our-process/"
+        },
+        {
+          "meat_type": "BEEF",
+          "product_name": "beef",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "HMS",
+          "source_url": "https://crescentfoods.com/certification/"
+        },
+        {
+          "meat_type": "LAMB",
+          "product_name": "lamb",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "HMS",
+          "source_url": "https://crescentfoods.com/certification/"
+        },
+        {
+          "meat_type": "TURKEY",
+          "product_name": "turkey",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "HMS",
+          "source_url": "https://crescentfoods.com/certification/"
+        }
+      ]
+    },
+    {
+      "name": "Midamar",
+      "slug": "midamar",
+      "aliases": [
+        "Midamar Halal"
+      ],
+      "website_url": "https://www.midamarhalal.com",
+      "city": "Cedar Rapids",
+      "region": "IA",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "Islamic Services of America (ISA) / ISNA",
+      "notes": "Founded 1974; states all beef hand-cut zabiha, USDA-inspected.",
+      "products": [
+        {
+          "meat_type": "BEEF",
+          "product_name": "beef (roasts, ground, deli)",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "ISA/ISNA",
+          "source_url": "https://www.midamarhalal.com/pages/faq"
+        }
+      ]
+    },
+    {
+      "name": "Saffron Road",
+      "slug": "saffron-road",
+      "aliases": [
+        "American Halal Company",
+        "American Halal Co."
+      ],
+      "website_url": "https://www.saffronroad.com",
+      "city": "Stamford",
+      "region": "CT",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "IFANCA",
+      "notes": "States chicken and lamb 100% hand-slaughtered by a Muslim, no stunning of poultry.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "chicken (entrees & raw)",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NON_STUNNED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "IFANCA",
+          "source_url": "https://saffronroad.com/faq"
+        },
+        {
+          "meat_type": "LAMB",
+          "product_name": "lamb",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "IFANCA",
+          "source_url": "https://saffronroad.com/faq"
+        }
+      ]
+    },
+    {
+      "name": "One Stop Halal",
+      "slug": "one-stop-halal",
+      "aliases": [],
+      "website_url": "https://onestophalal.com",
+      "city": null,
+      "region": null,
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "HFSAA",
+      "notes": "Online distributor; states hand-cut only, no high-speed automated line; poultry non pre-stunned.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "chicken",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NON_STUNNED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "HFSAA",
+          "source_url": "https://onestophalal.com/pages/halal-certification"
+        },
+        {
+          "meat_type": "BEEF",
+          "product_name": "beef (incl. grass-fed, wagyu)",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "HFSAA",
+          "source_url": "https://onestophalal.com/pages/halal-certification"
+        },
+        {
+          "meat_type": "LAMB",
+          "product_name": "lamb",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "HFSAA",
+          "source_url": "https://onestophalal.com/pages/halal-certification"
+        },
+        {
+          "meat_type": "GOAT",
+          "product_name": "goat",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "HFSAA",
+          "source_url": "https://onestophalal.com/pages/halal-certification"
+        }
+      ]
+    },
+    {
+      "name": "Perdue Harvestland Halal",
+      "slug": "perdue-harvestland-halal",
+      "aliases": [
+        "Harvestland Halal",
+        "Perdue Halal"
+      ],
+      "website_url": "https://www.perduefoodservice.com",
+      "city": "Omaha",
+      "region": "NE",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "IFANCA / Halal Transactions of Omaha",
+      "notes": "Foodservice halal line; states hand-slaughtered, no-antibiotics-ever, vegetarian-fed.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "chicken (foodservice)",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "IFANCA/HTO",
+          "source_url": "https://www.perduefoodservice.com/the-perdue-difference/halal-certified/"
+        }
+      ]
+    },
+    {
+      "name": "Honest Chops",
+      "slug": "honest-chops",
+      "aliases": [],
+      "website_url": "https://honestchops.com",
+      "city": "New York",
+      "region": "NY",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": null,
+      "notes": "Organic NYC butcher (retail; some restaurants source here). States all meat hand-slaughtered per strict zabiha.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "chicken",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://honestchops.com/"
+        },
+        {
+          "meat_type": "BEEF",
+          "product_name": "beef",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://honestchops.com/"
+        },
+        {
+          "meat_type": "LAMB",
+          "product_name": "lamb",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://honestchops.com/"
+        }
+      ]
+    },
+    {
+      "name": "Farmer Focus",
+      "slug": "farmer-focus",
+      "aliases": [
+        "Shenandoah Valley Organic"
+      ],
+      "website_url": "https://www.farmerfocus.com",
+      "city": "Harrisonburg",
+      "region": "VA",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "Islamic Services of America (ISA)",
+      "notes": "VERIFY: described as machine/mechanical slaughter by a secondary guide, not its own page. Confirm from primary source before use.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "chicken",
+          "slaughter_method": "MACHINE_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "ISA",
+          "source_url": "https://www.farmerfocus.com/halal-certified/"
+        }
+      ]
+    },
+    {
+      "name": "Al Safa Halal",
+      "slug": "al-safa-halal",
+      "aliases": [
+        "Zabiha Halal",
+        "Al Safa"
+      ],
+      "website_url": "https://alsafahalal.com",
+      "city": null,
+      "region": null,
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "IFANCA / IFANCC",
+      "notes": "VERIFY: brand markets as 'Zabiha Halal' but the FAQ read does not state hand-slaughter; IFANCA permits mechanical. Honestly NOT_DISCLOSED until confirmed.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "chicken (frozen)",
+          "slaughter_method": "NOT_DISCLOSED",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "IFANCA",
+          "source_url": "https://alsafahalal.com/faqs/"
+        },
+        {
+          "meat_type": "BEEF",
+          "product_name": "beef (frozen)",
+          "slaughter_method": "NOT_DISCLOSED",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "IFANCA",
+          "source_url": "https://alsafahalal.com/faqs/"
+        }
+      ]
+    },
+    {
+      "name": "Al Barakah",
+      "slug": "al-barakah",
+      "aliases": [
+        "Al Barakah USA",
+        "Al Barakah Zabiha Halal"
+      ],
+      "website_url": "https://albarakahusa.com",
+      "city": "New York",
+      "region": "NY",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "Shariah Board of New York (SBNY)",
+      "notes": "Distributor/retail (NY + Decatur, GA). States all meat & poultry hand-slaughtered by Muslims, SBNY-monitored.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "chicken",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "SBNY",
+          "source_url": "https://albarakahusa.com/about-us/"
+        },
+        {
+          "meat_type": "BEEF",
+          "product_name": "beef",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "SBNY",
+          "source_url": "https://albarakahusa.com/product-category/beef/"
+        }
+      ]
+    },
+    {
+      "name": "Barkaat Foods",
+      "slug": "barkaat-foods",
+      "aliases": [],
+      "website_url": "https://barkaatfoods.com",
+      "city": "Chicago",
+      "region": "IL",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": null,
+      "notes": "VERIFY: USDA slaughterhouse/processor; described as zabiha for lamb, goat, veal, beef via a company profile — confirm method + certifier from barkaatfoods.com.",
+      "products": [
+        {
+          "meat_type": "BEEF",
+          "product_name": "beef/veal",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://www.cbinsights.com/company/barkaat-foods"
+        },
+        {
+          "meat_type": "LAMB",
+          "product_name": "lamb",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://www.cbinsights.com/company/barkaat-foods"
+        },
+        {
+          "meat_type": "GOAT",
+          "product_name": "goat",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://www.cbinsights.com/company/barkaat-foods"
+        }
+      ]
+    },
+    {
+      "name": "Halal Pastures",
+      "slug": "halal-pastures",
+      "aliases": [
+        "Halal Pastures Farm"
+      ],
+      "website_url": "https://www.halalpastures.com",
+      "city": "Rock Tavern",
+      "region": "NY",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": null,
+      "notes": "Muslim family farm (farm + NYC stands). States all animals hand-slaughtered, organic/grass-fed, tayyib emphasis.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "chicken",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://www.halalpastures.com/faq/"
+        },
+        {
+          "meat_type": "BEEF",
+          "product_name": "beef",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://www.halalpastures.com/faq/"
+        },
+        {
+          "meat_type": "LAMB",
+          "product_name": "lamb",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://www.halalpastures.com/faq/"
+        },
+        {
+          "meat_type": "GOAT",
+          "product_name": "goat",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://www.halalpastures.com/faq/"
+        }
+      ]
+    },
+    {
+      "name": "Cargill (Better Beef halal program)",
+      "slug": "cargill-better-beef-halal",
+      "aliases": [
+        "Better Beef"
+      ],
+      "website_url": "https://www.cargill.com",
+      "city": null,
+      "region": null,
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "IFANCA",
+      "notes": "Industrial-scale; per IFANCA all cattle hand-slaughtered by trained Muslim slaughtermen (modified horizontal cut). Evidence that beef stays hand-slaughtered even at scale.",
+      "products": [
+        {
+          "meat_type": "BEEF",
+          "product_name": "beef",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "IFANCA",
+          "source_url": "https://ifanca.org/ifanca-responds-to-rumors-about-halal-certification-at-cargill-better-beef-plant/"
+        }
+      ]
+    },
+    {
+      "name": "Superior Farms",
+      "slug": "superior-farms",
+      "aliases": [],
+      "website_url": "https://superiorfarms.com",
+      "city": "Denver",
+      "region": "CO",
+      "country_code": "US",
+      "verification_tier": "LISTED",
+      "certifying_body_name": "Halal Transactions of Omaha (Denver) / Islamic Enterprises & Services of America (N. California)",
+      "notes": "Largest US lamb producer; halal lambs hand-slaughtered by trained Muslim slaughtermen.",
+      "products": [
+        {
+          "meat_type": "LAMB",
+          "product_name": "lamb",
+          "slaughter_method": "HAND_CUT",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": "Halal Transactions of Omaha",
+          "source_url": "https://will.illinois.edu/news/story/chances-are-youre-eating-halal-meat-and-dont-know-it"
+        }
+      ]
+    },
+    {
+      "name": "Sadia (BRF)",
+      "slug": "sadia-brf",
+      "aliases": [
+        "BRF",
+        "Perdigao"
+      ],
+      "website_url": "https://www.brf-global.com",
+      "city": null,
+      "region": null,
+      "country_code": "BR",
+      "verification_tier": "LISTED",
+      "certifying_body_name": null,
+      "notes": "VERIFY: Brazilian exporter, imported to US via distributors. Export listings claim hand-slaughter, but large-scale Brazilian poultry is commonly mechanical. NOT_DISCLOSED until confirmed from a primary source.",
+      "products": [
+        {
+          "meat_type": "CHICKEN",
+          "product_name": "frozen chicken",
+          "slaughter_method": "NOT_DISCLOSED",
+          "stunning": "NOT_DISCLOSED",
+          "line_tier": "LISTED",
+          "certifying_body_name": null,
+          "source_url": "https://www.brazilhalalchicken.com/post/brazilian-halal-chicken-brands"
+        }
+      ]
+    }
+  ]
+}

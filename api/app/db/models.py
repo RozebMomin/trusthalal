@@ -61,3 +61,14 @@ from app.modules.places.photos.storage_cleanup import (  # noqa: F401
 )
 from app.modules.users.blocks import UserBlock  # noqa: F401
 from app.modules.places.signals import PlaceSignalRow  # noqa: F401
+
+# Supplier registry — see api/alembic/versions/x7d8e9f0a1b2_supplier_registry.py
+# and y8e9f0a1b2c3_place_supplier_links.py. Slaughter method as a per-line
+# supplier fact (docs/2026-08-11-supplier-provenance-plan.md).
+from app.modules.suppliers.models import (  # noqa: F401
+    PlaceSupplierLink,
+    Supplier,
+    SupplierAttachment,
+    SupplierEvent,
+    SupplierProduct,
+)
