@@ -746,6 +746,15 @@ def search_diagnostics(
     has_certification: bool | None = Query(default=None),
     no_pork: bool | None = Query(default=None),
     no_alcohol_served: bool | None = Query(default=None),
+    supplier_verified: bool | None = Query(
+        default=None,
+        description=(
+            "Only places with a served meat backed by a live sourcing link "
+            "composing to DOCUMENTED or better (supplier + line + evidence all "
+            "at least documented) against a non-revoked supplier. Does not "
+            "narrow by restaurant validation tier."
+        ),
+    ),
     cuisine: list[Cuisine] | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> SearchDiagnosticsResponse:
@@ -773,6 +782,7 @@ def search_diagnostics(
             has_certification=has_certification,
             no_pork=no_pork,
             no_alcohol_served=no_alcohol_served,
+            supplier_verified=supplier_verified,
         ),
         cuisines=tuple(cuisine or ()),
         wider_radius_m=wider_radius if has_geo else None,
@@ -1105,6 +1115,15 @@ def search_places(
     has_certification: bool | None = Query(default=None),
     no_pork: bool | None = Query(default=None),
     no_alcohol_served: bool | None = Query(default=None),
+    supplier_verified: bool | None = Query(
+        default=None,
+        description=(
+            "Only places with a served meat backed by a live sourcing link "
+            "composing to DOCUMENTED or better (supplier + line + evidence all "
+            "at least documented) against a non-revoked supplier. Does not "
+            "narrow by restaurant validation tier."
+        ),
+    ),
     open_now: bool = Query(
         default=False,
         description=(
@@ -1167,6 +1186,7 @@ def search_places(
         has_certification=has_certification,
         no_pork=no_pork,
         no_alcohol_served=no_alcohol_served,
+        supplier_verified=supplier_verified,
     )
 
     cuisines = tuple(cuisine or ())

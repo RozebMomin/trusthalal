@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from typing import Sequence
 from uuid import UUID
 
@@ -10,6 +11,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import Select
 
 from app.core.analytics import track
+from app.modules.suppliers.models import (
+    PlaceSupplierLink,
+    Supplier,
+    SupplierProduct,
+)
 from app.modules.halal_profiles.enums import (
     MenuPosture,
     SlaughterMethod,
@@ -104,6 +110,10 @@ class HalalSearchFilters:
 
     min_validation_tier: ValidationTier | None = None
     min_menu_posture: MenuPosture | None = None
+    # "Supplier-verified": at least one served meat is backed by a live sourcing
+    # link composing to DOCUMENTED or better (all of supplier tier, line tier,
+    # and sourcing evidence at rung >= 2), against a non-revoked supplier.
+    supplier_verified: bool | None = None
     chicken_slaughter: Sequence[SlaughterMethod] = ()
     beef_slaughter: Sequence[SlaughterMethod] = ()
     lamb_slaughter: Sequence[SlaughterMethod] = ()
@@ -118,6 +128,7 @@ class HalalSearchFilters:
         return (
             self.min_validation_tier is None
             and self.min_menu_posture is None
+            and self.supplier_verified is None
             and not self.chicken_slaughter
             and not self.beef_slaughter
             and not self.lamb_slaughter
@@ -190,6 +201,36 @@ def _apply_halal_filters(stmt: Select, filters: HalalSearchFilters) -> Select:
         # other two values (BEER_AND_WINE_ONLY, FULL_BAR) both
         # involve alcohol on premises.
         stmt = stmt.where(HalalProfile.alcohol_policy == "NONE")
+    if filters.supplier_verified is True:
+        # DOCUMENTED+ on every rung of the chain (company tier, line tier,
+        # sourcing evidence), on a live/unexpired link to a non-revoked
+        # supplier. Mirrors the composition's "minimum governs" rule at the
+        # DOCUMENTED threshold. Does NOT narrow by restaurant ValidationTier.
+        _documented_plus_tiers = ("CERTIFICATE_ON_FILE", "TRUST_HALAL_VERIFIED")
+        _documented_plus_evidence = ("DOCUMENTED", "VERIFIER_CONFIRMED")
+        now = datetime.now(timezone.utc)
+        backed = (
+            select(PlaceSupplierLink.id)
+            .join(
+                SupplierProduct,
+                SupplierProduct.id == PlaceSupplierLink.supplier_product_id,
+            )
+            .join(Supplier, Supplier.id == SupplierProduct.supplier_id)
+            .where(
+                PlaceSupplierLink.place_id == Place.id,
+                PlaceSupplierLink.ended_at.is_(None),
+                or_(
+                    PlaceSupplierLink.expires_at.is_(None),
+                    PlaceSupplierLink.expires_at > now,
+                ),
+                Supplier.revoked_at.is_(None),
+                Supplier.verification_tier.in_(_documented_plus_tiers),
+                SupplierProduct.line_tier.in_(_documented_plus_tiers),
+                PlaceSupplierLink.evidence_tier.in_(_documented_plus_evidence),
+            )
+            .exists()
+        )
+        stmt = stmt.where(backed)
     return stmt
 
 

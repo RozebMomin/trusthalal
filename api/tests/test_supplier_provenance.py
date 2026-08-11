@@ -275,3 +275,35 @@ def test_place_read_provenance_supplier_backed(api, factories, db_session):
     assert chicken["method"] == "HAND_CUT"
     assert chicken["confidence"] == "VERIFIED"
     assert chicken["supplier_name"] == "crescent-read"
+
+
+# ---------------------------------------------------------------------------
+# GET /places?supplier_verified=true
+# ---------------------------------------------------------------------------
+def test_supplier_verified_search_filter(api, factories, db_session):
+    a = factories.place(name="ZZQVERIFIED Alpha")
+    b = factories.place(name="ZZQVERIFIED Beta")
+    _profile(db_session, a.id, chicken_slaughter="ZABIHAH")
+    _profile(db_session, b.id, chicken_slaughter="ZABIHAH")
+
+    # A: DOCUMENTED+ on every rung → passes the filter.
+    pa = _supplier_with_line(
+        db_session, slug="verified-co",
+        supplier_tier=SupplierTier.TRUST_HALAL_VERIFIED,
+        line_tier=SupplierTier.TRUST_HALAL_VERIFIED,
+    )
+    _link(db_session, place_id=a.id, product=pa, evidence=SourcingEvidence.VERIFIER_CONFIRMED)
+    # B: only owner-stated against a listed supplier → below threshold, excluded.
+    pb = _supplier_with_line(db_session, slug="listed-co")  # LISTED/LISTED
+    _link(db_session, place_id=b.id, product=pb, evidence=SourcingEvidence.OWNER_STATED)
+    db_session.commit()
+
+    filtered = api.get("/places", params={"q": "ZZQVERIFIED", "supplier_verified": "true"})
+    assert filtered.status_code == 200, filtered.text
+    ids = {row["id"] for row in filtered.json()}
+    assert str(a.id) in ids
+    assert str(b.id) not in ids
+
+    # Unfiltered: both present.
+    both = {row["id"] for row in api.get("/places", params={"q": "ZZQVERIFIED"}).json()}
+    assert str(a.id) in both and str(b.id) in both
