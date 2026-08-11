@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Building2,
   ClipboardCheck,
+  Factory,
   Flag,
   ImageOff,
   KeyRound,
@@ -31,6 +32,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 const items: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/places", label: "Places", icon: Store },
+  { href: "/suppliers", label: "Suppliers", icon: Factory },
   { href: "/halal-claims", label: "Halal claims", icon: ClipboardCheck },
   { href: "/verifier-applications", label: "Verifier applications", icon: UserPlus },
   { href: "/verification-visits", label: "Verification visits", icon: ShieldCheck },

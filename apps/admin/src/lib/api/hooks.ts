@@ -313,6 +313,16 @@ export const qk = {
       ["users", "list", params] as const,
     detail: (id: string) => ["users", "detail", id] as const,
   },
+  suppliers: {
+    list: (params: {
+      q?: string;
+      tier?: string;
+      method?: string;
+      includeRevoked?: boolean;
+    }) => ["suppliers", "list", params] as const,
+    detail: (id: string) => ["suppliers", "detail", id] as const,
+    events: (id: string) => ["suppliers", "events", id] as const,
+  },
   me: () => ["me"] as const,
 } as const;
 
@@ -2282,5 +2292,241 @@ export function useResolvePhotoReport(photoId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "photo-reports"] });
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Suppliers (admin registry)
+// ---------------------------------------------------------------------------
+// Hand-written types pending the next codegen pass (same convention as the
+// bulk-places + org-address types above). They mirror the server schemas in
+// api/app/modules/admin/suppliers/schemas.py; run
+// ``make export-openapi && (cd apps/admin && npm run codegen)`` to fold them in.
+
+export type SupplierTier =
+  | "LISTED"
+  | "CERTIFICATE_ON_FILE"
+  | "TRUST_HALAL_VERIFIED";
+export type SlaughterMethodValue = "HAND_CUT" | "MACHINE_CUT" | "NOT_DISCLOSED";
+export type StunningValue = "STUNNED" | "NON_STUNNED" | "NOT_DISCLOSED";
+export type MeatTypeValue =
+  | "CHICKEN"
+  | "BEEF"
+  | "LAMB"
+  | "GOAT"
+  | "TURKEY"
+  | "DUCK"
+  | "FISH"
+  | "OTHER";
+export type SupplierEventTypeValue =
+  | "LISTED"
+  | "VERIFIED"
+  | "CERT_UPDATED"
+  | "LINE_ADDED"
+  | "REVOKED"
+  | "CORRECTED";
+
+export type SupplierProductAdminRead = {
+  id: string;
+  meat_type: MeatTypeValue;
+  product_name: string;
+  slaughter_method: SlaughterMethodValue;
+  line_tier: SupplierTier;
+  stunning?: StunningValue | null;
+  certifying_body_name?: string | null;
+  certificate_number?: string | null;
+  certificate_url?: string | null;
+  certificate_expires_at?: string | null;
+  source_url?: string | null;
+  notes?: string | null;
+  last_verified_at: string;
+  evidence_expires_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierAdminRead = {
+  id: string;
+  name: string;
+  slug: string;
+  aliases: string[];
+  website_url?: string | null;
+  country_code?: string | null;
+  region?: string | null;
+  city?: string | null;
+  verification_tier: SupplierTier;
+  certifying_body_name?: string | null;
+  notes?: string | null;
+  last_verified_at: string;
+  revoked_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  product_count: number;
+};
+
+export type SupplierDetailRead = SupplierAdminRead & {
+  products: SupplierProductAdminRead[];
+};
+
+export type SupplierEventRead = {
+  id: string;
+  event_type: SupplierEventTypeValue;
+  actor_user_id?: string | null;
+  description?: string | null;
+  created_at: string;
+};
+
+export type SupplierProductCreate = {
+  meat_type: MeatTypeValue;
+  product_name: string;
+  slaughter_method?: SlaughterMethodValue;
+  line_tier?: SupplierTier;
+  stunning?: StunningValue | null;
+  certifying_body_name?: string | null;
+  certificate_number?: string | null;
+  certificate_url?: string | null;
+  certificate_expires_at?: string | null;
+  source_url?: string | null;
+  notes?: string | null;
+};
+export type SupplierProductPatch = Partial<Omit<SupplierProductCreate, "meat_type">>;
+
+export type SupplierCreate = {
+  name: string;
+  slug: string;
+  aliases?: string[];
+  website_url?: string | null;
+  country_code?: string | null;
+  region?: string | null;
+  city?: string | null;
+  verification_tier?: SupplierTier;
+  certifying_body_name?: string | null;
+  notes?: string | null;
+  products?: SupplierProductCreate[];
+};
+export type SupplierPatch = Omit<SupplierCreate, "slug" | "products">;
+
+function invalidateSuppliers(qc: ReturnType<typeof useQueryClient>) {
+  return qc.invalidateQueries({ queryKey: ["suppliers"] });
+}
+
+export function useAdminSuppliers(
+  params: {
+    q?: string;
+    tier?: SupplierTier;
+    method?: SlaughterMethodValue;
+    includeRevoked?: boolean;
+  } = {},
+) {
+  return useQuery({
+    queryKey: qk.suppliers.list(params),
+    queryFn: () =>
+      apiFetch<SupplierAdminRead[]>("/admin/suppliers", {
+        searchParams: {
+          q: params.q,
+          tier: params.tier,
+          method: params.method,
+          include_revoked: params.includeRevoked ? "true" : undefined,
+          limit: 200,
+        },
+      }),
+  });
+}
+
+export function useAdminSupplier(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.suppliers.detail(id ?? ""),
+    queryFn: () => apiFetch<SupplierDetailRead>(`/admin/suppliers/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useAdminSupplierEvents(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.suppliers.events(id ?? ""),
+    queryFn: () => apiFetch<SupplierEventRead[]>(`/admin/suppliers/${id}/events`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useCreateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SupplierCreate) =>
+      apiFetch<SupplierDetailRead>("/admin/suppliers", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => void invalidateSuppliers(qc),
+  });
+}
+
+export function usePatchSupplier(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SupplierPatch) =>
+      apiFetch<SupplierDetailRead>(`/admin/suppliers/${id}`, {
+        method: "PATCH",
+        json: payload,
+      }),
+    onSuccess: () => void invalidateSuppliers(qc),
+  });
+}
+
+export function useRevokeSupplier(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { reason?: string } = {}) =>
+      apiFetch<SupplierDetailRead>(`/admin/suppliers/${id}/revoke`, {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => void invalidateSuppliers(qc),
+  });
+}
+
+export function useRestoreSupplier(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<SupplierDetailRead>(`/admin/suppliers/${id}/restore`, {
+        method: "POST",
+      }),
+    onSuccess: () => void invalidateSuppliers(qc),
+  });
+}
+
+export function useAddSupplierProduct(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SupplierProductCreate) =>
+      apiFetch<SupplierProductAdminRead>(`/admin/suppliers/${id}/products`, {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => void invalidateSuppliers(qc),
+  });
+}
+
+export function usePatchSupplierProduct(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { productId: string; patch: SupplierProductPatch }) =>
+      apiFetch<SupplierProductAdminRead>(
+        `/admin/suppliers/${id}/products/${vars.productId}`,
+        { method: "PATCH", json: vars.patch },
+      ),
+    onSuccess: () => void invalidateSuppliers(qc),
+  });
+}
+
+export function useDeleteSupplierProduct(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (productId: string) =>
+      apiFetch<void>(`/admin/suppliers/${id}/products/${productId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => void invalidateSuppliers(qc),
   });
 }
