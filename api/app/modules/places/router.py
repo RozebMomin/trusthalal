@@ -71,6 +71,10 @@ from app.modules.places.schemas import (
 )
 from app.modules.places.models import Place, PlaceEvent
 from app.modules.places.enums import PlaceEventType
+from app.modules.places.vocab_compat import (
+    apply_legacy_slaughter_vocab,
+    wants_modern_slaughter_vocab,
+)
 from app.modules.places.hours import is_open_now
 from app.modules.places.photos.repo import serialize_photos_for_place
 from app.modules.organizations.deps import assert_can_manage_place
@@ -115,10 +119,11 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
 
     # Compose supplier-backed slaughter method + confidence for each served
     # meat. resolve_place_method falls back to the profile's own (self-attested)
-    # value when there's no live sourcing link, and canonicalises the legacy
-    # vocabulary (ZABIHAH -> HAND_CUT) so the read speaks the new words without
-    # a DB rename. Only the four profile meats are resolved (the ones with a
-    # per-meat column); NOT_SERVED meats are skipped.
+    # value when there's no live sourcing link. Since the profile columns were
+    # renamed to the supplier vocabulary the canonicalisation is now a
+    # pass-through, but it's kept so the composition path stays vocab-agnostic.
+    # Only the four profile meats are resolved (the ones with a per-meat
+    # column); NOT_SERVED meats are skipped.
     provenance: list[SlaughterProvenanceRead] = []
     for meat, column in (
         ("CHICKEN", "chicken_slaughter"),
@@ -833,6 +838,10 @@ def get_place_by_id(
     # place page get name + address + halal posture in one trip.
     profile = get_public_halal_profile(db, place_id=place_id)
     halal_embed = _embed_with_products(db, profile)
+    # Legacy clients (pre-rename mobile builds, stale web tabs) don't send the
+    # opt-in header; hand them the vocabulary their code understands.
+    if not wants_modern_slaughter_vocab(request):
+        apply_legacy_slaughter_vocab(halal_embed)
 
     # Photos are loaded eagerly via the Place.photos relationship
     # (selectin), so this is a pure transform — no extra DB hit
@@ -1148,6 +1157,7 @@ def search_places(
             "to broaden the match. Empty / missing = no cuisine filter."
         ),
     ),
+    request: Request = None,  # type: ignore[assignment]
     db: Session = Depends(get_db),
     photos_storage: StorageClient = Depends(get_photos_storage_client),
 ) -> list[PlaceSearchResult]:
@@ -1309,6 +1319,14 @@ def search_places(
         )
         for place, profile in rows
     ]
+
+    # Legacy clients (pre-rename mobile builds, stale web tabs) don't send the
+    # opt-in header; translate the embedded per-meat methods back to the words
+    # their code understands. Search embeds carry no meat_products, so this
+    # only touches the four rolled-up columns.
+    if request is not None and not wants_modern_slaughter_vocab(request):
+        for r in results:
+            apply_legacy_slaughter_vocab(r.halal_profile)
 
     if open_now:
         # Drop only places we can confirm are CLOSED right now. Confirmed-

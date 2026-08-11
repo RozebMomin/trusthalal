@@ -127,6 +127,9 @@ export async function apiFetch<T = unknown>(
     ...init,
     headers: {
       Accept: "application/json",
+      // Opt into the post-rename slaughter vocabulary (HAND_CUT / MACHINE_CUT).
+      // The API defaults to the legacy words for clients that don't send this.
+      "X-TH-Slaughter-Vocab": "v2",
       ...extraHeaders,
       ...(headers ?? {}),
     },

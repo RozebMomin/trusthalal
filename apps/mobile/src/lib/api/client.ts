@@ -79,6 +79,10 @@ export async function apiFetch<T>(
   const headers = new Headers(opts.headers);
   if (access) headers.set("Authorization", `Bearer ${access}`);
   headers.set("Accept", "application/json");
+  // Opt into the post-rename slaughter vocabulary (HAND_CUT / MACHINE_CUT).
+  // The API defaults to the legacy words (ZABIHAH / MACHINE) for clients that
+  // omit this header, so builds shipped before the rename keep working.
+  headers.set("X-TH-Slaughter-Vocab", "v2");
   // Don't force JSON on multipart uploads — fetch must set the multipart
   // boundary itself, so leave Content-Type unset when the body is FormData.
   if (opts.body && !(opts.body instanceof FormData) && !headers.has("Content-Type")) {

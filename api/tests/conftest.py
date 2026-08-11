@@ -75,6 +75,8 @@ import pytest
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from fastapi.testclient import TestClient
+
+from app.modules.places.vocab_compat import SLAUGHTER_VOCAB_HEADER
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -191,21 +193,37 @@ class APIClient:
     fighting with ``headers=`` kwargs.
     """
 
-    def __init__(self, client: TestClient, user_id: str | None = None):
+    def __init__(
+        self,
+        client: TestClient,
+        user_id: str | None = None,
+        modern_slaughter_vocab: bool = True,
+    ):
         self._client = client
         self._user_id = user_id
+        # Tests act as an updated client by default (they assert the canonical
+        # post-rename vocabulary), so the wrapper opts into it. A test can drop
+        # to a pre-rename client with ``as_legacy_slaughter_client()`` to
+        # exercise the backward-compat shim.
+        self._modern_slaughter_vocab = modern_slaughter_vocab
 
     def as_user(self, user_or_id) -> "APIClient":
         uid = getattr(user_or_id, "id", user_or_id)
-        return APIClient(self._client, str(uid))
+        return APIClient(self._client, str(uid), self._modern_slaughter_vocab)
 
     def as_anonymous(self) -> "APIClient":
-        return APIClient(self._client, None)
+        return APIClient(self._client, None, self._modern_slaughter_vocab)
+
+    def as_legacy_slaughter_client(self) -> "APIClient":
+        """A caller that omits the vocab opt-in header (pre-rename client)."""
+        return APIClient(self._client, self._user_id, modern_slaughter_vocab=False)
 
     def _with_auth(self, headers: dict | None) -> dict:
         merged = dict(headers or {})
         if self._user_id:
             merged.setdefault("X-User-Id", self._user_id)
+        if self._modern_slaughter_vocab:
+            merged.setdefault(SLAUGHTER_VOCAB_HEADER, "v2")
         return merged
 
     def get(self, url, **kw):
