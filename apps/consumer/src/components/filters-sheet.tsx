@@ -211,6 +211,7 @@ export function countActiveFilters(filters: SearchPlacesParams): number {
   if (filters.no_pork === true) count++;
   if (filters.no_alcohol_served === true) count++;
   if (filters.has_certification === true) count++;
+  if (filters.supplier_verified === true) count++;
   if (filters.cuisines && filters.cuisines.length > 0) {
     count += filters.cuisines.length;
   }
@@ -235,6 +236,7 @@ export const FILTER_LABELS: Readonly<Record<string, string>> = {
   min_validation_tier: "that level of verification",
   min_menu_posture: "that kind of menu",
   has_certification: "a certificate on file",
+  supplier_verified: "a verified supplier",
   no_pork: "no pork on the menu",
   no_alcohol_served: "no alcohol served",
   chicken_slaughter: "that chicken slaughter method",
@@ -258,6 +260,9 @@ export function clearFilterField(
       break;
     case "has_certification":
       delete next.has_certification;
+      break;
+    case "supplier_verified":
+      delete next.supplier_verified;
       break;
     case "no_pork":
       delete next.no_pork;
@@ -513,6 +518,17 @@ export function FiltersSheet({
                   }
                 >
                   Certificate on file
+                </FilterPill>
+                <FilterPill
+                  active={filters.supplier_verified === true}
+                  onClick={() =>
+                    update({
+                      supplier_verified:
+                        filters.supplier_verified === true ? undefined : true,
+                    })
+                  }
+                >
+                  Supplier-verified
                 </FilterPill>
               </FilterSection>
             </div>

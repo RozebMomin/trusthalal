@@ -233,6 +233,25 @@ export type HalalProfileEmbed = {
    *  "no products on file" on a search card would be a claim about the
    *  restaurant that the payload never made. */
   meat_products: MeatProduct[] | null;
+  /** Composed slaughter method + confidence per served meat, from the supplier
+   *  registry + sourcing links (falls back to the owner's self-attested value).
+   *  `null` on surfaces that don't compute it (search cards). Hand-added
+   *  pending codegen. */
+  supplier_provenance?: SupplierProvenance[] | null;
+};
+
+/** One served meat's composed method + confidence (see server
+ *  SlaughterProvenanceRead). `method`/`confidence` are the canonical
+ *  vocabulary; render the caveat from `confidence` + `source` and never show a
+ *  `self_attested` value as confirmed. */
+export type SupplierProvenance = {
+  meat_type: string;
+  method: "HAND_CUT" | "MACHINE_CUT" | "NOT_DISCLOSED";
+  confidence: "SELF_STATED" | "DOCUMENTED" | "VERIFIED";
+  source: "supplier" | "self_attested";
+  supplier_id: string | null;
+  supplier_name: string | null;
+  as_of: string | null;
 };
 
 /**
@@ -456,6 +475,7 @@ export function useSearchDiagnostics(
           has_certification: params.has_certification,
           no_pork: params.no_pork,
           no_alcohol_served: params.no_alcohol_served,
+          supplier_verified: params.supplier_verified,
           cuisine: params.cuisines,
         },
       }),
@@ -756,6 +776,8 @@ export type SearchPlacesParams = {
   has_certification?: boolean;
   no_pork?: boolean;
   no_alcohol_served?: boolean;
+  /** Only places with a served meat backed by a DOCUMENTED+ sourcing link. */
+  supplier_verified?: boolean;
   /** Multi-value cuisine filter. Server returns places matching ANY
    *  of the cuisines (overlap). Empty / missing = no cuisine filter. */
   cuisines?: Cuisine[];
@@ -1369,6 +1391,7 @@ export function useSearchPlaces(params: SearchPlacesParams) {
           has_certification: params.has_certification,
           no_pork: params.no_pork,
           no_alcohol_served: params.no_alcohol_served,
+          supplier_verified: params.supplier_verified,
           open_now: params.open_now || undefined,
           // Multi-value cuisine filter — encoded as repeated keys
           // (``?cuisine=PAKISTANI&cuisine=INDIAN``) by the array-aware

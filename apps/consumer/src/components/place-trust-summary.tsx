@@ -208,6 +208,7 @@ export function PlaceTrustSummary({
           <>
             <div className="hidden sm:block">
               <ServedMeats profile={profile} />
+              <SupplierBackedSourcing profile={profile} />
             </div>
             <div className="sm:hidden">
               <MeatDisclosure profile={profile} />
@@ -288,6 +289,86 @@ function DisputeBanner({
 // Machine-slaughtered meat keeps its amber chip. That's a real distinction
 // many observant diners care about and it must never quietly read as zabihah.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Supplier-backed sourcing. Additive to the slaughter grid above: when a served
+// meat is traced to a registry supplier via a sourcing link, we say who and how
+// well-evidenced it is. Method is NEUTRAL (no hand-vs-machine ranking); the
+// confidence chip carries the honesty caveat — a self-stated link never gets a
+// confirming treatment, matching the rest of the product. Only supplier-backed
+// meats appear here; self-attested ones already live in the grid.
+// ---------------------------------------------------------------------------
+const PROVENANCE_METHOD_LABEL: Record<string, string> = {
+  HAND_CUT: "hand-slaughtered",
+  MACHINE_CUT: "machine-slaughtered",
+  NOT_DISCLOSED: "method not disclosed",
+};
+
+function provenanceMeatLabel(meat: string): string {
+  return meat.charAt(0) + meat.slice(1).toLowerCase();
+}
+
+function ConfidenceChip({
+  confidence,
+}: {
+  confidence: "SELF_STATED" | "DOCUMENTED" | "VERIFIED";
+}) {
+  const map = {
+    VERIFIED: {
+      label: "verified",
+      cls: "border-emerald-500/40 text-emerald-700 dark:text-emerald-400",
+    },
+    DOCUMENTED: {
+      label: "documented",
+      cls: "border-sky-500/40 text-sky-700 dark:text-sky-400",
+    },
+    SELF_STATED: {
+      label: "as stated by the owner",
+      cls: "border-border text-muted-foreground",
+    },
+  } as const;
+  const { label, cls } = map[confidence];
+  return (
+    <span className={cn("rounded-full border px-1.5 py-0.5 text-[11px]", cls)}>
+      {label}
+    </span>
+  );
+}
+
+function SupplierBackedSourcing({ profile }: { profile: HalalProfileEmbed }) {
+  const backed = (profile.supplier_provenance ?? []).filter(
+    (p) => p.source === "supplier",
+  );
+  if (backed.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1.5 rounded-md border bg-muted/20 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Supplier sourcing
+      </p>
+      <ul className="space-y-1 text-sm">
+        {backed.map((p) => (
+          <li key={p.meat_type} className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+            <span className="font-medium">{provenanceMeatLabel(p.meat_type)}</span>
+            <span>{PROVENANCE_METHOD_LABEL[p.method] ?? p.method}</span>
+            {p.supplier_name && (
+              <span className="text-muted-foreground">— {p.supplier_name}</span>
+            )}
+            <ConfidenceChip confidence={p.confidence} />
+            {p.as_of && (
+              <span className="text-xs text-muted-foreground">
+                · as of{" "}
+                {new Date(p.as_of).toLocaleDateString(undefined, {
+                  year: "numeric",
+                  month: "short",
+                })}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
   const rows: Array<{ label: string; method: SlaughterMethod }> = [
     { label: "Chicken", method: profile.chicken_slaughter },
@@ -707,6 +788,7 @@ function MeatDisclosure({ profile }: { profile: HalalProfileEmbed }) {
   const detail = (
     <div className="mt-2.5 space-y-3">
       <ServedMeats profile={profile} />
+      <SupplierBackedSourcing profile={profile} />
       <KitchenConfirmations profile={profile} />
     </div>
   );
