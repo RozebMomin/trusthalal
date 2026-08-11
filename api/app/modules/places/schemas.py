@@ -262,6 +262,30 @@ class MeatProductRead(BaseModel):
     certifying_authority: str | None = None
 
 
+class SlaughterProvenanceRead(BaseModel):
+    """Per-served-meat composed slaughter method + confidence.
+
+    Computed at read time from the supplier registry + sourcing links, falling
+    back to the owner's self-attested value (docs/2026-08-11-supplier-provenance-plan.md).
+    ``method`` / ``confidence`` are the canonical vocabulary
+    (HAND_CUT / MACHINE_CUT / NOT_DISCLOSED; SELF_STATED / DOCUMENTED / VERIFIED).
+
+    A client MUST render the caveat from ``confidence`` + ``source`` and must
+    never present a ``self_attested`` value with confirming/green treatment. The
+    method is never ranked — hand-cut and machine-cut are equal facts.
+    """
+
+    model_config = ConfigDict(from_attributes=False)
+
+    meat_type: str
+    method: str
+    confidence: str
+    source: str  # "supplier" | "self_attested"
+    supplier_id: UUID | None = None
+    supplier_name: str | None = None
+    as_of: datetime | None = None
+
+
 class HalalProfileEmbed(BaseModel):
     """Inline halal-profile shape, kept here (rather than imported
     from app.modules.halal_profiles.schemas) to avoid a Pydantic-
@@ -310,6 +334,12 @@ class HalalProfileEmbed(BaseModel):
     # restaurant listed none. Collapsing those two would make every search
     # card claim the place has no products on file.
     meat_products: list[MeatProductRead] | None = None
+
+    # Composed slaughter method + confidence per served meat, from the supplier
+    # registry + sourcing links (falls back to the self-attested value above).
+    # Three-state like meat_products: None means this surface didn't compute it
+    # (search cards don't); [] means the profile serves no per-meat protein.
+    supplier_provenance: list[SlaughterProvenanceRead] | None = None
     updated_at: datetime
 
 

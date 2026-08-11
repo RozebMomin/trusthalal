@@ -51,6 +51,7 @@ from app.modules.places.repo import (
     search_by_text,
     search_nearby,
 )
+from app.modules.suppliers.repo import resolve_place_method
 from app.modules.places.schemas import (
     GoogleAutocompletePrediction,
     HalalHistoryEventRead,
@@ -58,6 +59,7 @@ from app.modules.places.schemas import (
     MeatProductRead,
     OwnedPlaceRead,
     OwnedPlaceUpdate,
+    SlaughterProvenanceRead,
     ForwardGeocodeMatch,
     ForwardGeocodeResults,
     PlaceCreate,
@@ -110,6 +112,35 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
         MeatProductRead.model_validate(p, from_attributes=True)
         for p in public_meat_products(db, profile=profile)
     ]
+
+    # Compose supplier-backed slaughter method + confidence for each served
+    # meat. resolve_place_method falls back to the profile's own (self-attested)
+    # value when there's no live sourcing link, and canonicalises the legacy
+    # vocabulary (ZABIHAH -> HAND_CUT) so the read speaks the new words without
+    # a DB rename. Only the four profile meats are resolved (the ones with a
+    # per-meat column); NOT_SERVED meats are skipped.
+    provenance: list[SlaughterProvenanceRead] = []
+    for meat, column in (
+        ("CHICKEN", "chicken_slaughter"),
+        ("BEEF", "beef_slaughter"),
+        ("LAMB", "lamb_slaughter"),
+        ("GOAT", "goat_slaughter"),
+    ):
+        if str(getattr(profile, column)) == "NOT_SERVED":
+            continue
+        r = resolve_place_method(db, place_id=profile.place_id, meat_type=meat)
+        provenance.append(
+            SlaughterProvenanceRead(
+                meat_type=meat,
+                method=r.method,
+                confidence=str(r.confidence),
+                source=r.source,
+                supplier_id=r.supplier_id,
+                supplier_name=r.supplier_name,
+                as_of=r.as_of,
+            )
+        )
+    embed.supplier_provenance = provenance
     return embed
 
 

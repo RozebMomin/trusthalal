@@ -108,6 +108,7 @@ from app.modules.admin.organizations.router import router as admin_organizations
 from app.modules.admin.halal_claims.router import router as admin_halal_claims_router  # noqa: E402
 from app.modules.admin.disputes.router import router as admin_disputes_router  # noqa: E402
 from app.modules.admin.suppliers.router import router as admin_suppliers_router  # noqa: E402
+from app.modules.admin.place_supplier_links.router import router as admin_place_supplier_links_router  # noqa: E402
 from app.modules.admin.verifiers.router import (  # noqa: E402
     profiles_router as admin_verifier_profiles_router,
     router as admin_verifiers_router,
@@ -480,6 +481,7 @@ app.include_router(admin_organizations_router)
 app.include_router(admin_halal_claims_router)
 app.include_router(admin_disputes_router)
 app.include_router(admin_suppliers_router)
+app.include_router(admin_place_supplier_links_router)
 app.include_router(admin_verifiers_router)
 app.include_router(admin_verification_visits_router)
 app.include_router(admin_verifier_profiles_router)

@@ -18,6 +18,7 @@ from app.modules.suppliers.enums import (
     SourcingEvidence,
     SupplierTier,
 )
+from app.modules.halal_profiles.models import HalalProfile
 from app.modules.suppliers.models import (
     PlaceSupplierLink,
     Supplier,
@@ -226,3 +227,51 @@ def test_ended_and_expired_links_are_ignored(db_session, factories):
     res = resolve_place_method(db_session, place_id=place.id, meat_type="CHICKEN")
     assert res.source == "self_attested"
     assert res.method == "NOT_DISCLOSED"
+
+
+# ---------------------------------------------------------------------------
+# Read-path: GET /places/{id} embeds supplier_provenance
+# ---------------------------------------------------------------------------
+def _profile(db, place_id, **cols):
+    db.add(HalalProfile(place_id=place_id, menu_posture="FULLY_HALAL", **cols))
+    db.commit()
+
+
+def test_place_read_provenance_self_attested(api, factories, db_session):
+    """No sourcing link → the profile's own value, canonicalised
+    (ZABIHAH -> HAND_CUT) and marked self-attested."""
+    place = factories.place()
+    _profile(db_session, place.id, chicken_slaughter="ZABIHAH")
+
+    body = api.get(f"/places/{place.id}").json()
+    prov = {p["meat_type"]: p for p in body["halal_profile"]["supplier_provenance"]}
+    assert prov["CHICKEN"]["method"] == "HAND_CUT"
+    assert prov["CHICKEN"]["source"] == "self_attested"
+    assert prov["CHICKEN"]["confidence"] == "SELF_STATED"
+    # NOT_SERVED meats are omitted.
+    assert "BEEF" not in prov
+
+
+def test_place_read_provenance_supplier_backed(api, factories, db_session):
+    place = factories.place()
+    _profile(db_session, place.id, chicken_slaughter="ZABIHAH")
+    prod = _supplier_with_line(
+        db_session,
+        slug="crescent-read",
+        supplier_tier=SupplierTier.TRUST_HALAL_VERIFIED,
+        line_tier=SupplierTier.TRUST_HALAL_VERIFIED,
+        method=SlaughterMethod.HAND_CUT,
+    )
+    _link(db_session, place_id=place.id, product=prod,
+          evidence=SourcingEvidence.VERIFIER_CONFIRMED)
+    db_session.commit()
+
+    body = api.get(f"/places/{place.id}").json()
+    chicken = next(
+        p for p in body["halal_profile"]["supplier_provenance"]
+        if p["meat_type"] == "CHICKEN"
+    )
+    assert chicken["source"] == "supplier"
+    assert chicken["method"] == "HAND_CUT"
+    assert chicken["confidence"] == "VERIFIED"
+    assert chicken["supplier_name"] == "crescent-read"
