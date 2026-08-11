@@ -50,6 +50,7 @@ from app.modules.halal_profiles.service import (
     derive_profile_from_approved_claim,
     revoke_profile,
 )
+from app.modules.suppliers.owner_links import sync_owner_sourcing_links
 from app.modules.places.enums import PlaceEventType
 from app.modules.places.repo import log_place_event
 
@@ -330,6 +331,11 @@ def admin_approve_halal_claim(
     # differ from what was sent in the request body.
     claim.expires_at = profile.expires_at
     db.add(claim)
+
+    # Materialise OWNER_STATED sourcing links for any registry supplier lines
+    # the owner attached in the questionnaire. Part of the same atomic
+    # transaction; skips invalid refs rather than failing the approval.
+    sync_owner_sourcing_links(db, place_id=claim.place_id, claim=claim)
 
     db.commit()
     db.refresh(claim)

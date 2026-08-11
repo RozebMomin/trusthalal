@@ -40,6 +40,7 @@ from app.modules.places.router import (  # noqa: E402
     router as places_router,
 )
 from app.modules.places.photos.router import router as place_photos_router  # noqa: E402
+from app.modules.suppliers.router import router as suppliers_router  # noqa: E402
 from app.modules.auth.router import router as auth_router  # noqa: E402
 from app.modules.organizations.router import router as organizations_router  # noqa: E402
 from app.modules.ownership_requests.router import router as ownership_requests_router  # noqa: E402
@@ -458,6 +459,7 @@ app.add_middleware(RequestIDMiddleware)
 app.include_router(places_router)
 app.include_router(me_places_router)
 app.include_router(place_photos_router)
+app.include_router(suppliers_router)
 app.include_router(auth_router)
 app.include_router(organizations_router)
 app.include_router(ownership_requests_router)

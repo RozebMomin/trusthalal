@@ -11,7 +11,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import or_, select
+from typing import Optional
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.modules.halal_profiles.models import HalalProfile
@@ -26,6 +28,40 @@ from app.modules.suppliers.provenance import (
     canonicalize_profile_method,
     resolve_method,
 )
+
+
+def public_search_suppliers(
+    db: Session,
+    *,
+    q: Optional[str] = None,
+    meat: Optional[str] = None,
+    limit: int = 20,
+) -> list[Supplier]:
+    """Search non-revoked suppliers by name/slug/alias, optionally scoped to
+    suppliers that carry a product line of ``meat``. Products load via the
+    selectin relationship; the caller filters them to the meat for the picker.
+    """
+    stmt = select(Supplier).where(Supplier.revoked_at.is_(None))
+    if q:
+        pat = f"%{q.lower()}%"
+        stmt = stmt.where(
+            or_(
+                func.lower(Supplier.name).like(pat),
+                func.lower(Supplier.slug).like(pat),
+                func.lower(func.array_to_string(Supplier.aliases, " ")).like(pat),
+            )
+        )
+    if meat:
+        stmt = stmt.where(
+            select(SupplierProduct.id)
+            .where(
+                SupplierProduct.supplier_id == Supplier.id,
+                SupplierProduct.meat_type == meat,
+            )
+            .exists()
+        )
+    stmt = stmt.order_by(Supplier.name.asc()).limit(limit)
+    return list(db.execute(stmt).scalars().unique().all())
 
 # meat_type -> the HalalProfile per-meat column that holds the owner's
 # self-attested method (legacy vocabulary; canonicalised on read). Only the

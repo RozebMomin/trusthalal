@@ -121,6 +121,17 @@ class MeatProductSourcing(BaseModel):
         max_length=255,
         description="Optional cert / batch number for traceability.",
     )
+    supplier_product_id: Optional[UUID] = Field(
+        default=None,
+        description=(
+            "Optional link to a registry SupplierProduct (a specific supplier "
+            "product line). When set and the claim is approved, an OWNER_STATED "
+            "PlaceSupplierLink is created so the listing can show supplier-backed "
+            "method. Independent of the free-text supplier_* fields; picking a "
+            "registry line does not by itself raise confidence above the owner's "
+            "word."
+        ),
+    )
 
 
 class HalalQuestionnaireResponse(BaseModel):
