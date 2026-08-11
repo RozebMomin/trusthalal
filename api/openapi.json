@@ -2643,7 +2643,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/MeatProductRead"
+                  "$ref": "#/components/schemas/app__modules__places__schemas__MeatProductRead"
                 },
                 "type": "array"
               },
@@ -2726,7 +2726,7 @@
             "$ref": "#/components/schemas/AlcoholPolicy"
           },
           "beef_slaughter": {
-            "$ref": "#/components/schemas/SlaughterMethod"
+            "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
           },
           "caveats": {
             "anyOf": [
@@ -2785,7 +2785,7 @@
             "title": "Certifying Body Name"
           },
           "chicken_slaughter": {
-            "$ref": "#/components/schemas/SlaughterMethod"
+            "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
           },
           "dispute_state": {
             "$ref": "#/components/schemas/HalalProfileDisputeState"
@@ -2803,7 +2803,7 @@
             "title": "Expires At"
           },
           "goat_slaughter": {
-            "$ref": "#/components/schemas/SlaughterMethod"
+            "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
           },
           "has_certification": {
             "title": "Has Certification",
@@ -2819,7 +2819,7 @@
             "type": "string"
           },
           "lamb_slaughter": {
-            "$ref": "#/components/schemas/SlaughterMethod"
+            "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
           },
           "last_verified_at": {
             "format": "date-time",
@@ -2830,7 +2830,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/app__modules__halal_profiles__schemas__MeatProductRead"
+                  "$ref": "#/components/schemas/MeatProductRead"
                 },
                 "type": "array"
               },
@@ -3328,7 +3328,8 @@
         "type": "object"
       },
       "MeatProductRead": {
-        "description": "Mirror of ``halal_profiles.schemas.MeatProductRead``.\n\nDuplicated for the same reason ``HalalProfileEmbed`` below is \u2014 see its\ndocstring. Keep the two in lock-step; the canonical one carries the\nreasoning, including why ``certificate_number`` is deliberately absent\nand why a client must attribute ``supplier_name`` to the owner rather\nthan presenting it as a platform finding.",
+        "additionalProperties": false,
+        "description": "One product the restaurant serves, with where it came from.\n\n## Why this exists\n\nThe per-meat columns on the profile (``chicken_slaughter`` and friends)\nare a rollup, and the rollup is deliberately least-conservative-wins: a\nkitchen with zabihah chicken breast and machine-slaughtered nuggets\nreports MACHINE for all chicken. That's the safe direction to round, but\nit leaves a diner unable to see which product is which \u2014 and in the other\ndirection, a bare \"Chicken \u00b7 Zabihah\" asks to be taken on faith, which is\nthe opposite of what this platform is for.\n\nThis is the same data the owner already filled in on the claim, projected\nfor public reading.\n\n## What is deliberately NOT here\n\n``certificate_number`` from the owner's questionnaire. A cert or batch\nnumber is traceability detail for staff resolving a dispute, not\nsomething a diner needs, and publishing it hands anyone the string needed\nto impersonate the restaurant's paperwork to a certifier.\n\n## What the client must not do with this\n\nEvery field here is the OWNER'S account of their own supply chain. It is\nnot verified unless a Trust Halal verifier visited, and visits record\nobservations as free text \u2014 so there is no structured link saying \"we\nconfirmed this supplier\". Rendering ``supplier_name`` as a bare fact\nturns the restaurant's claim into something that looks like our finding.\nAttribute it on its face.",
         "properties": {
           "certifying_authority": {
             "anyOf": [
@@ -3350,8 +3351,7 @@
             "type": "string"
           },
           "slaughter_method": {
-            "title": "Slaughter Method",
-            "type": "string"
+            "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
           },
           "supplier_city": {
             "anyOf": [
@@ -3437,7 +3437,7 @@
             "type": "string"
           },
           "slaughter_method": {
-            "$ref": "#/components/schemas/SlaughterMethod",
+            "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod",
             "description": "ZABIHAH / MACHINE / NOT_SERVED. NOT_SERVED is unusual on a per-product entry (an entry exists because the product is served) but kept for symmetry."
           },
           "supplier_city": {
@@ -3606,6 +3606,17 @@
             "maxLength": 256,
             "title": "Password",
             "type": "string"
+          },
+          "turnstile_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnstile Token"
           }
         },
         "required": [
@@ -6652,6 +6663,238 @@
         "title": "PlaceAdminRead",
         "type": "object"
       },
+      "PlaceBulkImportItem": {
+        "description": "Outcome for one imported Google ID.\n\n``place_id`` / ``place_name`` are set on any non-FAILED outcome (the\nplace that was created or matched); ``error_code`` / ``error_message``\nare set only on FAILED so the UI can explain what went wrong per row.",
+        "properties": {
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "google_place_id": {
+            "title": "Google Place Id",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/PlaceBulkImportOutcome"
+          },
+          "place_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Id"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Name"
+          }
+        },
+        "required": [
+          "google_place_id",
+          "outcome"
+        ],
+        "title": "PlaceBulkImportItem",
+        "type": "object"
+      },
+      "PlaceBulkImportOutcome": {
+        "description": "Per-item result of a bulk import.\n\n* ``CREATED``      \u2014 new place ingested from Google.\n* ``EXISTED``      \u2014 already a live place; ingest returned it unchanged.\n* ``SOFT_DELETED`` \u2014 Google ID maps to a soft-deleted place; left as-is\n                     (restore is a deliberate, separate admin action).\n* ``FAILED``       \u2014 this item errored (bad Google payload, fetch failure,\n                     etc.); other items in the batch are unaffected.",
+        "enum": [
+          "CREATED",
+          "EXISTED",
+          "SOFT_DELETED",
+          "FAILED"
+        ],
+        "title": "PlaceBulkImportOutcome",
+        "type": "string"
+      },
+      "PlaceBulkImportRequest": {
+        "additionalProperties": false,
+        "description": "Import the selected Google IDs. Each is ingested in its own\ntransaction so one failure never rolls back the rest of the batch.",
+        "properties": {
+          "google_place_ids": {
+            "items": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 25,
+            "minItems": 1,
+            "title": "Google Place Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "google_place_ids"
+        ],
+        "title": "PlaceBulkImportRequest",
+        "type": "object"
+      },
+      "PlaceBulkImportResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceBulkImportItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/PlaceBulkImportSummary"
+          }
+        },
+        "required": [
+          "items",
+          "summary"
+        ],
+        "title": "PlaceBulkImportResponse",
+        "type": "object"
+      },
+      "PlaceBulkImportSummary": {
+        "description": "Roll-up counts for the batch, for the results toast/header.",
+        "properties": {
+          "created": {
+            "default": 0,
+            "title": "Created",
+            "type": "integer"
+          },
+          "existed": {
+            "default": 0,
+            "title": "Existed",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "soft_deleted": {
+            "default": 0,
+            "title": "Soft Deleted",
+            "type": "integer"
+          }
+        },
+        "title": "PlaceBulkImportSummary",
+        "type": "object"
+      },
+      "PlaceBulkPreviewItem": {
+        "description": "One staged Google ID's dedup verdict.\n\n``existing_place_id`` / ``existing_name`` are populated only when the ID\nalready maps to a catalog row (EXISTS or SOFT_DELETED), letting the UI\nlink to and name the place it collides with.",
+        "properties": {
+          "existing_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Existing Name"
+          },
+          "existing_place_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Existing Place Id"
+          },
+          "google_place_id": {
+            "title": "Google Place Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PlaceBulkPreviewStatus"
+          }
+        },
+        "required": [
+          "google_place_id",
+          "status"
+        ],
+        "title": "PlaceBulkPreviewItem",
+        "type": "object"
+      },
+      "PlaceBulkPreviewRequest": {
+        "additionalProperties": false,
+        "description": "Ask the API which of these Google IDs already exist in the catalog.\n\nPure DB lookup on ``(GOOGLE, external_id)`` \u2014 no Google Place Details\ncall, so preview costs nothing. The admin UI already has each place's\nname/address from the Autocomplete widget, so the response only needs to\nadd a dedup verdict per ID.",
+        "properties": {
+          "google_place_ids": {
+            "items": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 25,
+            "minItems": 1,
+            "title": "Google Place Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "google_place_ids"
+        ],
+        "title": "PlaceBulkPreviewRequest",
+        "type": "object"
+      },
+      "PlaceBulkPreviewResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceBulkPreviewItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PlaceBulkPreviewResponse",
+        "type": "object"
+      },
+      "PlaceBulkPreviewStatus": {
+        "description": "What a staged Google place would do on import \u2014 the cheap, Google-free\nsignal the preview step surfaces so the admin can deselect duplicates\nbefore spending a billed import call.\n\n* ``NEW``          \u2014 no catalog row for this Google ID; import creates one.\n* ``EXISTS``       \u2014 already a live place; import is a safe no-op.\n* ``SOFT_DELETED`` \u2014 a soft-deleted place carries this Google ID; import\n                     will NOT auto-restore it (matches single ingest).",
+        "enum": [
+          "NEW",
+          "EXISTS",
+          "SOFT_DELETED"
+        ],
+        "title": "PlaceBulkPreviewStatus",
+        "type": "string"
+      },
       "PlaceCreate": {
         "properties": {
           "address": {
@@ -8640,6 +8883,17 @@
             ],
             "title": "Role",
             "type": "string"
+          },
+          "turnstile_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnstile Token"
           }
         },
         "required": [
@@ -8692,13 +8946,986 @@
         "type": "object"
       },
       "SlaughterMethod": {
-        "description": "Per-meat slaughter classification.",
+        "description": "Observable slaughter method for a supplier product line.\n\nWe describe the *fact* and let each user apply their own standard \u2014 we do\nnot render a verdict. Never ranked in-product.",
         "enum": [
-          "ZABIHAH",
-          "MACHINE",
-          "NOT_SERVED"
+          "HAND_CUT",
+          "MACHINE_CUT",
+          "NOT_DISCLOSED"
         ],
         "title": "SlaughterMethod",
+        "type": "string"
+      },
+      "Stunning": {
+        "description": "Optional companion attribute (redefinition doc \u00a710.2). Nullable until we\ncapture it; many strict users care about stun vs non-stun.",
+        "enum": [
+          "STUNNED",
+          "NON_STUNNED",
+          "NOT_DISCLOSED"
+        ],
+        "title": "Stunning",
+        "type": "string"
+      },
+      "SupplierAdminRead": {
+        "properties": {
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Body Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_verified_at": {
+            "format": "date-time",
+            "title": "Last Verified At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "product_count": {
+            "default": 0,
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "verification_tier": {
+            "$ref": "#/components/schemas/SupplierTier"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "verification_tier",
+          "last_verified_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SupplierAdminRead",
+        "type": "object"
+      },
+      "SupplierCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Body Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "maxLength": 2,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/SupplierProductCreate"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "slug": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9.-]*$",
+            "title": "Slug",
+            "type": "string"
+          },
+          "verification_tier": {
+            "$ref": "#/components/schemas/SupplierTier",
+            "default": "LISTED"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "title": "SupplierCreate",
+        "type": "object"
+      },
+      "SupplierDetailRead": {
+        "properties": {
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Body Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_verified_at": {
+            "format": "date-time",
+            "title": "Last Verified At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "product_count": {
+            "default": 0,
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/SupplierProductAdminRead"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "verification_tier": {
+            "$ref": "#/components/schemas/SupplierTier"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "verification_tier",
+          "last_verified_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SupplierDetailRead",
+        "type": "object"
+      },
+      "SupplierEventRead": {
+        "properties": {
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor User Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/SupplierEventType"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event_type",
+          "created_at"
+        ],
+        "title": "SupplierEventRead",
+        "type": "object"
+      },
+      "SupplierEventType": {
+        "description": "Append-only audit log on a supplier \u2014 provenance + a visible correction\ntrail (the trust mechanism for claims about named third parties).",
+        "enum": [
+          "LISTED",
+          "VERIFIED",
+          "CERT_UPDATED",
+          "LINE_ADDED",
+          "REVOKED",
+          "CORRECTED"
+        ],
+        "title": "SupplierEventType",
+        "type": "string"
+      },
+      "SupplierPatch": {
+        "additionalProperties": false,
+        "description": "Slug is immutable (it's the idempotency key for the seed loader).",
+        "properties": {
+          "aliases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aliases"
+          },
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Body Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "maxLength": 2,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "verification_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupplierTier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          }
+        },
+        "title": "SupplierPatch",
+        "type": "object"
+      },
+      "SupplierProductAdminRead": {
+        "properties": {
+          "certificate_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Expires At"
+          },
+          "certificate_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Number"
+          },
+          "certificate_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Url"
+          },
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Body Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evidence_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Expires At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_verified_at": {
+            "format": "date-time",
+            "title": "Last Verified At",
+            "type": "string"
+          },
+          "line_tier": {
+            "$ref": "#/components/schemas/SupplierTier"
+          },
+          "meat_type": {
+            "$ref": "#/components/schemas/MeatType"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "slaughter_method": {
+            "$ref": "#/components/schemas/SlaughterMethod"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "stunning": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stunning"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "meat_type",
+          "product_name",
+          "slaughter_method",
+          "line_tier",
+          "last_verified_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SupplierProductAdminRead",
+        "type": "object"
+      },
+      "SupplierProductCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "certificate_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Expires At"
+          },
+          "certificate_number": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Number"
+          },
+          "certificate_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Url"
+          },
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Body Name"
+          },
+          "line_tier": {
+            "$ref": "#/components/schemas/SupplierTier",
+            "default": "LISTED"
+          },
+          "meat_type": {
+            "$ref": "#/components/schemas/MeatType"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "product_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Product Name",
+            "type": "string"
+          },
+          "slaughter_method": {
+            "$ref": "#/components/schemas/SlaughterMethod",
+            "default": "NOT_DISCLOSED"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "stunning": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stunning"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "meat_type",
+          "product_name"
+        ],
+        "title": "SupplierProductCreate",
+        "type": "object"
+      },
+      "SupplierProductPatch": {
+        "additionalProperties": false,
+        "description": "All optional \u2014 ``meat_type`` is intentionally immutable (a link\ndenormalises it; changing it would silently mis-scope existing links).",
+        "properties": {
+          "certificate_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Expires At"
+          },
+          "certificate_number": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Number"
+          },
+          "certificate_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Url"
+          },
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Body Name"
+          },
+          "line_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupplierTier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "slaughter_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SlaughterMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "stunning": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stunning"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "SupplierProductPatch",
+        "type": "object"
+      },
+      "SupplierRevokeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "SupplierRevokeRequest",
+        "type": "object"
+      },
+      "SupplierTier": {
+        "description": "How well-vetted the supplier fact is \u2014 the *company/line* confidence\naxis, parallel to (and independent of) a restaurant's ValidationTier.\nOrdered least \u2192 most rigorous.",
+        "enum": [
+          "LISTED",
+          "CERTIFICATE_ON_FILE",
+          "TRUST_HALAL_VERIFIED"
+        ],
+        "title": "SupplierTier",
         "type": "string"
       },
       "UserAccountState": {
@@ -9949,7 +11176,7 @@
         "type": "object"
       },
       "_AdminAttachmentSignedUrl": {
-        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
+        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -10006,8 +11233,8 @@
         "title": "_MyOrgAttachmentSignedUrl",
         "type": "object"
       },
-      "app__modules__admin__organizations__router___AdminAttachmentSignedUrl": {
-        "description": "Response shape for the org-attachment signed-URL endpoint.\n\nSame shape as the claim-attachment variant: URL + filename +\nMIME so the client can label the download or render an inline\npreview without a second fetch.",
+      "app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl": {
+        "description": "Response shape for the signed-URL endpoint.\n\nPlain object instead of returning a redirect so the client can\ndecide whether to open the URL in a new tab, download with a\ngiven filename, render an inline preview, etc.",
         "properties": {
           "content_type": {
             "title": "Content Type",
@@ -10035,9 +11262,18 @@
         "title": "_AdminAttachmentSignedUrl",
         "type": "object"
       },
-      "app__modules__halal_profiles__schemas__MeatProductRead": {
-        "additionalProperties": false,
-        "description": "One product the restaurant serves, with where it came from.\n\n## Why this exists\n\nThe per-meat columns on the profile (``chicken_slaughter`` and friends)\nare a rollup, and the rollup is deliberately least-conservative-wins: a\nkitchen with zabihah chicken breast and machine-slaughtered nuggets\nreports MACHINE for all chicken. That's the safe direction to round, but\nit leaves a diner unable to see which product is which \u2014 and in the other\ndirection, a bare \"Chicken \u00b7 Zabihah\" asks to be taken on faith, which is\nthe opposite of what this platform is for.\n\nThis is the same data the owner already filled in on the claim, projected\nfor public reading.\n\n## What is deliberately NOT here\n\n``certificate_number`` from the owner's questionnaire. A cert or batch\nnumber is traceability detail for staff resolving a dispute, not\nsomething a diner needs, and publishing it hands anyone the string needed\nto impersonate the restaurant's paperwork to a certifier.\n\n## What the client must not do with this\n\nEvery field here is the OWNER'S account of their own supply chain. It is\nnot verified unless a Trust Halal verifier visited, and visits record\nobservations as free text \u2014 so there is no structured link saying \"we\nconfirmed this supplier\". Rendering ``supplier_name`` as a bare fact\nturns the restaurant's claim into something that looks like our finding.\nAttribute it on its face.",
+      "app__modules__halal_profiles__enums__SlaughterMethod": {
+        "description": "Per-meat slaughter classification.",
+        "enum": [
+          "ZABIHAH",
+          "MACHINE",
+          "NOT_SERVED"
+        ],
+        "title": "SlaughterMethod",
+        "type": "string"
+      },
+      "app__modules__places__schemas__MeatProductRead": {
+        "description": "Mirror of ``halal_profiles.schemas.MeatProductRead``.\n\nDuplicated for the same reason ``HalalProfileEmbed`` below is \u2014 see its\ndocstring. Keep the two in lock-step; the canonical one carries the\nreasoning, including why ``certificate_number`` is deliberately absent\nand why a client must attribute ``supplier_name`` to the owner rather\nthan presenting it as a platform finding.",
         "properties": {
           "certifying_authority": {
             "anyOf": [
@@ -10059,7 +11295,8 @@
             "type": "string"
           },
           "slaughter_method": {
-            "$ref": "#/components/schemas/SlaughterMethod"
+            "title": "Slaughter Method",
+            "type": "string"
           },
           "supplier_city": {
             "anyOf": [
@@ -12344,7 +13581,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__modules__admin__organizations__router___AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -13363,7 +14600,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/_AdminAttachmentSignedUrl"
+                  "$ref": "#/components/schemas/app__modules__admin__ownership_requests__router___AdminAttachmentSignedUrl"
                 }
               }
             },
@@ -14076,6 +15313,230 @@
           }
         },
         "summary": "List places (admin view) with search + filters",
+        "tags": [
+          "admin: places"
+        ]
+      }
+    },
+    "/admin/places/bulk/import": {
+      "post": {
+        "description": "Ingests up to 25 Google Place IDs by looping the same idempotent single-place ingest used by the New Place modal. Each ID is its own transaction, so one bad payload or fetch failure fails only that row \u2014 the rest still import. Returns a per-item outcome (CREATED / EXISTED / SOFT_DELETED / FAILED) plus roll-up counts. Idempotent: re-importing IDs already in the catalog is safe and reported as EXISTED. Soft-deleted places are reported but NOT auto-restored.",
+        "operationId": "bulk_import_places_admin_admin_places_bulk_import_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceBulkImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceBulkImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing/invalid X-User-Id."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not an admin."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Body failed validation \u2014 empty list, more than 25 IDs, or an empty/oversized ID."
+          }
+        },
+        "summary": "Import a batch of Google Place IDs (per-item, fault-isolated)",
+        "tags": [
+          "admin: places"
+        ]
+      }
+    },
+    "/admin/places/bulk/preview": {
+      "post": {
+        "description": "Given up to 25 Google Place IDs, returns a per-ID dedup verdict \u2014 NEW / EXISTS / SOFT_DELETED \u2014 via a single database lookup. Makes no Google Place Details calls, so it costs nothing: the admin UI already has each place's name/address from the browser Autocomplete widget and only needs to know which ones are already in the catalog before spending billed import calls. Within-batch duplicate IDs are collapsed to one item.",
+        "operationId": "bulk_preview_places_admin_admin_places_bulk_preview_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceBulkPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceBulkPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing/invalid X-User-Id."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not an admin."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Body failed validation \u2014 empty list, more than 25 IDs, or an empty/oversized ID. PlaceBulkPreviewRequest uses extra='forbid'."
+          }
+        },
+        "summary": "Preview a batch of Google Place IDs (dedup status, no Google call)",
         "tags": [
           "admin: places"
         ]
@@ -16414,6 +17875,1078 @@
         "summary": "Set a review's or reply's status directly",
         "tags": [
           "admin-reviews"
+        ]
+      }
+    },
+    "/admin/suppliers": {
+      "get": {
+        "description": "Admin registry browse. `q` matches name / slug / alias; `tier` filters by company tier; `method` returns suppliers with at least one product line of that slaughter method. Revoked suppliers are excluded unless `include_revoked=true`.",
+        "operationId": "list_suppliers_admin_admin_suppliers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tier",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SupplierTier"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tier"
+            }
+          },
+          {
+            "in": "query",
+            "name": "method",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SlaughterMethod"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Method"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_revoked",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Revoked",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SupplierAdminRead"
+                  },
+                  "title": "Response List Suppliers Admin Admin Suppliers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List suppliers (search + filter)",
+        "tags": [
+          "admin: suppliers"
+        ]
+      },
+      "post": {
+        "description": "Slug must be unique (409 SUPPLIER_SLUG_TAKEN otherwise).",
+        "operationId": "create_supplier_admin_admin_suppliers_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierDetailRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create a supplier (optionally with product lines)",
+        "tags": [
+          "admin: suppliers"
+        ]
+      }
+    },
+    "/admin/suppliers/{supplier_id}": {
+      "get": {
+        "operationId": "get_supplier_admin_admin_suppliers__supplier_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierDetailRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get a supplier with its product lines",
+        "tags": [
+          "admin: suppliers"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_supplier_admin_admin_suppliers__supplier_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierDetailRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit a supplier (slug immutable)",
+        "tags": [
+          "admin: suppliers"
+        ]
+      }
+    },
+    "/admin/suppliers/{supplier_id}/events": {
+      "get": {
+        "operationId": "list_supplier_events_admin_admin_suppliers__supplier_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SupplierEventRead"
+                  },
+                  "title": "Response List Supplier Events Admin Admin Suppliers  Supplier Id  Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Supplier audit trail (newest first)",
+        "tags": [
+          "admin: suppliers"
+        ]
+      }
+    },
+    "/admin/suppliers/{supplier_id}/products": {
+      "post": {
+        "operationId": "add_supplier_product_admin_admin_suppliers__supplier_id__products_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierProductCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierProductAdminRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add a product line to a supplier",
+        "tags": [
+          "admin: suppliers"
+        ]
+      }
+    },
+    "/admin/suppliers/{supplier_id}/products/{product_id}": {
+      "delete": {
+        "description": "Blocked with 409 SUPPLIER_PRODUCT_IN_USE if a restaurant sourcing link references the line.",
+        "operationId": "delete_supplier_product_admin_admin_suppliers__supplier_id__products__product_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove a product line",
+        "tags": [
+          "admin: suppliers"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_supplier_product_admin_admin_suppliers__supplier_id__products__product_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierProductPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierProductAdminRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit a product line",
+        "tags": [
+          "admin: suppliers"
+        ]
+      }
+    },
+    "/admin/suppliers/{supplier_id}/restore": {
+      "post": {
+        "description": "Idempotent.",
+        "operationId": "restore_supplier_admin_admin_suppliers__supplier_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierDetailRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore a revoked supplier",
+        "tags": [
+          "admin: suppliers"
+        ]
+      }
+    },
+    "/admin/suppliers/{supplier_id}/revoke": {
+      "post": {
+        "description": "Idempotent. Optional reason lands on the REVOKED audit event.",
+        "operationId": "revoke_supplier_admin_admin_suppliers__supplier_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SupplierRevokeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierDetailRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke a supplier (soft; excludes it + its lines from reads)",
+        "tags": [
+          "admin: suppliers"
         ]
       }
     },
@@ -24814,7 +27347,7 @@
               "anyOf": [
                 {
                   "items": {
-                    "$ref": "#/components/schemas/SlaughterMethod"
+                    "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
                   },
                   "type": "array"
                 },
@@ -24833,7 +27366,7 @@
               "anyOf": [
                 {
                   "items": {
-                    "$ref": "#/components/schemas/SlaughterMethod"
+                    "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
                   },
                   "type": "array"
                 },
@@ -24852,7 +27385,7 @@
               "anyOf": [
                 {
                   "items": {
-                    "$ref": "#/components/schemas/SlaughterMethod"
+                    "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
                   },
                   "type": "array"
                 },
@@ -24871,7 +27404,7 @@
               "anyOf": [
                 {
                   "items": {
-                    "$ref": "#/components/schemas/SlaughterMethod"
+                    "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
                   },
                   "type": "array"
                 },
@@ -25757,7 +28290,7 @@
               "anyOf": [
                 {
                   "items": {
-                    "$ref": "#/components/schemas/SlaughterMethod"
+                    "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
                   },
                   "type": "array"
                 },
@@ -25776,7 +28309,7 @@
               "anyOf": [
                 {
                   "items": {
-                    "$ref": "#/components/schemas/SlaughterMethod"
+                    "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
                   },
                   "type": "array"
                 },
@@ -25795,7 +28328,7 @@
               "anyOf": [
                 {
                   "items": {
-                    "$ref": "#/components/schemas/SlaughterMethod"
+                    "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
                   },
                   "type": "array"
                 },
@@ -25814,7 +28347,7 @@
               "anyOf": [
                 {
                   "items": {
-                    "$ref": "#/components/schemas/SlaughterMethod"
+                    "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
                   },
                   "type": "array"
                 },
@@ -27106,7 +29639,7 @@
     },
     "/verifier-applications": {
       "post": {
-        "description": "Open a verifier application. Anonymous-OK: applicants may submit before creating an account, so the form captures applicant_email + applicant_name independently of any session. When a session is present, the applicant's user_id is recorded for admin context. Rate-limited (5/hour per user-or-IP) to keep noise out of the admin queue.",
+        "description": "Open a verifier application. **Requires a signed-in account** \u2014 this used to be anonymous-OK, which let bots POST applications with no account at all. Gating it behind a session means it inherits the signup captcha: a bot can't reach here without first clearing Turnstile to create an account.\n\nThe applicant's email is taken from the authenticated account, not the request body, so it can't be spoofed and always names an account an admin can act on. Rate-limited (5/hour per user-or-IP).",
         "operationId": "submit_verifier_application_verifier_applications_post",
         "parameters": [
           {
