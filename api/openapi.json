@@ -2643,7 +2643,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/app__modules__places__schemas__MeatProductRead"
+                  "$ref": "#/components/schemas/MeatProductRead"
                 },
                 "type": "array"
               },
@@ -2677,6 +2677,20 @@
           "seafood_only": {
             "title": "Seafood Only",
             "type": "boolean"
+          },
+          "supplier_provenance": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SlaughterProvenanceRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Provenance"
           },
           "updated_at": {
             "format": "date-time",
@@ -2830,7 +2844,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/MeatProductRead"
+                  "$ref": "#/components/schemas/app__modules__halal_profiles__schemas__MeatProductRead"
                 },
                 "type": "array"
               },
@@ -3212,6 +3226,16 @@
         "title": "InviteInfoResponse",
         "type": "object"
       },
+      "LinkSource": {
+        "description": "How a place\u2194product sourcing link came to exist.",
+        "enum": [
+          "OWNER_CLAIM",
+          "VERIFIER_VISIT",
+          "ADMIN"
+        ],
+        "title": "LinkSource",
+        "type": "string"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "description": "POST /auth/login body.",
@@ -3328,8 +3352,7 @@
         "type": "object"
       },
       "MeatProductRead": {
-        "additionalProperties": false,
-        "description": "One product the restaurant serves, with where it came from.\n\n## Why this exists\n\nThe per-meat columns on the profile (``chicken_slaughter`` and friends)\nare a rollup, and the rollup is deliberately least-conservative-wins: a\nkitchen with zabihah chicken breast and machine-slaughtered nuggets\nreports MACHINE for all chicken. That's the safe direction to round, but\nit leaves a diner unable to see which product is which \u2014 and in the other\ndirection, a bare \"Chicken \u00b7 Zabihah\" asks to be taken on faith, which is\nthe opposite of what this platform is for.\n\nThis is the same data the owner already filled in on the claim, projected\nfor public reading.\n\n## What is deliberately NOT here\n\n``certificate_number`` from the owner's questionnaire. A cert or batch\nnumber is traceability detail for staff resolving a dispute, not\nsomething a diner needs, and publishing it hands anyone the string needed\nto impersonate the restaurant's paperwork to a certifier.\n\n## What the client must not do with this\n\nEvery field here is the OWNER'S account of their own supply chain. It is\nnot verified unless a Trust Halal verifier visited, and visits record\nobservations as free text \u2014 so there is no structured link saying \"we\nconfirmed this supplier\". Rendering ``supplier_name`` as a bare fact\nturns the restaurant's claim into something that looks like our finding.\nAttribute it on its face.",
+        "description": "Mirror of ``halal_profiles.schemas.MeatProductRead``.\n\nDuplicated for the same reason ``HalalProfileEmbed`` below is \u2014 see its\ndocstring. Keep the two in lock-step; the canonical one carries the\nreasoning, including why ``certificate_number`` is deliberately absent\nand why a client must attribute ``supplier_name`` to the owner rather\nthan presenting it as a platform finding.",
         "properties": {
           "certifying_authority": {
             "anyOf": [
@@ -3351,7 +3374,8 @@
             "type": "string"
           },
           "slaughter_method": {
-            "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
+            "title": "Slaughter Method",
+            "type": "string"
           },
           "supplier_city": {
             "anyOf": [
@@ -3397,7 +3421,7 @@
       },
       "MeatProductSourcing": {
         "additionalProperties": false,
-        "description": "One specific product the restaurant serves, with its own\nsupplier and (optionally) cert.\n\nRestaurants typically sell multiple products per meat \u2014\n'beef bacon' and 'ground beef' might come from different\nsuppliers, each with their own halal certificate (or none).\nThe owner adds one entry per product so the audit trail\ncaptures the real-world fragmentation.\n\nThe ``slaughter_method`` rolls up to the place's\n``HalalProfile.<meat>_slaughter`` column at admin-approval\ntime. Multiple products under the same meat type collapse to\nthe LEAST conservative method (i.e. if any beef product is\nMACHINE-slaughtered, the place's beef column lands MACHINE,\neven if some other beef products are ZABIHAH). The full\nper-product breakdown stays on the questionnaire JSON for\nconsumer-facing transparency on the place detail page.",
+        "description": "One specific product the restaurant serves, with its own\nsupplier and (optionally) cert.\n\nRestaurants typically sell multiple products per meat \u2014\n'beef bacon' and 'ground beef' might come from different\nsuppliers, each with their own halal certificate (or none).\nThe owner adds one entry per product so the audit trail\ncaptures the real-world fragmentation.\n\nThe ``slaughter_method`` rolls up to the place's\n``HalalProfile.<meat>_slaughter`` column at admin-approval\ntime. Multiple products under the same meat type collapse to\nthe LEAST conservative method (i.e. if any beef product is\nmachine-slaughtered, the place's beef column lands MACHINE_CUT,\neven if some other beef products are HAND_CUT). The full\nper-product breakdown stays on the questionnaire JSON for\nconsumer-facing transparency on the place detail page.",
         "properties": {
           "certificate_number": {
             "anyOf": [
@@ -3438,7 +3462,7 @@
           },
           "slaughter_method": {
             "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod",
-            "description": "ZABIHAH / MACHINE / NOT_SERVED. NOT_SERVED is unusual on a per-product entry (an entry exists because the product is served) but kept for symmetry."
+            "description": "HAND_CUT / MACHINE_CUT / NOT_SERVED. NOT_SERVED is unusual on a per-product entry (an entry exists because the product is served) but kept for symmetry."
           },
           "supplier_city": {
             "anyOf": [
@@ -3465,6 +3489,19 @@
             ],
             "description": "Supplier the restaurant sources this product from.",
             "title": "Supplier Name"
+          },
+          "supplier_product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional link to a registry SupplierProduct (a specific supplier product line). When set and the claim is approved, an OWNER_STATED PlaceSupplierLink is created so the listing can show supplier-backed method. Independent of the free-text supplier_* fields; picking a registry line does not by itself raise confidence above the owner's word.",
+            "title": "Supplier Product Id"
           },
           "supplier_state": {
             "anyOf": [
@@ -8312,6 +8349,181 @@
         "title": "PlaceSignalCreate",
         "type": "object"
       },
+      "PlaceSupplierLinkAdminRead": {
+        "description": "A sourcing link with its supplier/product context flattened in.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "evidence_tier": {
+            "$ref": "#/components/schemas/SourcingEvidence"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_confirmed_at": {
+            "format": "date-time",
+            "title": "Last Confirmed At",
+            "type": "string"
+          },
+          "line_tier": {
+            "$ref": "#/components/schemas/SupplierTier"
+          },
+          "meat_type": {
+            "$ref": "#/components/schemas/MeatType"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "place_id": {
+            "format": "uuid",
+            "title": "Place Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "slaughter_method": {
+            "$ref": "#/components/schemas/SlaughterMethod"
+          },
+          "source": {
+            "$ref": "#/components/schemas/LinkSource"
+          },
+          "supplier_id": {
+            "format": "uuid",
+            "title": "Supplier Id",
+            "type": "string"
+          },
+          "supplier_name": {
+            "title": "Supplier Name",
+            "type": "string"
+          },
+          "supplier_product_id": {
+            "format": "uuid",
+            "title": "Supplier Product Id",
+            "type": "string"
+          },
+          "supplier_revoked": {
+            "title": "Supplier Revoked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "place_id",
+          "supplier_product_id",
+          "meat_type",
+          "evidence_tier",
+          "source",
+          "last_confirmed_at",
+          "created_at",
+          "supplier_id",
+          "supplier_name",
+          "supplier_revoked",
+          "product_name",
+          "slaughter_method",
+          "line_tier"
+        ],
+        "title": "PlaceSupplierLinkAdminRead",
+        "type": "object"
+      },
+      "PlaceSupplierLinkCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_tier": {
+            "$ref": "#/components/schemas/SourcingEvidence",
+            "default": "OWNER_STATED"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "supplier_product_id": {
+            "format": "uuid",
+            "title": "Supplier Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "supplier_product_id"
+        ],
+        "title": "PlaceSupplierLinkCreate",
+        "type": "object"
+      },
+      "PlaceSupplierLinkPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourcingEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "PlaceSupplierLinkPatch",
+        "type": "object"
+      },
       "PlaceUnlinkExternalRequest": {
         "additionalProperties": false,
         "description": "Optional justification attached to unlinking a provider.\n\nSame shape + limits as ``PlaceDeleteRequest`` / ``PlaceRestoreRequest``\nso the admin UI's \"why are you unlinking this?\" dialog has consistent\nvalidation. Reason is logged on the EDITED event row that records the\nunlink, so the event history shows *why* a provider link went away.",
@@ -8953,6 +9165,80 @@
           "NOT_DISCLOSED"
         ],
         "title": "SlaughterMethod",
+        "type": "string"
+      },
+      "SlaughterProvenanceRead": {
+        "description": "Per-served-meat composed slaughter method + confidence.\n\nComputed at read time from the supplier registry + sourcing links, falling\nback to the owner's self-attested value (docs/2026-08-11-supplier-provenance-plan.md).\n``method`` / ``confidence`` are the canonical vocabulary\n(HAND_CUT / MACHINE_CUT / NOT_DISCLOSED; SELF_STATED / DOCUMENTED / VERIFIED).\n\nA client MUST render the caveat from ``confidence`` + ``source`` and must\nnever present a ``self_attested`` value with confirming/green treatment. The\nmethod is never ranked \u2014 hand-cut and machine-cut are equal facts.",
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "string"
+          },
+          "meat_type": {
+            "title": "Meat Type",
+            "type": "string"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "supplier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Id"
+          },
+          "supplier_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Name"
+          }
+        },
+        "required": [
+          "meat_type",
+          "method",
+          "confidence",
+          "source"
+        ],
+        "title": "SlaughterProvenanceRead",
+        "type": "object"
+      },
+      "SourcingEvidence": {
+        "description": "How well-evidenced a restaurant\u2192product-line sourcing link is.\nOrdered least \u2192 most rigorous.",
+        "enum": [
+          "OWNER_STATED",
+          "DOCUMENTED",
+          "VERIFIER_CONFIRMED"
+        ],
+        "title": "SourcingEvidence",
         "type": "string"
       },
       "Stunning": {
@@ -9896,6 +10182,109 @@
           }
         },
         "title": "SupplierProductPatch",
+        "type": "object"
+      },
+      "SupplierProductPublicRead": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "meat_type": {
+            "$ref": "#/components/schemas/MeatType"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "slaughter_method": {
+            "$ref": "#/components/schemas/SlaughterMethod"
+          }
+        },
+        "required": [
+          "id",
+          "meat_type",
+          "product_name",
+          "slaughter_method"
+        ],
+        "title": "SupplierProductPublicRead",
+        "type": "object"
+      },
+      "SupplierPublicRead": {
+        "properties": {
+          "certifying_body_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certifying Body Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "products": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SupplierProductPublicRead"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ],
+        "title": "SupplierPublicRead",
         "type": "object"
       },
       "SupplierRevokeRequest": {
@@ -11263,17 +11652,18 @@
         "type": "object"
       },
       "app__modules__halal_profiles__enums__SlaughterMethod": {
-        "description": "Per-meat slaughter classification.",
+        "description": "Per-meat slaughter classification.\n\nCanonical vocabulary, shared conceptually with the supplier registry\n(docs/2026-08-11-supplier-provenance-plan.md). Renamed from the older\nZABIHAH/MACHINE labels so the platform describes the observable method\n(\"hand-slaughtered\") rather than asserting a contested status (\"zabihah\").\nThe rename migration rewrote existing profile columns AND the meat_products\nvalues inside claim / verification-visit JSONB.",
         "enum": [
-          "ZABIHAH",
-          "MACHINE",
+          "HAND_CUT",
+          "MACHINE_CUT",
           "NOT_SERVED"
         ],
         "title": "SlaughterMethod",
         "type": "string"
       },
-      "app__modules__places__schemas__MeatProductRead": {
-        "description": "Mirror of ``halal_profiles.schemas.MeatProductRead``.\n\nDuplicated for the same reason ``HalalProfileEmbed`` below is \u2014 see its\ndocstring. Keep the two in lock-step; the canonical one carries the\nreasoning, including why ``certificate_number`` is deliberately absent\nand why a client must attribute ``supplier_name`` to the owner rather\nthan presenting it as a platform finding.",
+      "app__modules__halal_profiles__schemas__MeatProductRead": {
+        "additionalProperties": false,
+        "description": "One product the restaurant serves, with where it came from.\n\n## Why this exists\n\nThe per-meat columns on the profile (``chicken_slaughter`` and friends)\nare a rollup, and the rollup is deliberately least-conservative-wins: a\nkitchen with zabihah chicken breast and machine-slaughtered nuggets\nreports MACHINE for all chicken. That's the safe direction to round, but\nit leaves a diner unable to see which product is which \u2014 and in the other\ndirection, a bare \"Chicken \u00b7 Zabihah\" asks to be taken on faith, which is\nthe opposite of what this platform is for.\n\nThis is the same data the owner already filled in on the claim, projected\nfor public reading.\n\n## What is deliberately NOT here\n\n``certificate_number`` from the owner's questionnaire. A cert or batch\nnumber is traceability detail for staff resolving a dispute, not\nsomething a diner needs, and publishing it hands anyone the string needed\nto impersonate the restaurant's paperwork to a certifier.\n\n## What the client must not do with this\n\nEvery field here is the OWNER'S account of their own supply chain. It is\nnot verified unless a Trust Halal verifier visited, and visits record\nobservations as free text \u2014 so there is no structured link saying \"we\nconfirmed this supplier\". Rendering ``supplier_name`` as a bare fact\nturns the restaurant's claim into something that looks like our finding.\nAttribute it on its face.",
         "properties": {
           "certifying_authority": {
             "anyOf": [
@@ -11295,8 +11685,7 @@
             "type": "string"
           },
           "slaughter_method": {
-            "title": "Slaughter Method",
-            "type": "string"
+            "$ref": "#/components/schemas/app__modules__halal_profiles__enums__SlaughterMethod"
           },
           "supplier_city": {
             "anyOf": [
@@ -17465,6 +17854,415 @@
         "summary": "Every review on a place, any status \u2014 moderation context",
         "tags": [
           "admin-reviews"
+        ]
+      }
+    },
+    "/admin/places/{place_id}/supplier-links": {
+      "get": {
+        "operationId": "list_place_links_admin_admin_places__place_id__supplier_links_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_ended",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Ended",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlaceSupplierLinkAdminRead"
+                  },
+                  "title": "Response List Place Links Admin Admin Places  Place Id  Supplier Links Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List a place's supplier sourcing links",
+        "tags": [
+          "admin: suppliers"
+        ]
+      },
+      "post": {
+        "description": "Creates an ADMIN-sourced link. 409 PLACE_SUPPLIER_LINK_EXISTS if a live link to that product line already exists; 404 if the place or product line is unknown.",
+        "operationId": "create_place_link_admin_admin_places__place_id__supplier_links_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceSupplierLinkCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceSupplierLinkAdminRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link a place to a supplier product line",
+        "tags": [
+          "admin: suppliers"
+        ]
+      }
+    },
+    "/admin/places/{place_id}/supplier-links/{link_id}": {
+      "delete": {
+        "description": "Idempotent. The row survives for history; it stops backing the listing.",
+        "operationId": "end_place_link_admin_admin_places__place_id__supplier_links__link_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Link Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "End a sourcing link (soft; sets ended_at)",
+        "tags": [
+          "admin: suppliers"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_place_link_admin_admin_places__place_id__supplier_links__link_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Link Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceSupplierLinkPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceSupplierLinkAdminRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update a link's evidence tier / note",
+        "tags": [
+          "admin: suppliers"
         ]
       }
     },
@@ -27464,6 +28262,24 @@
             }
           },
           {
+            "description": "Only places with a served meat backed by a live sourcing link composing to DOCUMENTED or better (supplier + line + evidence all at least documented) against a non-revoked supplier. Does not narrow by restaurant validation tier.",
+            "in": "query",
+            "name": "supplier_verified",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only places with a served meat backed by a live sourcing link composing to DOCUMENTED or better (supplier + line + evidence all at least documented) against a non-revoked supplier. Does not narrow by restaurant validation tier.",
+              "title": "Supplier Verified"
+            }
+          },
+          {
             "description": "When true, exclude places we can confirm are CLOSED right now (computed from stored Google hours + place timezone). Places with unknown hours are kept (open_now=null) so a young catalog still surfaces them \u2014 the client badges them 'No hours available'. Applied after the DB query over a capped scan of matches, so pagination is honored within that cap.",
             "in": "query",
             "name": "open_now",
@@ -28404,6 +29220,24 @@
                 }
               ],
               "title": "No Alcohol Served"
+            }
+          },
+          {
+            "description": "Only places with a served meat backed by a live sourcing link composing to DOCUMENTED or better (supplier + line + evidence all at least documented) against a non-revoked supplier. Does not narrow by restaurant validation tier.",
+            "in": "query",
+            "name": "supplier_verified",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only places with a served meat backed by a live sourcing link composing to DOCUMENTED or better (supplier + line + evidence all at least documented) against a non-revoked supplier. Does not narrow by restaurant validation tier.",
+              "title": "Supplier Verified"
             }
           },
           {
@@ -29634,6 +30468,137 @@
         "summary": "Report an engagement signal for a place",
         "tags": [
           "places"
+        ]
+      }
+    },
+    "/suppliers": {
+      "get": {
+        "description": "Find suppliers by name / slug / alias, optionally scoped to those with a product line of `meat`. Used by the owner claim editor to attach a registry supplier line to a product. Revoked suppliers are excluded.",
+        "operationId": "search_suppliers_suppliers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "meat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MeatType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Meat"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "exclusiveMinimum": 0,
+              "maximum": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "tht_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tht Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SupplierPublicRead"
+                  },
+                  "title": "Response Search Suppliers Suppliers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search the supplier registry (authenticated)",
+        "tags": [
+          "suppliers"
         ]
       }
     },
