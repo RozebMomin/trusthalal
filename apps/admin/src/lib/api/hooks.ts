@@ -2530,3 +2530,99 @@ export function useDeleteSupplierProduct(id: string) {
     onSuccess: () => void invalidateSuppliers(qc),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Place → supplier sourcing links (admin)
+// ---------------------------------------------------------------------------
+export type SourcingEvidence =
+  | "OWNER_STATED"
+  | "DOCUMENTED"
+  | "VERIFIER_CONFIRMED";
+export type LinkSourceValue = "OWNER_CLAIM" | "VERIFIER_VISIT" | "ADMIN";
+
+export type PlaceSupplierLinkAdminRead = {
+  id: string;
+  place_id: string;
+  supplier_product_id: string;
+  meat_type: MeatTypeValue;
+  evidence_tier: SourcingEvidence;
+  source: LinkSourceValue;
+  note?: string | null;
+  last_confirmed_at: string;
+  expires_at?: string | null;
+  ended_at?: string | null;
+  created_at: string;
+  supplier_id: string;
+  supplier_name: string;
+  supplier_revoked: boolean;
+  product_name: string;
+  slaughter_method: SlaughterMethodValue;
+  line_tier: SupplierTier;
+};
+
+function invalidatePlaceLinks(
+  qc: ReturnType<typeof useQueryClient>,
+  placeId: string,
+) {
+  // Bump the links list AND the place cache — a link changes the composed
+  // provenance the place read returns.
+  void qc.invalidateQueries({ queryKey: ["places", "supplier-links", placeId] });
+  void qc.invalidateQueries({ queryKey: ["places"] });
+}
+
+export function usePlaceSupplierLinks(
+  placeId: string | undefined,
+  includeEnded = false,
+) {
+  return useQuery({
+    queryKey: ["places", "supplier-links", placeId ?? "", { includeEnded }],
+    queryFn: () =>
+      apiFetch<PlaceSupplierLinkAdminRead[]>(
+        `/admin/places/${placeId}/supplier-links`,
+        { searchParams: { include_ended: includeEnded ? "true" : undefined } },
+      ),
+    enabled: Boolean(placeId),
+  });
+}
+
+export function useCreatePlaceSupplierLink(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      supplier_product_id: string;
+      evidence_tier?: SourcingEvidence;
+      note?: string | null;
+    }) =>
+      apiFetch<PlaceSupplierLinkAdminRead>(
+        `/admin/places/${placeId}/supplier-links`,
+        { method: "POST", json: payload },
+      ),
+    onSuccess: () => invalidatePlaceLinks(qc, placeId),
+  });
+}
+
+export function usePatchPlaceSupplierLink(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      linkId: string;
+      patch: { evidence_tier?: SourcingEvidence; note?: string | null };
+    }) =>
+      apiFetch<PlaceSupplierLinkAdminRead>(
+        `/admin/places/${placeId}/supplier-links/${vars.linkId}`,
+        { method: "PATCH", json: vars.patch },
+      ),
+    onSuccess: () => invalidatePlaceLinks(qc, placeId),
+  });
+}
+
+export function useEndPlaceSupplierLink(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (linkId: string) =>
+      apiFetch<void>(`/admin/places/${placeId}/supplier-links/${linkId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => invalidatePlaceLinks(qc, placeId),
+  });
+}

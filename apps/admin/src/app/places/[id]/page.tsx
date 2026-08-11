@@ -32,6 +32,7 @@ import {
 import { HalalClaimStatusBadge } from "@/components/halal-claim-status-badge";
 
 import { CreateRequestDialog } from "../../ownership-requests/_components/create-request-dialog";
+import { SourcingLinksSection } from "./_components/sourcing-links";
 import { DeletePlaceDialog } from "../_components/delete-place-dialog";
 import { PlaceEventBadge } from "../_components/event-badge";
 import { LinkGoogleDialog } from "../_components/link-google-dialog";
@@ -154,6 +155,7 @@ export default function PlaceDetailPage() {
           <ProviderLinksSection place={place} />
           <OwnershipSection place={place} />
           <HalalClaimsSection placeId={place.id} />
+          <SourcingLinksSection placeId={place.id} />
           <DisputesSection placeId={place.id} />
           <EventsSection placeId={place.id} />
         </>
