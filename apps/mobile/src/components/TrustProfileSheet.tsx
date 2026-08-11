@@ -103,6 +103,13 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
     ["Goat", methodLabel(p?.goat_slaughter)],
   ].filter(([, m]) => m) as Array<[string, string]>;
 
+  // Meats traced to a registry supplier via a sourcing link. Additive to the
+  // per-meat rows above — shows who and how well-evidenced, never re-ranking
+  // the method. Self-attested entries are omitted (they're already covered).
+  const supplierBacked = (p?.supplier_provenance ?? []).filter(
+    (x) => x.source === "supplier",
+  );
+
   // Pork is only surfaced when actually served (a red alert), not as a
   // "not served" row on the majority of places.
   const servesPork = TEST_FORCE_PORK || !!p?.has_pork;
@@ -163,6 +170,29 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
                   {servesPork ? (
                     <SheetRow label="Pork" last right={<Pill label="ON THE MENU" tone="danger" />} />
                   ) : null}
+                </Section>
+              ) : null}
+
+              {supplierBacked.length > 0 ? (
+                <Section title="Supplier sourcing">
+                  {supplierBacked.map((x, i) => (
+                    <SheetRow
+                      key={x.meat_type}
+                      label={x.meat_type.charAt(0) + x.meat_type.slice(1).toLowerCase()}
+                      last={i === supplierBacked.length - 1}
+                      right={
+                        <Value
+                          text={`${x.supplier_name ?? "Supplier"} · ${
+                            x.confidence === "VERIFIED"
+                              ? "verified"
+                              : x.confidence === "DOCUMENTED"
+                                ? "documented"
+                                : "as stated by owner"
+                          }`}
+                        />
+                      }
+                    />
+                  ))}
                 </Section>
               ) : null}
 

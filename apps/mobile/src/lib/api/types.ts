@@ -68,6 +68,23 @@ export type HalalProfileEmbed = {
    *  "no products on file" on a search card would be a claim about the
    *  restaurant that the payload never made. */
   meat_products: MeatProduct[] | null;
+  /** Composed slaughter method + confidence per served meat, from the supplier
+   *  registry + sourcing links (falls back to the owner's self-attested value).
+   *  Null on surfaces that don't compute it. */
+  supplier_provenance?: SupplierProvenance[] | null;
+};
+
+/** One served meat's composed method + confidence. Render the caveat from
+ *  `confidence` + `source`; never show a `self_attested` value as confirmed,
+ *  and never rank hand-cut above machine-cut. */
+export type SupplierProvenance = {
+  meat_type: string;
+  method: "HAND_CUT" | "MACHINE_CUT" | "NOT_DISCLOSED";
+  confidence: "SELF_STATED" | "DOCUMENTED" | "VERIFIED";
+  source: "supplier" | "self_attested";
+  supplier_id: string | null;
+  supplier_name: string | null;
+  as_of: string | null;
 };
 
 /** One product and where the restaurant says it comes from.
