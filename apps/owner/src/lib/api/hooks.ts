@@ -910,7 +910,43 @@ export type MeatProductSourcing = {
   supplier_state?: string | null;
   certifying_authority?: string | null;
   certificate_number?: string | null;
+  // Optional link to a registry supplier product line. When set + approved,
+  // the server creates an OWNER_STATED sourcing link. Hand-added pending the
+  // next codegen pass.
+  supplier_product_id?: string | null;
 };
+
+// --- Supplier registry (public read, for the product supplier picker) ------
+export type PublicSlaughterMethod = "HAND_CUT" | "MACHINE_CUT" | "NOT_DISCLOSED";
+export type SupplierProductPublicRead = {
+  id: string;
+  meat_type: MeatType;
+  product_name: string;
+  slaughter_method: PublicSlaughterMethod;
+};
+export type SupplierPublicRead = {
+  id: string;
+  name: string;
+  slug: string;
+  city?: string | null;
+  region?: string | null;
+  country_code?: string | null;
+  certifying_body_name?: string | null;
+  products: SupplierProductPublicRead[];
+};
+
+/** Search the supplier registry for the claim editor's per-product picker. */
+export function useSupplierSearch(q: string, meat?: MeatType) {
+  const trimmed = q.trim();
+  return useQuery({
+    queryKey: ["suppliers", "search", { q: trimmed, meat }],
+    queryFn: () =>
+      apiFetch<SupplierPublicRead[]>("/suppliers", {
+        searchParams: { q: trimmed || undefined, meat, limit: 15 },
+      }),
+    enabled: trimmed.length >= 2,
+  });
+}
 
 /**
  * The structured questionnaire shape — server stores as JSONB.

@@ -49,6 +49,7 @@ import {
   type SlaughterMethod,
   HALAL_CLAIM_EDITABLE_STATUSES,
   useMyHalalClaim,
+  useSupplierSearch,
   useMyHalalClaimEvents,
   usePatchMyHalalClaim,
   useDeleteMyHalalClaim,
@@ -631,6 +632,97 @@ function BoolButton({
  * (optional) supplier and cert info; multiple products under a
  * single meat type are expected.
  */
+const REGISTRY_METHOD_LABEL: Record<string, string> = {
+  HAND_CUT: "hand-cut",
+  MACHINE_CUT: "machine-cut",
+  NOT_DISCLOSED: "method not disclosed",
+};
+
+/**
+ * Optional: link this product to a verified supplier line in the registry.
+ * Attaching one lets the listing show supplier-backed method — but it stays at
+ * the owner's word (OWNER_STATED) until a document or verifier confirms it, so
+ * we say so plainly and never imply it raises confidence.
+ */
+function RegistrySupplierPicker({
+  meat,
+  linked,
+  onPick,
+  onClear,
+}: {
+  meat: MeatType;
+  linked: boolean;
+  onPick: (productId: string, supplierName: string) => void;
+  onClear: () => void;
+}) {
+  const [q, setQ] = React.useState("");
+  const { data, isFetching } = useSupplierSearch(q, meat);
+
+  if (linked) {
+    return (
+      <div className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-sm">
+        <span className="text-emerald-700 dark:text-emerald-400">
+          ✓ Linked to a registry supplier line
+        </span>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-xs text-muted-foreground underline"
+        >
+          unlink
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <Input
+        type="text"
+        aria-label="Link a registry supplier"
+        placeholder="Link a verified supplier (optional) — search the registry"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+      {q.trim().length >= 2 && (
+        <div className="max-h-44 overflow-y-auto rounded-md border">
+          {isFetching && (data ?? []).length === 0 ? (
+            <p className="p-2 text-xs text-muted-foreground">Searching…</p>
+          ) : (data ?? []).flatMap((s) => s.products).length === 0 ? (
+            <p className="p-2 text-xs text-muted-foreground">
+              No matching {meat.toLowerCase()} lines. Leave blank to keep the
+              free-text supplier above.
+            </p>
+          ) : (
+            (data ?? []).map((s) =>
+              s.products.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    onPick(p.id, s.name);
+                    setQ("");
+                  }}
+                  className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                >
+                  <span className="font-medium">{s.name}</span> — {p.product_name}{" "}
+                  <span className="text-xs text-muted-foreground">
+                    ({REGISTRY_METHOD_LABEL[p.slaughter_method] ?? p.slaughter_method})
+                  </span>
+                </button>
+              )),
+            )
+          )}
+        </div>
+      )}
+      <p className="text-[11px] text-muted-foreground">
+        Linking helps us show supplier-backed method — but it stays your word
+        until we see a document.
+      </p>
+    </div>
+  );
+}
+
 function ProductRow({
   value,
   onChange,
@@ -691,6 +783,17 @@ function ProductRow({
           onChange({ supplier_name: e.target.value || null })
         }
         maxLength={255}
+      />
+      <RegistrySupplierPicker
+        meat={value.meat_type}
+        linked={Boolean(value.supplier_product_id)}
+        onPick={(productId, supplierName) =>
+          onChange({
+            supplier_product_id: productId,
+            supplier_name: value.supplier_name || supplierName,
+          })
+        }
+        onClear={() => onChange({ supplier_product_id: null })}
       />
       <div className="grid gap-2 sm:grid-cols-2">
         <Input
