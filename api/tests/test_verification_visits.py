@@ -104,12 +104,12 @@ COMPLETE_QUESTIONNAIRE = {
         {
             "meat_type": "CHICKEN",
             "product_name": "Chicken",
-            "slaughter_method": "ZABIHAH",
+            "slaughter_method": "HAND_CUT",
         },
         {
             "meat_type": "BEEF",
             "product_name": "Beef",
-            "slaughter_method": "ZABIHAH",
+            "slaughter_method": "HAND_CUT",
         },
     ],
     "seafood_only": False,

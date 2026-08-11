@@ -28,7 +28,7 @@ export const FIXTURE_PLACES: PlaceSearchResult[] = [
     hero_photo_url: "https://images.unsplash.com/photo-1544025162-d76694265947?w=800",
     halal_profile: profile({
       validation_tier: "TRUST_HALAL_VERIFIED", menu_posture: "FULLY_HALAL",
-      chicken_slaughter: "ZABIHAH", beef_slaughter: "ZABIHAH", lamb_slaughter: "ZABIHAH",
+      chicken_slaughter: "HAND_CUT", beef_slaughter: "HAND_CUT", lamb_slaughter: "HAND_CUT",
       alcohol_policy: "NONE", has_certification: true, certifying_body_name: "IFANCA",
       // Deliberately mixed, because the uniform case hides the bug this
       // feature exists to fix: the rollup is least-conservative-wins, so
@@ -36,13 +36,13 @@ export const FIXTURE_PLACES: PlaceSearchResult[] = [
       // diner can't tell the breast from the nuggets. One entry also has no
       // supplier, to exercise the "No supplier listed" branch.
       meat_products: [
-        { meat_type: "CHICKEN", product_name: "Chicken tikka", slaughter_method: "ZABIHAH",
+        { meat_type: "CHICKEN", product_name: "Chicken tikka", slaughter_method: "HAND_CUT",
           supplier_name: "Crescent Foods", supplier_city: "Chicago", supplier_state: "IL",
           certifying_authority: "IFANCA" },
-        { meat_type: "CHICKEN", product_name: "Chicken nuggets", slaughter_method: "MACHINE",
+        { meat_type: "CHICKEN", product_name: "Chicken nuggets", slaughter_method: "MACHINE_CUT",
           supplier_name: "Midwest Poultry", supplier_city: null, supplier_state: "IL",
           certifying_authority: null },
-        { meat_type: "BEEF", product_name: "Seekh kebab", slaughter_method: "ZABIHAH",
+        { meat_type: "BEEF", product_name: "Seekh kebab", slaughter_method: "HAND_CUT",
           supplier_name: null, supplier_city: null, supplier_state: null,
           certifying_authority: null },
       ],

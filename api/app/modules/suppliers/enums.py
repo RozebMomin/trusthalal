@@ -5,13 +5,13 @@ method a *supplier* fact, captured **per product line**, with confidence that
 inherits the weaker of {supplier vetting, sourcing evidence}. These enums back
 that model.
 
-Vocabulary note: this module carries the **canonical new slaughter vocabulary**
-(``HAND_CUT`` / ``MACHINE_CUT`` / ``NOT_DISCLOSED``). The older
-``halal_profiles.SlaughterMethod`` (``ZABIHAH`` / ``MACHINE`` / ``NOT_SERVED``)
-still governs the per-meat profile columns and will be migrated to this
-vocabulary in a later, separately-tested pass — the DB-value rename touches
-web + mobile + generated types and must land behind the test suite. Keeping the
-new tables on the correct words now means no second rename later.
+Vocabulary note: this module carries the **canonical slaughter vocabulary**
+(``HAND_CUT`` / ``MACHINE_CUT`` / ``NOT_DISCLOSED``). The
+``halal_profiles.SlaughterMethod`` enum that governs the per-meat profile
+columns was migrated to the same words (``HAND_CUT`` / ``MACHINE_CUT`` /
+``NOT_SERVED``) so both surfaces speak one vocabulary; the profile enum keeps
+``NOT_SERVED`` (a menu fact) where this one carries ``NOT_DISCLOSED`` (a
+sourcing-evidence gap).
 """
 from enum import StrEnum
 

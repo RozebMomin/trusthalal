@@ -19,7 +19,7 @@ export default function TrustProfile() {
       <Text style={[ty.title, { color: t.ink }]}>Trust profile</Text>
       <Seg>Sourcing · per meat</Seg>
       <Card>
-        <R l="Chicken" v="ZABIHAH · CRESCENT" /><R l="Beef" v="ZABIHAH" /><R l="Lamb" v="ZABIHAH · LOCAL" />
+        <R l="Chicken" v="HAND-CUT · CRESCENT" /><R l="Beef" v="HAND-CUT" /><R l="Lamb" v="HAND-CUT · LOCAL" />
         <Cell last left={<Text style={[ty.small,{color:t.sub,fontSize:12.5}]}>Pork</Text>} right={<Tag label="NOT SERVED" tone="zinc" />} />
       </Card>
       <Seg>Kitchen</Seg>

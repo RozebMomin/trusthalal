@@ -54,8 +54,8 @@ const EVENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 
 function methodLabel(m: string | null | undefined): string | null {
   if (!m || m === "NOT_SERVED") return null;
-  if (m === "ZABIHAH") return "Zabihah";
-  if (m === "MACHINE") return "Machine";
+  if (m === "HAND_CUT") return "Hand-slaughtered";
+  if (m === "MACHINE_CUT") return "Machine-slaughtered";
   return m.charAt(0) + m.slice(1).toLowerCase().replaceAll("_", " ");
 }
 

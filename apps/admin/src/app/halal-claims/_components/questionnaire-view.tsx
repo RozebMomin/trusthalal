@@ -53,8 +53,8 @@ const ALCOHOL_LABELS: Record<AlcoholPolicy, string> = {
 };
 
 const SLAUGHTER_LABELS: Record<SlaughterMethod, string> = {
-  ZABIHAH: "Zabihah",
-  MACHINE: "Machine (halal-certified)",
+  HAND_CUT: "Hand-slaughtered",
+  MACHINE_CUT: "Machine-slaughtered",
   NOT_SERVED: "Not served",
 };
 

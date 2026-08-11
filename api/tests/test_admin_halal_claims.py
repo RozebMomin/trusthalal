@@ -143,12 +143,12 @@ COMPLETE_QUESTIONNAIRE: dict = {
         {
             "meat_type": "CHICKEN",
             "product_name": "Chicken",
-            "slaughter_method": "ZABIHAH",
+            "slaughter_method": "HAND_CUT",
         },
         {
             "meat_type": "BEEF",
             "product_name": "Beef",
-            "slaughter_method": "ZABIHAH",
+            "slaughter_method": "HAND_CUT",
         },
     ],
     "seafood_only": False,
@@ -307,8 +307,8 @@ def test_approve_creates_profile_first_time(
     assert profile.menu_posture == MenuPosture.FULLY_HALAL.value
     assert profile.has_pork is False
     assert profile.alcohol_policy == AlcoholPolicy.NONE.value
-    assert profile.chicken_slaughter == SlaughterMethod.ZABIHAH.value
-    assert profile.beef_slaughter == SlaughterMethod.ZABIHAH.value
+    assert profile.chicken_slaughter == SlaughterMethod.HAND_CUT.value
+    assert profile.beef_slaughter == SlaughterMethod.HAND_CUT.value
     assert profile.lamb_slaughter == SlaughterMethod.NOT_SERVED.value
     # ``has_certification`` + ``certifying_body_name`` are now
     # derived from the HALAL_CERTIFICATE attachment, not the
@@ -460,21 +460,21 @@ def test_approve_rolls_up_multiple_products_to_least_strict_method(
             {
                 "meat_type": "BEEF",
                 "product_name": "Beef bacon",
-                "slaughter_method": "MACHINE",
+                "slaughter_method": "MACHINE_CUT",
                 "supplier_name": "Acme Halal",
                 "certifying_authority": "IFANCA",
             },
             {
                 "meat_type": "BEEF",
                 "product_name": "Ground beef",
-                "slaughter_method": "ZABIHAH",
+                "slaughter_method": "HAND_CUT",
                 "supplier_name": "Local Zabihah Co",
             },
             # All-zabihah chicken should roll up to ZABIHAH.
             {
                 "meat_type": "CHICKEN",
                 "product_name": "Chicken thighs",
-                "slaughter_method": "ZABIHAH",
+                "slaughter_method": "HAND_CUT",
             },
         ],
         "seafood_only": False,
@@ -500,8 +500,8 @@ def test_approve_rolls_up_multiple_products_to_least_strict_method(
     profile = db_session.execute(
         select(HalalProfile).where(HalalProfile.place_id == place.id)
     ).scalar_one()
-    assert profile.beef_slaughter == SlaughterMethod.MACHINE.value
-    assert profile.chicken_slaughter == SlaughterMethod.ZABIHAH.value
+    assert profile.beef_slaughter == SlaughterMethod.MACHINE_CUT.value
+    assert profile.chicken_slaughter == SlaughterMethod.HAND_CUT.value
     # Lamb / goat had no entries → NOT_SERVED fallback.
     assert profile.lamb_slaughter == SlaughterMethod.NOT_SERVED.value
     assert profile.goat_slaughter == SlaughterMethod.NOT_SERVED.value

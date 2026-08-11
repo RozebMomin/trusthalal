@@ -37,7 +37,7 @@ export default function SearchTyping() {
       </View>
       <Seg>Try</Seg>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-        <Chip label="Open now" /><Chip label="✓ Verified only" /><Chip label="Zabihah" />
+        <Chip label="Open now" /><Chip label="✓ Verified only" /><Chip label="Hand-cut" />
       </View>
     </UiScreen>
   );

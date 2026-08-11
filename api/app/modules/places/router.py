@@ -1107,7 +1107,7 @@ def search_places(
         ),
     ),
     # Multi-value: pass the param multiple times to accept multiple
-    # slaughter methods for a meat (e.g. ZABIHAH or NOT_SERVED both OK).
+    # slaughter methods for a meat (e.g. HAND_CUT or NOT_SERVED both OK).
     chicken_slaughter: list[SlaughterMethod] | None = Query(default=None),
     beef_slaughter: list[SlaughterMethod] | None = Query(default=None),
     lamb_slaughter: list[SlaughterMethod] | None = Query(default=None),

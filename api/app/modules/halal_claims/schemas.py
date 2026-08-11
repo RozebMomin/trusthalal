@@ -53,8 +53,8 @@ class MeatProductSourcing(BaseModel):
     ``HalalProfile.<meat>_slaughter`` column at admin-approval
     time. Multiple products under the same meat type collapse to
     the LEAST conservative method (i.e. if any beef product is
-    MACHINE-slaughtered, the place's beef column lands MACHINE,
-    even if some other beef products are ZABIHAH). The full
+    machine-slaughtered, the place's beef column lands MACHINE_CUT,
+    even if some other beef products are HAND_CUT). The full
     per-product breakdown stays on the questionnaire JSON for
     consumer-facing transparency on the place detail page.
     """
@@ -80,7 +80,7 @@ class MeatProductSourcing(BaseModel):
     slaughter_method: SlaughterMethod = Field(
         ...,
         description=(
-            "ZABIHAH / MACHINE / NOT_SERVED. NOT_SERVED is unusual on "
+            "HAND_CUT / MACHINE_CUT / NOT_SERVED. NOT_SERVED is unusual on "
             "a per-product entry (an entry exists because the product "
             "is served) but kept for symmetry."
         ),

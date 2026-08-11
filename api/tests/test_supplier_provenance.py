@@ -112,8 +112,8 @@ def test_empty_without_fallback_is_not_disclosed():
 
 
 def test_profile_vocab_bridge():
-    assert canonicalize_profile_method("ZABIHAH") == "HAND_CUT"
-    assert canonicalize_profile_method("MACHINE") == "MACHINE_CUT"
+    assert canonicalize_profile_method("HAND_CUT") == "HAND_CUT"
+    assert canonicalize_profile_method("MACHINE_CUT") == "MACHINE_CUT"
     assert canonicalize_profile_method("NOT_SERVED") is None
     assert canonicalize_profile_method(None) is None
 
@@ -241,7 +241,7 @@ def test_place_read_provenance_self_attested(api, factories, db_session):
     """No sourcing link → the profile's own value, canonicalised
     (ZABIHAH -> HAND_CUT) and marked self-attested."""
     place = factories.place()
-    _profile(db_session, place.id, chicken_slaughter="ZABIHAH")
+    _profile(db_session, place.id, chicken_slaughter="HAND_CUT")
 
     body = api.get(f"/places/{place.id}").json()
     prov = {p["meat_type"]: p for p in body["halal_profile"]["supplier_provenance"]}
@@ -254,7 +254,7 @@ def test_place_read_provenance_self_attested(api, factories, db_session):
 
 def test_place_read_provenance_supplier_backed(api, factories, db_session):
     place = factories.place()
-    _profile(db_session, place.id, chicken_slaughter="ZABIHAH")
+    _profile(db_session, place.id, chicken_slaughter="HAND_CUT")
     prod = _supplier_with_line(
         db_session,
         slug="crescent-read",
@@ -283,8 +283,8 @@ def test_place_read_provenance_supplier_backed(api, factories, db_session):
 def test_supplier_verified_search_filter(api, factories, db_session):
     a = factories.place(name="ZZQVERIFIED Alpha")
     b = factories.place(name="ZZQVERIFIED Beta")
-    _profile(db_session, a.id, chicken_slaughter="ZABIHAH")
-    _profile(db_session, b.id, chicken_slaughter="ZABIHAH")
+    _profile(db_session, a.id, chicken_slaughter="HAND_CUT")
+    _profile(db_session, b.id, chicken_slaughter="HAND_CUT")
 
     # A: DOCUMENTED+ on every rung → passes the filter.
     pa = _supplier_with_line(

@@ -19,7 +19,7 @@ def _products(**over):
     base = {
         "meat_type": "CHICKEN",
         "product_name": "Chicken tikka",
-        "slaughter_method": "ZABIHAH",
+        "slaughter_method": "HAND_CUT",
         "supplier_name": "Crescent Foods",
         "supplier_city": "Chicago",
         "supplier_state": "IL",
@@ -79,14 +79,14 @@ def test_mixed_products_roll_up_to_the_least_conservative(
     zabihah and one machine: the column rounds to MACHINE, and the products
     are what let a diner see why."""
     profile, _ = approved_claim_profile([
-        _products(product_name="Chicken tikka", slaughter_method="ZABIHAH"),
-        _products(product_name="Chicken nuggets", slaughter_method="MACHINE"),
+        _products(product_name="Chicken tikka", slaughter_method="HAND_CUT"),
+        _products(product_name="Chicken nuggets", slaughter_method="MACHINE_CUT"),
     ])
-    assert profile.chicken_slaughter == "MACHINE"
+    assert profile.chicken_slaughter == "MACHINE_CUT"
 
     out = public_meat_products(db_session, profile=profile)
     methods = {p.product_name: p.slaughter_method.value for p in out}
-    assert methods == {"Chicken tikka": "ZABIHAH", "Chicken nuggets": "MACHINE"}
+    assert methods == {"Chicken tikka": "HAND_CUT", "Chicken nuggets": "MACHINE_CUT"}
 
 
 # ---------------------------------------------------------------------------

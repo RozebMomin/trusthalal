@@ -68,13 +68,21 @@ class MenuPosture(StrEnum):
 
 
 class SlaughterMethod(StrEnum):
-    """Per-meat slaughter classification."""
+    """Per-meat slaughter classification.
 
-    ZABIHAH = "ZABIHAH"
-    """Hand-slaughtered with bismillah, traditional method."""
+    Canonical vocabulary, shared conceptually with the supplier registry
+    (docs/2026-08-11-supplier-provenance-plan.md). Renamed from the older
+    ZABIHAH/MACHINE labels so the platform describes the observable method
+    ("hand-slaughtered") rather than asserting a contested status ("zabihah").
+    The rename migration rewrote existing profile columns AND the meat_products
+    values inside claim / verification-visit JSONB.
+    """
 
-    MACHINE = "MACHINE"
-    """Machine-slaughtered, halal-certified by an authority."""
+    HAND_CUT = "HAND_CUT"
+    """Hand-slaughtered by a Muslim (the method formerly labelled 'zabihah')."""
+
+    MACHINE_CUT = "MACHINE_CUT"
+    """Mechanical / mechanized slaughter, halal-certified by an authority."""
 
     NOT_SERVED = "NOT_SERVED"
     """Restaurant doesn't serve this protein at all. Useful so the

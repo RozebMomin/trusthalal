@@ -100,13 +100,13 @@ def _slaughter_rollup(products, meat_type: "MeatType") -> str:
     profile column value.
 
     Rule: profile.<meat>_slaughter = the LEAST conservative method
-    across that type's products. If any product is MACHINE-slaughtered,
-    the column lands MACHINE — even if other products are ZABIHAH —
+    across that type's products. If any product is machine-slaughtered,
+    the column lands MACHINE_CUT — even if other products are hand-cut —
     because that's the worst-case the consumer would encounter.
-    A consumer searching for ZABIHAH-only places filters this out;
+    A consumer searching for hand-cut-only places filters this out;
     a consumer accepting machine-halal still sees the place.
 
-    NOT_SERVED ranks below MACHINE/ZABIHAH and is the fallback when
+    NOT_SERVED ranks below MACHINE_CUT/HAND_CUT and is the fallback when
     the meat type has no entries (e.g. a place that doesn't serve
     beef at all leaves ``beef_slaughter = NOT_SERVED``).
 
@@ -124,10 +124,10 @@ def _slaughter_rollup(products, meat_type: "MeatType") -> str:
     if not matching:
         return SlaughterMethod.NOT_SERVED.value
     methods = {p.slaughter_method for p in matching}
-    # MACHINE is "less strict" than ZABIHAH — the worst-case wins.
-    if SlaughterMethod.MACHINE in methods:
-        return SlaughterMethod.MACHINE.value
-    return SlaughterMethod.ZABIHAH.value
+    # Machine-cut is "less strict" than hand-cut — the worst-case wins.
+    if SlaughterMethod.MACHINE_CUT in methods:
+        return SlaughterMethod.MACHINE_CUT.value
+    return SlaughterMethod.HAND_CUT.value
 
 
 def _certification_from_claim(

@@ -139,18 +139,19 @@ const ALCOHOL_POLICY_LINE: Record<AlcoholPolicy, string> = {
 };
 
 const SLAUGHTER_LABELS: Record<SlaughterMethod, string> = {
-  ZABIHAH: "Zabihah",
-  MACHINE: "Machine",
+  HAND_CUT: "Hand-slaughtered",
+  MACHINE_CUT: "Machine-slaughtered",
   NOT_SERVED: "Not served",
 };
 
+// Fully neutral: hand-slaughtered and machine-slaughtered get identical
+// treatment — the label states the fact, the chip doesn't rank one above the
+// other (per the redefinition doc: "present both as neutral facts"). Only
+// "not served" is visually muted.
 const SLAUGHTER_TONE: Record<SlaughterMethod, string> = {
-  ZABIHAH:
-    "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100",
-  MACHINE:
-    "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100",
-  NOT_SERVED:
-    "border-slate-200 bg-muted/40 text-muted-foreground",
+  HAND_CUT: "border-border bg-muted/30 text-foreground",
+  MACHINE_CUT: "border-border bg-muted/30 text-foreground",
+  NOT_SERVED: "border-slate-200 bg-muted/40 text-muted-foreground",
 };
 
 // ---------------------------------------------------------------------------
@@ -699,7 +700,7 @@ type MeatSummary = { text: string; machine: boolean; collapsible: boolean };
  * support, the section gives up on summarising and renders itself open.
  */
 function meatSummary(profile: HalalProfileEmbed): MeatSummary {
-  const known = (m: string) => m === "ZABIHAH" || m === "MACHINE";
+  const known = (m: string) => m === "HAND_CUT" || m === "MACHINE_CUT";
   const products = profile.meat_products ?? [];
 
   if (products.length > 0) {
@@ -707,16 +708,16 @@ function meatSummary(profile: HalalProfileEmbed): MeatSummary {
       return { text: "Meat sourcing", machine: true, collapsible: false };
     }
     const machine = products.filter(
-      (p) => p.slaughter_method === "MACHINE",
+      (p) => p.slaughter_method === "MACHINE_CUT",
     ).length;
-    const zabihah = products.length - machine;
+    const hand = products.length - machine;
     const n = `${products.length} product${products.length === 1 ? "" : "s"}`;
     if (machine === 0)
-      return { text: `${n} · all zabihah`, machine: false, collapsible: true };
-    if (zabihah === 0)
-      return { text: `${n} · all machine`, machine: true, collapsible: true };
+      return { text: `${n} · all hand-cut`, machine: false, collapsible: true };
+    if (hand === 0)
+      return { text: `${n} · all machine-cut`, machine: true, collapsible: true };
     return {
-      text: `${n} · ${zabihah} zabihah, ${machine} machine`,
+      text: `${n} · ${hand} hand-cut, ${machine} machine-cut`,
       machine: true,
       collapsible: true,
     };
@@ -741,29 +742,29 @@ function meatSummary(profile: HalalProfileEmbed): MeatSummary {
     return { text: "Meat sourcing", machine: true, collapsible: false };
   }
 
-  const zabihah = served
-    .filter((r) => r.method === "ZABIHAH")
+  const hand = served
+    .filter((r) => r.method === "HAND_CUT")
     .map((r) => r.label);
   const machine = served
-    .filter((r) => r.method === "MACHINE")
+    .filter((r) => r.method === "MACHINE_CUT")
     .map((r) => r.label);
 
   if (machine.length === 0) {
     return {
-      text: `${sentenceCase(zabihah.join(", "))} · all zabihah`,
+      text: `${sentenceCase(hand.join(", "))} · all hand-cut`,
       machine: false,
       collapsible: true,
     };
   }
-  if (zabihah.length === 0) {
+  if (hand.length === 0) {
     return {
-      text: `${sentenceCase(machine.join(", "))} · all machine`,
+      text: `${sentenceCase(machine.join(", "))} · all machine-cut`,
       machine: true,
       collapsible: true,
     };
   }
   return {
-    text: `${sentenceCase(zabihah.join(", "))} zabihah · ${machine.join(", ")} machine`,
+    text: `${sentenceCase(hand.join(", "))} hand-cut · ${machine.join(", ")} machine-cut`,
     machine: true,
     collapsible: true,
   };

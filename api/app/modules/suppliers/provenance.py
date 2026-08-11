@@ -51,12 +51,13 @@ _EVIDENCE_CONFIDENCE: dict[SourcingEvidence, MethodConfidence] = {
     SourcingEvidence.VERIFIER_CONFIRMED: MethodConfidence.VERIFIED,
 }
 
-# Bridge the legacy profile vocabulary (halal_profiles.SlaughterMethod) onto
-# the canonical new one. NOT_SERVED is intentionally absent — that meat isn't
-# served, so there's nothing to resolve (the caller skips it).
+# Map the profile's SlaughterMethod onto the suppliers' SlaughterMethod. Since
+# the vocab-rename migration, the two enums share values (HAND_CUT/MACHINE_CUT),
+# so this is a pass-through across the two enum classes. NOT_SERVED is
+# intentionally absent — that meat isn't served, so there's nothing to resolve.
 _PROFILE_TO_CANONICAL: dict[ProfileSlaughterMethod, SlaughterMethod] = {
-    ProfileSlaughterMethod.ZABIHAH: SlaughterMethod.HAND_CUT,
-    ProfileSlaughterMethod.MACHINE: SlaughterMethod.MACHINE_CUT,
+    ProfileSlaughterMethod.HAND_CUT: SlaughterMethod.HAND_CUT,
+    ProfileSlaughterMethod.MACHINE_CUT: SlaughterMethod.MACHINE_CUT,
 }
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)

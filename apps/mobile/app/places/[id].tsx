@@ -735,8 +735,8 @@ const ALCOHOL_POLICY_LINE: Record<string, string> = {
 };
 
 const SLAUGHTER_LABELS: Record<string, string> = {
-  ZABIHAH: "Zabihah",
-  MACHINE: "Machine",
+  HAND_CUT: "Hand-slaughtered",
+  MACHINE_CUT: "Machine-slaughtered",
   NOT_SERVED: "Not served",
 };
 
@@ -1002,19 +1002,19 @@ type MeatSummary = { text: string; machine: boolean; collapsible: boolean };
  */
 function meatSummary(profile: HalalProfileEmbed): MeatSummary {
   const products = profile.meat_products ?? [];
-  const known = (m: string) => m === "ZABIHAH" || m === "MACHINE";
+  const known = (m: string) => m === "HAND_CUT" || m === "MACHINE_CUT";
 
   if (products.length > 0) {
     if (!products.every((p) => known(p.slaughter_method))) {
       return { text: "Meat sourcing", machine: true, collapsible: false };
     }
-    const machine = products.filter((p) => p.slaughter_method === "MACHINE").length;
-    const zabihah = products.length - machine;
+    const machine = products.filter((p) => p.slaughter_method === "MACHINE_CUT").length;
+    const hand = products.length - machine;
     const n = `${products.length} product${products.length === 1 ? "" : "s"}`;
-    if (machine === 0) return { text: `${n} · all zabihah`, machine: false, collapsible: true };
-    if (zabihah === 0) return { text: `${n} · all machine`, machine: true, collapsible: true };
+    if (machine === 0) return { text: `${n} · all hand-cut`, machine: false, collapsible: true };
+    if (hand === 0) return { text: `${n} · all machine-cut`, machine: true, collapsible: true };
     return {
-      text: `${n} · ${zabihah} zabihah, ${machine} machine`,
+      text: `${n} · ${hand} hand-cut, ${machine} machine-cut`,
       machine: true,
       collapsible: true,
     };
@@ -1039,17 +1039,17 @@ function meatSummary(profile: HalalProfileEmbed): MeatSummary {
     return { text: "Meat sourcing", machine: true, collapsible: false };
   }
 
-  const zabihah = served.filter((r) => r.method === "ZABIHAH").map((r) => r.label);
-  const machine = served.filter((r) => r.method === "MACHINE").map((r) => r.label);
+  const hand = served.filter((r) => r.method === "HAND_CUT").map((r) => r.label);
+  const machine = served.filter((r) => r.method === "MACHINE_CUT").map((r) => r.label);
 
   if (machine.length === 0) {
-    return { text: `${sentenceCase(zabihah.join(", "))} · all zabihah`, machine: false, collapsible: true };
+    return { text: `${sentenceCase(hand.join(", "))} · all hand-cut`, machine: false, collapsible: true };
   }
-  if (zabihah.length === 0) {
-    return { text: `${sentenceCase(machine.join(", "))} · all machine`, machine: true, collapsible: true };
+  if (hand.length === 0) {
+    return { text: `${sentenceCase(machine.join(", "))} · all machine-cut`, machine: true, collapsible: true };
   }
   return {
-    text: `${sentenceCase(zabihah.join(", "))} zabihah · ${machine.join(", ")} machine`,
+    text: `${sentenceCase(hand.join(", "))} hand-cut · ${machine.join(", ")} machine-cut`,
     machine: true,
     collapsible: true,
   };
@@ -1186,32 +1186,32 @@ function ServedMeatChips({
   return (
     <View style={{ gap: 6 }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-        {served.map((row) => {
-          const machine = row.method === "MACHINE";
-          return (
-            <View
-              key={row.label}
-              style={{
-                flexDirection: "row",
-                alignItems: "baseline",
-                gap: 5,
-                borderRadius: radii.md,
-                borderWidth: 1,
-                borderColor: machine ? t.amber : t.accentDeep,
-                backgroundColor: machine ? t.amberSoft : t.accentSoft,
-                paddingHorizontal: 9,
-                paddingVertical: 5,
-              }}
-            >
-              <Text style={{ color: machine ? t.amber : t.accentDeep, opacity: 0.75, fontFamily: "Inter_500Medium", fontSize: 12 }}>
-                {row.label}
-              </Text>
-              <Text style={{ color: machine ? t.amber : t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 12 }}>
-                {SLAUGHTER_LABELS[row.method as string] ?? row.method}
-              </Text>
-            </View>
-          );
-        })}
+        {served.map((row) => (
+          // Fully neutral: hand-slaughtered and machine-slaughtered chips look
+          // identical — the label states the method, the colour doesn't rank
+          // one over the other (redefinition doc: present both as neutral facts).
+          <View
+            key={row.label}
+            style={{
+              flexDirection: "row",
+              alignItems: "baseline",
+              gap: 5,
+              borderRadius: radii.md,
+              borderWidth: 1,
+              borderColor: t.line,
+              backgroundColor: t.card,
+              paddingHorizontal: 9,
+              paddingVertical: 5,
+            }}
+          >
+            <Text style={{ color: t.sub, opacity: 0.85, fontFamily: "Inter_500Medium", fontSize: 12 }}>
+              {row.label}
+            </Text>
+            <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 12 }}>
+              {SLAUGHTER_LABELS[row.method as string] ?? row.method}
+            </Text>
+          </View>
+        ))}
       </View>
       {absent.length > 0 ? (
         <Text style={[ty.small, { color: t.sub, fontSize: 11 }]}>
@@ -1322,8 +1322,9 @@ function ServedProducts({
   return (
     <View style={{ gap: 8 }}>
       {products.map((p, i) => {
-        const machine = p.slaughter_method === "MACHINE";
-        const tone = machine ? t.amber : t.accentDeep;
+        // Neutral tone for both hand- and machine-slaughtered — the label
+        // carries the method; the colour doesn't rank one over the other.
+        const tone = t.ink;
         // City and state are separate columns; either can be missing.
         const where = [p.supplier_city, p.supplier_state].filter(Boolean).join(", ");
         return (
@@ -1332,8 +1333,8 @@ function ServedProducts({
             style={{
               borderRadius: radii.md,
               borderWidth: 1,
-              borderColor: machine ? t.amber : t.accentDeep,
-              backgroundColor: machine ? t.amberSoft : t.accentSoft,
+              borderColor: t.line,
+              backgroundColor: t.card,
               paddingHorizontal: 10,
               paddingVertical: 8,
               gap: 3,

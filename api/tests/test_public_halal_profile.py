@@ -34,12 +34,12 @@ COMPLETE_FULLY_HALAL: dict = {
         {
             "meat_type": "CHICKEN",
             "product_name": "Chicken",
-            "slaughter_method": "ZABIHAH",
+            "slaughter_method": "HAND_CUT",
         },
         {
             "meat_type": "BEEF",
             "product_name": "Beef",
-            "slaughter_method": "ZABIHAH",
+            "slaughter_method": "HAND_CUT",
         },
     ],
     "seafood_only": False,
@@ -136,7 +136,7 @@ def test_public_halal_profile_returned_after_approval(
     assert body["place_id"] == str(place.id)
     assert body["validation_tier"] == "CERTIFICATE_ON_FILE"
     assert body["menu_posture"] == "FULLY_HALAL"
-    assert body["chicken_slaughter"] == "ZABIHAH"
+    assert body["chicken_slaughter"] == "HAND_CUT"
     assert body["dispute_state"] == "NONE"
     assert body["revoked_at"] is None
 
@@ -326,12 +326,12 @@ def _seed_three_distinct_places(api, factories, db_session):
             {
                 "meat_type": "CHICKEN",
                 "product_name": "Chicken",
-                "slaughter_method": "MACHINE",
+                "slaughter_method": "MACHINE_CUT",
             },
             {
                 "meat_type": "BEEF",
                 "product_name": "Beef",
-                "slaughter_method": "MACHINE",
+                "slaughter_method": "MACHINE_CUT",
             },
         ],
         "has_certification": False,
@@ -354,12 +354,12 @@ def _seed_three_distinct_places(api, factories, db_session):
             {
                 "meat_type": "CHICKEN",
                 "product_name": "Chicken",
-                "slaughter_method": "ZABIHAH",
+                "slaughter_method": "HAND_CUT",
             },
             {
                 "meat_type": "BEEF",
                 "product_name": "Beef",
-                "slaughter_method": "MACHINE",
+                "slaughter_method": "MACHINE_CUT",
             },
         ],
     }
@@ -429,7 +429,7 @@ def test_search_chicken_slaughter_multi_value(api, factories, db_session):
         "/places",
         params=[
             ("q", "AAA"),
-            ("chicken_slaughter", "ZABIHAH"),
+            ("chicken_slaughter", "HAND_CUT"),
             ("chicken_slaughter", "NOT_SERVED"),
         ],
     )

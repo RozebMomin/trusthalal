@@ -61,7 +61,7 @@ def escape_like(term: str) -> str:
 # SELF_ATTESTED.
 #
 # Per-meat slaughter filters are sequence-typed so consumer
-# preferences like "ZABIHAH or NOT_SERVED is acceptable for
+# preferences like "HAND_CUT or NOT_SERVED is acceptable for
 # chicken" can pass both values. An empty list and None are
 # equivalent (no filter).
 

@@ -126,8 +126,8 @@ const SLAUGHTER_OPTIONS: Array<{
   value: SlaughterMethod;
   label: string;
 }> = [
-  { value: "ZABIHAH", label: "Zabihah (hand-slaughtered)" },
-  { value: "MACHINE", label: "Machine-slaughtered, halal-certified" },
+  { value: "HAND_CUT", label: "Hand-slaughtered" },
+  { value: "MACHINE_CUT", label: "Machine-slaughtered" },
   { value: "NOT_SERVED", label: "Not served" },
 ];
 
@@ -146,7 +146,7 @@ function blankProduct(): MeatProductSourcing {
   return {
     meat_type: "CHICKEN",
     product_name: "",
-    slaughter_method: "ZABIHAH",
+    slaughter_method: "HAND_CUT",
     supplier_name: null,
     supplier_city: null,
     supplier_state: null,

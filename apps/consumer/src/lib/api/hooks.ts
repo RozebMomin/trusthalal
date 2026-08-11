@@ -114,7 +114,7 @@ export type MenuPosture =
 
 export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
 
-export type SlaughterMethod = "ZABIHAH" | "MACHINE" | "NOT_SERVED";
+export type SlaughterMethod = "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED";
 
 export type DisputeState = "NONE" | "DISPUTED" | "RECONCILING";
 

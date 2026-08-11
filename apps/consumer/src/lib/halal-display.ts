@@ -226,12 +226,12 @@ export function halalFactsFor(profile: HalalProfileEmbed): HalalFactChip[] {
       ["goat", profile.goat_slaughter],
     ] as const
   )
-    .filter(([, method]) => method === "ZABIHAH")
+    .filter(([, method]) => method === "HAND_CUT")
     .map(([meat]) => meat);
 
   if (zabihahMeats.length > 0) {
     out.push({
-      label: "Zabihah",
+      label: "Hand-slaughtered",
       hint: `Hand-slaughtered: ${zabihahMeats.join(", ")}`,
     });
   }
