@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Trust Halal Staff",
+    "slug": "trust-halal-staff",
+    "version": "1.0.0",
+    "scheme": "trusthalalstaff",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "org.trusthalal.staff",
+      "supportsTablet": true,
+      "usesAppleSignIn": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "appleTeamId": "3623JG9XS4"
+    },
+    "android": {
+      "package": "org.trusthalal.staff",
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0E9F6E"
+        }
+      ]
+    ],
+    "extra": {
+      "apiBaseUrl": "https://api.trusthalal.org",
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
