@@ -12,8 +12,9 @@ bearer token; every admin endpoint already accepts that token and gates on
 ## First-time setup
 
 1. `npm install`
-2. Create the EAS project and set the id in `app.json` → `extra.eas.projectId`
-   (replace `REPLACE_WITH_EAS_PROJECT_ID`). This id is also what push tokens are
+2. `eas login`, then `eas init` from this directory. That creates the EAS
+   project on expo.dev and writes `extra.eas.projectId` into `app.json` for you
+   (you don't have or type an id by hand). This id is what push tokens are
    minted against.
 3. `npm run typecheck` to verify.
 4. Dev: `npx expo start` (push requires a real device + a dev/production build,

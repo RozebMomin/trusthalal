@@ -37,10 +37,7 @@
       ]
     ],
     "extra": {
-      "apiBaseUrl": "https://api.trusthalal.org",
-      "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
-      }
+      "apiBaseUrl": "https://api.trusthalal.org"
     }
   }
 }
