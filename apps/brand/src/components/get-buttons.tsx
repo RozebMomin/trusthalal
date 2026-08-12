@@ -116,7 +116,7 @@ export function GetButtons() {
       <div className="flex flex-col gap-3">{order}</div>
       {platform === "other" ? (
         <p className="mt-3 text-center text-sm text-sub">
-          Trust Halal is a phone app — open{" "}
+          Trust Halal is a phone app, open{" "}
           <span className="font-medium text-ink">trusthalal.org/get</span> on your iPhone or
           Android, or email yourself this link.
         </p>

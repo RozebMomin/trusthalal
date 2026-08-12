@@ -1,23 +1,18 @@
 /**
- * trusthalal.org/get — the single link every social post points at.
+ * trusthalal.org/get: the single link every social post points at.
  *
- * One job: turn a curious visitor into an alpha tester. Detects the
- * phone and floats the right store button up (see GetButtons), then
- * gives just enough proof (three trust points) and routes the two
- * other audiences — owners and verifiers — without cluttering the
- * primary download action.
- *
- * Same v2 language as the rest of trusthalal.org: emerald accent, ink
- * text, white surfaces on the faint neutral canvas, Inter-only type.
+ * Turns a visitor into an alpha tester. Detects the phone and floats the right
+ * store button up (see GetButtons), gives three trust points, and routes
+ * owners and verifiers without cluttering the primary download action.
  */
 import type { Metadata } from "next";
 import { ArrowIcon, Footer, Header } from "@/components/chrome";
 import { GetButtons } from "@/components/get-buttons";
 import { OWNER_GET_VERIFIED_URL, VERIFIER_URL } from "@/lib/links";
 
-const TITLE = "Get Trust Halal — join the Atlanta alpha";
+const TITLE = "Get Trust Halal: join the Atlanta alpha";
 const DESCRIPTION =
-  "Find halal spots you can actually trust — verified in person, certificates on file. We're in early alpha in Atlanta and looking for founding testers. Install on iPhone or Android.";
+  "Find halal spots you can actually trust, verified in person, certificates on file. We're in early alpha in Atlanta and looking for founding testers. Install on iPhone or Android.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -52,7 +47,7 @@ export default function GetPage() {
 
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-sub">
             Find halal spots near you and see exactly how each &ldquo;halal&rdquo; claim is
-            backed — before you sit down. We&rsquo;re in early alpha in Atlanta and looking for
+            backed, before you sit down. We&rsquo;re in early alpha in Atlanta and looking for
             founding testers.
           </p>
 
@@ -65,7 +60,7 @@ export default function GetPage() {
         <section className="mx-auto mt-20 grid w-full max-w-3xl gap-4 sm:grid-cols-3">
           <TrustPoint
             title="See what backs the claim"
-            body="Every place shows its trust level — owner-attested, certificate on file, or verified in person."
+            body="Every place shows its trust level, owner-attested, certificate on file, or verified in person."
           />
           <TrustPoint
             title="View the real certificate"
@@ -94,7 +89,7 @@ export default function GetPage() {
         </section>
 
         <p className="mt-16 text-center text-sm text-sub">
-          It&rsquo;s early and rough in places — that&rsquo;s the point. Your feedback now shapes
+          It&rsquo;s early and rough in places, that&rsquo;s the point. Your feedback now shapes
           what Trust Halal becomes.
         </p>
       </main>

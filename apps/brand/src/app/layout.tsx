@@ -7,7 +7,7 @@ import "./globals.css";
 const BRAND = "Trust Halal";
 const TITLE = `${BRAND} · The source of truth for halal restaurants`;
 const DESCRIPTION =
-  "Trust Halal is the definitive record of halal restaurants. Every claim is checked at the source — supplier, slaughter method, certificate on file, and an in-person visit — so no one has to call the kitchen and hope.";
+  "Trust Halal is the definitive record of halal restaurants. Every claim is checked at the source, supplier, slaughter method, certificate on file, and an in-person visit, so no one has to call the kitchen and hope.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://trusthalal.org"),
@@ -43,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Inter only — v2 is Inter-driven, no serif. Loaded async via
+        {/* Inter only, v2 is Inter-driven, no serif. Loaded async via
             preconnect so the initial paint doesn't wait on Google Fonts.
             Italic 600 kept for the hero's accented <em> phrase. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

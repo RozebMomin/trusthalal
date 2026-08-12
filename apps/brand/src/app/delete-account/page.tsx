@@ -1,24 +1,17 @@
 /**
- * /delete-account — the public account deletion instructions.
+ * /delete-account: public account deletion instructions.
  *
- * Google Play requires a URL on the store listing that a user can reach to
- * request deletion, and it has to do three specific things: name the app or
- * developer as shown on the listing, prominently feature the steps to
- * request deletion, and state what is deleted, what is kept, and for how
- * long. A FAQ entry buried in /support doesn't clear the "prominently
- * feature" bar, which is why this is its own page.
+ * Google Play requires a store-listing URL that names the app/developer,
+ * prominently shows the steps to request deletion, and states what is deleted,
+ * what is kept, and for how long. A FAQ entry in /support doesn't clear the
+ * "prominently feature" bar, so this is its own page.
  *
- * The audience is specifically someone who no longer has the app installed —
- * that's the whole reason a web page is required when in-app deletion already
- * exists. So the email route is given equal weight to the in-app one rather
- * than being a footnote.
- *
- * The "what is kept" list is not marketing-friendly and is stated anyway.
- * Someone deleting their account is entitled to know that their reports
- * survive anonymised and their owner replies stay up, and finding that out
- * afterwards is exactly how a deletion promise loses its credibility. It
- * mirrors what the app's own delete screen says, and both mirror
- * api/app/modules/users/deletion.py — if that changes, all three change.
+ * The audience is someone who no longer has the app installed (the reason a
+ * web page is required at all), so the email route gets equal weight to the
+ * in-app one. The "what is kept" list stays even though it isn't marketing
+ * friendly: reports survive anonymised and owner replies stay up, and users
+ * are entitled to know that up front. Mirrors the app's delete screen and
+ * api/app/modules/users/deletion.py; if that changes, all three change.
  */
 
 import type { Metadata } from "next";
@@ -32,7 +25,7 @@ import {
 
 const PAGE_TITLE = "Delete your Trust Halal account";
 const PAGE_DESCRIPTION =
-  "How to delete your Trust Halal account and what happens to your data — from inside the app, or by email if you've already uninstalled it.";
+  "How to delete your Trust Halal account and what happens to your data, from inside the app, or by email if you've already uninstalled it.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -111,7 +104,7 @@ export default function DeleteAccountPage() {
             </a>{" "}
             from the address on your account and ask us to delete it. We
             don&rsquo;t need a reason. We&rsquo;ll confirm it&rsquo;s you,
-            delete the account, and reply to confirm when it&rsquo;s done —
+            delete the account, and reply to confirm when it&rsquo;s done,
             normally within a few days.
           </p>
 

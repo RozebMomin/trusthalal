@@ -1,5 +1,5 @@
 /**
- * /support — Trust Halal help & contact page.
+ * /support: Trust Halal help & contact page.
  *
  * Required as the App Store / Play Store "Support URL". Server-rendered,
  * zero client JS, same brand system + document typography as /ethics and
@@ -20,7 +20,7 @@ import {
 
 const PAGE_TITLE = "Support";
 const PAGE_DESCRIPTION =
-  "Get help with Trust Halal — how trust levels work, resetting your password, reporting a listing, becoming a verifier, and deleting your account.";
+  "Get help with Trust Halal, how trust levels work, resetting your password, reporting a listing, becoming a verifier, and deleting your account.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -85,7 +85,7 @@ export default function SupportPage() {
             halal certificate we&apos;ve reviewed), or{" "}
             <strong>Owner-attested</strong> (the restaurant told us their halal
             posture, shown exactly as they stated it). Open any place to see the
-            full breakdown — menu posture, per-meat sourcing, alcohol, and more.
+            full breakdown, menu posture, per-meat sourcing, alcohol, and more.
           </p>
 
           <SubHeader>I forgot my password.</SubHeader>
@@ -106,7 +106,7 @@ export default function SupportPage() {
 
           <SubHeader>How do I become a verifier?</SubHeader>
           <p>
-            Verifiers are community members who confirm halal spots in person —
+            Verifiers are community members who confirm halal spots in person,
             it&apos;s how places earn the highest tier of trust. Apply through
             the <a href={VERIFIER_URL}>verifier program</a>. We&apos;ll review
             your application and let you know by email.
@@ -128,14 +128,14 @@ export default function SupportPage() {
             from the address on your account if you&apos;ve already
             uninstalled it. Our{" "}
             <a href={DELETE_ACCOUNT_PATH}>account deletion page</a> lists the
-            steps and exactly what is deleted and what is kept — see also the{" "}
+            steps and exactly what is deleted and what is kept, see also the{" "}
             <a href={PRIVACY_PATH}>privacy policy</a>.
           </p>
 
           <SubHeader>Why don&apos;t I see many places near me?</SubHeader>
           <p>
             We&apos;re growing our coverage city by city, and every place is
-            checked before it appears — so some areas are thin while we build
+            checked before it appears, so some areas are thin while we build
             them out. Saving places you&apos;d like verified and becoming a
             verifier both help us get to your area faster.
           </p>
@@ -146,7 +146,7 @@ export default function SupportPage() {
             <a href={`mailto:${SUPPORT_CONTACT_EMAIL}`}>
               {SUPPORT_CONTACT_EMAIL}
             </a>{" "}
-            with as much detail as you can — the place, your device, and what you
+            with as much detail as you can, the place, your device, and what you
             expected to happen. We read every message.
           </p>
 

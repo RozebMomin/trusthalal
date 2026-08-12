@@ -1,17 +1,9 @@
 /**
- * /ethics — Trust Halal's public AI ethics document, now living on
- * the brand domain (it's a brand-level commitment, so it renders
- * under trusthalal.org rather than the consumer site; the old
- * halalfoodnearme.com/ethics path 301s here).
+ * /ethics: Trust Halal's public AI ethics document. Lives on the brand
+ * domain (halalfoodnearme.com/ethics 301s here). Server-rendered, no client JS.
  *
- * Server-rendered, zero client JS, styled with the v2 clean-modern
- * brand system: neutral canvas, ink text, Inter type, emerald accent.
- * Canonical source of truth for the WORDING remains
- * ``content/ethics/ai-ethics.md`` — keep them in sync when edited.
+ * Canonical wording lives in content/ethics/ai-ethics.md; keep them in sync.
  * The change-history table at the bottom is authoritative.
- *
- * Style: prose-first, minimal chrome, generous whitespace. This is
- * a document, not a marketing page.
  */
 
 import type { Metadata } from "next";
@@ -102,11 +94,11 @@ export default function EthicsPage() {
             review first.
           </p>
           <p>
-            <strong>What it does:</strong> looks at public data — the
+            <strong>What it does:</strong> looks at public data, the
             restaurant&apos;s own website language, their menu,
             mentions of halal in their Google reviews, cuisine
             correlations, whether they&apos;ve uploaded a halal
-            certificate — and produces a numeric score representing
+            certificate, and produces a numeric score representing
             &ldquo;how likely is this restaurant to be verifiable as
             halal-serving?&rdquo; High scores go to the top of the
             review queue.
@@ -115,12 +107,12 @@ export default function EthicsPage() {
             <strong>What it doesn&apos;t do:</strong> this score is
             never shown to consumers. It doesn&apos;t determine the
             verified tier. It just decides the order our human review
-            team looks at restaurants — a productivity tool that lets
+            team looks at restaurants, a productivity tool that lets
             us clear the queue faster.
           </p>
           <p>
             <strong>Why it&apos;s safe:</strong> the outcome of a
-            high or low score is the same — a human reviewer looks at
+            high or low score is the same, a human reviewer looks at
             the restaurant. The score just influences timing.
           </p>
 
@@ -134,10 +126,10 @@ export default function EthicsPage() {
           <p>
             <strong>Examples of what it flags:</strong>{" "}
             &ldquo;fully halal menu&rdquo; + &ldquo;full bar with
-            cooking-with-wine&rdquo; — worth double-checking.
+            cooking-with-wine&rdquo;, worth double-checking.
             &ldquo;No pork&rdquo; + a menu photo showing a pork-based
-            item — needs a follow-up. &ldquo;Zabihah chicken&rdquo; +
-            a supplier known not to offer zabihah — worth verifying.
+            item, needs a follow-up. &ldquo;Zabihah chicken&rdquo; +
+            a supplier known not to offer zabihah, worth verifying.
           </p>
           <p>
             <strong>What it doesn&apos;t do:</strong> it doesn&apos;t
@@ -156,8 +148,8 @@ export default function EthicsPage() {
           <p>
             When multiple consumers file disputes about the same
             restaurant or the same claim, AI helps us cluster the
-            disputes by common attributes — same supplier mentioned,
-            same menu item mentioned, same time period mentioned — so
+            disputes by common attributes, same supplier mentioned,
+            same menu item mentioned, same time period mentioned, so
             admin can see the pattern quickly.
           </p>
           <p>
@@ -181,9 +173,9 @@ export default function EthicsPage() {
           <SubHeader>4. Certificate OCR + metadata extraction</SubHeader>
           <p>
             When a restaurant uploads a halal certificate PDF or
-            image, AI extracts the structured data — certifying body
+            image, AI extracts the structured data, certifying body
             name, certificate number, issue date, expiry date,
-            restaurant name on the cert — and pre-populates the admin
+            restaurant name on the cert, and pre-populates the admin
             review form.
           </p>
           <p>
@@ -294,7 +286,7 @@ export default function EthicsPage() {
             <li>
               <strong>Priority scoring bias.</strong> A biased
               priority score doesn&apos;t approve or reject anything
-              — it changes review order. If we notice systemic
+             , it changes review order. If we notice systemic
               ordering bias (e.g. under-scoring restaurants from a
               particular region or cuisine), we adjust or remove the
               scorer.
@@ -310,8 +302,8 @@ export default function EthicsPage() {
           <SectionHeader>When we make a mistake</SectionHeader>
           <p>
             If the AI-assisted pipeline contributes to a bad decision
-            — a restaurant is verified when it shouldn&apos;t be, or
-            vice versa — here&apos;s what happens:
+           , a restaurant is verified when it shouldn&apos;t be, or
+            vice versa, here&apos;s what happens:
           </p>
           <ol>
             <li>
@@ -346,11 +338,11 @@ export default function EthicsPage() {
 
           <SectionHeader>Feedback</SectionHeader>
           <p>
-            If you think we&apos;ve drawn a line in the wrong place —
+            If you think we&apos;ve drawn a line in the wrong place,
             if you believe AI shouldn&apos;t be involved in one of
             the four internal roles listed above, or if you think we
             should be doing more or less with AI than we&apos;re
-            doing — we want to hear it.
+            doing, we want to hear it.
           </p>
           <p>
             Email us at{" "}
@@ -390,7 +382,7 @@ export default function EthicsPage() {
           <hr className="my-10 border-line" />
           <p className="text-sm italic text-sub">
             Written by the Trust Halal team. If you&apos;d like to
-            reference this document publicly, please do — the URL is{" "}
+            reference this document publicly, please do, the URL is{" "}
             <span className="font-mono not-italic text-ink">
               trusthalal.org/ethics
             </span>

@@ -1,14 +1,14 @@
 /**
  * Destination URLs shared by every page on trusthalal.org.
  *
- * The ethics document lives HERE (/ethics) — it's a brand-level
+ * The ethics document lives HERE (/ethics): it's a brand-level
  * commitment, so it renders on the brand domain. The consumer site's
  * old /ethics path 301s to it.
  */
 export const CONSUMER_URL = "https://halalfoodnearme.com";
 export const OWNER_URL = "https://owner.trusthalal.org";
 /**
- * Onboarding handoff — where an operator clicking a "verify your
+ * Onboarding handoff, where an operator clicking a "verify your
  * restaurant" CTA on the brand site should land: the unified
  * get-verified flow (register business → claim restaurant → confirm
  * halal). The bare OWNER_URL stays for generic "owner portal" nav.
@@ -18,7 +18,7 @@ export const VERIFIER_URL = "https://halalfoodnearme.com/become-a-verifier";
 export const ADMIN_URL = "https://admin.trusthalal.org";
 export const ETHICS_PATH = "/ethics";
 export const PRIVACY_PATH = "/privacy";
-/** Required by App Store Guideline 1.2 — see the page for why. */
+/** Required by App Store Guideline 1.2, see the page for why. */
 export const TERMS_PATH = "/terms";
 /** Required on the Google Play listing: a page a user can reach to request
  *  account deletion after they've already uninstalled the app. */
@@ -32,7 +32,7 @@ export const ETHICS_CONTACT_EMAIL = "ethics@trusthalal.org";
 export const SUPPORT_CONTACT_EMAIL = "support@trusthalal.org";
 export const PRIVACY_CONTACT_EMAIL = "privacy@trusthalal.org";
 /**
- * Formal legal notices — DMCA complaints and counter-notices, disputes,
+ * Formal legal notices, DMCA complaints and counter-notices, disputes,
  * anything from a lawyer. Separate from support so a takedown notice with a
  * statutory clock on it doesn't sit in a queue behind "what are your hours".
  * Create the alias before publishing: an unmonitored DMCA address is worse
@@ -42,8 +42,8 @@ export const LEGAL_CONTACT_EMAIL = "legal@trusthalal.org";
 
 /**
  * Public social presence. Instagram and TikTok both use the trusthalal.app
- * handle. Facebook's page vanity is trusthalalapp — the dotted handle was
- * already taken there — so the FB URL is spelled out rather than derived
+ * handle. Facebook's page vanity is trusthalalapp, the dotted handle was
+ * already taken there, so the FB URL is spelled out rather than derived
  * from a shared handle constant.
  */
 export const INSTAGRAM_URL = "https://www.instagram.com/trusthalal.app";

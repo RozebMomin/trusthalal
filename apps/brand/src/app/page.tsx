@@ -1,25 +1,9 @@
 /**
- * trusthalal.org landing — 2026 redesign.
+ * trusthalal.org landing page. Server-rendered, no client JS.
  *
- * Still a single server-rendered page with zero client JS, but it
- * now tells the whole story instead of just routing:
- *
- *   1. Hero — brand promise + primary CTAs + trust strip.
- *   2. How verification works — the 3-step pipeline (claim →
- *      in-person visit → living public profile).
- *   3. Verification tiers — the trust ladder, rendered with the
- *      same pill language the consumer site uses so the badge a
- *      visitor sees later is already familiar.
- *   4. Audience cards — diners / owners / verifiers routing.
- *   5. Principles band — independence + paid-meal disclosure, the
- *      two commitments that differentiate the platform.
- *   6. Footer — structured product / contact columns.
- *
- * Design system: the v2 clean-modern language shared with the
- * consumer site and mobile app — emerald accent, ink text, white
- * surfaces on a faint neutral canvas, Inter-only type (no serif).
- * Self-contained (no shadcn, no shared tokens). Decorative
- * backgrounds are pure CSS gradients — no image requests.
+ * Sections: hero, how verification works, verification tiers, audience
+ * routing, principles band, footer. Styling is self-contained (no shadcn,
+ * no shared tokens); decorative backgrounds are CSS gradients.
  */
 
 import { ArrowIcon, Footer, Header } from "@/components/chrome";
@@ -47,12 +31,7 @@ export default function HomePage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Decorative backdrop — layered radial washes behind the hero. Pure
-// CSS, aria-hidden, pointer-events-none. Subtle by design: the page
-// should feel like warm paper with light falling on it, not a SaaS
-// gradient blast.
-// ---------------------------------------------------------------------------
+// Decorative CSS backdrop behind the hero. aria-hidden, pointer-events-none.
 function HeroBackdrop() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[720px]">
@@ -91,9 +70,9 @@ function Hero() {
       </h1>
       <p className="mb-9 max-w-2xl text-lg leading-relaxed text-sub sm:text-xl">
         Trust Halal is the definitive record of halal restaurants. Every
-        claim is checked at the source &mdash; supplier, slaughter
-        method, certificate on file, and an in-person visit &mdash; so no
-        one has to call the kitchen and hope.
+        claim is checked at the source (supplier, slaughter method,
+        certificate on file, and an in-person visit), so no one has to
+        call the kitchen and hope.
       </p>
       <div className="mb-12 flex flex-wrap items-center gap-3">
         <a
@@ -110,7 +89,7 @@ function Hero() {
           Verify your restaurant
         </a>
       </div>
-      {/* Trust strip — the three commitments in one glance. */}
+      {/* Trust strip */}
       <ul className="flex flex-wrap items-center gap-x-7 gap-y-2 text-sm text-sub">
         <TrustItem>Independent of any certifying body</TrustItem>
         <TrustItem>Free for restaurants, forever</TrustItem>
@@ -141,23 +120,20 @@ function TrustItem({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// How verification works — the 3-step pipeline. Numbered editorial
-// cards; the connecting thread is the accent number.
-// ---------------------------------------------------------------------------
+// How verification works: the 3-step pipeline.
 function HowItWorks() {
   return (
     <section id="how-it-works" className="mb-24 scroll-mt-24 sm:mb-32">
       <SectionHeading
         eyebrow="How it works"
         title="Verification you can follow, step by step."
-        lede="No black box. Every profile shows exactly how its halal claim was checked — and by whom."
+        lede="No black box. Every profile shows exactly how its halal claim was checked, and by whom."
       />
       <ol className="grid gap-4 sm:grid-cols-3">
         <Step
           n="1"
           title="The claim"
-          body="A restaurant owner submits their halal details — menu coverage, meat sourcing, slaughter method, certificate — with evidence attached."
+          body="A restaurant owner submits their halal details (menu coverage, meat sourcing, slaughter method, certificate) with evidence attached."
         />
         <Step
           n="2"
@@ -201,12 +177,8 @@ function Step({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Verification tiers — the trust ladder. The pills intentionally
-// mirror the consumer site's tone system (slate → amber → accent) so
-// the badge a diner meets on halalfoodnearme.com already means
-// something.
-// ---------------------------------------------------------------------------
+// Verification tiers. Pills mirror the consumer site's tone system so a
+// badge means the same thing wherever a diner meets it.
 function Tiers() {
   return (
     <section id="tiers" className="mb-24 scroll-mt-24 sm:mb-32">
@@ -226,13 +198,13 @@ function Tiers() {
           pill="Halal certified"
           pillClass="border-amber-300 bg-amber-50 text-amber-900"
           title="Certificate on file"
-          body="A current certificate from a recognized halal authority is on record with us — any authority; we're independent of them all."
+          body="A current certificate from a recognized halal authority is on record with us. Any authority; we're independent of them all."
         />
         <TierCard
           pill="✓ Verified halal"
           pillClass="border-accent bg-accent text-onaccent"
           title="Confirmed in person"
-          body="A Trust Halal Verifier physically visited, ate, and confirmed the claim. The strongest signal we award — and it can be lost."
+          body="A Trust Halal Verifier physically visited, ate, and confirmed the claim. The strongest signal we award, and it can be lost."
           featured
         />
       </div>
@@ -277,10 +249,7 @@ function TierCard({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Audience routing cards — same three destinations as before, now
-// with icons and button-weight CTAs.
-// ---------------------------------------------------------------------------
+// Audience routing cards.
 function Audiences() {
   return (
     <section className="mb-24 sm:mb-32">
@@ -293,7 +262,7 @@ function Audiences() {
           icon={<SearchIcon />}
           eyebrow="For diners"
           title="Find verified halal restaurants"
-          body="Search halalfoodnearme.com — filter by menu coverage, sourcing, and certification."
+          body="Search halalfoodnearme.com to filter by menu coverage, sourcing, and certification."
           cta="Browse restaurants"
           href={CONSUMER_URL}
         />
@@ -363,11 +332,7 @@ function AudienceCard({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Principles band — deep accent full-bleed section carrying the two
-// commitments that define the platform, plus the ethics link and a
-// final CTA. Doubling as the page's closing statement.
-// ---------------------------------------------------------------------------
+// Principles band: the two platform commitments, ethics link, closing CTA.
 function PrinciplesBand() {
   return (
     <section aria-label="Our principles" className="bg-accent-deep text-onaccent">
@@ -377,7 +342,7 @@ function PrinciplesBand() {
         </p>
         <blockquote className="mb-10 max-w-3xl tracking-tight text-3xl font-semibold leading-snug sm:text-5xl">
           Trust is the product. So every visit discloses who paid for
-          the meal &mdash; and no certifying body owns us.
+          the meal, and no certifying body owns us.
         </blockquote>
         <div className="mb-12 grid gap-6 text-onaccent/80 sm:grid-cols-2">
           <p className="text-sm leading-relaxed sm:text-base">

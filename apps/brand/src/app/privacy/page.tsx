@@ -1,5 +1,5 @@
 /**
- * /privacy — Trust Halal privacy policy.
+ * /privacy: Trust Halal privacy policy.
  *
  * Required by the App Store and Play Store (privacy policy URL) and by the
  * consumer web + owner portal. Server-rendered, zero client JS, styled with
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
           </h1>
           <p className="mb-2 text-lg leading-relaxed text-sub sm:text-xl">
             We collect the minimum we need to help you find halal food you can
-            trust — and we never sell it or use it to track you across other
+            trust, and we never sell it or use it to track you across other
             apps.
           </p>
           <p className="mb-8 text-sm text-sub">Last updated: {LAST_UPDATED}</p>
@@ -78,18 +78,18 @@ export default function PrivacyPage() {
           <SubHeader>Information you give us</SubHeader>
           <ul>
             <li>
-              <strong>Account details</strong> — your email address and display
+              <strong>Account details</strong>: your email address and display
               name when you create an account. Passwords are stored only as a
               salted hash; we never see or store your actual password.
             </li>
             <li>
-              <strong>Content you submit</strong> — places you save as
+              <strong>Content you submit</strong>: places you save as
               favorites, reports (&ldquo;disputes&rdquo;) you file about a
               listing, photos you upload, and, if you&apos;re a verifier, the
               details and photos of in-person visits you file.
             </li>
             <li>
-              <strong>Messages</strong> — anything you email us or send through
+              <strong>Messages</strong>: anything you email us or send through
               a support or feedback form.
             </li>
           </ul>
@@ -97,24 +97,24 @@ export default function PrivacyPage() {
           <SubHeader>Information we collect automatically</SubHeader>
           <ul>
             <li>
-              <strong>Location</strong> — with your permission, your device
+              <strong>Location</strong>: with your permission, your device
               location so we can show halal places near you. You can use the
               app without granting location and search by city instead, and you
               can turn the permission off any time in your device settings.
             </li>
             <li>
-              <strong>Usage &amp; device data</strong> — basic analytics about
+              <strong>Usage &amp; device data</strong>: basic analytics about
               how the Service is used (screens viewed, searches run, features
               used), plus device type, operating system, and app version. We
               use this to understand what&apos;s working and fix what isn&apos;t.
             </li>
             <li>
-              <strong>Crash &amp; performance data</strong> — diagnostic
+              <strong>Crash &amp; performance data</strong>: diagnostic
               information when something breaks, so we can make the app more
               stable.
             </li>
             <li>
-              <strong>Sign-in sessions</strong> — on the web, a secure,
+              <strong>Sign-in sessions</strong>: on the web, a secure,
               HttpOnly session cookie that keeps you logged in. It&apos;s
               essential to the Service, not advertising.
             </li>
@@ -122,13 +122,13 @@ export default function PrivacyPage() {
 
           <SectionHeader>How we use it</SectionHeader>
           <ul>
-            <li>Run the Service — search, trust profiles, favorites, accounts.</li>
+            <li>Run the Service, search, trust profiles, favorites, accounts.</li>
             <li>
-              Operate the trust system — review claims, verify places, and
+              Operate the trust system, review claims, verify places, and
               handle the reports you file.
             </li>
             <li>
-              Send you email you&apos;d expect — account and security messages,
+              Send you email you&apos;d expect, account and security messages,
               and updates about things you act on (a claim decision, a report
               outcome). Optional, non-essential emails (like &ldquo;a place you
               saved is now verified&rdquo;) always include a one-click
@@ -147,26 +147,26 @@ export default function PrivacyPage() {
           </p>
           <ul>
             <li>
-              <strong>Hosting &amp; database</strong> (Supabase) — stores your
+              <strong>Hosting &amp; database</strong> (Supabase): stores your
               account, content, and uploaded files.
             </li>
             <li>
-              <strong>Maps &amp; places</strong> (Google Maps Platform) — powers
+              <strong>Maps &amp; places</strong> (Google Maps Platform): powers
               search, maps, and place details.
             </li>
             <li>
-              <strong>Email delivery</strong> (Resend) — sends the transactional
+              <strong>Email delivery</strong> (Resend): sends the transactional
               emails above.
             </li>
             <li>
-              <strong>Analytics</strong> (PostHog) — product usage analytics.
+              <strong>Analytics</strong> (PostHog): product usage analytics.
             </li>
             <li>
-              <strong>Error monitoring</strong> (Sentry) — crash and performance
+              <strong>Error monitoring</strong> (Sentry): crash and performance
               diagnostics.
             </li>
             <li>
-              <strong>App distribution</strong> (Apple, Google) — when you
+              <strong>App distribution</strong> (Apple, Google): when you
               install or update the app.
             </li>
           </ul>
@@ -188,22 +188,22 @@ export default function PrivacyPage() {
           <SectionHeader>Your choices and rights</SectionHeader>
           <ul>
             <li>
-              <strong>Access &amp; correction</strong> — view and update your
+              <strong>Access &amp; correction</strong>: view and update your
               profile in the app, or ask us for a copy of your data.
             </li>
             <li>
-              <strong>Delete your account</strong> — in the app, under Profile →
+              <strong>Delete your account</strong>: in the app, under Profile →
               Delete account. It removes your account along with the reviews and
               photos you posted. Photos published on behalf of a restaurant you
               manage stay, because they belong to the business rather than to
               you. You can also email us if you&apos;d rather we did it.
             </li>
             <li>
-              <strong>Location</strong> — grant or revoke it in your device
+              <strong>Location</strong>: grant or revoke it in your device
               settings; the app still works without it.
             </li>
             <li>
-              <strong>Email</strong> — unsubscribe from non-essential emails via
+              <strong>Email</strong>: unsubscribe from non-essential emails via
               the link in any of them.
             </li>
           </ul>
@@ -221,7 +221,7 @@ export default function PrivacyPage() {
 
           <SectionHeader>Security &amp; storage</SectionHeader>
           <p>
-            We protect your data with industry-standard measures — encryption in
+            We protect your data with industry-standard measures, encryption in
             transit, hashed passwords, scoped access, and short-lived signed
             links for private files. No system is perfectly secure, but we work
             to keep yours safe. Our services are operated in the United States;

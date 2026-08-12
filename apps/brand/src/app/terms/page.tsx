@@ -1,45 +1,24 @@
 /**
- * /terms — Trust Halal terms of service. V2.
+ * /terms: Trust Halal terms of service (V2).
  *
- * Required by App Store Review Guideline 1.2: an app hosting user-generated
- * content has to make users agree to terms that state plainly there is no
- * tolerance for objectionable content or abusive users. The other four 1.2
- * requirements are already built — moderation on submit, review reporting,
- * user blocking, published contact.
+ * App Store Guideline 1.2 requires a UGC app's terms to state there is no
+ * tolerance for objectionable content or abusive users. The other 1.2
+ * requirements (moderation on submit, review reporting, user blocking,
+ * published contact) are built elsewhere.
  *
- * ## The one place counsel's review and Apple's rule disagree
+ * Deliberate wording: the absolute no-tolerance statement is followed by
+ * reserved discretion over how and when we act on it, so Apple gets the
+ * sentence it requires without it reading as a guaranteed service level. Same
+ * reason the 24-hour reports line keeps the number but adds a volume caveat.
+ * Keep both if you edit this; a lawyer changing it needs that context.
  *
- * The V2 review recommended replacing "there is no tolerance" with
- * discretionary wording, on the sound general principle that absolute
- * promises are enforceable against you. But Guideline 1.2 requires those
- * terms to "make it clear that there is no tolerance for objectionable
- * content or abusive users" — near-verbatim. Dropping the phrase to reduce
- * legal exposure would trade a small contract risk for a likely App Store
- * rejection of the whole app.
+ * Left out on purpose: binding arbitration and a class-action waiver (the
+ * owner's call to make knowingly, not inherited from a draft), and
+ * export/sanctions terms (deferred until international distribution).
  *
- * So this document does both, and the order is deliberate: the absolute
- * statement of posture, immediately followed by reserved discretion over how
- * and when we act on it. Apple gets the sentence it requires; the reservation
- * of discretion is what keeps it from reading as a guaranteed service level.
- * If a lawyer wants to change this, that context needs to travel with the
- * request.
- *
- * Same tension, smaller, on the 24-hour line. Apple expects reports acted on
- * within 24 hours, so the number stays; the volume caveat is what stops it
- * being an unconditional guarantee.
- *
- * ## Not incorporated, on purpose
- *
- * Binding arbitration and a class-action waiver (#23) — the review flagged
- * these as a strategic business decision rather than a legal requirement, and
- * they materially reduce users' rights. That is the owner's call to make
- * knowingly, not something to inherit from a draft.
- *
- * Export/sanctions (#25) — deferred until there's international distribution.
- *
- * NOTE: reviewed once against the V2 recommendations, still not by a lawyer
- * end to end. Keep LAST_UPDATED and app/core/legal.py TERMS_VERSION in sync —
- * bumping the latter re-prompts every existing user to accept.
+ * Not reviewed end to end by a lawyer. Keep LAST_UPDATED and
+ * app/core/legal.py TERMS_VERSION in sync; bumping the latter re-prompts every
+ * existing user to accept.
  */
 
 import type { Metadata } from "next";
@@ -96,7 +75,7 @@ export default function TermsPage() {
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-sub">
             Trust Halal only works if what&rsquo;s written here can be trusted.
-            These terms exist to keep it that way — and to be honest about the
+            These terms exist to keep it that way, and to be honest about the
             limits of what we can promise.
           </p>
           <p className="mt-4 text-sm text-sub">Last updated: {LAST_UPDATED}</p>
@@ -140,7 +119,7 @@ export default function TermsPage() {
           <p className="mt-4">Specifically, you agree not to submit:</p>
           <ul>
             <li>
-              Harassment, threats, or abuse directed at any person — a diner, a
+              Harassment, threats, or abuse directed at any person, a diner, a
               restaurant owner, a member of staff, or one of our verifiers.
             </li>
             <li>
@@ -149,7 +128,7 @@ export default function TermsPage() {
             </li>
             <li>Sexual content, or anything sexualising a minor.</li>
             <li>
-              Claims about a restaurant you know to be false — including
+              Claims about a restaurant you know to be false, including
               accusations about halal status invented to damage a business, and
               reviews written by or for a competitor.
             </li>
@@ -162,7 +141,7 @@ export default function TermsPage() {
               the right to share.
             </li>
             <li>
-              Other people&rsquo;s private information — addresses, phone
+              Other people&rsquo;s private information, addresses, phone
               numbers, anything of that kind.
             </li>
             <li>Spam, advertising, malware, or scraping of the Service.</li>
@@ -175,7 +154,7 @@ export default function TermsPage() {
             can block another user.
           </p>
           <p className="mt-4">
-            We aim to review reports promptly — typically within 24 hours —
+            We aim to review reports promptly, typically within 24 hours,
             removing content that breaks these rules and removing the accounts
             of people who keep breaking them. Response times may vary with the
             volume and complexity of reports. If your account is terminated you
@@ -236,9 +215,9 @@ export default function TermsPage() {
             store, display, reproduce, adapt for formatting, and distribute it
             in connection with operating and promoting the Service. The
             sublicence matters for one practical reason: the content has to
-            pass through the companies that run our infrastructure — hosting,
+            pass through the companies that run our infrastructure, hosting,
             content delivery, email, analytics, and similar vendors acting on
-            our behalf — and none of that works without permission to hand it
+            our behalf, and none of that works without permission to hand it
             to them for that purpose.
           </p>
           <p className="mt-4">
@@ -246,8 +225,8 @@ export default function TermsPage() {
             displaying it. Copies may persist in backups for a period
             afterwards, and we may retain copies where reasonably necessary to
             comply with law, prevent fraud, resolve disputes, or enforce these
-            Terms. Content that has been aggregated — counted into a rating
-            average, say — may leave a trace that isn&rsquo;t individually
+            Terms. Content that has been aggregated, counted into a rating
+            average, say, may leave a trace that isn&rsquo;t individually
             identifiable.
           </p>
           <p className="mt-4">
@@ -302,7 +281,7 @@ export default function TermsPage() {
           <p className="mt-4">
             Verification reflects the information reasonably available at the
             time of the visit or review. It is not an ongoing guarantee.
-            Restaurant practices can change at any time and without notice —
+            Restaurant practices can change at any time and without notice,
             suppliers change, staff change, certificates lapse, and a visit
             describes one day. You remain responsible for making dining
             decisions according to your own religious standards, including by
@@ -342,7 +321,7 @@ export default function TermsPage() {
             </li>
             <li>
               Are giving us truthful, accurate and complete information about
-              the kitchen — sourcing, slaughter method, certificates, alcohol
+              the kitchen, sourcing, slaughter method, certificates, alcohol
               and pork policy;
             </li>
             <li>
@@ -372,16 +351,16 @@ export default function TermsPage() {
           <p>
             The Trust Halal name, logo, software, and the selection and
             arrangement of the information we present belong to Trust Halal
-            LLC. Restaurant information from third-party sources — including
-            business details and ratings shown as coming from Google — belongs
+            LLC. Restaurant information from third-party sources, including
+            business details and ratings shown as coming from Google, belongs
             to those providers and is shown under their terms.
           </p>
           <p className="mt-4">
             Except where expressly permitted by applicable law or by us in
             writing, you may not copy, resell, reverse engineer, or create
-            derivative works from the Service. Automated access — bots,
+            derivative works from the Service. Automated access, bots,
             crawlers, scrapers, or use of our APIs other than as we&rsquo;ve
-            authorised — is prohibited unless we&rsquo;ve agreed to it in
+            authorised, is prohibited unless we&rsquo;ve agreed to it in
             writing.
           </p>
 
@@ -413,7 +392,7 @@ export default function TermsPage() {
           <SectionHeader>Things outside our control</SectionHeader>
           <p>
             We aren&rsquo;t liable for failures or delays caused by events
-            beyond our reasonable control — cloud or hosting provider outages,
+            beyond our reasonable control, cloud or hosting provider outages,
             internet and network failures, power failures, natural disasters,
             epidemics, labour disputes, war, terrorism, or government action.
           </p>
