@@ -3,7 +3,7 @@
 /**
  * Read-only renderer for the halal-questionnaire JSONB.
  *
- * The server stores submissions as a permissive JSONB — fields are
+ * The server stores submissions as a permissive JSONB, fields are
  * marked optional so a draft can save partial progress and still
  * round-trip. By the time admin sees the claim it's PENDING_REVIEW,
  * which means it passed the strict re-validation at submit time, so
@@ -13,7 +13,7 @@
  * data and (b) admin might still open a DRAFT claim from the place
  * detail surface in a future iteration.
  *
- * Layout is a flat definition list — admin scans for problems, and
+ * Layout is a flat definition list, admin scans for problems, and
  * a list of label/value rows is the fastest format to eyeball.
  */
 import * as React from "react";
@@ -40,10 +40,10 @@ const MEAT_TYPE_LABELS: Record<MeatType, string> = {
 
 const MENU_POSTURE_LABELS: Record<MenuPosture, string> = {
   FULLY_HALAL: "Fully halal",
-  MIXED_SEPARATE_KITCHENS: "Mixed — separate kitchens",
+  MIXED_SEPARATE_KITCHENS: "Mixed, separate kitchens",
   HALAL_OPTIONS_ADVERTISED: "Halal options advertised",
   HALAL_UPON_REQUEST: "Halal upon request",
-  MIXED_SHARED_KITCHEN: "Mixed — shared kitchen",
+  MIXED_SHARED_KITCHEN: "Mixed, shared kitchen",
 };
 
 const ALCOHOL_LABELS: Record<AlcoholPolicy, string> = {
@@ -117,7 +117,7 @@ function MeatProductsRow({
               className="rounded-md border bg-muted/20 p-2 text-sm"
             >
               <div className="font-medium">
-                {meatLabel} — {p.product_name}
+                {meatLabel}, {p.product_name}
               </div>
               <div className="text-xs text-muted-foreground">
                 {slaughterLabel}

@@ -3,7 +3,7 @@
  *
  * ## Why the draft is persisted
  *
- * Text moderation runs on submit and **fails closed** — if the content
+ * Text moderation runs on submit and **fails closed**, if the content
  * scanner is unreachable, the post is refused. That's the right call (it
  * matches the photo pipeline: no answer from the scanner means no publish),
  * but it's only acceptable if nobody loses what they wrote. Reviews are
@@ -17,7 +17,7 @@
  *
  * A 400 means we read your words and they broke a rule. A 503 means we
  * couldn't read them at all. A 401/403 means the content was never the
- * problem — you're signed out or unverified. See the `Failure` type.
+ * problem, you're signed out or unverified. See the `Failure` type.
  */
 "use client";
 
@@ -56,9 +56,9 @@ function draftKey(placeId: string) {
  *  These are three genuinely different messages to a person, and collapsing
  *  any two of them produces a lie:
  *
- *    rejected — we read your words and they broke a rule.
- *    outage   — we couldn't read them at all. Our fault, not yours.
- *    other    — anything else: signed out, offline, server error. Emphatically
+ *    rejected, we read your words and they broke a rule.
+ *    outage  , we couldn't read them at all. Our fault, not yours.
+ *    other   , anything else: signed out, offline, server error. Emphatically
  *               NOT a judgement on the content.
  *
  *  This started as a binary (outage vs. everything-else-is-rejected), which
@@ -67,7 +67,7 @@ function draftKey(placeId: string) {
 type Failure =
   | { kind: "rejected"; message: string }
   /** Soft nudge: heated but publishable. The only failure state with an
-   *  affordance to proceed — everything else needs an edit first. */
+   *  affordance to proceed, everything else needs an edit first. */
   | { kind: "warning"; message: string }
   | { kind: "outage"; message: string }
   | { kind: "verify"; title: string }
@@ -95,7 +95,7 @@ export function WriteReviewDialog({
   const [visitedOn, setVisitedOn] = React.useState(existing?.visited_on ?? "");
   const [failure, setFailure] = React.useState<Failure | null>(null);
 
-  // Restore an unsent draft. Only for new reviews — when editing, the
+  // Restore an unsent draft. Only for new reviews, when editing, the
   // server's copy is the truth and a stale local draft would silently
   // resurrect text the user already replaced.
   React.useEffect(() => {
@@ -107,7 +107,7 @@ export function WriteReviewDialog({
       if (d.body) setBody(d.body);
       if (d.rating) setRating(d.rating);
     } catch {
-      // A corrupt draft is not worth surfacing — just start clean.
+      // A corrupt draft is not worth surfacing, just start clean.
     }
   }, [placeId, existing]);
 
@@ -164,16 +164,16 @@ export function WriteReviewDialog({
       const { title, description } = friendlyApiError(err, {
         defaultTitle: "Couldn't post your review",
       });
-      // 503 is the moderation service being unreachable — emphatically not
+      // 503 is the moderation service being unreachable, emphatically not
       // a judgement on what they wrote.
       if (status === 503) {
         setFailure({
           kind: "outage",
           message:
-            "We couldn't run our content check just now — that's on us, not your review. Your draft is saved; try again in a moment.",
+            "We couldn't run our content check just now, that's on us, not your review. Your draft is saved; try again in a moment.",
         });
       } else if (status === 400 && code === "REVIEW_TEXT_WARNING") {
-        // Not a rejection — the server is asking once before publishing.
+        // Not a rejection, the server is asking once before publishing.
         // Distinct state because the fix is a decision, not an edit.
         setFailure({ kind: "warning", message: description });
       } else if (status === 400) {
@@ -316,7 +316,7 @@ export function WriteReviewDialog({
               onChange={(e) => setBody(e.target.value)}
               rows={6}
               maxLength={BODY_MAX}
-              placeholder="What did you order? Did you ask about the halal status — and what did they say?"
+              placeholder="What did you order? Did you ask about the halal status, and what did they say?"
             />
             <div className="flex justify-between text-[11px] text-muted-foreground">
               <span>

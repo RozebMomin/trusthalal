@@ -5,7 +5,7 @@
  *
  * The decision splits into two independent facts: whether the *report* was
  * valid, and what happens to the *content*. They're separate because a
- * report can be upheld while the review stays up — the reporter was right
+ * report can be upheld while the review stays up, the reporter was right
  * that it's heated, and it's still a legitimate account of someone's meal.
  *
  * There is deliberately **no "open a dispute" action**. A dispute is a
@@ -199,7 +199,7 @@ export default function ReportedReviewDetailPage() {
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Owner&rsquo;s reply{" "}
             {targetsReply && (
-              <span className="text-amber-700">— this is what was reported</span>
+              <span className="text-amber-700">(this is what was reported)</span>
             )}
           </h2>
           <div className="text-sm font-semibold">
@@ -308,7 +308,7 @@ export default function ReportedReviewDetailPage() {
               rows={4}
               placeholder={
                 needsNote
-                  ? "Write this to them, not about them — they receive it verbatim."
+                  ? "Write this to them, not about them, they receive it verbatim."
                   : ""
               }
             />

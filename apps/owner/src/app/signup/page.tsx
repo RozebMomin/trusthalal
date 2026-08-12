@@ -4,13 +4,13 @@
  * Owner portal signup.
  *
  * Public, self-service path for restaurant owners. Trust Halal staff
- * deliberately do NOT mint OWNER accounts by hand anymore — owners
+ * deliberately do NOT mint OWNER accounts by hand anymore, owners
  * sign up, then submit ownership claims that staff review. The trust
  * gate is downstream at the claim step, not at the email gate, so
  * this form is intentionally light: email + password + display name.
  *
  * The server hard-codes role=OWNER and auto-logs the new user in by
- * setting the session cookie on success — same response shape as
+ * setting the session cookie on success, same response shape as
  * /auth/login, so we just route to "/" and let AppShell take over.
  *
  * Failure modes worth surfacing in the UI:
@@ -54,7 +54,7 @@ export default function SignupPage() {
 
   // Cheap client-side guards so the user gets immediate feedback
   // instead of a server roundtrip. The server still enforces these
-  // independently — never trust the client for security.
+  // independently, never trust the client for security.
   const passwordWeak = password.length > 0 && !isPasswordValid(password);
   const passwordMismatch =
     confirmPassword.length > 0 && password !== confirmPassword;
@@ -149,7 +149,7 @@ export default function SignupPage() {
               Create your owner account
             </h1>
             <p className="text-sm text-muted-foreground">
-              Get your restaurant on the record — verified and searchable on
+              Get your restaurant on the record, verified and searchable on
               Trust Halal.
             </p>
           </div>
@@ -252,7 +252,7 @@ export default function SignupPage() {
           )}
 
           {/* Live only when NEXT_PUBLIC_TURNSTILE_SITE_KEY is set (prod). */}
-          {/* Bot challenge — nothing in dev, gates the button in prod. */}
+          {/* Bot challenge, nothing in dev, gates the button in prod. */}
           <Turnstile onVerify={setCaptchaToken} resetSignal={captchaReset} />
 
         {/* Guideline 1.2 requires users of an app hosting user-generated

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "More halal places nearby" — a horizontal carousel at the bottom of
+ * "More halal places nearby", a horizontal carousel at the bottom of
  * the place-detail page that keeps a diner moving through the catalog
  * instead of dead-ending on a single listing.
  *
@@ -77,7 +77,7 @@ export function NearbyPlaces({ place }: { place: PlaceDetail }) {
       </ul>
 
       {/* The page used to end on however many of these say "No halal info
-          yet" — a last impression of what the catalogue is missing. One line
+          yet", a last impression of what the catalogue is missing. One line
           turns that into something a reader can act on.
 
           Note: the pill itself still reads "No halal info yet". It's a shared
@@ -97,7 +97,7 @@ export function NearbyPlaces({ place }: { place: PlaceDetail }) {
           >
             Owners can add their halal details
           </a>{" "}
-          — that&rsquo;s how this list fills in.
+         , that&rsquo;s how this list fills in.
         </p>
       )}
     </section>
@@ -117,7 +117,7 @@ function NearbyCard({
     <li className="w-40 shrink-0 snap-start sm:w-44">
       <Link
         href={`/places/${place.id}`}
-        aria-label={`${place.name} — ${primary.label}`}
+        aria-label={`${place.name}, ${primary.label}`}
         className={cn(
           "group block h-full overflow-hidden rounded-xl border bg-card transition",
           "hover:border-foreground/30 hover:shadow-md",
@@ -144,7 +144,7 @@ function NearbyCard({
             {place.name}
           </h3>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {/* Ours where we have it, Google's otherwise — and the title
+            {/* Ours where we have it, Google's otherwise, and the title
                 says which, since there's no room for a label at this size. */}
             {(() => {
               const own =
@@ -154,7 +154,7 @@ function NearbyCard({
               return (
                 <>
                   {/* Visible label, not a tooltip. The source has to be
-                      readable on a phone, where hover doesn't exist — and
+                      readable on a phone, where hover doesn't exist, and
                       an unattributed star on a Trust Halal card reads as
                       Trust Halal's own rating when it's usually Google's. */}
                   <span className="inline-flex items-center gap-0.5 font-medium text-foreground/80">

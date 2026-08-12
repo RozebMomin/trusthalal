@@ -5,11 +5,11 @@
  *
  * Reads ?token= and redeems it on mount. Deliberately auto-submits rather
  * than showing a "click here to confirm" button: the user already clicked a
- * button — the one in the email — and asking them to click a second one to
+ * button, the one in the email, and asking them to click a second one to
  * express the same intent is friction with no security benefit.
  *
  * Three terminal states: confirmed, already-confirmed (a second click on the
- * same link, or a link that raced another device — treated as success, not
+ * same link, or a link that raced another device, treated as success, not
  * an error), and dead link. The dead-link state offers Resend rather than a
  * shrug, since "the link expired" is the single most common way this page
  * gets seen.
@@ -59,7 +59,7 @@ function VerifyEmailInner() {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   // Redeem once on mount. The ref guard matters in React 18 StrictMode,
-  // where effects run twice in dev — without it the second call would burn
+  // where effects run twice in dev, without it the second call would burn
   // a token that the first call already consumed and we'd render a failure
   // on a link that actually worked.
   const attempted = React.useRef(false);
@@ -106,8 +106,8 @@ function VerifyEmailInner() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {status === "already"
-              ? "This address was already confirmed — you're all set."
-              : "Thanks. Your account is confirmed — you can now reply publicly to reviews of your restaurants."}
+              ? "This address was already confirmed, you're all set."
+              : "Thanks. Your account is confirmed, you can now reply publicly to reviews of your restaurants."}
           </p>
           <Button asChild className="mt-2 w-full">
             <Link href="/get-verified">Go to your dashboard</Link>
@@ -135,7 +135,7 @@ function VerifyEmailInner() {
 
         {alreadyVerified ? (
           <p className="text-sm text-muted-foreground">
-            Good news though — your email is already confirmed. Nothing else to do.
+            Good news though, your email is already confirmed. Nothing else to do.
           </p>
         ) : signedIn ? (
           <div className="space-y-2 pt-1">
@@ -143,7 +143,7 @@ function VerifyEmailInner() {
               <p className="text-sm text-emerald-600">
                 {resend.data?.sent
                   ? `Sent. Check ${resend.data.email} for a fresh link.`
-                  : "Your email is already confirmed — nothing else to do."}
+                  : "Your email is already confirmed, nothing else to do."}
               </p>
             ) : (
               <Button

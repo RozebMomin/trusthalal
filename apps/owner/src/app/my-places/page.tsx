@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Owner portal — list of places the caller manages.
+ * Owner portal, list of places the caller manages.
  *
  * Backed by GET /me/owned-places. Shows every place where the
  * caller is an active OWNER_ADMIN/MANAGER on the org that owns
@@ -10,7 +10,7 @@
  *
  * Pending ownership requests live on a separate page (/my-claims,
  * the existing ownership-request lifecycle UI). This list is
- * approved-and-owned only — once a claim lands APPROVED and the
+ * approved-and-owned only, once a claim lands APPROVED and the
  * PlaceOwner row goes ACTIVE, the place shows up here.
  *
  * Empty state nudges the user toward the claim flow at /claim,

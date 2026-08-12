@@ -9,7 +9,7 @@
  *
  * The full status set comes from the server's
  * ``OwnershipRequestStatus`` enum. New statuses must be added here
- * with explicit copy — falling back to the raw enum string would be
+ * with explicit copy, falling back to the raw enum string would be
  * confusing for owners who don't know our internals.
  */
 
@@ -32,7 +32,7 @@ const STATUS_PRESENTATION: Record<
     label: "Needs evidence",
     tone: "warn",
     description:
-      "Trust Halal staff has asked for additional verification — we've emailed you the details. Upload what they asked for, then resubmit.",
+      "Trust Halal staff has asked for additional verification, we've emailed you the details. Upload what they asked for, then resubmit.",
   },
   UNDER_REVIEW: {
     label: "Under review",
@@ -42,7 +42,7 @@ const STATUS_PRESENTATION: Record<
   APPROVED: {
     label: "Approved",
     tone: "success",
-    description: "You're confirmed as the owner — this listing is now in your account.",
+    description: "You're confirmed as the owner, this listing is now in your account.",
   },
   REJECTED: {
     label: "Rejected",

@@ -93,7 +93,7 @@ export function RejectDialog({ visit, open, onOpenChange }: Props) {
               id="reject-decision-note"
               value={decisionNote}
               onChange={(e) => setDecisionNote(e.target.value)}
-              placeholder="e.g. The photos don't clearly show a halal certificate — please re-file with a legible photo of the cert."
+              placeholder="e.g. The photos don't clearly show a halal certificate, please re-file with a legible photo of the cert."
               minLength={3}
               maxLength={2000}
               autoFocus

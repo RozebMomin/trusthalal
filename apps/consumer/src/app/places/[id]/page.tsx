@@ -1,17 +1,17 @@
 /**
- * Public place detail page — /places/[id]
+ * Public place detail page, /places/[id]
  *
  * Server component wrapper. Two responsibilities the client view
  * can't handle:
  *
- *   1. `generateMetadata` — fetches the place server-side so
+ *   1. `generateMetadata`, fetches the place server-side so
  *      shared links land with the restaurant's actual name in the
  *      `<title>`, address in the description, and a canonical URL
  *      that doesn't include preview hostnames or query strings.
  *      Crawlers consume this; users only see the title in their
  *      tab.
  *
- *   2. JSON-LD structured data — Google reads this to surface the
+ *   2. JSON-LD structured data, Google reads this to surface the
  *      listing as a Restaurant in rich results (name, address,
  *      coords). It's harmless if the place can't be fetched
  *      server-side (we just skip it); the client view still renders
@@ -49,7 +49,7 @@ type PlaceForSeo = {
   postal_code: string | null;
 };
 
-// React `cache()` dedupes the fetch within a single request — both
+// React `cache()` dedupes the fetch within a single request, both
 // `generateMetadata` and the page body can call `loadPlace(id)` and
 // the underlying `/places/{id}` request only fires once.
 const loadPlace = cache(async (placeId: string) => {
@@ -75,7 +75,7 @@ export async function generateMetadata({
   const place = await loadPlace(params.id);
   if (!place || place.is_deleted) {
     // Either the API didn't respond, the place doesn't exist, or it
-    // was soft-deleted. Either way, don't index — the client view
+    // was soft-deleted. Either way, don't index, the client view
     // will render an appropriate state.
     return {
       title: "Restaurant not found",
@@ -84,8 +84,8 @@ export async function generateMetadata({
   }
   const address = buildAddress(place);
   const description = address
-    ? `${place.name} — halal verification details on ${BRAND_NAME}. ${address}.`
-    : `${place.name} — halal verification details on ${BRAND_NAME}.`;
+    ? `${place.name}, halal verification details on ${BRAND_NAME}. ${address}.`
+    : `${place.name}, halal verification details on ${BRAND_NAME}.`;
   return {
     title: place.name,
     description,
@@ -106,7 +106,7 @@ export async function generateMetadata({
 
 /**
  * Restaurant JSON-LD. Google reads `Restaurant` (a subtype of
- * `LocalBusiness`) to render rich results — name, address, geo. We
+ * `LocalBusiness`) to render rich results, name, address, geo. We
  * keep it minimal because we don't have menu / hours / cuisine on
  * the place row; richer fields can be filled in once the schema
  * supports them.
@@ -135,7 +135,7 @@ function PlaceJsonLd({ place }: { place: PlaceForSeo }) {
   return (
     <script
       type="application/ld+json"
-      // place.name is user-controlled, so escape </script> breakout —
+      // place.name is user-controlled, so escape </script> breakout,
       // see jsonLdSafe. eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: jsonLdSafe(data) }}
     />

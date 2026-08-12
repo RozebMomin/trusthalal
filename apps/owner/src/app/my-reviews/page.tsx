@@ -3,7 +3,7 @@
 /**
  * The owner's review inbox.
  *
- * Defaults to "needs reply" — the actionable bucket — because that's the
+ * Defaults to "needs reply", the actionable bucket, because that's the
  * only reason a global inbox exists rather than just a tab on each place.
  * An owner with four restaurants shouldn't have to click into each one to
  * find out somebody is waiting on them.
@@ -93,14 +93,14 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
       // plainly rather than letting them wonder what happened.
       // 403 here means the account's email was never confirmed. Accounts
       // that predate verification were never sent a link, so "check your
-      // inbox" would point at nothing — offer to send one instead.
+      // inbox" would point at nothing, offer to send one instead.
       if (status === 403) {
         setNeedsVerify(true);
         setErrorMsg(null);
       } else {
         setErrorMsg(
           status === 503
-            ? "We couldn't run our content check just now — that's on us. Try again in a moment."
+            ? "We couldn't run our content check just now, that's on us. Try again in a moment."
             : description,
         );
       }
@@ -158,13 +158,13 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
 
       {/* The diner rewrote this after you answered it. Said up front, above
           the reply, because the action this card wants is "re-read your reply
-          against the new text" — not "reply", which the owner already did. */}
+          against the new text", not "reply", which the owner already did. */}
       {review.edited_after_reply && (
         <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
           <b>This review changed after you replied.</b>{" "}
           {review.edited_at && `Edited ${relative(review.edited_at)}. `}
           Diners currently see a note saying so under your reply. Editing your
-          reply — even slightly — clears it.
+          reply, even slightly, clears it.
         </div>
       )}
 
@@ -282,7 +282,7 @@ function ReviewCard({ review }: { review: OwnerReviewRead }) {
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 p-3">
               <p className="text-xs leading-relaxed text-amber-900">
                 {resendVerify.isSuccess
-                  ? `Sent — check ${resendVerify.data?.email} and click the link, then post your reply.`
+                  ? `Sent, check ${resendVerify.data?.email} and click the link, then post your reply.`
                   : "Confirm your email address before replying publicly."}
               </p>
               {!resendVerify.isSuccess && (
@@ -341,7 +341,7 @@ export default function MyReviewsPage() {
     updated:
       "Nothing to revisit. If a diner rewrites a review after you replied, it lands here so your reply doesn't end up answering words that aren't there.",
     reported:
-      "Nothing contested. Reviews someone has reported show up here while we look at them — worth knowing before you reply, since the tone of a good reply differs.",
+      "Nothing contested. Reviews someone has reported show up here while we look at them, worth knowing before you reply, since the tone of a good reply differs.",
     all: "No reviews yet. They'll appear here as diners write them.",
   }[bucket];
 
@@ -350,7 +350,7 @@ export default function MyReviewsPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Reviews</h1>
         <p className="text-sm text-muted-foreground">
-          Replying publicly — especially to criticism — is the
+          Replying publicly, especially to criticism, is the
           highest-leverage thing you can do here.
         </p>
       </div>

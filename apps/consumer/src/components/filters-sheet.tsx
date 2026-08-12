@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * Filters sheet — the consumer search surface's filter UI moved off
+ * Filters sheet, the consumer search surface's filter UI moved off
  * the home page into a sheet (mobile) / centered dialog (desktop).
  *
  * Why a sheet: pre-refactor, the filter pills (validation tier, menu
  * posture, cuisines, other prefs) ate ~19 chips above the fold. After
- * the aesthetic refresh that wall stuck out worse — pushing the actual
+ * the aesthetic refresh that wall stuck out worse, pushing the actual
  * results below the fold defeats the purpose of search. This component
  * tucks the heavy filters behind a single "Filters" button next to
  * Near Me; active filters surface as removable chips above the
@@ -14,7 +14,7 @@
  * their list at a glance.
  *
  * Apply-immediately: every pill tap mutates the URL state right away.
- * No "preview then commit" pattern — simpler mental model, and the
+ * No "preview then commit" pattern, simpler mental model, and the
  * results below are already updating live. The sheet just closes when
  * the user taps Done / outside / the close X.
  *
@@ -37,7 +37,7 @@ import type {
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Filter taxonomy — copy + ordering for each filter group.
+// Filter taxonomy, copy + ordering for each filter group.
 // ---------------------------------------------------------------------------
 
 const VALIDATION_TIER_OPTIONS: ReadonlyArray<{
@@ -90,7 +90,7 @@ const MENU_POSTURE_OPTIONS: ReadonlyArray<{
   {
     value: "MIXED_SHARED_KITCHEN",
     label: "Any halal",
-    description: "Halal exists on the menu — shared equipment with non-halal.",
+    description: "Halal exists on the menu, shared equipment with non-halal.",
   },
 ];
 
@@ -199,7 +199,7 @@ const ALL_CUISINES: ReadonlyArray<Cuisine> = [
 ];
 
 // ---------------------------------------------------------------------------
-// Active-filter counter — surfaces on the trigger button as a badge.
+// Active-filter counter, surfaces on the trigger button as a badge.
 // Sums all axes (each cuisine counts individually) so the user knows
 // how many narrowing constraints are active without opening the sheet.
 // ---------------------------------------------------------------------------
@@ -219,7 +219,7 @@ export function countActiveFilters(filters: SearchPlacesParams): number {
 }
 
 // ---------------------------------------------------------------------------
-// Reset — clears every category-level filter while preserving the
+// Reset, clears every category-level filter while preserving the
 // query / geo / paging axes (those aren't filters in the user's
 // mental model; they're search context).
 // ---------------------------------------------------------------------------
@@ -292,7 +292,7 @@ export function clearAllFilters(filters: SearchPlacesParams): SearchPlacesParams
 }
 
 // ---------------------------------------------------------------------------
-// Trigger — the inline button that opens the sheet. Lives in the
+// Trigger, the inline button that opens the sheet. Lives in the
 // page header next to Near Me. Renders an active-count badge when
 // any filter is set.
 // ---------------------------------------------------------------------------
@@ -327,7 +327,7 @@ export function FiltersTrigger({
 }
 
 // ---------------------------------------------------------------------------
-// FiltersSheet — the sheet itself. Bottom-aligned on mobile,
+// FiltersSheet, the sheet itself. Bottom-aligned on mobile,
 // centered modal on desktop.
 // ---------------------------------------------------------------------------
 
@@ -379,7 +379,7 @@ export function FiltersSheet({
             "sm:data-[state=open]:slide-in-from-top-[48%] sm:data-[state=closed]:slide-out-to-top-[48%]",
           )}
         >
-          {/* Drag handle — purely decorative, signals "this can be
+          {/* Drag handle, purely decorative, signals "this can be
               dismissed" on mobile. Hidden on desktop where the X
               button does the same job. */}
           <div className="flex justify-center pt-2 sm:hidden">
@@ -418,7 +418,7 @@ export function FiltersSheet({
             <div className="space-y-6">
               <FilterSection
                 title="Halal verification"
-                hint="How strongly the halal claim is backed — pick the minimum proof you'll accept."
+                hint="How strongly the halal claim is backed, pick the minimum proof you'll accept."
               >
                 {VALIDATION_TIER_OPTIONS.map((opt) => {
                   const isSelected = filters.min_validation_tier === opt.value;
@@ -465,7 +465,7 @@ export function FiltersSheet({
 
               <FilterSection
                 title="How halal is the menu?"
-                hint="From fully-halal kitchens down to halal-on-request — pick the minimum you'll accept."
+                hint="From fully-halal kitchens down to halal-on-request, pick the minimum you'll accept."
               >
                 {MENU_POSTURE_OPTIONS.map((opt) => {
                   const isSelected = filters.min_menu_posture === opt.value;
@@ -534,7 +534,7 @@ export function FiltersSheet({
             </div>
           </div>
 
-          {/* Sticky footer — single Done button. We apply changes
+          {/* Sticky footer, single Done button. We apply changes
               immediately on every tap, so this is purely a "I'm finished
               browsing filters" confirmation, not a commit action.
               Rendered on desktop too: click-outside works, but an
@@ -556,7 +556,7 @@ export function FiltersSheet({
 }
 
 // ---------------------------------------------------------------------------
-// FilterSection — labeled group of pills.
+// FilterSection, labeled group of pills.
 // ---------------------------------------------------------------------------
 
 function FilterSection({
@@ -566,8 +566,8 @@ function FilterSection({
 }: {
   title: string;
   /** One-line plain-language explanation rendered under the title.
-   *  Pill ``title`` attributes only surface on hover — useless on
-   *  touch — so jargon-y sections (verification tiers, menu
+   *  Pill ``title`` attributes only surface on hover, useless on
+   *  touch, so jargon-y sections (verification tiers, menu
    *  coverage) explain themselves inline. */
   hint?: string;
   children: React.ReactNode;
@@ -588,7 +588,7 @@ function FilterSection({
 }
 
 // ---------------------------------------------------------------------------
-// FilterPill — toggleable pill button. Active state uses the brand
+// FilterPill, toggleable pill button. Active state uses the brand
 // primary fill so a glance at the sheet shows what's narrowing the
 // search.
 // ---------------------------------------------------------------------------

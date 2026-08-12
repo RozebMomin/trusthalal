@@ -2,14 +2,14 @@
 
 /**
  * Shared building blocks for the parallel `/get-verified` onboarding
- * wizard. Everything here is presentational — the pages own the data
+ * wizard. Everything here is presentational, the pages own the data
  * fetching + mutations and feed derived state in as props.
  *
  * Two families of UI live here:
  *
- *   * The HUB roadmap (`Roadmap` + `RoadmapStage`) — the three-stage
+ *   * The HUB roadmap (`Roadmap` + `RoadmapStage`): the three-stage
  *     status board rendered on `/get-verified`.
- *   * The FORM shell (`WizardShell` + `StepRail`) — the left-rail +
+ *   * The FORM shell (`WizardShell` + `StepRail`): the left-rail +
  *     content + sticky footer layout the three stage forms render in.
  *
  * Kept intentionally free of any hook wiring so it can't accidentally
@@ -28,12 +28,12 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 // A stage's lifecycle state, shared by the rail and the roadmap.
-//   todo    — not started, actionable (the user's turn)
-//   now     — actionable + the highlighted current step
-//   review  — submitted, waiting on Trust Halal (waiting on us)
-//   fix     — bounced back, the user needs to act (rejected / needs info)
-//   done    — cleared
-//   lock    — not yet reachable (a prior gate hasn't cleared)
+//   todo   , not started, actionable (the user's turn)
+//   now    , actionable + the highlighted current step
+//   review , submitted, waiting on Trust Halal (waiting on us)
+//   fix    , bounced back, the user needs to act (rejected / needs info)
+//   done   , cleared
+//   lock   , not yet reachable (a prior gate hasn't cleared)
 export type StageState =
   | "todo"
   | "now"
@@ -180,7 +180,7 @@ export function LockNote({ children }: { children: React.ReactNode }) {
 }
 
 // ---------------------------------------------------------------------------
-// Form shell (stage 1/2/3) — left rail + content + sticky footer
+// Form shell (stage 1/2/3): left rail + content + sticky footer
 // ---------------------------------------------------------------------------
 
 export type RailStage = {

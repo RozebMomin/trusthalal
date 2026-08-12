@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Accept a verification visit. Simple confirm — the server flips the
+ * Accept a verification visit. Simple confirm, the server flips the
  * visit to ACCEPTED and reflects it on the place's halal profile. An
  * optional decision note lands on the record.
  *
@@ -76,7 +76,7 @@ export function ApproveDialog({ visit, open, onOpenChange }: Props) {
       const msg = friendlyApiError(err, {
         defaultTitle: "Accept failed",
         overrides: {
-          // No halal profile on the place — the server can't attach an
+          // No halal profile on the place, the server can't attach an
           // accepted visit to a profile that doesn't exist. Surface the
           // server's own message verbatim so the reviewer knows to get a
           // halal claim approved first.
@@ -112,7 +112,7 @@ export function ApproveDialog({ visit, open, onOpenChange }: Props) {
               id="accept-decision-note"
               value={decisionNote}
               onChange={(e) => setDecisionNote(e.target.value)}
-              placeholder="e.g. Cert and menu check out — clean visit."
+              placeholder="e.g. Cert and menu check out, clean visit."
               maxLength={2000}
             />
             {errorMsg && (

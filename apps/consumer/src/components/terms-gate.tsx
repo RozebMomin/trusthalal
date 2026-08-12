@@ -4,13 +4,13 @@
  * The acknowledgement prompt for accounts that predate recorded acceptance.
  *
  * Terms shipped after the product did, so everyone who signed up before that
- * — including the people whose reviews and photos the content licence is
- * written to cover — agreed to nothing. The signup notice can't reach them;
+ *, including the people whose reviews and photos the content licence is
+ * written to cover, agreed to nothing. The signup notice can't reach them;
  * they've already signed up. This is the only surface that can.
  *
  * It blocks rather than nags: a dismissible banner gets ignored, which would
  * leave the record exactly as thin as it was and make building this
- * pointless. But it is not a trap — sign out is offered, because the honest
+ * pointless. But it is not a trap, sign out is offered, because the honest
  * alternative to accepting terms is to stop using the account, and browsing
  * this site never required one.
  */
@@ -65,7 +65,7 @@ export function TermsGate() {
           <p className="font-semibold">The short version</p>
           <p className="mt-1 text-muted-foreground">
             There&rsquo;s no tolerance for objectionable content or abusive
-            users. Your reviews and photos stay yours — you give us permission
+            users. Your reviews and photos stay yours, you give us permission
             to show them, and you can delete them whenever you like.
           </p>
         </div>
@@ -91,7 +91,7 @@ export function TermsGate() {
 
         {failed && (
           <p className="text-sm text-destructive">
-            Couldn&rsquo;t save that just now — check your connection and try
+            Couldn&rsquo;t save that just now, check your connection and try
             again. Nothing else has changed.
           </p>
         )}

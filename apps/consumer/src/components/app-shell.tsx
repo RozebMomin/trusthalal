@@ -16,7 +16,7 @@
  *     to use the surface they're meant for.
  *
  * /login and /signup render bare (no portal chrome) the same way the
- * other apps do — the page's own layout handles the centered card.
+ * other apps do, the page's own layout handles the centered card.
  */
 
 import { Heart, SlidersHorizontal } from "lucide-react";
@@ -51,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isBare = PUBLIC_BARE_PATHS.has(pathname);
 
   // If the visitor is already signed in and lands on /login or
-  // /signup, bounce them along — honoring any ``?next=`` the page
+  // /signup, bounce them along, honoring any ``?next=`` the page
   // carried (e.g. "sign in to save this place" deep links) so the
   // bounce doesn't strand a just-authenticated user on the home
   // page. window.location is read inside the effect (client-only)
@@ -66,11 +66,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [me, isLoading, isBare, router]);
 
-  // Bare layout for the auth pages — they handle their own framing.
+  // Bare layout for the auth pages, they handle their own framing.
   if (isBare) return <>{children}</>;
 
   // /me is still loading. Render a skeletonish chrome rather than
-  // flashing the anonymous header for a beat — but we don't block
+  // flashing the anonymous header for a beat, but we don't block
   // the children render either, since search and place detail are
   // public and shouldn't wait on auth resolution.
   if (isLoading) {
@@ -89,7 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
       <SiteFooter />
       {/* Renders nothing unless the signed-in account owes an
-          acknowledgement. Deliberately NOT in the bare branch above — /login
+          acknowledgement. Deliberately NOT in the bare branch above, /login
           and /signup have no session to attach an acceptance to, and a
           blocking dialog over a sign-in form would lock out the one action
           that could resolve it. */}
@@ -120,7 +120,7 @@ function PortalHeader({
     router.replace("/");
   }
 
-  // Staff / owner roles see a small "you're signed in as X — visit
+  // Staff / owner roles see a small "you're signed in as X, visit
   // your portal" link in the header. The consumer site doesn't lock
   // them out (the public catalog is genuinely public), but the
   // pointer makes "this isn't for me" clear at a glance.
@@ -166,9 +166,9 @@ function PortalHeader({
                 {/* Saved places shows for anonymous too so the
                     feature is discoverable. The page itself renders
                     a "sign in to save" pitch when the visitor lands
-                    without auth — no role-based rendering needed.
+                    without auth, no role-based rendering needed.
                     On mobile the text links collapse to icons rather
-                    than disappearing — footer-only access made the
+                    than disappearing, footer-only access made the
                     features effectively invisible on phones. */}
                 <Link
                   href="/favorites"
@@ -183,7 +183,7 @@ function PortalHeader({
                 >
                   <Heart className="h-4 w-4" aria-hidden />
                 </Link>
-                {/* Anonymous visitors get the prefs link too — local
+                {/* Anonymous visitors get the prefs link too, local
                     storage backs the page, and they'll learn the
                     feature exists. */}
                 <Link
@@ -267,7 +267,7 @@ function PortalHeader({
             </>
           )}
 
-          {/* Build-version tag intentionally NOT rendered here —
+          {/* Build-version tag intentionally NOT rendered here,
               it's internal metadata, and the footer already carries
               it for anyone debugging a deploy. */}
         </div>
@@ -292,7 +292,7 @@ function HeaderDivider({ className = "" }: { className?: string }) {
 
 /**
  * Tiny inline pointer for staff / owner accounts that landed on the
- * consumer site. Not a wall — they can still browse — but it tells
+ * consumer site. Not a wall, they can still browse, but it tells
  * them where their actual home lives.
  */
 function WrongAudienceCallout({ role }: { role: string }) {
@@ -337,7 +337,7 @@ function WrongAudienceCallout({ role }: { role: string }) {
  *      than crediting some upstream "platform" (we are it).
  *   2. Quietly nudge restaurant operators toward the owner portal.
  *      Owners discover the consumer site organically (a customer
- *      shows them a listing) — the footer is the lowest-friction
+ *      shows them a listing): the footer is the lowest-friction
  *      handoff into "claim your listing."
  *   3. Auxiliary nav (preferences, current build) without crowding
  *      the header.
@@ -382,7 +382,7 @@ function SiteFooter() {
           >
             Own a restaurant? Claim your listing →
           </a>
-          {/* Both legal pages live on the brand domain — one copy of each,
+          {/* Both legal pages live on the brand domain, one copy of each,
               one place to update. This footer had neither, on a site whose
               users write reviews and upload photos. */}
           <a
@@ -410,7 +410,7 @@ function SiteFooter() {
 }
 
 /**
- * Social icon links — Instagram, TikTok, Facebook. Brand glyphs are
+ * Social icon links, Instagram, TikTok, Facebook. Brand glyphs are
  * single-path (simple-icons) so each is one <path fill="currentColor">;
  * colour inherits the muted footer tone and lifts to --foreground on
  * hover, matching the footer's text links.

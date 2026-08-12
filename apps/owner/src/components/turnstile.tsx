@@ -4,7 +4,7 @@
  * Cloudflare Turnstile widget for the signup form.
  *
  * Renders nothing and reports no token when NEXT_PUBLIC_TURNSTILE_SITE_KEY is
- * unset — that's local dev, where the API's TURNSTILE_ENABLED is also off, so
+ * unset, that's local dev, where the API's TURNSTILE_ENABLED is also off, so
  * signup works without a challenge. In production both are set and the API
  * refuses a signup whose token it can't verify.
  *
@@ -75,8 +75,8 @@ export function Turnstile({
     let cancelled = false;
 
     // The script's onload can fire a beat before window.turnstile is fully
-    // initialised, so rendering in a bare .then() raced and — because it
-    // early-returned on a not-yet-ready API and never retried — the widget
+    // initialised, so rendering in a bare .then() raced and, because it
+    // early-returned on a not-yet-ready API and never retried, the widget
     // silently never rendered, leaving the form with no token and a disabled
     // button. Poll for the API, then render.
     let tries = 0;
@@ -91,7 +91,7 @@ export function Turnstile({
         sitekey: SITE_KEY,
         theme: "auto",
         callback: (token) => onVerify(token),
-        // A spent or timed-out token must not be resubmitted — clear it so
+        // A spent or timed-out token must not be resubmitted, clear it so
         // the form knows it needs a fresh challenge.
         "expired-callback": () => onVerify(null),
         "error-callback": () => onVerify(null),

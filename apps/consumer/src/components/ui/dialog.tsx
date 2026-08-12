@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Radix dialog primitives wrapped with Trust Halal styling — copy of
+ * Radix dialog primitives wrapped with Trust Halal styling, copy of
  * apps/admin/src/components/ui/dialog.tsx so the consumer site has its
  * own modal surface (file-a-dispute, etc.) without reaching across
  * apps. Same shadcn/ui flavor, same animation classes; if anything
@@ -39,7 +39,7 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     /**
-     * Render the corner close button. Defaults to true — every dialog in the
+     * Render the corner close button. Defaults to true, every dialog in the
      * app wants one. The exception is the terms gate, which deliberately has
      * no dismiss path, and an X in the corner would quietly reinstate one.
      */

@@ -6,7 +6,7 @@
  * Tightened v2. The previous version had five explainer sections
  * before the form and readers were bouncing without applying. This
  * version is: friendly hero → three-tile "here's the deal" grid →
- * disclosure callout (kept short but present — non-negotiable for
+ * disclosure callout (kept short but present, non-negotiable for
  * the trust posture) → form.
  *
  * The disclosure section stays because verifier credibility is the
@@ -49,7 +49,7 @@ export default function BecomeAVerifierPage() {
       <DisclosureCallout />
       <div id="apply" className="scroll-mt-20 pt-2">
         {/* The pitch above is public; applying is not. Requiring a session
-            here means the form inherits the signup captcha — a bot can't
+            here means the form inherits the signup captcha, a bot can't
             reach it without first clearing Turnstile to make an account,
             which is what was letting the anonymous applications through. */}
         {signedIn ? (
@@ -104,7 +104,7 @@ function Hero({ signedIn }: { signedIn: boolean }) {
       </h1>
       <p className="mb-6 text-lg text-muted-foreground sm:text-xl">
         You visit halal restaurants anyway. As a Trust Halal Verifier,
-        you file a short honest report on each one — and your name
+        you file a short honest report on each one, and your name
         helps the community trust the listing.
       </p>
       {/* Same destination either way (#apply), but signed-out visitors are
@@ -112,7 +112,7 @@ function Hero({ signedIn }: { signedIn: boolean }) {
           to a form that would bounce them. */}
       {signedIn ? (
         <Button asChild size="lg">
-          <a href="#apply">Apply — takes 5 minutes</a>
+          <a href="#apply">Apply, takes 5 minutes</a>
         </Button>
       ) : (
         <Button asChild size="lg">
@@ -138,7 +138,7 @@ function HowItWorks() {
       />
       <Tile
         title="Your public page"
-        body="Your handle, bio, and every accepted visit — link it from your Instagram bio."
+        body="Your handle, bio, and every accepted visit, link it from your Instagram bio."
       />
     </section>
   );
@@ -160,7 +160,7 @@ function DisclosureCallout() {
         The one non-negotiable
       </p>
       <p className="mb-2 text-base text-foreground">
-        Every visit asks how you got the meal — you paid, it was
+        Every visit asks how you got the meal, you paid, it was
         comped, it was a paid partnership, or something else. Not
         disqualifying. Just required.
       </p>
@@ -321,7 +321,7 @@ function VerifierApplicationForm({
           <div className="space-y-2">
             <Label htmlFor="applicant_email">Email</Label>
             {/* Read-only: the server takes the applicant email from the
-                signed-in account, so an editable field would be misleading —
+                signed-in account, so an editable field would be misleading,
                 whatever's typed here is ignored. */}
             <Input
               id="applicant_email"
@@ -376,7 +376,7 @@ function VerifierApplicationForm({
             id="background"
             value={form.background}
             onChange={(e) => update("background", e.target.value)}
-            placeholder="Food-writing, mosque involvement, community organizing — anything relevant."
+            placeholder="Food-writing, mosque involvement, community organizing, anything relevant."
             rows={3}
             maxLength={BACKGROUND_MAX_LENGTH}
           />
@@ -489,7 +489,7 @@ function SuccessPane({ email }: { email: string }) {
         </svg>
       </div>
       <h2 className="mb-2 tracking-tight text-2xl font-semibold sm:text-3xl">
-        Got it — thanks
+        Got it, thanks
       </h2>
       <p className="mb-4 text-base text-muted-foreground sm:text-lg">
         We&apos;ll be in touch at{" "}

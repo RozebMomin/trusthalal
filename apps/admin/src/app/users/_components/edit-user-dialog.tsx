@@ -4,7 +4,7 @@
  * Edit User dialog.
  *
  * Sends a ``PATCH /admin/users/{id}`` with only the fields that actually
- * changed — the server's extra='forbid' rejects unknown keys, and the
+ * changed, the server's extra='forbid' rejects unknown keys, and the
  * patch model treats omitted fields as "don't touch," so sending only
  * diffs keeps the audit surface honest.
  *
@@ -286,7 +286,7 @@ export function EditUserDialog({ user, open, onOpenChange }: Props) {
                       <code className="font-mono text-[11px]">
                         /auth/dev-login
                       </code>{" "}
-                      — this is the soft-deactivation switch.
+                     , this is the soft-deactivation switch.
                     </p>
                   </div>
                 </div>

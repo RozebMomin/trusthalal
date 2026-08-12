@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /preferences — saved consumer search defaults.
+ * /preferences, saved consumer search defaults.
  *
  * The form mirrors the search-page filter panel shape (validation
  * tier radios + menu posture radios + boolean chips) so the user's
@@ -90,7 +90,7 @@ export default function PreferencesPage() {
   const { data: me, isLoading: meLoading } = useCurrentUser();
   const isAuthenticated = Boolean(me);
   // Verifiers keep the consumer search surface (they were consumers before
-  // approval), so they get preferences too — only owner/admin are excluded.
+  // approval), so they get preferences too, only owner/admin are excluded.
   const isConsumerOrAnon =
     me === null ||
     me === undefined ||
@@ -101,7 +101,7 @@ export default function PreferencesPage() {
   const updatePrefs = useUpdatePreferences({ isAuthenticated });
 
   // Local "draft" state seeded from the server/local read. Lets the
-  // user tweak multiple fields and save in one shot — same pattern
+  // user tweak multiple fields and save in one shot, same pattern
   // as the admin panel's edit dialogs.
   const [draft, setDraft] = React.useState<ConsumerPreferences>(EMPTY_PREFERENCES);
   const [saved, setSaved] = React.useState(false);
@@ -180,7 +180,7 @@ export default function PreferencesPage() {
           Search preferences
         </h1>
         <p className="text-muted-foreground">
-          Set your default filters — the search page applies them
+          Set your default filters, the search page applies them
           automatically every time. The place detail page shows you
           which restaurants match your preferences.
         </p>

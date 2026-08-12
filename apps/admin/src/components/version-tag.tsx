@@ -3,24 +3,24 @@
  *
  * Two pieces of info, joined with a middle dot:
  *
- *   1. Manual semver from package.json — bump this in PRs that ship
+ *   1. Manual semver from package.json, bump this in PRs that ship
  *      something meaningful. Tells users (and us in support) which
  *      release of the panel they're on.
- *   2. Short git SHA from NEXT_PUBLIC_APP_RELEASE_SHA — auto-populated
+ *   2. Short git SHA from NEXT_PUBLIC_APP_RELEASE_SHA, auto-populated
  *      at build time on Vercel via $VERCEL_GIT_COMMIT_SHA. Tells us
  *      "did my latest commit actually make it to prod?" at a glance,
  *      including across hot-fixes that didn't bump the semver.
  *
  * Display: ``v0.1.0 · abc1234``  (sha is hover-tooltipped to full)
  *
- * If the SHA env var isn't set (e.g. local dev), we omit it — just
+ * If the SHA env var isn't set (e.g. local dev), we omit it, just
  * ``v0.1.0`` looks intentional rather than half-broken.
  */
 import packageJson from "../../package.json";
 
 /**
  * A SHA looks like 40 hex chars. Anything else is almost certainly
- * a misconfigured env var — most commonly the literal string
+ * a misconfigured env var, most commonly the literal string
  * ``$VERCEL_GIT_COMMIT_SHA`` saved as the value because Vercel doesn't
  * do shell-style $VAR expansion. Drop those rather than rendering a
  * confusing "v0.1.0 · $VERCEL" tag.

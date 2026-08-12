@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Owner portal — list of the user's halal claims.
+ * Owner portal, list of the user's halal claims.
  *
  * Companion of the Places page (rooted at ``/my-claims``, which
  * tracks ownership). Each row here links into the per-claim detail
@@ -39,7 +39,7 @@ export default function MyHalalClaimsPage() {
             your organization owns.
           </p>
         </div>
-        {/* Always render the CTA — matches the Places + Organizations
+        {/* Always render the CTA, matches the Places + Organizations
             header pattern. The /my-halal-claims/new page already
             handles the "no owned places yet" empty state cleanly, so
             gating the button here would just create an inconsistent

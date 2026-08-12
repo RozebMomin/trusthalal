@@ -5,22 +5,22 @@
  *
  * What it does, in three pieces:
  *
- *   1. **Boot** — initializes ``posthog-js`` once per browser
+ *   1. **Boot**, initializes ``posthog-js`` once per browser
  *      session against ``NEXT_PUBLIC_POSTHOG_KEY``. Skips init
  *      when the key isn't set so local dev / preview environments
  *      that don't want to pollute the production project just
- *      no-op. Default ``capture_pageview`` is OFF — Next.js App
+ *      no-op. Default ``capture_pageview`` is OFF, Next.js App
  *      Router doesn't fire native page-loads on client-side
  *      navigation, so we track them ourselves below.
  *
- *   2. **Page-views** — ``PostHogPageView`` listens for path /
+ *   2. **Page-views**, ``PostHogPageView`` listens for path /
  *      query-string changes via ``usePathname`` +
  *      ``useSearchParams`` and fires a ``$pageview`` capture each
  *      time. This is the official App Router pattern from
  *      PostHog's docs and it's the only way the dashboard's
  *      "Active users", "Top pages", etc. charts populate.
  *
- *   3. **Identify** — ``PostHogIdentify`` watches the
+ *   3. **Identify**, ``PostHogIdentify`` watches the
  *      ``useCurrentUser`` query and calls ``posthog.identify``
  *      when a signed-in user resolves so events tie to a stable
  *      user id. Also calls ``posthog.reset`` on sign-out so the
@@ -65,7 +65,7 @@ function initPostHog() {
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
       console.info(
-        "[posthog] NEXT_PUBLIC_POSTHOG_KEY not set — analytics disabled.",
+        "[posthog] NEXT_PUBLIC_POSTHOG_KEY not set, analytics disabled.",
       );
     }
     return;
@@ -73,7 +73,7 @@ function initPostHog() {
 
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
-    // We track pageviews manually below — see PostHogPageView. Auto-
+    // We track pageviews manually below, see PostHogPageView. Auto-
     // capture stays on (clicks, form submits, key inputs except
     // password fields) which gets you 80% of the dashboards
     // without writing custom events.
@@ -82,12 +82,12 @@ function initPostHog() {
     // dashboard once you decide whether you want it. Keeping it
     // off by default to minimize the script's footprint.
     disable_session_recording: true,
-    // Mask any element with data-private="true" — defensive even
+    // Mask any element with data-private="true", defensive even
     // though we don't have sensitive form fields on the consumer
     // surface yet.
     mask_all_text: false,
     // Loaded callback fires once the script finishes downloading
-    // — useful in dev to see when init completes.
+    //, useful in dev to see when init completes.
     loaded: (ph) => {
       if (process.env.NODE_ENV !== "production") {
         // eslint-disable-next-line no-console
@@ -106,7 +106,7 @@ function initPostHog() {
 // ---------------------------------------------------------------------------
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
-  // Init once — the function itself is idempotent so the React
+  // Init once, the function itself is idempotent so the React
   // strict-mode double-invoke doesn't double-init.
   React.useEffect(() => {
     initPostHog();

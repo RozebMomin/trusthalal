@@ -32,7 +32,7 @@ components["schemas"]["OwnershipRequestAdminCreate"];
 // Pending the next codegen pass, layer the org-polish fields onto the
 // generated shapes so the admin UI can reference them. Once
 // ``make export-openapi && npm run codegen`` runs, these intersections
-// become redundant but harmless — the generated types will already
+// become redundant but harmless, the generated types will already
 // carry the same fields.
 type _OrgAddressExtras = {
   address?: string | null;
@@ -93,7 +93,7 @@ export type PlaceIngestResponse = components["schemas"]["PlaceIngestResponse"];
 // Bulk add-places types. Hand-written to mirror the server schemas
 // (PlaceBulkPreview*/PlaceBulkImport*) pending the next
 // ``make export-openapi && (cd apps/admin && npm run codegen)`` pass, after
-// which they can be swapped for ``components["schemas"][...]`` — identical
+// which they can be swapped for ``components["schemas"][...]``, identical
 // shape, so the swap is mechanical. Kept local so the admin app typechecks
 // before codegen runs (same pattern as the org-address extras above).
 export type PlaceBulkPreviewStatus = "NEW" | "EXISTS" | "SOFT_DELETED";
@@ -174,7 +174,7 @@ type _UserAccountStateExtras = {
   account_state: UserAccountState;
   invite_expires_at: string | null;
   // Layered on the same way, until the next codegen pass. Timestamp (or
-  // null if never verified) rather than a bool — an operator wants "when",
+  // null if never verified) rather than a bool, an operator wants "when",
   // not just "whether".
   email_verified_at: string | null;
 };
@@ -208,7 +208,7 @@ export type MeRead = {
 };
 
 /*
- * Awaiting next codegen pass — the auth project added LoginRequest +
+ * Awaiting next codegen pass, the auth project added LoginRequest +
  * LoginResponse on the server. Swap to
  * ``components["schemas"]["LoginRequest"]`` / ``LoginResponse`` after
  * ``make export-openapi && npm run codegen``.
@@ -227,7 +227,7 @@ export type LoginResponse = {
 };
 
 /*
- * Invite / set-password shapes. Pending next codegen pass — swap to
+ * Invite / set-password shapes. Pending next codegen pass, swap to
  * ``components["schemas"]["InviteInfoResponse"]`` etc. after
  * ``make export-openapi && npm run codegen``.
  *
@@ -270,7 +270,7 @@ export type SetPasswordResponse = {
 // at the callsite.
 //
 // ``created_at`` is intentionally absent: the Place model has no
-// created_at column — the CREATED row on place_events carries that
+// created_at column, the CREATED row on place_events carries that
 // context instead. Default sort is ``updated_at`` (most-recently
 // edited first).
 export type PlacesOrderBy = "updated_at" | "name" | "city" | "country";
@@ -335,7 +335,7 @@ export const qk = {
  *
  * - `q` filters by name/address (ILIKE on the API side).
  * - `city` filters by city (ILIKE). NULL-city rows are excluded when this
- *   is set — admin is asking "where in X are we" not "which rows are vague."
+ *   is set, admin is asking "where in X are we" not "which rows are vague."
  * - `country` exact-matches ISO-2 country_code. The backend case-normalizes,
  *   but we uppercase client-side too so the query key stays stable when a
  *   caller passes "us" vs "US".
@@ -379,7 +379,7 @@ export function useAdminPlaces(
 
 /**
  * Distinct ISO-2 country codes present in the catalog. Used to populate
- * the admin filter dropdown — reflects actual data, not a hardcoded list.
+ * the admin filter dropdown, reflects actual data, not a hardcoded list.
  * Cached generously because this is cheap to compute and rarely changes
  * during a browse session.
  */
@@ -387,13 +387,13 @@ export function useAdminPlaceCountries() {
   return useQuery({
     queryKey: qk.places.countries(),
     queryFn: () => apiFetch<string[]>("/admin/places/countries"),
-    // Stable enough that a 5-minute stale window is fine — the filter
+    // Stable enough that a 5-minute stale window is fine, the filter
     // dropdown doesn't need to track real-time ingest activity.
     staleTime: 5 * 60 * 1000,
   });
 }
 
-/** Admin detail — includes soft-deleted places (public /places/{id} 404s for those). */
+/** Admin detail, includes soft-deleted places (public /places/{id} 404s for those). */
 export function useAdminPlaceDetail(id: string | undefined) {
   return useQuery({
     queryKey: qk.places.detail(id ?? ""),
@@ -437,7 +437,7 @@ export function useRevokePlaceOwner() {
       ownerId: string;
       reason?: string | null;
     }) => {
-      // Only serialize a body when the caller supplied a non-empty reason —
+      // Only serialize a body when the caller supplied a non-empty reason,
       // same convention as the delete/restore/unlink-external mutations.
       const trimmed = args.reason?.trim() || null;
       const payload: PlaceOwnerRevokeRequest | undefined = trimmed
@@ -476,7 +476,7 @@ export function useDeletePlace() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (args: { id: string; reason?: string | null }) => {
-      // Only send a body when the caller supplied a non-empty reason —
+      // Only send a body when the caller supplied a non-empty reason,
       // keeps the wire payload tidy and matches the server's "optional
       // body" contract so existing DELETE-without-body clients are
       // unaffected.
@@ -544,7 +544,7 @@ export function useIngestPlace() {
 }
 
 /**
- * Bulk preview — cheap dedup check for a staged batch of Google IDs.
+ * Bulk preview, cheap dedup check for a staged batch of Google IDs.
  *
  * Read-only (no writes, no billed Google call), so it deliberately does NOT
  * invalidate the places cache. The response tags each ID NEW / EXISTS /
@@ -562,7 +562,7 @@ export function useBulkPreviewPlaces() {
 }
 
 /**
- * Bulk import — ingest the selected Google IDs, one transaction each.
+ * Bulk import, ingest the selected Google IDs, one transaction each.
  *
  * Returns a per-item outcome (CREATED / EXISTED / SOFT_DELETED / FAILED) plus
  * roll-up counts; a single bad row never sinks the batch. Invalidates the
@@ -585,7 +585,7 @@ export function useBulkImportPlaces() {
 /**
  * Attach a Google Place ID to an existing (manually-added) Place.
  *
- * Different from ingest: this one doesn't create a Place — it augments
+ * Different from ingest: this one doesn't create a Place, it augments
  * one. Used to retroactively pick up Google data for places that were in
  * the catalog before the Google ingest flow existed.
  *
@@ -711,7 +711,7 @@ function invalidateOrganizations(qc: ReturnType<typeof useQueryClient>) {
   return qc.invalidateQueries({ queryKey: ["organizations"] });
 }
 
-// Org create / edit / member-management belong to the owner portal —
+// Org create / edit / member-management belong to the owner portal,
 // owners self-serve at /me/organizations/*. The admin panel here only
 // reviews what owners submit, so the corresponding admin write hooks
 // (useCreateOrganization, usePatchOrganization, useAddOrgMember,
@@ -721,7 +721,7 @@ function invalidateOrganizations(qc: ReturnType<typeof useQueryClient>) {
 // or curl when the rare case arises.
 
 /**
- * POST /admin/organizations/{id}/verify — UNDER_REVIEW → VERIFIED.
+ * POST /admin/organizations/{id}/verify, UNDER_REVIEW → VERIFIED.
  *
  * Optional ``note`` lets the reviewer record context (e.g. "checked
  * SOS filing") on the audit row. Server enforces the org is
@@ -745,7 +745,7 @@ export function useVerifyOrganization() {
 }
 
 /**
- * POST /admin/organizations/{id}/reject — UNDER_REVIEW → REJECTED.
+ * POST /admin/organizations/{id}/reject, UNDER_REVIEW → REJECTED.
  *
  * ``reason`` is required (server enforces min_length=3) and surfaces
  * to the owner on their org detail page so they know why.
@@ -805,7 +805,7 @@ function invalidateOwnershipRequests(
 
 /**
  * Admin-side create for an ownership request. Different from the
- * public submit flow — admin supplies ``requester_user_id`` explicitly
+ * public submit flow, admin supplies ``requester_user_id`` explicitly
  * (or null for walk-in / phone intakes) instead of it being derived
  * from the caller's auth.
  */
@@ -869,7 +869,7 @@ export function useRequestEvidenceOwnershipRequest() {
 }
 
 // ---------------------------------------------------------------------------
-// Halal claims (admin) — Phase 6 of the halal-trust v2 rebuild
+// Halal claims (admin): Phase 6 of the halal-trust v2 rebuild
 // ---------------------------------------------------------------------------
 // Hand-typed shapes mirror the server-side Pydantic models in
 // ``app/modules/halal_claims/schemas.py`` (read shape) and
@@ -948,7 +948,7 @@ export type MeatType =
 /**
  * One specific product the restaurant serves, with its own
  * supplier and (optionally) cert. Replaces the old per-meat
- * MeatSourcing — owners can declare multiple products under each
+ * MeatSourcing, owners can declare multiple products under each
  * meat type ("Beef bacon" + "Ground beef" with different
  * suppliers / certs).
  */
@@ -964,7 +964,7 @@ export type MeatProductSourcing = {
 };
 
 /**
- * The structured questionnaire shape — server stores as JSONB.
+ * The structured questionnaire shape, server stores as JSONB.
  * The DRAFT shape (every field optional) covers both saved drafts
  * AND complete responses, so admin review can render whichever the
  * owner submitted without a separate ``HalalQuestionnaireResponse``
@@ -1047,7 +1047,7 @@ export type HalalClaimApprove = {
   internal_notes?: string | null;
   /**
    * ISO-8601. Shortens the default 90-day expiry. Overrides past
-   * the 90-day cap are clamped server-side — company policy.
+   * the 90-day cap are clamped server-side, company policy.
    */
   expires_at_override?: string | null;
   /** ISO-8601. Mirrors the cert's own expiry; metadata-only. */
@@ -1091,7 +1091,7 @@ export type HalalClaimAdminAttachmentSignedUrl = {
 
 /**
  * Statuses awaiting an admin decision. Mirrors the server-side
- * ``_DECIDABLE_STATUSES`` tuple — single source of truth for both
+ * ``_DECIDABLE_STATUSES`` tuple, single source of truth for both
  * the queue's "Open" filter and the detail page's action gating.
  */
 export const HALAL_CLAIM_OPEN_STATUSES: ReadonlyArray<HalalClaimStatus> = [
@@ -1157,7 +1157,7 @@ export function useAdminHalalClaim(id: string | null | undefined) {
 }
 
 /**
- * GET /admin/halal-claims/{id}/events — per-claim audit timeline.
+ * GET /admin/halal-claims/{id}/events, per-claim audit timeline.
  * Admin sees the full series including system-driven events
  * (SUPERSEDED, EXPIRED). Same shape the owner sees on their portal.
  */
@@ -1255,7 +1255,7 @@ export function useCurrentUser() {
       try {
         return await apiFetch<MeRead>("/me");
       } catch (err) {
-        // 401 from /me is the signal for "not signed in" — resolve
+        // 401 from /me is the signal for "not signed in", resolve
         // to null so callers can render a login page instead of a
         // loading spinner forever. Any other error (network, 5xx)
         // re-throws so useQuery surfaces it in `error`.
@@ -1310,14 +1310,14 @@ export function useLogout() {
 }
 
 /**
- * GET /auth/invite/{token} — prefetch.
+ * GET /auth/invite/{token}, prefetch.
  *
  * Used by the /set-password landing page to render "Set your password
  * for ada@example.com" before the user submits. Does NOT burn the
  * token. Stays disabled until a token is present so the bare
  * /set-password URL doesn't fire a 400 request.
  *
- * ``retry: false`` — a 400 here means the invite is invalid, expired,
+ * ``retry: false``, a 400 here means the invite is invalid, expired,
  * or already used; retrying would just burn rate budget without
  * changing the outcome. Let the page render an error state
  * immediately.
@@ -1422,14 +1422,14 @@ export function usePatchUser() {
 }
 
 /**
- * POST /admin/users/{id}/resend-invite — mint a fresh invite for a
+ * POST /admin/users/{id}/resend-invite, mint a fresh invite for a
  * user who hasn't onboarded yet.
  *
  * Server gates:
- *   * 404 USER_NOT_FOUND        — bad id
- *   * 409 USER_ALREADY_ONBOARDED — password already set; use
+ *   * 404 USER_NOT_FOUND       , bad id
+ *   * 409 USER_ALREADY_ONBOARDED, password already set; use
  *     password-reset instead
- *   * 409 USER_INACTIVE         — user is deactivated; reactivate
+ *   * 409 USER_INACTIVE        , user is deactivated; reactivate
  *     first
  *
  * The response carries a fresh ``invite_token`` + ``invite_url`` so
@@ -1452,7 +1452,7 @@ export function useResendInvite() {
 }
 
 // ---------------------------------------------------------------------------
-// Consumer disputes (admin) — Phase 7 of the halal-trust v2 rebuild
+// Consumer disputes (admin): Phase 7 of the halal-trust v2 rebuild
 // ---------------------------------------------------------------------------
 // Hand-typed shapes mirror the server-side Pydantic models in
 // ``app/modules/disputes/schemas.py`` (read shape) and
@@ -1486,7 +1486,7 @@ export type ConsumerDisputeAttachmentRead = {
   uploaded_at: string;
 };
 
-/** Admin shape — full visibility including reporter identity. */
+/** Admin shape, full visibility including reporter identity. */
 export type ConsumerDisputeAdminRead = {
   id: string;
   place_id: string;
@@ -1525,7 +1525,7 @@ export type AdminDisputeAttachmentSignedUrl = {
 
 /**
  * Statuses where admin can still drive the workflow forward.
- * Mirrors the server-side ``_ADMIN_RESOLVABLE_STATUSES`` tuple — the
+ * Mirrors the server-side ``_ADMIN_RESOLVABLE_STATUSES`` tuple, the
  * detail page hides resolve/reconciliation buttons on terminal
  * (RESOLVED_*, WITHDRAWN) disputes.
  */
@@ -1687,7 +1687,7 @@ export function useVerifierApplication(id: string | null | undefined) {
 // ---- Mutations -----------------------------------------------------------
 
 /**
- * POST /admin/verifier-applications/{id}/decide — APPROVED or REJECTED.
+ * POST /admin/verifier-applications/{id}/decide, APPROVED or REJECTED.
  * Rejection requires a ``decision_note`` (server enforces). Invalidates
  * both the list and this detail query so the UI reflects the new status
  * without an extra round-trip.
@@ -1740,7 +1740,7 @@ export const verifierProfileQk = {
 // ---- Read hooks ----------------------------------------------------------
 
 /**
- * GET /admin/verifiers/{user_id} — the verifier profile for an approved
+ * GET /admin/verifiers/{user_id}, the verifier profile for an approved
  * applicant. 404s with ``VERIFIER_PROFILE_NOT_FOUND`` when the user was
  * never provisioned as a verifier, so ``retry: false`` keeps that
  * expected miss from spamming the API. Stays disabled until a user id is
@@ -1760,7 +1760,7 @@ export function useVerifierProfile(userId: string | undefined) {
 
 /**
  * POST /admin/verifiers/{user_id}/{action} where action is one of
- * revoke (permanent — role drops to CONSUMER), suspend (temporary hold),
+ * revoke (permanent, role drops to CONSUMER), suspend (temporary hold),
  * or reinstate (back to ACTIVE, re-promoting to VERIFIER if needed). The
  * optional ``note`` lands on the audit record. On success we refresh the
  * profile query for that user AND the verifier-applications queries so
@@ -1792,7 +1792,7 @@ export function useSetVerifierStatus() {
 // ---------------------------------------------------------------------------
 // Hand-typed shapes mirror the server-side Pydantic models for the
 // verifier verification-visit review surface (schema.d.ts isn't
-// regenerated for this route yet — same convention as the verifier
+// regenerated for this route yet, same convention as the verifier
 // applications above). Swap to ``components["schemas"][...]`` after the
 // next ``make export-openapi && npm run codegen``.
 
@@ -1920,7 +1920,7 @@ export function useVisitAttachments(id: string | null | undefined) {
 
 /**
  * Mint a short-lived (60s) signed URL for a single visit attachment.
- * Called on click — mirrors the halal-claims attachment view flow so a
+ * Called on click, mirrors the halal-claims attachment view flow so a
  * stale browser tab can't replay a URL later.
  */
 export function fetchVisitAttachmentUrl(
@@ -1935,7 +1935,7 @@ export function fetchVisitAttachmentUrl(
 // ---- Mutations -----------------------------------------------------------
 
 /**
- * POST /admin/verification-visits/{id}/under-review — SUBMITTED →
+ * POST /admin/verification-visits/{id}/under-review, SUBMITTED →
  * UNDER_REVIEW. Invalidates the visit + list queries so the UI reflects
  * the new status without an extra round-trip.
  */
@@ -1957,10 +1957,10 @@ export function useMarkVisitUnderReview() {
 }
 
 /**
- * POST /admin/verification-visits/{id}/decide — ACCEPTED or REJECTED.
+ * POST /admin/verification-visits/{id}/decide, ACCEPTED or REJECTED.
  * REJECTED requires a ``decision_note`` (server enforces). ACCEPTED can
  * 409 with VERIFICATION_VISIT_NO_PROFILE if the place has no halal
- * profile — callers surface that message inline. Invalidates the visit +
+ * profile, callers surface that message inline. Invalidates the visit +
  * list queries.
  */
 export function useDecideVerificationVisit() {
@@ -1996,7 +1996,7 @@ export type ResetPasswordRequest = { token: string; password: string };
 export type ResetPasswordResponse = { email: string };
 
 /** POST /auth/forgot-password. Always resolves (generic success) even for
- * unknown emails — the UI shows the same "check your inbox" either way. */
+ * unknown emails, the UI shows the same "check your inbox" either way. */
 export function useForgotPassword() {
   return useMutation({
     mutationFn: (payload: ForgotPasswordRequest) =>
@@ -2007,7 +2007,7 @@ export function useForgotPassword() {
   });
 }
 
-/** GET /auth/reset/{token} — prefetch to show whose password is being
+/** GET /auth/reset/{token}, prefetch to show whose password is being
  * reset. 400s on an invalid/expired/used token; no retry. */
 export function useResetInfo(token: string | null) {
   return useQuery<ResetInfoResponse>({
@@ -2036,7 +2036,7 @@ export function useResetPassword() {
 // ---------------------------------------------------------------------------
 // Email verification
 // ---------------------------------------------------------------------------
-// Confirming an address doesn't sign anyone in or out — it only unlocks the
+// Confirming an address doesn't sign anyone in or out, it only unlocks the
 // surfaces that publish content about a named business (reviews, owner
 // replies). See api/app/modules/auth/email_verification.py.
 
@@ -2045,7 +2045,7 @@ export type VerifyEmailResponse = { email: string; already_verified: boolean };
 export type ResendVerificationRequest = { audience?: "consumer" | "owner" | "admin" };
 export type ResendVerificationResponse = { sent: boolean; email: string };
 
-/** POST /auth/verify-email. Anonymous — the token is the proof, so a link
+/** POST /auth/verify-email. Anonymous, the token is the proof, so a link
  *  opened on a phone works while the account is signed in elsewhere. */
 export function useVerifyEmail() {
   return useMutation({
@@ -2059,7 +2059,7 @@ export function useVerifyEmail() {
 
 /** POST /auth/verify-email/resend. Requires a session; the address comes
  *  from that session, never from the body. ``sent: false`` means the address
- *  was already confirmed — success, not an error. */
+ *  was already confirmed, success, not an error. */
 export function useResendVerification() {
   const qc = useQueryClient();
   return useMutation({
@@ -2076,7 +2076,7 @@ export function useResendVerification() {
 }
 
 // ---------------------------------------------------------------------------
-// Moderation queues — reported reviews and reported photos
+// Moderation queues, reported reviews and reported photos
 // ---------------------------------------------------------------------------
 // Both queues group by the piece of content rather than by complaint: a
 // moderator looks at the content once and reaches one conclusion, so three
@@ -2125,7 +2125,7 @@ export type AdminReviewReportRead = {
   status: ReportStatus;
   reporter_display_name: string | null;
   reporter_email: string | null;
-  /** OWNER when the reporter manages this place — an obvious interest a
+  /** OWNER when the reporter manages this place, an obvious interest a
    *  moderator should see without going to check. */
   reporter_relationship: string | null;
   created_at: string;
@@ -2564,7 +2564,7 @@ function invalidatePlaceLinks(
   qc: ReturnType<typeof useQueryClient>,
   placeId: string,
 ) {
-  // Bump the links list AND the place cache — a link changes the composed
+  // Bump the links list AND the place cache, a link changes the composed
   // provenance the place read returns.
   void qc.invalidateQueries({ queryKey: ["places", "supplier-links", placeId] });
   void qc.invalidateQueries({ queryKey: ["places"] });

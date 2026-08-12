@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * `/get-verified` — the onboarding HUB (parallel flow).
+ * `/get-verified`, the onboarding HUB (parallel flow).
  *
  * Reads the owner's real state across all three stages and renders a
  * roadmap that always makes the gates obvious: "waiting on you" vs
@@ -9,7 +9,7 @@
  * clears. Once everything is approved it flips to a steady-state
  * dashboard variant.
  *
- * This surface is additive — it reuses the same hooks + status enums
+ * This surface is additive, it reuses the same hooks + status enums
  * the existing pages use and never mutates anything itself. The old
  * flow stays 100% intact and reachable; this is only reachable by
  * navigating to /get-verified.
@@ -73,7 +73,7 @@ export default function GetVerifiedHubPage() {
   const places = ownedPlaces.data ?? [];
   const halalList = halalClaims.data ?? [];
 
-  // Primary org — the business the hub speaks for in its headline,
+  // Primary org, the business the hub speaks for in its headline,
   // dashboard badge, and "claim another under…" nudge. A verified org
   // must win over a newer rejected/draft one: an owner who registers a
   // second business that then gets rejected should still see their
@@ -144,8 +144,8 @@ export default function GetVerifiedHubPage() {
   const heading = !stage1.done
     ? `Welcome${firstName ? `, ${firstName}` : ""}. Three steps to your verified badge.`
     : !stage2.done
-      ? "Your business is verified — now claim your restaurant."
-      : "Almost there — confirm your halal details.";
+      ? "Your business is verified, now claim your restaurant."
+      : "Almost there, confirm your halal details.";
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -156,18 +156,18 @@ export default function GetVerifiedHubPage() {
         {heading}
       </h1>
       <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-        Each step is quick, but we review a couple of them by hand — so
+        Each step is quick, but we review a couple of them by hand, so
         there&apos;s a short wait between some. We&apos;ll email you the moment
         the ball&apos;s back in your court.
       </p>
 
       <Roadmap>
-        {/* Stage 1 — business */}
+        {/* Stage 1, business */}
         <RoadmapStage index={1} state={stage1.state} title="Register your business">
           <StageBody pill={stage1.pill}>
             {stage1.state === "review" ? (
               <p className="mt-1.5 text-sm text-muted-foreground">
-                {primaryOrg?.name ?? "Your business"} is with our team — usually
+                {primaryOrg?.name ?? "Your business"} is with our team, usually
                 2–3 business days. We&apos;ll email you the moment it clears and
                 unlock your next step.
               </p>
@@ -186,7 +186,7 @@ export default function GetVerifiedHubPage() {
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   A rejected business is locked, so it can&apos;t be edited and
-                  resubmitted — register a fresh business entity to try again.
+                  resubmitted, register a fresh business entity to try again.
                   Any restaurant claims filed under it were closed with it.
                 </p>
                 <CtaRow>
@@ -199,11 +199,11 @@ export default function GetVerifiedHubPage() {
               <>
                 <p className="mt-1.5 text-sm text-muted-foreground">
                   Tell us about the legal entity that operates your
-                  restaurant(s). We verify it once — then every location you
+                  restaurant(s). We verify it once, then every location you
                   claim rolls up under it.
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  📎 You&apos;ll upload <strong className="text-foreground">articles of organization</strong>{" "}
+                  You&apos;ll upload <strong className="text-foreground">articles of organization</strong>{" "}
                   or a <strong className="text-foreground">certificate of formation</strong>.
                 </p>
                 <CtaRow>
@@ -221,7 +221,7 @@ export default function GetVerifiedHubPage() {
           </StageBody>
         </RoadmapStage>
 
-        {/* Stage 2 — claim */}
+        {/* Stage 2, claim */}
         <RoadmapStage index={2} state={stage2.state} title="Claim your restaurant">
           <StageBody pill={stage2.pill}>
             {stage2.state === "lock" ? (
@@ -244,11 +244,11 @@ export default function GetVerifiedHubPage() {
               <>
                 <p className="mt-1.5 text-sm text-muted-foreground">
                   {stage2.state === "fix"
-                    ? "Your claim needs another look — add what we asked for and resubmit."
+                    ? "Your claim needs another look, add what we asked for and resubmit."
                     : "Link a specific location to your verified business."}
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  📎 You&apos;ll upload a <strong className="text-foreground">business license</strong>,
+                  You&apos;ll upload a <strong className="text-foreground">business license</strong>,
                   lease, or sales-tax permit.
                 </p>
                 <CtaRow>
@@ -263,7 +263,7 @@ export default function GetVerifiedHubPage() {
           </StageBody>
         </RoadmapStage>
 
-        {/* Stage 3 — halal */}
+        {/* Stage 3, halal */}
         <RoadmapStage index={3} state={stage3.state} title="Confirm halal details" isLast>
           <StageBody pill={stage3.pill}>
             {stage3.state === "lock" ? (
@@ -299,7 +299,7 @@ export default function GetVerifiedHubPage() {
       </Roadmap>
 
       {/* Reviews waiting on a reply.
-          This card is how mobile owners reach reviews at all — the bottom
+          This card is how mobile owners reach reviews at all, the bottom
           tab bar deliberately stays at four tabs, so the badge lives here
           instead. It renders on desktop too, where it duplicates the nav
           badge harmlessly: an owner who's just landed shouldn't have to
@@ -337,11 +337,11 @@ export default function GetVerifiedHubPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Your-businesses overview — every org on the account + its live status.
+// Your-businesses overview, every org on the account + its live status.
 // ---------------------------------------------------------------------------
 
 /**
- * "N reviews need a reply" — the mobile entry point to the review inbox.
+ * "N reviews need a reply", the mobile entry point to the review inbox.
  *
  * Silent at zero. An owner with nothing waiting doesn't need to be told
  * about a surface they have no reason to visit, and a permanent "0 reviews
@@ -429,7 +429,7 @@ function BusinessesOverview({
 }
 
 // ---------------------------------------------------------------------------
-// Restaurant-claims overview — every ownership claim + its live status.
+// Restaurant-claims overview, every ownership claim + its live status.
 // ---------------------------------------------------------------------------
 
 function ClaimsOverview({
@@ -569,7 +569,7 @@ function deriveStage2({
   anyClaimNeedsFix: boolean;
 }): { state: StageState; done: boolean; pill: Pill } {
   if (!orgEligible) {
-    return { state: "lock", done: false, pill: { tone: "lock", label: "🔒 Locked" } };
+    return { state: "lock", done: false, pill: { tone: "lock", label: "Locked" } };
   }
   if (anyApprovedClaim) {
     return { state: "done", done: true, pill: { tone: "done", label: "✓ Approved" } };
@@ -593,7 +593,7 @@ function deriveStage3({
   anyHalalPending: boolean;
 }): { state: StageState; done: boolean; pill: Pill } {
   if (!unlocked) {
-    return { state: "lock", done: false, pill: { tone: "lock", label: "🔒 Locked" } };
+    return { state: "lock", done: false, pill: { tone: "lock", label: "Locked" } };
   }
   if (approvedCount > 0) {
     return { state: "done", done: true, pill: { tone: "done", label: "✓ Verified" } };
@@ -610,7 +610,7 @@ function deriveStage3({
 
 const MENU_LABELS: Partial<Record<MenuPosture, string>> = {
   FULLY_HALAL: "Fully halal",
-  MIXED_SEPARATE_KITCHENS: "Halal — separate kitchen",
+  MIXED_SEPARATE_KITCHENS: "Halal, separate kitchen",
   HALAL_OPTIONS_ADVERTISED: "Halal options",
   HALAL_UPON_REQUEST: "Halal on request",
   MIXED_SHARED_KITCHEN: "Halal options",
@@ -742,7 +742,7 @@ function Dashboard({
           <div>
             <p className="text-sm font-semibold">Run another location?</p>
             <p className="text-[13px] text-muted-foreground">
-              Claim it under {org?.name ?? "your business"} — no need to
+              Claim it under {org?.name ?? "your business"}, no need to
               re-verify.
             </p>
           </div>
@@ -759,7 +759,7 @@ function Dashboard({
               Own a store under a different business?
             </p>
             <p className="text-[13px] text-muted-foreground">
-              Register another legal entity — we&apos;ll verify it, then you can
+              Register another legal entity, we&apos;ll verify it, then you can
               claim locations under it.
             </p>
           </div>
@@ -773,7 +773,7 @@ function Dashboard({
         <ClaimsOverview claims={openClaims} title="Claims in progress" />
       )}
 
-      {/* All set — nothing is mid-setup, so no "currently setting up"
+      {/* All set, nothing is mid-setup, so no "currently setting up"
           marker. Just the roster of businesses with their statuses. */}
       {orgs.length >= 2 && <BusinessesOverview orgs={orgs} activeOrgId={null} />}
     </div>

@@ -17,7 +17,7 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// Mirror of the server allow-list — identical to the set used by the
+// Mirror of the server allow-list, identical to the set used by the
 // existing org / claim / halal-claim upload UIs.
 export const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",

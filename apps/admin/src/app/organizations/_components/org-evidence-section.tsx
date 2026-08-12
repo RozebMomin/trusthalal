@@ -5,7 +5,7 @@
  * documents (articles of organization, business filings, etc.).
  *
  * Mirrors the EvidenceSection inside the ownership-request detail
- * dialog — same signed-URL-on-click pattern, same 60s TTL contract.
+ * dialog, same signed-URL-on-click pattern, same 60s TTL contract.
  * Each click mints a fresh URL, so a stale browser tab can't replay
  * the download later.
  */
@@ -17,7 +17,7 @@ import { friendlyApiError } from "@/lib/api/friendly-errors";
 import type { components } from "@/lib/api/schema";
 
 type Attachment = components["schemas"]["OrganizationAttachmentRead"];
-// Same private-class shape used on the route — codegen mirrors the
+// Same private-class shape used on the route, codegen mirrors the
 // Python name verbatim. Hand-typed alias keeps consumer tidy.
 type SignedUrlResponse = {
   url: string;

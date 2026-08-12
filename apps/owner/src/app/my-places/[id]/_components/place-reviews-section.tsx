@@ -3,7 +3,7 @@
 /**
  * Reviews for one place, inside its management page.
  *
- * The global /my-reviews inbox is the triage surface — "who is waiting on
+ * The global /my-reviews inbox is the triage surface, "who is waiting on
  * me, across everything". This is the opposite view: everything about *this*
  * restaurant, including the ones already answered, so an owner looking at a
  * single location sees the whole picture rather than only the backlog.
@@ -81,7 +81,7 @@ function ReviewItem({ review }: { review: OwnerReviewRead }) {
       const { description } = friendlyApiError(err, {
         defaultTitle: "Couldn't post that reply",
       });
-      // Same two-step as the global inbox — an owner shouldn't get a
+      // Same two-step as the global inbox, an owner shouldn't get a
       // different answer about the same reply depending which screen they
       // typed it on.
       if (code === "REVIEW_TEXT_WARNING") {
@@ -89,17 +89,17 @@ function ReviewItem({ review }: { review: OwnerReviewRead }) {
         return;
       }
       // Owner replies go through the same content filter as diners'. A 503
-      // means the check couldn't run at all — not that the reply was judged.
+      // means the check couldn't run at all, not that the reply was judged.
       // 403 here means the account's email was never confirmed. Accounts
       // that predate verification were never sent a link, so "check your
-      // inbox" would point at nothing — offer to send one instead.
+      // inbox" would point at nothing, offer to send one instead.
       if (status === 403) {
         setNeedsVerify(true);
         setErrorMsg(null);
       } else {
         setErrorMsg(
           status === 503
-            ? "We couldn't run our content check just now — that's on us. Try again in a moment."
+            ? "We couldn't run our content check just now, that's on us. Try again in a moment."
             : description,
         );
       }
@@ -146,14 +146,14 @@ function ReviewItem({ review }: { review: OwnerReviewRead }) {
         </div>
       )}
 
-      {/* Mirrors the inbox card — same warning, same wording, so an owner who
+      {/* Mirrors the inbox card, same warning, same wording, so an owner who
           sees it in one place recognizes it in the other. */}
       {review.edited_after_reply && (
         <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
           <b>This review changed after you replied.</b>{" "}
           {review.edited_at && `Edited ${relative(review.edited_at)}. `}
           Diners currently see a note saying so under your reply. Editing your
-          reply — even slightly — clears it.
+          reply, even slightly, clears it.
         </div>
       )}
 
@@ -255,7 +255,7 @@ function ReviewItem({ review }: { review: OwnerReviewRead }) {
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 p-3">
               <p className="text-xs leading-relaxed text-amber-900">
                 {resendVerify.isSuccess
-                  ? `Sent — check ${resendVerify.data?.email} and click the link, then post your reply.`
+                  ? `Sent, check ${resendVerify.data?.email} and click the link, then post your reply.`
                   : "Confirm your email address before replying publicly."}
               </p>
               {!resendVerify.isSuccess && (
@@ -297,7 +297,7 @@ export function PlaceReviewsSection({ placeId }: { placeId: string }) {
 
   const items = query.data?.items ?? [];
   // The inbox's needs_reply_count spans every managed place, so it's the
-  // wrong number here — derive this place's own from the rows.
+  // wrong number here, derive this place's own from the rows.
   const unanswered = (query.data?.items ?? []).filter((r) => !r.reply).length;
 
   return (

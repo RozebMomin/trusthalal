@@ -15,7 +15,7 @@
  *   * Left (`lg` and up, sticky): the halal verdict, the actions you'd take
  *     next, and the small print. This column is why the page exists, so on a
  *     wide screen it stays put while the rest scrolls past it.
- *   * Right: photos, reviews, hours, nearby — the browsing material.
+ *   * Right: photos, reviews, hours, nearby, the browsing material.
  *
  * Below `lg` it collapses to one column in that same order, which is the
  * reordering on its own. Phones get the priority change without the grid.
@@ -28,7 +28,7 @@
  * Trust Halal's own and the same size as it.
  *
  * **Report and claim are two lines of text, not two cards.** For a signed-out
- * visitor — most first-time traffic — those cards were large boxes whose only
+ * visitor, most first-time traffic, those cards were large boxes whose only
  * affordance was "sign in". They were out-weighing the photos.
  *
  * Wrapped by a server component (page.tsx) that provides generateMetadata +
@@ -74,11 +74,11 @@ import { matchProfileToPreferences } from "@/lib/preferences/match";
 import { reportPlaceSignal } from "@/lib/api/signals";
 
 const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
-  OPEN: "Open — awaiting review",
+  OPEN: "Open, awaiting review",
   OWNER_RECONCILING: "Owner is responding",
   ADMIN_REVIEWING: "Trust Halal is reviewing",
-  RESOLVED_UPHELD: "Resolved — your report was upheld",
-  RESOLVED_DISMISSED: "Resolved — report dismissed",
+  RESOLVED_UPHELD: "Resolved, your report was upheld",
+  RESOLVED_DISMISSED: "Resolved, report dismissed",
   WITHDRAWN: "Withdrawn",
 };
 
@@ -140,7 +140,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
   // When ``hero_photo_url`` is set but no photo in the array carries
   // ``is_hero`` (a cover that came from somewhere the photos list doesn't
   // cover), we synthesize a front slide so the header stays expandable.
-  // That slide previously hardcoded ``source: "OWNER"`` — asserting the
+  // That slide previously hardcoded ``source: "OWNER"``, asserting the
   // restaurant supplied a photo whose provenance we don't actually know,
   // on the one surface whose entire job is honest provenance. It's now
   // GOOGLE/GOOGLE, which is what an unattributed cover on this platform in
@@ -193,7 +193,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
 
   /**
    * Back-link handler. The link's static ``href="/"`` is the
-   * fallback for users who arrived via deep-link / fresh tab — but
+   * fallback for users who arrived via deep-link / fresh tab, but
    * for the common case (search → result-card click → detail),
    * we want to restore the search page WITH all the user's filters
    * + query intact, not blow them away with a fresh "/".
@@ -202,7 +202,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
    * naturally restores the search URL (q, lat/lng/radius, cuisine
    * chips, etc. all live in the URL on the search page). The
    * ``window.history.length > 1`` guard is the "is there anywhere
-   * to go back to?" check — true when the user navigated within
+   * to go back to?" check, true when the user navigated within
    * the SPA, false on a fresh tab where the detail page is the
    * only entry. We let the Link's default navigation to ``/``
    * carry that case.
@@ -218,7 +218,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
   }
 
   return (
-    // Widens at lg so the two-column grid below has somewhere to go — a
+    // Widens at lg so the two-column grid below has somewhere to go, a
     // 340px sidebar inside a 768px column would leave the right side
     // narrower than the phone layout. Matches the app shell's max-w-5xl.
     <div className="mx-auto max-w-3xl space-y-5 lg:max-w-5xl">
@@ -244,7 +244,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
           <PreferenceMatchBanner result={matchResult} />
 
           {/* Two columns from lg up. The halal verdict is the reason anyone
-              opened this page, so on a wide screen it stops scrolling away —
+              opened this page, so on a wide screen it stops scrolling away,
               photos, reviews and hours move past it instead of pushing it off.
               Below lg this collapses to the same single column as before, in
               the same order, so phones get the reordering without the grid. */}
@@ -420,7 +420,7 @@ function PlaceActionCard({
 }
 
 // ---------------------------------------------------------------------------
-// Google-sourced opening hours — a calm card with an Open/Closed status
+// Google-sourced opening hours, a calm card with an Open/Closed status
 // line over the full week, expanded by default. A quiet "from Google" line
 // sets freshness. Renders nothing when the place has no hours on file.
 // ---------------------------------------------------------------------------
@@ -446,7 +446,7 @@ function weekdayIndexInTz(tz: string | null): number {
       };
       if (wd in map) return map[wd];
     } catch {
-      // Unknown tz string — fall through to browser-local.
+      // Unknown tz string, fall through to browser-local.
     }
   }
   return (now.getDay() + 6) % 7;
@@ -462,7 +462,7 @@ function PlaceHoursCard({ place }: { place: PlaceDetail }) {
   if (!hasHours || !week) return null;
 
   // Google's weekdayDescriptions are Monday-first. Compute "today" in
-  // the PLACE's timezone, not the visitor's browser — otherwise a diner
+  // the PLACE's timezone, not the visitor's browser, otherwise a diner
   // in a different timezone (or near midnight) sees the wrong day
   // highlighted. Falls back to browser-local when tz is unknown. The
   // open/closed status itself is already computed server-side against
@@ -553,8 +553,8 @@ function PlaceHoursCard({ place }: { place: PlaceDetail }) {
  * Report + claim, as two lines of text rather than two full-width cards.
  *
  * The old version gave "Spot something wrong?" a bordered section with a
- * heading and a button, which for a signed-out visitor — most first-time
- * traffic — was a large box whose only affordance was "Sign in to report".
+ * heading and a button, which for a signed-out visitor, most first-time
+ * traffic, was a large box whose only affordance was "Sign in to report".
  * Reporting matters, but it isn't why anyone opened this page, and it was
  * out-weighing the photos.
  *

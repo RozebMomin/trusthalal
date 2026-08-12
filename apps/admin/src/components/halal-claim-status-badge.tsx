@@ -2,7 +2,7 @@
  * Status badge for the admin halal-claim queue.
  *
  * Mirrors the server's ``HalalClaimStatus`` enum. Adding a new status
- * over there means adding it here too — the explicit ``Record`` keeps
+ * over there means adding it here too, the explicit ``Record`` keeps
  * the type-checker honest if anything goes missing.
  *
  * The owner portal has its own variant of this badge (see
@@ -84,7 +84,7 @@ export function HalalClaimStatusBadge({
   className?: string;
 }) {
   // Defensive fallback for any future statuses that haven't been
-  // mapped here yet — render the raw enum string with a neutral
+  // mapped here yet, render the raw enum string with a neutral
   // outline so the page doesn't blow up at runtime.
   const presentation =
     STATUS_PRESENTATION[status as HalalClaimStatus] ?? {

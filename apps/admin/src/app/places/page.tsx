@@ -38,7 +38,7 @@ import { NewPlaceDialog } from "./_components/new-place-dialog";
 // handing to the query hook.
 const ANY_COUNTRY = "__any__";
 
-/** Simple debounce — returns the latest value after `ms` idle time. */
+/** Simple debounce, returns the latest value after `ms` idle time. */
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = React.useState(value);
   React.useEffect(() => {
@@ -51,7 +51,7 @@ function useDebounced<T>(value: T, ms: number): T {
 export default function PlacesPage() {
   const [rawQuery, setRawQuery] = React.useState("");
   const [rawCity, setRawCity] = React.useState("");
-  // ANY_COUNTRY sentinel (see module-level comment) — translated to
+  // ANY_COUNTRY sentinel (see module-level comment): translated to
   // undefined below before the query key is built.
   const [countryFilter, setCountryFilter] =
     React.useState<string>(ANY_COUNTRY);
@@ -61,7 +61,7 @@ export default function PlacesPage() {
   const [bulkOpen, setBulkOpen] = React.useState(false);
 
   // Debounce text inputs so we don't fire a request on every keystroke.
-  // City uses the same 250ms as q for consistency — admins moving between
+  // City uses the same 250ms as q for consistency, admins moving between
   // filters get a uniform feel.
   const query = useDebounced(rawQuery.trim(), 250);
   const city = useDebounced(rawCity.trim(), 250);
@@ -77,14 +77,14 @@ export default function PlacesPage() {
     includeDeleted,
   });
 
-  // Populate the Country dropdown from distinct codes in the catalog —
+  // Populate the Country dropdown from distinct codes in the catalog,
   // stays in sync with reality instead of hardcoding a static list.
   const { data: countries } = useAdminPlaceCountries();
 
   const rows = data ?? [];
 
   // Clicking the City column header toggles between the default sort
-  // (updated_at DESC — most recently edited first) and city-asc. Keeping
+  // (updated_at DESC, most recently edited first) and city-asc. Keeping
   // it binary matches the brief (a "toggle," not a full three-way cycle)
   // and defers descending-city + other-column sorts until they're
   // actually needed.
@@ -195,7 +195,7 @@ export default function PlacesPage() {
                 {/*
                   City column doubles as the sort toggle for the brief.
                   aria-sort lives on the TableHead (the columnheader role)
-                  rather than the inner button — putting it on <button>
+                  rather than the inner button, putting it on <button>
                   triggers a jsx-a11y warning since buttons don't support
                   the attribute. Screen readers announce the sort state
                   via the header, which is the ARIA-recommended place.
@@ -263,14 +263,14 @@ export default function PlacesPage() {
                   <TableCell className="text-sm">
                     {row.city || (
                       <span className="italic text-muted-foreground">
-                        &mdash;
+                       ,
                       </span>
                     )}
                   </TableCell>
                   <TableCell className="text-sm">
                     {row.country_code || (
                       <span className="italic text-muted-foreground">
-                        &mdash;
+                       ,
                       </span>
                     )}
                   </TableCell>

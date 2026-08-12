@@ -3,10 +3,10 @@
  *
  * Given a consumer's saved preferences + a place's halal profile,
  * returns:
- *   * ``isMatch`` — did the place satisfy every filter the consumer
+ *   * ``isMatch``, did the place satisfy every filter the consumer
  *                   set? (Filters set to NULL are skipped.)
- *   * ``matched`` — labels for the filters this place DID satisfy.
- *   * ``mismatched`` — labels + reason for filters this place
+ *   * ``matched``, labels for the filters this place DID satisfy.
+ *   * ``mismatched``, labels + reason for filters this place
  *                      DID NOT satisfy. Drives the "doesn't match
  *                      your preference because…" badge on the detail
  *                      page.
@@ -27,7 +27,7 @@ import type { ConsumerPreferences } from "@/lib/api/preferences";
 // Same orderings as the server's _VALIDATION_TIER_ORDER /
 // _MENU_POSTURE_ORDER tuples (see api/app/modules/places/repo.py).
 // Index 0 is the strictest; ``min_X`` means "must be at this
-// strictness or higher" — i.e. at an index ≤ the threshold's
+// strictness or higher", i.e. at an index ≤ the threshold's
 // index.
 const VALIDATION_TIER_ORDER: ValidationTier[] = [
   "TRUST_HALAL_VERIFIED",
@@ -58,7 +58,7 @@ const MENU_POSTURE_LABELS: Record<MenuPosture, string> = {
 };
 
 export type MatchEntry = {
-  /** Stable key — used as the React list key. */
+  /** Stable key, used as the React list key. */
   key: string;
   /** Short description of the filter this entry refers to. */
   label: string;
@@ -73,7 +73,7 @@ export type MatchResult = {
   /** Whether every populated preference matched. False when any
    *  populated preference fails. True when prefs is all-null. */
   isMatch: boolean;
-  /** True if the consumer set at least one filter — used by callers
+  /** True if the consumer set at least one filter, used by callers
    *  to decide whether to render the "match" UI at all. */
   hasAnyPreference: boolean;
   matched: MatchEntry[];
@@ -100,7 +100,7 @@ export function matchProfileToPreferences(
 
   if (!hasAnyPreference) return EMPTY_RESULT;
 
-  // No profile at all — every populated preference is a mismatch
+  // No profile at all, every populated preference is a mismatch
   // (we can't confirm anything). The caller usually shows a
   // separate "no halal profile yet" affordance, so the page can
   // suppress the mismatch list when the profile is null; but the
@@ -125,14 +125,14 @@ export function matchProfileToPreferences(
       reasons.push({
         key: "no_pork",
         label: "no pork",
-        reason: "we can't confirm this — no halal information on file",
+        reason: "we can't confirm this, no halal information on file",
       });
     }
     if (prefs.no_alcohol_served === true) {
       reasons.push({
         key: "no_alcohol_served",
         label: "no alcohol",
-        reason: "we can't confirm this — no halal information on file",
+        reason: "we can't confirm this, no halal information on file",
       });
     }
     if (prefs.has_certification === true) {
@@ -238,7 +238,7 @@ function atLeastAsStrict<T>(
   const actualIdx = ordering.indexOf(actual);
   const thresholdIdx = ordering.indexOf(threshold);
   if (actualIdx === -1 || thresholdIdx === -1) {
-    // Unknown enum value — treat as matching to avoid false
+    // Unknown enum value, treat as matching to avoid false
     // negatives during contract drift. The server-side filter is
     // the source of truth for hard exclusion.
     return true;

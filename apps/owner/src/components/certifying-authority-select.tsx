@@ -4,8 +4,8 @@
  * Dropdown for picking a halal certifying authority. Used in two
  * places that both ask the same question:
  *
- *   1. Per-product meat sourcing cards — ``certifying_authority``.
- *   2. Halal-claim attachment upload — ``issuing_authority``.
+ *   1. Per-product meat sourcing cards, ``certifying_authority``.
+ *   2. Halal-claim attachment upload, ``issuing_authority``.
  *
  * Behaviour:
  *   - "None" (the default) → caller stores ``null``.
@@ -13,7 +13,7 @@
  *   - "Other (specify)" → reveals a free-text input; caller stores
  *     whatever the owner types.
  *
- * The component is fully controlled — the parent owns the
+ * The component is fully controlled, the parent owns the
  * ``string | null`` state and a single onChange. The "Other" UI
  * affordance is internal: we derive it from the value (if the
  * value is non-null and not in the curated list, we render the
@@ -60,7 +60,7 @@ export function CertifyingAuthoritySelect({
     if (next === AUTH_NONE_SENTINEL) {
       onChange(null);
     } else if (next === AUTH_OTHER_SENTINEL) {
-      // Don't blow away any existing free text the owner typed —
+      // Don't blow away any existing free text the owner typed,
       // if they're flipping FROM a curated value to "Other" we
       // start with empty string (the input will appear).
       onChange("");
@@ -82,7 +82,7 @@ export function CertifyingAuthoritySelect({
         <option value={AUTH_NONE_SENTINEL}>None / not certified</option>
         {CERTIFYING_AUTHORITIES.map((opt) => (
           <option key={opt.value} value={opt.value}>
-            {opt.description ? `${opt.value} — ${opt.description}` : opt.value}
+            {opt.description ? `${opt.value}, ${opt.description}` : opt.value}
           </option>
         ))}
         <option value={AUTH_OTHER_SENTINEL}>Other (specify)</option>

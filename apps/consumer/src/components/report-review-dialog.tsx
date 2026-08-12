@@ -1,7 +1,7 @@
 /**
  * Report a review or an owner's reply.
  *
- * The report queue is the primary defence for text on this platform — the
+ * The report queue is the primary defence for text on this platform, the
  * content filter catches profanity, but whether a factual claim about a
  * restaurant is *false* is a question about the world, not about the words,
  * and only a human can weigh it. So this form is load-bearing, and the copy
@@ -106,7 +106,7 @@ export function ReportReviewDialog({
         overrides: {
           REVIEW_ALREADY_REPORTED: {
             title: "",
-            description: "You've already reported this — it's in our queue.",
+            description: "You've already reported this, it's in our queue.",
           },
         },
       });
@@ -119,7 +119,7 @@ export function ReportReviewDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Thanks — we&rsquo;ll take a look</DialogTitle>
+            <DialogTitle>Thanks, we&rsquo;ll take a look</DialogTitle>
             <DialogDescription>
               Someone on our team reviews reports within a day, and
               we&rsquo;ll email you the outcome.
@@ -144,7 +144,7 @@ export function ReportReviewDialog({
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4">
-          {/* Owners get reported too — behaving badly in public is not an
+          {/* Owners get reported too, behaving badly in public is not an
               owner privilege, and a reply carries more implicit weight than
               an anonymous review does. */}
           {review.reply && (
@@ -223,7 +223,7 @@ export function ReportReviewDialog({
 
           <p className="rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
             Strongly worded but genuine accounts stay up, including
-            unflattering ones — they&rsquo;re a large part of what makes Trust
+            unflattering ones, they&rsquo;re a large part of what makes Trust
             Halal worth reading. We remove content that breaks our guidelines.
           </p>
 

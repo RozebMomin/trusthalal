@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     template: "Trust Halal · %s",
   },
   description:
-    "Claim, verify, and manage your restaurant on Trust Halal — the source of truth for halal.",
+    "Claim, verify, and manage your restaurant on Trust Halal, the source of truth for halal.",
 };
 
 /*

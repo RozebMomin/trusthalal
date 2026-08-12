@@ -3,8 +3,8 @@
 /**
  * Activity timeline section for the admin claim detail page.
  *
- * Renders the same audit-trail data the owner portal exposes — same
- * API shape, same column set — but lives next to the decision panel
+ * Renders the same audit-trail data the owner portal exposes, same
+ * API shape, same column set, but lives next to the decision panel
  * so a reviewer can see "what's already happened on this claim"
  * without leaving the page.
  *

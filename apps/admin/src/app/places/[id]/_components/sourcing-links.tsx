@@ -249,7 +249,7 @@ function LinkSupplierDialog({
                 <Label>Product line</Label>
                 {supplier.products.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    This supplier has no product lines yet — add one on its page first.
+                    This supplier has no product lines yet, add one on its page first.
                   </p>
                 ) : (
                   <Select value={productId ?? ""} onValueChange={setProductId}>
@@ -259,7 +259,7 @@ function LinkSupplierDialog({
                     <SelectContent>
                       {supplier.products.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
-                          {title(p.meat_type)} — {p.product_name} ({title(p.slaughter_method)})
+                          {title(p.meat_type)}, {p.product_name} ({title(p.slaughter_method)})
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -72,7 +72,7 @@ export const US_STATES: ReadonlyArray<UsStateOption> = [
   { code: "WV", name: "West Virginia" },
   { code: "WI", name: "Wisconsin" },
   { code: "WY", name: "Wyoming" },
-  // Territories — eligible LLC jurisdictions for some entities.
+  // Territories, eligible LLC jurisdictions for some entities.
   { code: "AS", name: "American Samoa" },
   { code: "GU", name: "Guam" },
   { code: "MP", name: "Northern Mariana Islands" },

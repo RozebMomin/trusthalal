@@ -4,7 +4,7 @@
  * Move a halal claim to NEEDS_MORE_INFO with a message to the owner.
  *
  * Same shape as Reject (required decision_note, optional internal
- * notes), but a different action and a different terminal state —
+ * notes), but a different action and a different terminal state,
  * NEEDS_MORE_INFO opens the owner's attachment-upload path again so
  * they can iterate on the claim instead of starting over.
  *
@@ -70,7 +70,7 @@ export function RequestInfoDialog({ claim, open, onOpenChange }: Props) {
         title: "Asked for more info",
         description:
           claim.status === "NEEDS_MORE_INFO"
-            ? "Already in NEEDS_MORE_INFO — your new note has been recorded."
+            ? "Already in NEEDS_MORE_INFO, your new note has been recorded."
             : "Status moved to NEEDS_MORE_INFO. Owner can upload more attachments and re-submit.",
       });
       onOpenChange(false);
@@ -110,7 +110,7 @@ export function RequestInfoDialog({ claim, open, onOpenChange }: Props) {
                 id="reqinfo-decision-note"
                 value={decisionNote}
                 onChange={(e) => setDecisionNote(e.target.value)}
-                placeholder="e.g. Please upload the current halal certificate from IFANCA — the one on file expired in March."
+                placeholder="e.g. Please upload the current halal certificate from IFANCA, the one on file expired in March."
                 minLength={3}
                 maxLength={2000}
                 autoFocus

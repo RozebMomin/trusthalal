@@ -12,14 +12,14 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 /**
- * Inter is the workhorse of modern utility apps — wide weight range,
+ * Inter is the workhorse of modern utility apps, wide weight range,
  * small-text optical adjustments, and the only thing that beats a
  * good system stack on consistency across iOS / Android / Windows.
  * Loading via next/font/google so Next can inline + self-host at
  * build time (no FOUT, no per-render network call to Google Fonts).
  *
  * ``display: 'swap'`` lets the system font render first, then swap
- * once Inter loads — keeps Lighthouse happy and the first paint
+ * once Inter loads, keeps Lighthouse happy and the first paint
  * legible even on a cold load.
  *
  * Variable font axis is exposed via the ``--font-inter`` custom
@@ -39,7 +39,7 @@ const inter = Inter({
  * of `/places/abc`) against the production origin, even when we're
  * rendering on a Vercel preview. The title template lets each route
  * export a short title (e.g. "Sami's Halal Cart") and have the brand
- * suffix added automatically — better OG card behavior than full
+ * suffix added automatically, better OG card behavior than full
  * strings embedded in every page.
  *
  * openGraph and twitter defaults give shared links a usable preview on

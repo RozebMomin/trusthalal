@@ -1,21 +1,21 @@
 /**
- * AccountStateBadge — visual pill that mirrors the server's
+ * AccountStateBadge, visual pill that mirrors the server's
  * ``UserAccountState`` enum and renders an admin-friendly label.
  *
  * Four states, mutually exclusive (see
  * ``app/modules/users/enums.py``):
  *
- *   * ACTIVE          — fully onboarded, can sign in.
- *   * DEACTIVATED     — onboarded then disabled; keeps audit row.
- *   * INVITE_PENDING  — invite sent, password not set yet.
- *   * INVITE_EXPIRED  — invite never used / expired; user is stuck.
+ *   * ACTIVE         , fully onboarded, can sign in.
+ *   * DEACTIVATED    , onboarded then disabled; keeps audit row.
+ *   * INVITE_PENDING , invite sent, password not set yet.
+ *   * INVITE_EXPIRED , invite never used / expired; user is stuck.
  *
  * Color choices map "user can do something today" → green / neutral,
  * "needs attention" → amber / red, so an admin scanning the users
  * list can tell at a glance which rows are stuck on onboarding.
  *
  * Optional ``invite_expires_at`` lets the badge show "Expires in
- * 3 days" when the user is INVITE_PENDING — saves the operator a
+ * 3 days" when the user is INVITE_PENDING, saves the operator a
  * trip to the detail page to figure out how much runway they have
  * before the invite becomes useless.
  */
@@ -35,13 +35,13 @@ const VARIANTS: Record<
   "default" | "destructive" | "info" | "warning" | "success"
 > = {
   ACTIVE: "success",
-  // Destructive (red) — the row is parked. Same weight as the
+  // Destructive (red): the row is parked. Same weight as the
   // pre-existing "Inactive" pill so muscle memory carries over.
   DEACTIVATED: "destructive",
-  // Info (blue) — "in progress." Not warning yet; there's a live
+  // Info (blue): "in progress." Not warning yet; there's a live
   // link out there and the user could finish onboarding today.
   INVITE_PENDING: "info",
-  // Warning (amber) — actionable. The admin probably needs to
+  // Warning (amber): actionable. The admin probably needs to
   // resend an invite to unblock this person.
   INVITE_EXPIRED: "warning",
 };

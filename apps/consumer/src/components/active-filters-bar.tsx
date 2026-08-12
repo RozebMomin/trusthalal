@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Active filters bar — the strip of removable chips that sits above
+ * Active filters bar, the strip of removable chips that sits above
  * the results when any filter is active.
  *
  * Why this exists: filters live behind a sheet now, so the user
@@ -13,7 +13,7 @@
  *
  * Pattern is the standard "pinned active filters" used by Yelp /
  * Airbnb / Resy. It complements (doesn't replace) the count badge
- * on the Filters trigger button — the count tells you HOW MANY
+ * on the Filters trigger button, the count tells you HOW MANY
  * filters are active; this bar tells you WHICH ones.
  */
 
@@ -30,7 +30,7 @@ import { clearAllFilters } from "@/components/filters-sheet";
 import { TOP_CUISINES } from "@/components/cuisine-rail";
 
 // Per-axis display labels. Kept in this file (rather than imported
-// from filters-sheet) because the chip copy may diverge — the bar
+// from filters-sheet) because the chip copy may diverge, the bar
 // favors short, glanceable labels ("Verified halal" vs the sheet's
 // full "Verifier-confirmed").
 const VALIDATION_TIER_LABELS: Record<ValidationTier, string> = {
@@ -158,8 +158,8 @@ function buildChips(filters: SearchPlacesParams): Chip[] {
 
   // On-rail cuisines are skipped: the CuisineRail above the results
   // already shows them as highlighted (tap-to-remove) pills. Only
-  // off-rail picks — cuisines chosen from the full sheet that have
-  // no visible representation elsewhere — earn a chip here.
+  // off-rail picks, cuisines chosen from the full sheet that have
+  // no visible representation elsewhere, earn a chip here.
   for (const cuisine of (filters.cuisines ?? []).filter(
     (c) => !TOP_CUISINES.includes(c),
   )) {

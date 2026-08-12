@@ -3,8 +3,8 @@
 /**
  * Admin queue for consumer dispute review.
  *
- * Phase 7 of the halal-trust v2 rebuild. Lands on OPEN — the
- * "waiting on me" bucket — with filters down to the rest of the
+ * Phase 7 of the halal-trust v2 rebuild. Lands on OPEN, the
+ * "waiting on me" bucket, with filters down to the rest of the
  * lifecycle for auditing or for picking back up disputes that
  * went to OWNER_RECONCILING / ADMIN_REVIEWING.
  *

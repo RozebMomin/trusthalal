@@ -5,7 +5,7 @@
  *
  * Revoke / suspend capture an OPTIONAL note (mirrors the reject-dialog
  * structure, but nothing is required here). Reinstate is a plain
- * confirm — no note field. Each action invalidates the verifier-profile
+ * confirm, no note field. Each action invalidates the verifier-profile
  * + verifier-applications caches on success via the mutation hook.
  */
 
@@ -32,7 +32,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 type Props = {
   userId: string;
   action: VerifierStatusAction;
-  /** Who's being acted on — used in the dialog copy. */
+  /** Who's being acted on, used in the dialog copy. */
   subjectName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,7 +62,7 @@ const COPY: Record<
     variant: "destructive",
     withNote: true,
     placeholder:
-      "e.g. Repeated policy violations after warnings — access pulled.",
+      "e.g. Repeated policy violations after warnings, access pulled.",
     successTitle: "Verifier access revoked",
     successDescription:
       "The user has been dropped back to consumer access.",

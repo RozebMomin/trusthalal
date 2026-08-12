@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * `/get-verified` — Stage 2: claim your restaurant.
+ * `/get-verified`, Stage 2: claim your restaurant.
  *
  * Parallel restyle of the existing `/claim` page into the wizard
  * shell. Proven wiring copied over:
@@ -290,7 +290,7 @@ function ClaimForm({ eligibleOrgs }: { eligibleOrgs: MyOrganizationRead[] }) {
                 </option>
                 {eligibleOrgs.map((o) => (
                   <option key={o.id} value={o.id}>
-                    {o.name} — {o.status === "VERIFIED" ? "Verified" : "Under review"}
+                    {o.name}, {o.status === "VERIFIED" ? "Verified" : "Under review"}
                   </option>
                 ))}
               </select>
@@ -448,7 +448,7 @@ function SearchStep({
               <p className="font-medium">No matches in the Trust Halal catalog.</p>
               {!showGoogle && (
                 <p className="text-muted-foreground">
-                  Your restaurant may not be listed yet —{" "}
+                  Your restaurant may not be listed yet,{" "}
                   <button
                     type="button"
                     onClick={onShowGoogle}
@@ -506,7 +506,7 @@ function SearchStep({
                 </p>
               ) : googleResults.length === 0 ? (
                 <p className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">
-                  No Google results yet — try a different spelling or add the city.
+                  No Google results yet, try a different spelling or add the city.
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -605,7 +605,7 @@ function PickedPlaceCard({
           name: picked.prediction.primary_text ?? picked.prediction.description,
           secondary:
             picked.prediction.secondary_text ?? picked.prediction.description,
-          badge: "From Google — we'll add it on submit",
+          badge: "From Google, we'll add it on submit",
         };
 
   return (

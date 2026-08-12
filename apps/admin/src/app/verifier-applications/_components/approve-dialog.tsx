@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Approve a verifier application. Simple confirm — the server flips the
+ * Approve a verifier application. Simple confirm, the server flips the
  * application to APPROVED and provisions the verifier profile. An
  * optional decision note lands on the record and is shared with the
  * applicant.
@@ -94,7 +94,7 @@ export function ApproveDialog({ application, open, onOpenChange }: Props) {
               id="approve-decision-note"
               value={decisionNote}
               onChange={(e) => setDecisionNote(e.target.value)}
-              placeholder="e.g. Welcome aboard — reach out if you have any questions getting started."
+              placeholder="e.g. Welcome aboard, reach out if you have any questions getting started."
               maxLength={2000}
             />
           </div>

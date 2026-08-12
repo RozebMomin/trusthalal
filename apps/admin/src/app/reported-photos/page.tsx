@@ -4,7 +4,7 @@
  * Reported-photos queue.
  *
  * This surface has to exist now that owners can only *report* diner photos
- * rather than delete them — without it, a report goes nowhere and the
+ * rather than delete them, without it, a report goes nowhere and the
  * restriction is just a dead end for the restaurant.
  *
  * Thumbnails in the list, because a photo decision is made by looking. A

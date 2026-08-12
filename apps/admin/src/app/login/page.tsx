@@ -5,7 +5,7 @@
  *
  * Renders without the sidebar (AppShell skips the chrome on this
  * route). On success the server returns a ``redirect_path`` derived
- * from the user's role — admins go to /places, verifiers to /claims,
+ * from the user's role, admins go to /places, verifiers to /claims,
  * etc. We honor that path rather than hard-coding it so role routing
  * stays server-authoritative.
  *
@@ -56,7 +56,7 @@ function LoginPageInner() {
     try {
       const result = await login.mutateAsync({ email, password });
       // Home-less roles (OWNER until the dashboard exists, CONSUMER
-      // always) get routed to a path AppShell can handle cleanly —
+      // always) get routed to a path AppShell can handle cleanly,
       // "/" renders inside the root layout so AppShell's
       // NoAccessPane catches it. The server still returns a
       // ``redirect_path`` but that path may not exist as a Next.js
@@ -64,7 +64,7 @@ function LoginPageInner() {
       // shell redirect kicks in.
       //
       // For roles with a real panel home, honor the server's
-      // redirect verbatim — keeps role routing server-authoritative.
+      // redirect verbatim, keeps role routing server-authoritative.
       const clientHome = homeFor(result.role);
       router.push(clientHome ? result.redirect_path : "/");
     } catch (err) {
@@ -74,7 +74,7 @@ function LoginPageInner() {
           // Server emits a single generic code on every auth failure
           // (wrong password, nonexistent email, deactivated account,
           // missing hash). The inline message stays vague by design
-          // — no user enumeration.
+          //, no user enumeration.
           INVALID_CREDENTIALS: {
             title: "",
             description:

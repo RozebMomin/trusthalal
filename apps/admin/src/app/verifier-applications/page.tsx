@@ -3,7 +3,7 @@
 /**
  * Admin queue for verifier-application review.
  *
- * Lands on PENDING — the "waiting on me" bucket — and lets admin filter
+ * Lands on PENDING, the "waiting on me" bucket, and lets admin filter
  * through the rest of the lifecycle for auditing. Per-row click goes to
  * /verifier-applications/[id], the detail page where the full
  * application renders and the Approve / Reject decision dialogs live.

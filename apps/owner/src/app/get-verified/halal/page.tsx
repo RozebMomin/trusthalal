@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * `/get-verified` — Stage 3: confirm halal details.
+ * `/get-verified`, Stage 3: confirm halal details.
  *
- * A deliberately short questionnaire per the wizard mockup — menu
- * posture + alcohol policy + an optional certificate — layered on the
+ * A deliberately short questionnaire per the wizard mockup, menu
+ * posture + alcohol policy + an optional certificate, layered on the
  * existing halal-claim wiring:
  *
  *   * `useMyOwnedPlaces` supplies the (place, sponsoring org) pair.
@@ -172,7 +172,7 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
 
     const questionnaire = buildQuestionnaire();
 
-    // Step 1 — create (first attempt) or patch (retry) the draft.
+    // Step 1, create (first attempt) or patch (retry) the draft.
     let claimId = claimIdRef.current;
     try {
       if (!claimId) {
@@ -201,7 +201,7 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
       return;
     }
 
-    // Step 2 — optional certificate upload (once).
+    // Step 2, optional certificate upload (once).
     if (certFiles.length > 0 && !certUploadedRef.current) {
       setProgress("Uploading certificate…");
       try {
@@ -222,12 +222,12 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
       setProgress(null);
     }
 
-    // Step 3 — submit for review.
+    // Step 3, submit for review.
     try {
       await submit.mutateAsync(claimId);
     } catch (err) {
       // The strict submit validation can ask for more than this short
-      // form captures — hand off to the full editor to finish rather
+      // form captures, hand off to the full editor to finish rather
       // than block the owner here.
       if (
         err instanceof ApiError &&
@@ -263,7 +263,7 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
         title="Tell diners about your halal."
         lead={
           <>
-            For <strong>{selectedRow.place_name}</strong>. Just the essentials —
+            For <strong>{selectedRow.place_name}</strong>. Just the essentials,
             you can refine anytime later.
           </>
         }
@@ -296,7 +296,7 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
                 value={placeId}
                 onChange={(e) => {
                   setPlaceId(e.target.value);
-                  // A different place is a different claim — reset the
+                  // A different place is a different claim, reset the
                   // create/upload guards.
                   claimIdRef.current = null;
                   certUploadedRef.current = false;

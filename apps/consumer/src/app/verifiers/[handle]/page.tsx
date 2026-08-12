@@ -1,22 +1,22 @@
 /**
- * Public verifier profile page — /verifiers/[handle]
+ * Public verifier profile page, /verifiers/[handle]
  *
  * Server component wrapper. Handles what the client view can't:
  *
- *   1. ``generateMetadata`` — fetches the verifier's profile
+ *   1. ``generateMetadata``, fetches the verifier's profile
  *      server-side so a link shared to X / Instagram / iMessage
  *      lands with the correct ``@handle · Trust Halal Verifier``
  *      title, a bio-derived description, and an Open Graph image
  *      pointing at the Trust Halal Verifier badge.
  *
- *   2. JSON-LD structured data — surfaces the verifier as a
+ *   2. JSON-LD structured data, surfaces the verifier as a
  *      ``Person`` so search engines can render a rich card and
  *      link the alternate profiles (Instagram, TikTok, etc.).
  *
  * Interactive rendering (loading state, error handling, hydration
  * of live query data) stays in ``verifier-profile-client.tsx``.
  * We deliberately DON'T pass the fetched profile through as a
- * prop — the client component still fetches via React Query so
+ * prop, the client component still fetches via React Query so
  * the response can revalidate on mount + on window focus.
  */
 
@@ -70,7 +70,7 @@ export async function generateMetadata({
   const verifier = await loadVerifier(params.handle);
 
   if (!verifier) {
-    // 404 / private / suspended — don't index, don't share.
+    // 404 / private / suspended, don't index, don't share.
     return {
       title: "Verifier not found",
       robots: { index: false, follow: false },
@@ -97,7 +97,7 @@ export async function generateMetadata({
       // dir. It's the same badge everywhere and doubles as the
       // shareable OG image. Ideally this would eventually be a
       // per-verifier dynamic OG image with their handle + visit
-      // count baked in — noted as a follow-up.
+      // count baked in, noted as a follow-up.
       images: [
         {
           url: "/verifier-badge.svg",
@@ -123,7 +123,7 @@ export async function generateMetadata({
  * blog).
  *
  * ``sameAs`` uses the social links the verifier explicitly opted
- * to publish — private accounts stay off.
+ * to publish, private accounts stay off.
  */
 function buildPersonJsonLd(
   verifier: VerifierForSeo,
@@ -175,12 +175,12 @@ export default async function VerifierProfilePage({
     <>
       {verifier && (
         // JSON-LD embed. Search engines read this; users never see
-        // it. Kept tight — a single ``Person`` object with the
+        // it. Kept tight, a single ``Person`` object with the
         // canonical URL and the alternate-account list.
         <script
           type="application/ld+json"
           // Origin is derived from BRAND_NAME's expected public URL
-          // — halalfoodnearme.com. Hard-coded here to avoid needing
+          //, halalfoodnearme.com. Hard-coded here to avoid needing
           // the ``NEXT_PUBLIC_SITE_URL`` env var to be present in
           // the server component.
           // bio + social_links are user-controlled; jsonLdSafe escapes

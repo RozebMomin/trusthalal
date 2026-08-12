@@ -22,7 +22,7 @@ import { StatusBadge } from "./status-badge";
 // KeyError. ``_AdminAttachmentSignedUrl`` keeps its underscore
 // prefix because the response model is declared as a private class
 // in the admin router (it's an inline-on-the-route shape, not a
-// reusable schema) — codegen mirrors that name verbatim.
+// reusable schema): codegen mirrors that name verbatim.
 type Attachment = components["schemas"]["OwnershipRequestAttachmentRead"];
 type SignedUrlResponse = components["schemas"]["_AdminAttachmentSignedUrl"];
 
@@ -142,7 +142,7 @@ export function RequestDetailDialog({ request, open, onOpenChange }: Props) {
 
 
 // ---------------------------------------------------------------------------
-// Evidence section — list of attachments with click-to-download
+// Evidence section, list of attachments with click-to-download
 // ---------------------------------------------------------------------------
 
 function EvidenceSection({

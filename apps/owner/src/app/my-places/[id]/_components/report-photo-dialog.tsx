@@ -3,7 +3,7 @@
 /**
  * Report a diner's photo.
  *
- * Restaurants can't delete photos diners added — matching Google and Yelp,
+ * Restaurants can't delete photos diners added, matching Google and Yelp,
  * and mattering more on a halal-trust platform because a photo of what was
  * actually served is evidence, and the business it implicates shouldn't be
  * able to remove it.
@@ -109,7 +109,7 @@ export function ReportPhotoDialog({
         {done ? (
           <div className="space-y-3">
             <h3 className="text-lg font-semibold">
-              Thanks &mdash; we&rsquo;ll take a look
+              Thanks, we&rsquo;ll take a look
             </h3>
             <p className="text-sm text-muted-foreground">
               Someone on our team reviews reported photos within a day.
@@ -187,7 +187,7 @@ export function ReportPhotoDialog({
 
             <p className="rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
               We&rsquo;ll review this within a day. Photos of what a diner was
-              actually served stay up unless they break our guidelines &mdash;
+              actually served stay up unless they break our guidelines,
               that&rsquo;s what makes your listing worth trusting.
             </p>
 

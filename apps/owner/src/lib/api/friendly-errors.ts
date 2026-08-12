@@ -5,7 +5,7 @@
  * a destructive variant whose title describes the action that failed
  * and whose description tells the user what went wrong. Doing that by
  * hand everywhere meant each dialog had to re-decide which ApiError
- * codes to branch on and what to say — fine for two dialogs, noise for
+ * codes to branch on and what to say, fine for two dialogs, noise for
  * a dozen.
  *
  * `friendlyApiError` centralizes that decision. It ships with copy for
@@ -31,7 +31,7 @@
  *
  * Why function-valued overrides are supported: some overrides want to
  * interpolate the server's raw ``err.message`` into a longer sentence
- * ("The server rejected the payload (X). This is likely a bug.") —
+ * ("The server rejected the payload (X). This is likely a bug."),
  * that's not expressible with a static `{title, description}` literal,
  * so the override value can also be a function of the `ApiError`.
  */
@@ -48,7 +48,7 @@ export type ErrorOverrides = Partial<
 >;
 
 // ---------------------------------------------------------------------------
-// Base copy — codes every admin mutation can hit. Keep these CAREFUL and
+// Base copy, codes every admin mutation can hit. Keep these CAREFUL and
 // action-neutral: callers can always override for action-specific wording.
 // ---------------------------------------------------------------------------
 const BASE_COPY: Record<string, FriendlyError> = {
@@ -65,7 +65,7 @@ const BASE_COPY: Record<string, FriendlyError> = {
   VALIDATION_ERROR: {
     title: "Request was rejected",
     description:
-      "The server rejected this request. This is usually a panel/server contract drift — please report it.",
+      "The server rejected this request. This is usually a panel/server contract drift, please report it.",
   },
   NOT_FOUND: {
     title: "Not found",
@@ -88,10 +88,10 @@ const BASE_COPY: Record<string, FriendlyError> = {
  * Translate a caught error into a toast-ready {title, description}.
  *
  * Lookup order:
- *   1. ``opts.overrides[err.code]`` — per-callsite overrides (supports
+ *   1. ``opts.overrides[err.code]``, per-callsite overrides (supports
  *      both static literals and functions of the ApiError).
- *   2. ``BASE_COPY[err.code]``       — universal codes.
- *   3. Fallback: ``{title: defaultTitle, description: err.message}`` —
+ *   2. ``BASE_COPY[err.code]``      , universal codes.
+ *   3. Fallback: ``{title: defaultTitle, description: err.message}``,
  *      the server's humane message lands in the toast verbatim, so new
  *      backend codes degrade gracefully without a client release.
  *
@@ -103,7 +103,7 @@ export function friendlyApiError(
   opts: {
     /**
      * Title used for the fallback case and for non-ApiError inputs. If
-     * omitted, "Something went wrong" is used — typically you want
+     * omitted, "Something went wrong" is used, typically you want
      * something action-specific like "Couldn't add place".
      */
     defaultTitle?: string;
@@ -140,7 +140,7 @@ export function friendlyApiError(
 // Field-level validation errors
 //
 // When the server returns VALIDATION_ERROR, ``err.detail`` carries
-// Pydantic's ``errors()`` output — an array of entries shaped like:
+// Pydantic's ``errors()`` output, an array of entries shaped like:
 //
 //     {
 //       "type": "less_than_equal",
@@ -184,7 +184,7 @@ const REQUEST_SOURCE_SEGMENTS = new Set<string>([
  * List indices stringify in place: ``loc: ["body", "tags", 0]`` →
  * ``"tags.0"``.
  *
- * First error per field wins — keeps the UI stable when a field has
+ * First error per field wins, keeps the UI stable when a field has
  * multiple validators firing at once. The full detail list is still
  * available on ``err.detail`` if a caller wants to dig deeper.
  */

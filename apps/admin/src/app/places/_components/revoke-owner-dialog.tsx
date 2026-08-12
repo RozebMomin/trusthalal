@@ -7,7 +7,7 @@
  * ``PlaceOwner.status`` to REVOKED so the historical row survives and
  * the slot re-opens for a fresh live owner).
  *
- * Structural twin of UnlinkProviderDialog / DeletePlaceDialog — they
+ * Structural twin of UnlinkProviderDialog / DeletePlaceDialog, they
  * share the "destructive action with a reason that shows in event
  * history" shape. Kept as a dedicated component so the copy can name
  * the org + role precisely instead of juggling a generic config.
@@ -99,7 +99,7 @@ export function RevokeOwnerDialog({
           OWNERSHIP_NOT_FOUND: {
             title: "Owner not found",
             description:
-              "That ownership link no longer exists — it may have been revoked in another tab. Reload the page.",
+              "That ownership link no longer exists, it may have been revoked in another tab. Reload the page.",
           },
         },
       });

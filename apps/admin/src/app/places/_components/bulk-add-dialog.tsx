@@ -8,15 +8,15 @@
  *
  *   1. Admin searches Google Places and picks results, one at a time; each pick
  *      is appended to a staging list (name + address, from the Autocomplete
- *      session — no server call). The search input clears after each add
+ *      session, no server call). The search input clears after each add
  *      (via a remounting `key`) so the next name can be typed immediately.
  *   2. Whenever the staged list changes, a cheap, Google-free preview runs
  *      (`/admin/places/bulk/preview`) and tags each row New / In catalog /
  *      Deleted. Duplicates are auto-deselected so the default import is "only
  *      the genuinely new ones," but the admin can re-check any row.
  *   3. "Import N selected" ingests the checked rows server-side
- *      (`/admin/places/bulk/import`) — one transaction each, so a bad row
- *      never sinks the batch — and the dialog switches to a results summary.
+ *      (`/admin/places/bulk/import`): one transaction each, so a bad row
+ *      never sinks the batch, and the dialog switches to a results summary.
  *
  * Like the single New Place dialog, this works without a Google Maps key: the
  * Autocomplete component renders a setup banner and nothing can be staged.
@@ -74,10 +74,10 @@ export function BulkAddPlacesDialog({ open, onOpenChange }: Props) {
   // place_ids the admin has excluded from import (either manually, or
   // auto-excluded because preview found them already in the catalog).
   const [excluded, setExcluded] = React.useState<Set<string>>(new Set());
-  // Remount key for the Autocomplete input — bumping it clears the textbox
+  // Remount key for the Autocomplete input, bumping it clears the textbox
   // after each add so the next search starts empty.
   const [searchKey, setSearchKey] = React.useState(0);
-  // Set once the import has run — switches the dialog to the results view.
+  // Set once the import has run, switches the dialog to the results view.
   const [results, setResults] = React.useState<PlaceBulkImportResponse | null>(
     null,
   );
@@ -216,7 +216,7 @@ export function BulkAddPlacesDialog({ open, onOpenChange }: Props) {
 
   // Radix Dialog's DismissableLayer + FocusScope intercept pointer/focus
   // events outside the dialog. Google Autocomplete portals its dropdown
-  // (`.pac-container`) onto document.body — outside the dialog subtree — so
+  // (`.pac-container`) onto document.body, outside the dialog subtree, so
   // without this, clicking a prediction dismisses the dialog or steals focus
   // before the pick commits. Suppress those events when they originate in the
   // dropdown. (Same guard as the single New Place dialog.)
@@ -322,7 +322,7 @@ export function BulkAddPlacesDialog({ open, onOpenChange }: Props) {
 }
 
 // ---------------------------------------------------------------------------
-// Staging list — one row per staged place with a dedup badge + include toggle.
+// Staging list, one row per staged place with a dedup badge + include toggle.
 // ---------------------------------------------------------------------------
 
 function StagedList({
@@ -428,7 +428,7 @@ function PreviewBadge({ status }: { status: PlaceBulkPreviewStatus }) {
 }
 
 // ---------------------------------------------------------------------------
-// Results view — per-item outcomes + roll-up summary.
+// Results view, per-item outcomes + roll-up summary.
 // ---------------------------------------------------------------------------
 
 function ResultsView({ results }: { results: PlaceBulkImportResponse }) {
@@ -491,7 +491,7 @@ function OutcomeBadge({ outcome }: { outcome: PlaceBulkImportItem["outcome"] }) 
           variant="outline"
           className="border-amber-500/40 text-amber-600 dark:text-amber-400"
         >
-          Deleted — not restored
+          Deleted, not restored
         </Badge>
       );
     case "FAILED":

@@ -44,7 +44,7 @@ import { RoleBadge } from "./_components/role-badge";
 // a sentinel we translate to ``undefined`` before calling the hook.
 const ANY_ROLE = "__any__";
 
-// "Active only" / "Inactive only" / "All" — three-state filter matching
+// "Active only" / "Inactive only" / "All", three-state filter matching
 // the boolean shape on the server (true / false / unset).
 type ActiveFilter = "active" | "inactive" | "all";
 
@@ -182,7 +182,7 @@ export default function UsersPage() {
 }
 
 function UserRow({ user }: { user: UserAdminRead }) {
-  // Row dim treatment now triggers on DEACTIVATED only — pending /
+  // Row dim treatment now triggers on DEACTIVATED only, pending /
   // expired invitees aren't "inactive accounts," they're "not yet
   // onboarded," and dimming them would hide the rows that most need
   // admin attention.

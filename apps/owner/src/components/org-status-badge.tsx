@@ -1,7 +1,7 @@
 /**
  * Tiny inline badge for an organization's verification status.
  *
- * Mirrors ClaimStatusBadge — same tone vocabulary so the two surfaces
+ * Mirrors ClaimStatusBadge, same tone vocabulary so the two surfaces
  * (claims + organizations) feel coherent in the portal. Each status
  * carries a label, a color tone, and a short human-readable
  * description used as the title/tooltip.

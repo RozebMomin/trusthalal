@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Owner portal — start one or many halal claims.
+ * Owner portal, start one or many halal claims.
  *
  * Multi-select picker over the (place, sponsoring org) pairs the
  * owner already runs. Two paths from here:
@@ -31,7 +31,7 @@ import {
 } from "@/lib/api/hooks";
 
 function selectionKey(row: OwnedPlaceRead): string {
-  // place_id alone isn't unique — same place can be owned by
+  // place_id alone isn't unique, same place can be owned by
   // multiple of the user's orgs. Pair the IDs so the checkbox
   // state can disambiguate.
   return `${row.place_id}:${row.organization_id}`;
@@ -118,7 +118,7 @@ export default function NewHalalClaimPage() {
         <p className="mt-2 text-sm text-muted-foreground sm:text-base">
           Pick the places you want to share halal information for.
           Select multiple if every location maintains the same
-          standard — you&apos;ll fill out the questionnaire once and
+          standard, you&apos;ll fill out the questionnaire once and
           we&apos;ll create a draft for each place.
         </p>
       </header>
@@ -140,7 +140,7 @@ export default function NewHalalClaimPage() {
           </h2>
           <p className="text-sm text-amber-900/90 dark:text-amber-100/90">
             Halal claims attach to places your organization owns.
-            Submit an ownership claim first — once admin approves,
+            Submit an ownership claim first, once admin approves,
             you can come back here to add halal information.
           </p>
           <div>
@@ -178,7 +178,7 @@ export default function NewHalalClaimPage() {
                 ? "No places selected."
                 : selectedRows.length === 1
                 ? "1 place selected."
-                : `${selectedRows.length} places selected — fill out the questionnaire once, we'll create a draft for each.`}
+                : `${selectedRows.length} places selected, fill out the questionnaire once, we'll create a draft for each.`}
             </p>
             <Button
               type="button"

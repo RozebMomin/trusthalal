@@ -7,7 +7,7 @@
  * ID to a Place that was added manually (before the Google ingest flow
  * existed). The server fetches Google Place Details, writes the
  * ``PlaceExternalId`` link, and backfills null canonical fields on the
- * Place — ``fields_updated`` in the response names exactly which ones
+ * Place, ``fields_updated`` in the response names exactly which ones
  * were populated so the success toast can be specific.
  *
  * Intentionally simpler than ``NewPlaceDialog``: no soft-deleted branch
@@ -51,7 +51,7 @@ const LINK_ERROR_OVERRIDES = {
   GOOGLE_PLACE_NOT_FOUND: {
     title: "Place not found on Google",
     description:
-      "Google no longer recognizes that place — it may have closed, been delisted, " +
+      "Google no longer recognizes that place, it may have closed, been delisted, " +
       "or the suggestion is stale. Pick a different result.",
   },
   GOOGLE_PLACE_ALREADY_LINKED: {
@@ -83,7 +83,7 @@ export function LinkGoogleDialog({ place, open, onOpenChange }: Props) {
     }
   }, [open]);
 
-  // Same focus-trap workaround as NewPlaceDialog — the Autocomplete
+  // Same focus-trap workaround as NewPlaceDialog, the Autocomplete
   // dropdown (.pac-container) is portaled to document.body, which
   // Radix's DismissableLayer + FocusScope treat as "outside." Preventing
   // pointer/focus-outside events that originate inside .pac-container
@@ -131,7 +131,7 @@ export function LinkGoogleDialog({ place, open, onOpenChange }: Props) {
       // Real link: tell the admin what got filled in. The generated
       // schema marks fields_updated as optional (Pydantic's
       // default_factory=list is conservative), but it always comes back
-      // as a list on the wire — defaulting to [] here is safe and keeps
+      // as a list on the wire, defaulting to [] here is safe and keeps
       // the dialog working regardless of that generator quirk.
       const backfilled = result.fields_updated ?? [];
       const description =
@@ -168,7 +168,7 @@ export function LinkGoogleDialog({ place, open, onOpenChange }: Props) {
             <DialogDescription>
               Attach a Google Place ID to{" "}
               <span className="font-medium">{place.name}</span>. We&apos;ll
-              backfill canonical address fields that are currently empty —
+              backfill canonical address fields that are currently empty,
               anything you&apos;ve already set stays as-is.
             </DialogDescription>
           </DialogHeader>

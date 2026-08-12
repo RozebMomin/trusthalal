@@ -8,8 +8,8 @@
  * actions on still-resolvable disputes (OPEN / OWNER_RECONCILING /
  * ADMIN_REVIEWING):
  *
- *   * Resolve — uphold or dismiss (closes the dispute)
- *   * Request owner reconciliation — park on owner side awaiting
+ *   * Resolve, uphold or dismiss (closes the dispute)
+ *   * Request owner reconciliation, park on owner side awaiting
  *     a RECONCILIATION halal_claim
  *
  * Terminal states (RESOLVED_*, WITHDRAWN) hide the buttons and
@@ -101,7 +101,7 @@ export default function DisputeDetailPage() {
     dispute.status,
   );
   // Reconciliation transition is admin-driven and only valid from
-  // OPEN or ADMIN_REVIEWING — keep the button consistent with the
+  // OPEN or ADMIN_REVIEWING, keep the button consistent with the
   // server-side guard.
   const canRequestReconciliation =
     dispute.status === "OPEN" || dispute.status === "ADMIN_REVIEWING";

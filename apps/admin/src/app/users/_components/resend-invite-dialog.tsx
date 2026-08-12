@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Resend Invite dialog — for users stuck on INVITE_PENDING or
+ * Resend Invite dialog, for users stuck on INVITE_PENDING or
  * INVITE_EXPIRED.
  *
  * Two-step flow, mirrors InviteUserDialog so the admin's muscle
@@ -10,7 +10,7 @@
  *   1. Confirmation pane explains what'll happen (mint a fresh
  *      invite, revoke the prior live one, send the email).
  *   2. On success, swap to the "here's the URL" pane with copy
- *      button — the plaintext token is visible only here, same
+ *      button, the plaintext token is visible only here, same
  *      as the create-user flow.
  *
  * Server-side gates already 409 for ALREADY_ONBOARDED / INACTIVE,
@@ -80,12 +80,12 @@ export function ResendInviteDialog({ user, open, onOpenChange }: Props) {
         overrides: {
           // Server-side gates. The button that opened this dialog
           // already hides itself for these states, but a stale cache
-          // or race can still land us here — speak plainly when it
+          // or race can still land us here, speak plainly when it
           // does.
           USER_ALREADY_ONBOARDED: {
             title: "User has already set a password",
             description:
-              "Re-inviting users who finished onboarding isn't supported — use the password-reset flow when it ships.",
+              "Re-inviting users who finished onboarding isn't supported, use the password-reset flow when it ships.",
           },
           USER_INACTIVE: {
             title: "User is deactivated",
@@ -151,7 +151,7 @@ export function ResendInviteDialog({ user, open, onOpenChange }: Props) {
 }
 
 /**
- * Success pane — same UI shape as InviteUserDialog's pane so the
+ * Success pane, same UI shape as InviteUserDialog's pane so the
  * admin sees a consistent "here's the URL, copy it" workflow whether
  * they just created the user or re-invited an existing one.
  */
@@ -195,7 +195,7 @@ function ResendSuccessPane({
         <DialogDescription>
           New set-password link for{" "}
           <span className="font-medium text-foreground">{email}</span>.
-          This is the only time it&apos;ll be visible — if you lose
+          This is the only time it&apos;ll be visible, if you lose
           it, you&apos;ll have to resend again.
         </DialogDescription>
       </DialogHeader>

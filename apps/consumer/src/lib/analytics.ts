@@ -5,12 +5,12 @@
  *   * One import path for any component that wants to fire an event,
  *     so we never have to ``import posthog from "posthog-js"`` in
  *     a dozen places.
- *   * Safe to call from server components / SSR contexts — the
+ *   * Safe to call from server components / SSR contexts, the
  *     wrapper short-circuits before touching ``window`` or the
  *     posthog client. A missing ``NEXT_PUBLIC_POSTHOG_KEY`` is also
  *     a no-op so local dev / preview deploys don't pollute the
  *     production project.
- *   * No type leakage from posthog-js into call sites — properties
+ *   * No type leakage from posthog-js into call sites, properties
  *     are typed as ``Record<string, unknown>`` so adding a new
  *     event doesn't drag the SDK's types into a feature module.
  *
@@ -26,7 +26,7 @@ import posthog from "posthog-js";
  * Fire a custom event. Falls back to a no-op when:
  *   * Running on the server (no ``window``).
  *   * ``NEXT_PUBLIC_POSTHOG_KEY`` isn't set (analytics disabled).
- *   * ``posthog`` hasn't finished initializing yet — its own
+ *   * ``posthog`` hasn't finished initializing yet, its own
  *     internal queue handles the latter, but we belt-and-suspender
  *     it here so a fast post-mount call doesn't crash on a stub
  *     state.

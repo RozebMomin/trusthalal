@@ -1,7 +1,7 @@
 /**
  * TanStack Query hooks for the owner portal.
  *
- * Intentionally small for v1 — just enough to authenticate and read
+ * Intentionally small for v1, just enough to authenticate and read
  * the current user. Owner-specific endpoints (my places, my claims,
  * my org) get added here as the portal grows.
  *
@@ -211,7 +211,7 @@ export type OrganizationStatus =
 
 /**
  * Statuses an org has to be at to sponsor a claim. Mirrors the
- * server's gate in the /me/ownership-requests handler — DRAFT
+ * server's gate in the /me/ownership-requests handler, DRAFT
  * orgs aren't eligible until the owner submits them for review.
  */
 export const ORG_ELIGIBLE_FOR_CLAIM: ReadonlyArray<OrganizationStatus> = [
@@ -281,7 +281,7 @@ export type MyOrganizationPatch = {
   postal_code?: string | null;
 };
 
-/** Result row of GET /places?q=... — lightweight place fields. */
+/** Result row of GET /places?q=..., lightweight place fields. */
 export type PlaceSearchResult = {
   id: string;
   name: string;
@@ -297,7 +297,7 @@ export type PlaceSearchResult = {
 };
 
 /**
- * GET /places/{id} response — the full public place detail. Used by
+ * GET /places/{id} response, the full public place detail. Used by
  * the owner-portal /my-places/[id] surface so cuisines + photos can
  * render alongside the canonical address fields without an extra
  * round-trip. Mirrors ``PlaceDetail`` server-side.
@@ -361,7 +361,7 @@ export type MyOwnershipRequestRead = {
   message: string | null;
   /**
    * Latest admin instruction on this claim. Populated when the
-   * claim is in NEEDS_EVIDENCE — staff explains exactly what the
+   * claim is in NEEDS_EVIDENCE, staff explains exactly what the
    * owner needs to upload next. Stays populated through resubmit
    * so the owner can re-read the original instruction even after
    * they've moved the claim back to UNDER_REVIEW.
@@ -375,7 +375,7 @@ export type MyOwnershipRequestRead = {
 /**
  * POST /me/ownership-requests body.
  *
- * organization_id is required — the server gates on the org being
+ * organization_id is required, the server gates on the org being
  * one the caller belongs to and at least UNDER_REVIEW.
  *
  * Exactly one of ``place_id`` (an existing Trust Halal place) and
@@ -407,7 +407,7 @@ export type MeRead = {
    *  reviews and owner replies; nothing else. */
   email_verified?: boolean;
   /** True when this account has never accepted the terms, or accepted an
-   *  older version. Computed server-side — no client compares versions. */
+   *  older version. Computed server-side, no client compares versions. */
   terms_acceptance_required?: boolean;
 };
 
@@ -433,7 +433,7 @@ export type SignupRequest = {
   turnstile_token?: string;
 };
 
-// Same wire shape as LoginResponse — signup auto-logs the user in via
+// Same wire shape as LoginResponse, signup auto-logs the user in via
 // the session cookie so the client treats both responses identically.
 export type SignupResponse = LoginResponse;
 
@@ -456,7 +456,7 @@ const qk = {
 } as const;
 
 /**
- * GET /me — figure out who the cookie says you are.
+ * GET /me, figure out who the cookie says you are.
  *
  * Returns null when unauthenticated (the server 401s, which we map
  * to null here so AppShell can branch on "is there a logged-in
@@ -522,12 +522,12 @@ export function useLogin() {
  * POST /auth/signup. Public self-service path for restaurant owners.
  *
  * The server hard-codes role=OWNER and auto-logs the new user in by
- * setting the session cookie on success — same response shape as
+ * setting the session cookie on success, same response shape as
  * /auth/login, so the calling page can route to ``redirect_path``
  * identically. We invalidate /me so AppShell flips from "not signed
  * in" to "OWNER" without a hard reload.
  *
- * The `EMAIL_TAKEN` failure code surfaces as ApiError on the caller —
+ * The `EMAIL_TAKEN` failure code surfaces as ApiError on the caller,
  * the signup page branches on it to show "this email is already
  * registered, sign in instead?".
  */
@@ -547,7 +547,7 @@ export function useSignup() {
 
 /**
  * POST /auth/logout. Idempotent server-side. Clears every TanStack
- * Query cache entry on success — the next user's data shouldn't
+ * Query cache entry on success, the next user's data shouldn't
  * leak across sessions.
  */
 export function useLogout() {
@@ -565,7 +565,7 @@ export function useLogout() {
 // ---------------------------------------------------------------------------
 
 /**
- * GET /places?q=... — text search the public catalog.
+ * GET /places?q=..., text search the public catalog.
  *
  * Disabled while the query string is empty so the type-as-you-go
  * search doesn't fire a request on every keystroke before the user
@@ -589,7 +589,7 @@ export function usePlacesSearch(q: string, enabled = true) {
 }
 
 /**
- * GET /me/ownership-requests — the signed-in user's claims, newest
+ * GET /me/ownership-requests, the signed-in user's claims, newest
  * first. Powers the home page's "Recent claims" preview and the
  * /my-claims list. Server scopes results to current_user; nothing to
  * send.
@@ -599,7 +599,7 @@ export function useMyOwnershipRequests() {
     queryKey: qk.myOwnershipRequests(),
     queryFn: () =>
       apiFetch<MyOwnershipRequestRead[]>("/me/ownership-requests"),
-    // Claims don't change on a hot loop — admin staff reviews in the
+    // Claims don't change on a hot loop, admin staff reviews in the
     // background. Cache for 30s, refetch on focus so a freshly
     // approved/rejected claim shows up when the user comes back to
     // the tab.
@@ -608,7 +608,7 @@ export function useMyOwnershipRequests() {
 }
 
 /**
- * GET /places/google/autocomplete — server-side proxy to Google
+ * GET /places/google/autocomplete, server-side proxy to Google
  * Places Autocomplete. Powers the "Can't find your restaurant?
  * Search Google" fallback in the claim flow when no Trust Halal
  * match exists for the typed query.
@@ -634,7 +634,7 @@ export function usePlacesGoogleAutocomplete(q: string, enabled = true) {
 }
 
 /**
- * POST /me/ownership-requests/{request_id}/attachments — upload a
+ * POST /me/ownership-requests/{request_id}/attachments, upload a
  * single file as evidence on an existing claim.
  *
  * Per-mutation rather than per-claim because each file is a separate
@@ -661,7 +661,7 @@ export function useUploadOwnershipRequestAttachment() {
 }
 
 /**
- * POST /me/ownership-requests/{id}/resubmit — flip a NEEDS_EVIDENCE
+ * POST /me/ownership-requests/{id}/resubmit, flip a NEEDS_EVIDENCE
  * claim back to UNDER_REVIEW after the owner has uploaded the
  * additional documents staff requested. Server returns 409
  * OWNERSHIP_REQUEST_NOT_RESUBMITTABLE if the claim isn't in
@@ -683,7 +683,7 @@ export function useResubmitOwnershipRequest() {
 }
 
 /**
- * POST /me/ownership-requests — submit a claim against an existing
+ * POST /me/ownership-requests, submit a claim against an existing
  * place. Server auto-fills contact_name/contact_email from the
  * signed-in user. Invalidates the my-claims list on success so the
  * post-submit redirect picks up the new row immediately.
@@ -707,7 +707,7 @@ export function useCreateMyOwnershipRequest() {
 // ---------------------------------------------------------------------------
 
 /**
- * GET /me/organizations — every org the signed-in user is an
+ * GET /me/organizations, every org the signed-in user is an
  * ACTIVE member of.
  *
  * Used by:
@@ -726,7 +726,7 @@ export function useMyOrganizations() {
   });
 }
 
-/** GET /me/organizations/{id} — detail with attachments embedded. */
+/** GET /me/organizations/{id}, detail with attachments embedded. */
 export function useMyOrganization(id: string | null | undefined) {
   return useQuery<MyOrganizationRead>({
     queryKey: qk.myOrganization(id ?? "__nil__"),
@@ -737,7 +737,7 @@ export function useMyOrganization(id: string | null | undefined) {
   });
 }
 
-/** POST /me/organizations — create at DRAFT. */
+/** POST /me/organizations, create at DRAFT. */
 export function useCreateMyOrganization() {
   const qc = useQueryClient();
   return useMutation({
@@ -753,7 +753,7 @@ export function useCreateMyOrganization() {
 }
 
 /**
- * PATCH /me/organizations/{id} — name + contact_email updates.
+ * PATCH /me/organizations/{id}, name + contact_email updates.
  * Allowed only while DRAFT or UNDER_REVIEW.
  */
 export function usePatchMyOrganization() {
@@ -777,7 +777,7 @@ export function usePatchMyOrganization() {
 }
 
 /**
- * POST /me/organizations/{id}/submit — DRAFT → UNDER_REVIEW.
+ * POST /me/organizations/{id}/submit, DRAFT → UNDER_REVIEW.
  * Server enforces "at least one attachment" and idempotents on
  * already-submitted orgs.
  */
@@ -797,7 +797,7 @@ export function useSubmitMyOrganization() {
 }
 
 /**
- * POST /me/organizations/{id}/attachments — multipart upload of
+ * POST /me/organizations/{id}/attachments, multipart upload of
  * a supporting document (articles of organization, business filing,
  * etc.). Same per-mutation pattern as the claim attachment hook.
  */
@@ -898,7 +898,7 @@ export type MeatType =
 /**
  * One specific product the restaurant serves, with its own
  * supplier and (optionally) cert. Replaces the old per-meat
- * MeatSourcing — owners declare multiple products per meat type
+ * MeatSourcing, owners declare multiple products per meat type
  * ("Beef bacon" + "Ground beef" with different suppliers / certs).
  */
 export type MeatProductSourcing = {
@@ -949,7 +949,7 @@ export function useSupplierSearch(q: string, meat?: MeatType) {
 }
 
 /**
- * The structured questionnaire shape — server stores as JSONB.
+ * The structured questionnaire shape, server stores as JSONB.
  * The DRAFT shape (every field optional) is what the form posts
  * during edits; submit re-validates against the strict shape on
  * the server side.
@@ -996,7 +996,7 @@ export type MyHalalClaimPlaceSummary = {
 };
 
 /** Body for ``PATCH /me/places/{place_id}``. Replaces the cuisine
- *  set in full (no partial-update semantics — pass [] to clear). */
+ *  set in full (no partial-update semantics, pass [] to clear). */
 export type MyOwnedPlacePatch = {
   cuisine_types: Cuisine[];
 };
@@ -1010,14 +1010,14 @@ export type MyOwnedPlacePatch = {
 export type PlacePhotoSource = "OWNER" | "CONSUMER" | "GOOGLE";
 
 /** Display-level provenance, derived server-side. Render from this, never
- *  from `source` — it folds in whether the photo came from a review, which
+ *  from `source`, it folds in whether the photo came from a review, which
  *  `source` can't express. */
 export type PhotoAttribution = "OWNER" | "DINER" | "REVIEW" | "GOOGLE";
 
 /**
  * Photo row as it lands on the consumer-facing place gallery and
  * the owner editor's photos section. Mirrors ``PlacePhotoRead``
- * server-side. ``url`` is the public Supabase Storage URL — render
+ * server-side. ``url`` is the public Supabase Storage URL, render
  * directly in an ``<img>``, no signing.
  */
 export type PlacePhotoRead = {
@@ -1096,7 +1096,7 @@ export type MyHalalClaimBatchCreate = {
   structured_response?: HalalQuestionnaireDraft | null;
 };
 
-/** Row shape from GET /me/owned-places — drives the picker. */
+/** Row shape from GET /me/owned-places, drives the picker. */
 export type OwnedPlaceRead = {
   place_id: string;
   place_name: string;
@@ -1120,7 +1120,7 @@ export const HALAL_CLAIM_EDITABLE_STATUSES: ReadonlyArray<HalalClaimStatus> = [
 
 // ---- Read hooks ----------------------------------------------------------
 
-/** GET /me/owned-places — places the user can submit halal info for. */
+/** GET /me/owned-places, places the user can submit halal info for. */
 export function useMyOwnedPlaces() {
   return useQuery<OwnedPlaceRead[]>({
     queryKey: qk.myOwnedPlaces(),
@@ -1147,12 +1147,12 @@ export function useMyHalalClaim(id: string | null | undefined) {
 }
 
 /**
- * PATCH /me/places/{place_id} — owner-side edit of place metadata.
+ * PATCH /me/places/{place_id}, owner-side edit of place metadata.
  *
  * Today the only patchable field is ``cuisine_types``. Server enforces
  * ownership via ``assert_can_manage_place`` (active OWNER_ADMIN /
  * MANAGER on an active org with an active PlaceOwner row for this
- * place) — see ``api/app/modules/organizations/deps.py``. 403s on
+ * place): see ``api/app/modules/organizations/deps.py``. 403s on
  * miss; 404s when the place is soft-deleted.
  *
  * On success we invalidate the claim caches that embed this place
@@ -1188,7 +1188,7 @@ export function usePatchMyOwnedPlace() {
 // gallery in PR B.
 
 /**
- * GET /places/{place_id} — public place detail.
+ * GET /places/{place_id}, public place detail.
  *
  * Powers the /my-places/[id] surface in the owner portal. Public
  * endpoint so no special auth gate; the page itself enforces "you
@@ -1204,7 +1204,7 @@ export function usePlaceDetail(placeId: string | null | undefined) {
   });
 }
 
-/** GET /places/{place_id}/photos — public list, hero-first. */
+/** GET /places/{place_id}/photos, public list, hero-first. */
 export function usePlacePhotos(placeId: string | null | undefined) {
   return useQuery<PlacePhotoRead[]>({
     queryKey: qk.placePhotos(placeId ?? "__nil__"),
@@ -1216,13 +1216,13 @@ export function usePlacePhotos(placeId: string | null | undefined) {
 }
 
 /**
- * POST /places/{place_id}/photos — upload a single photo.
+ * POST /places/{place_id}/photos, upload a single photo.
  *
  * Multipart body. Server derives source from the caller's
  * relationship to the place (active OWNER_ADMIN/MANAGER → OWNER,
  * else CONSUMER). On success invalidates the place's photo list
  * cache so the gallery picks up the new row. We don't optimistically
- * insert — the server may reject (SafeSearch, cap, content type)
+ * insert, the server may reject (SafeSearch, cap, content type)
  * and an optimistic UI would have to roll back, which is more
  * complexity than alpha needs.
  *
@@ -1256,7 +1256,7 @@ export function useUploadPlacePhoto() {
 }
 
 /**
- * PATCH /places/{place_id}/photos/{photo_id} — set hero or edit
+ * PATCH /places/{place_id}/photos/{photo_id}, set hero or edit
  * caption. Server enforces the auth tiers (hero → owner-only,
  * caption → uploader-or-owner).
  */
@@ -1282,7 +1282,7 @@ export function usePatchPlacePhoto() {
 }
 
 /**
- * DELETE /places/{place_id}/photos/{photo_id} — soft delete.
+ * DELETE /places/{place_id}/photos/{photo_id}, soft delete.
  * Server enforces auth (uploader-or-owner-or-admin). Returns 204
  * on success.
  */
@@ -1310,7 +1310,7 @@ export function useDeletePlacePhoto() {
  * (when they drafted, submitted, uploaded files, plus admin
  * decisions).
  *
- * Same staleTime as the claim itself — when a mutation invalidates
+ * Same staleTime as the claim itself, when a mutation invalidates
  * the claim cache, the events list invalidates with it via the
  * shared ``["me", "halal-claims", id]`` prefix.
  */
@@ -1341,7 +1341,7 @@ export function useCreateMyHalalClaim() {
 }
 
 /**
- * POST /me/halal-claims/batch — create N drafts at once with a
+ * POST /me/halal-claims/batch, create N drafts at once with a
  * shared questionnaire payload. For chain restaurants where every
  * location maintains the same halal standard. Server runs the
  * authorization gates per-selection and rolls back the whole batch
@@ -1391,13 +1391,13 @@ export function useSubmitMyHalalClaim() {
 }
 
 /**
- * DELETE /me/halal-claims/{id} — discard a DRAFT claim.
+ * DELETE /me/halal-claims/{id}, discard a DRAFT claim.
  *
  * Server returns 204 No Content; we don't expect a body so the
  * mutation result is ``void``. The server cascades to attached
  * files (DB rows + storage blobs) so callers don't need a
  * separate cleanup step. Server returns 409
- * ``HALAL_CLAIM_NOT_DELETABLE`` for any non-DRAFT status — the UI
+ * ``HALAL_CLAIM_NOT_DELETABLE`` for any non-DRAFT status, the UI
  * should hide the Delete button outside DRAFT but the typed code
  * is there as a defensive fallback.
  */
@@ -1477,7 +1477,7 @@ export type ResetPasswordRequest = { token: string; password: string };
 export type ResetPasswordResponse = { email: string };
 
 /** POST /auth/forgot-password. Always resolves (generic success) even for
- * unknown emails — the UI shows the same "check your inbox" either way. */
+ * unknown emails, the UI shows the same "check your inbox" either way. */
 export function useForgotPassword() {
   return useMutation({
     mutationFn: (payload: ForgotPasswordRequest) =>
@@ -1488,7 +1488,7 @@ export function useForgotPassword() {
   });
 }
 
-/** GET /auth/reset/{token} — prefetch to show whose password is being
+/** GET /auth/reset/{token}, prefetch to show whose password is being
  * reset. 400s on an invalid/expired/used token; no retry. */
 export function useResetInfo(token: string | null) {
   return useQuery<ResetInfoResponse>({
@@ -1517,7 +1517,7 @@ export function useResetPassword() {
 // ---------------------------------------------------------------------------
 // Email verification
 // ---------------------------------------------------------------------------
-// Confirming an address doesn't sign anyone in or out — it only unlocks the
+// Confirming an address doesn't sign anyone in or out, it only unlocks the
 // surfaces that publish content about a named business (reviews, owner
 // replies). See api/app/modules/auth/email_verification.py.
 
@@ -1526,7 +1526,7 @@ export type VerifyEmailResponse = { email: string; already_verified: boolean };
 export type ResendVerificationRequest = { audience?: "consumer" | "owner" | "admin" };
 export type ResendVerificationResponse = { sent: boolean; email: string };
 
-/** POST /auth/verify-email. Anonymous — the token is the proof, so a link
+/** POST /auth/verify-email. Anonymous, the token is the proof, so a link
  *  opened on a phone works while the account is signed in elsewhere. */
 export function useVerifyEmail() {
   return useMutation({
@@ -1540,7 +1540,7 @@ export function useVerifyEmail() {
 
 /** POST /auth/verify-email/resend. Requires a session; the address comes
  *  from that session, never from the body. ``sent: false`` means the address
- *  was already confirmed — success, not an error. */
+ *  was already confirmed, success, not an error. */
 export function useResendVerification() {
   const qc = useQueryClient();
   return useMutation({
@@ -1557,7 +1557,7 @@ export function useResendVerification() {
 }
 
 // ---------------------------------------------------------------------------
-// Reviews — the owner inbox
+// Reviews, the owner inbox
 // ---------------------------------------------------------------------------
 
 export type OwnerReviewPlace = {
@@ -1595,18 +1595,18 @@ export type OwnerReviewRead = {
    *  server-side; clears when the owner edits their reply. */
   edited_after_reply: boolean;
   /** An owner should know a review they're about to answer is already
-   *  contested — the tone of a good reply differs. */
+   *  contested, the tone of a good reply differs. */
   open_report_count: number;
 };
 
 export type OwnerReviewListResponse = {
   items: OwnerReviewRead[];
   total: number;
-  /** Across every managed place, not the current filter — this drives the
+  /** Across every managed place, not the current filter, this drives the
    *  nav badge, and a badge that changes when you click a filter is a
    *  search result, not a badge. */
   needs_reply_count: number;
-  /** Reviews that changed after you replied — your published reply may no
+  /** Reviews that changed after you replied, your published reply may no
    *  longer match what it sits under. Same all-places scoping as above. */
   edited_after_reply_count: number;
   next_offset: number | null;
@@ -1653,7 +1653,7 @@ export function useReplyToReview() {
       reviewId: string;
       body: string;
       /** Sent on the retry after the owner has seen the heated-text nudge.
-       *  Owners get the same two-step as diners — they are not exempt from
+       *  Owners get the same two-step as diners, they are not exempt from
        *  the content filter, and a reply carries more implicit weight. */
       acknowledgedWarning?: boolean;
     }) =>
@@ -1676,7 +1676,7 @@ export function useEditReviewReply() {
       reviewId: string;
       body: string;
       /** Sent on the retry after the owner has seen the heated-text nudge.
-       *  Owners get the same two-step as diners — they are not exempt from
+       *  Owners get the same two-step as diners, they are not exempt from
        *  the content filter, and a reply carries more implicit weight. */
       acknowledgedWarning?: boolean;
     }) =>
@@ -1700,7 +1700,7 @@ export function useDeleteReviewReply() {
 // ---------------------------------------------------------------------------
 // Photo reporting
 // ---------------------------------------------------------------------------
-// Owners can't delete a diner's photo — matching Google and Yelp, and
+// Owners can't delete a diner's photo, matching Google and Yelp, and
 // mattering more here because a photo of what was served is evidence. This
 // is the route they get instead.
 

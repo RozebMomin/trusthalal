@@ -11,7 +11,7 @@
  * Rendered on the owner-portal claim detail page so the submitter
  * can see exactly what's happened: when they drafted, when they
  * submitted, when admin decided. The admin panel has a near-
- * identical component — same data shape, different copy / accent
+ * identical component, same data shape, different copy / accent
  * choices.
  */
 import * as React from "react";
@@ -79,7 +79,7 @@ export function HalalClaimTimeline({
     );
   }
   if (!events || events.length === 0) {
-    // Defensive — every claim writes at least DRAFT_CREATED at
+    // Defensive, every claim writes at least DRAFT_CREATED at
     // submission, so a true empty state means a claim that predates
     // the audit-trail rollout. Still render a graceful note.
     return (

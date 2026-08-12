@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * /my-reviews — everything you've written, including what was taken down.
+ * /my-reviews, everything you've written, including what was taken down.
  *
  * ## Why this page exists
  *
  * The public listing on a place filters to PUBLISHED. So before this page,
  * a review that was hidden or removed was invisible to the person who wrote
- * it — it simply stopped being there, and the removal email was the only
+ * it, it simply stopped being there, and the removal email was the only
  * explanation that ever existed. An email in a spam folder meant someone's
  * words disappeared with no reason given anywhere they could reach.
  *
@@ -16,7 +16,7 @@
  * moderator's note verbatim, and hidden ones keep an Edit affordance because
  * hidden is reversible and fixing it is the point.
  *
- * The rest — your published reviews, owner replies to them — is secondary,
+ * The rest, your published reviews, owner replies to them, is secondary,
  * useful mostly because a person who came here after a takedown shouldn't
  * land on a page that only shows them bad news.
  */
@@ -116,7 +116,7 @@ export default function MyReviewsPage() {
               </h2>
               <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
                 Reviews are how other diners find out what a place is actually
-                like — what you ordered, what you asked, what they said.
+                like, what you ordered, what you asked, what they said.
               </p>
               <Button asChild className="mt-4" variant="outline">
                 <Link href="/">Find a restaurant</Link>
@@ -184,13 +184,13 @@ function ReviewCard({ review }: { review: MyReviewRead }) {
             <p className="mt-1 whitespace-pre-line">{review.moderation_note}</p>
           ) : (
             <p className="mt-1">
-              No reason was recorded, which shouldn&apos;t happen — get in
+              No reason was recorded, which shouldn&apos;t happen, get in
               touch and we&apos;ll explain.
             </p>
           )}
           <p className="mt-2 text-xs">
             {removed
-              ? "Removals are final. If your review described something factual about a restaurant's halal status, you can raise that separately as a dispute on the restaurant's page — that goes to a person and stays on the record as your account."
+              ? "Removals are final. If your review described something factual about a restaurant's halal status, you can raise that separately as a dispute on the restaurant's page, that goes to a person and stays on the record as your account."
               : "Hidden is reversible. Edit it to address the note above and it can go back up."}
           </p>
         </div>
@@ -228,7 +228,7 @@ function ReviewCard({ review }: { review: MyReviewRead }) {
       )}
 
       {/* Edit lives on the place page, where the composer already is.
-          Removed reviews get no edit affordance — the server refuses, and
+          Removed reviews get no edit affordance, the server refuses, and
           offering a button that can only fail is worse than not offering
           one. */}
       {!removed && (

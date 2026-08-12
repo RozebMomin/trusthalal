@@ -10,7 +10,7 @@
  *
  * Authentication is handled entirely by the session cookie set on
  * ``POST /auth/login``. The X-User-Id header shortcut that existed
- * during the pre-auth era is gone — the server ignores it unless
+ * during the pre-auth era is gone, the server ignores it unless
  * DEV_HEADER_AUTH_ENABLED is explicitly flipped on (test harness only).
  */
 
@@ -42,7 +42,7 @@ function captureRequestId(res: Response): void {
     });
     Sentry.setTag("last_request_id", requestId);
   } catch {
-    // Sentry not initialized (no DSN) — addBreadcrumb is normally a
+    // Sentry not initialized (no DSN): addBreadcrumb is normally a
     // no-op, but the URL-parse can throw on edge cases. Swallow.
   }
 }
@@ -50,7 +50,7 @@ function captureRequestId(res: Response): void {
 /**
  * Wire shape of every 4xx / 5xx body this API emits. Pulled from the
  * generated OpenAPI schema so it stays in lock-step with the FastAPI
- * ``ErrorResponse`` model — any server-side shape drift is caught at
+ * ``ErrorResponse`` model, any server-side shape drift is caught at
  * compile time on the next codegen.
  */
 export type ApiErrorShape = components["schemas"]["ErrorResponse"];
@@ -108,7 +108,7 @@ export async function apiFetch<T = unknown>(
     // ``include`` sends the session cookie across origins (api on
     // :8000, admin on :3001 during local dev). Requires the server's
     // CORS middleware to have ``allow_credentials=True`` + an
-    // explicit origin — ``*`` is forbidden by the spec when credentials
+    // explicit origin, ``*`` is forbidden by the spec when credentials
     // are enabled. Both are configured in app/main.py.
     credentials: "include",
   });

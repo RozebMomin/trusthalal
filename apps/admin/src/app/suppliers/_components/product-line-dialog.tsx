@@ -131,7 +131,7 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
           <DialogHeader>
             <DialogTitle>{editing ? "Edit product line" : "Add product line"}</DialogTitle>
             <DialogDescription>
-              Slaughter method is captured per line — a supplier&apos;s chicken and
+              Slaughter method is captured per line, a supplier&apos;s chicken and
               beef can differ.
             </DialogDescription>
           </DialogHeader>

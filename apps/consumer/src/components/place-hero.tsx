@@ -1,5 +1,5 @@
 /**
- * Hero banner for the place detail page — full-bleed photo with the
+ * Hero banner for the place detail page, full-bleed photo with the
  * place name, cuisine chips, and primary halal trust pill overlayed.
  *
  * Visual anchor for the entire detail page. On mobile the photo is a
@@ -11,15 +11,15 @@
  * Information rhythm:
  *
  *   1. Hero photo (or placeholder).
- *   2. Trust pill, top-right — same ``halalDisplayFor`` derived signal
+ *   2. Trust pill, top-right, same ``halalDisplayFor`` derived signal
  *      as the result card so the brand voice stays consistent across
  *      surfaces.
  *   3. Place name, bottom-left, large + drop-shadowed for legibility
  *      against any photo.
  *   4. Cuisine chips, inline under the name (max 3 visible + overflow).
  *
- * Soft-deleted places still render the hero — the page is preserved
- * for incoming links — but with a "Removed from directory" badge
+ * Soft-deleted places still render the hero, the page is preserved
+ * for incoming links, but with a "Removed from directory" badge
  * stacked above so the visitor sees the status before reading the
  * profile.
  */
@@ -35,7 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // Same display labels as the result card. Kept duplicated rather than
-// imported because it's per-surface display copy — the hero might
+// imported because it's per-surface display copy, the hero might
 // pick shorter labels later than the card chooses to use, and the
 // duplication keeps that future divergence cheap.
 const HERO_CUISINE_LABELS: Readonly<Record<Cuisine, string>> = {
@@ -142,7 +142,7 @@ export function PlaceHero({
         <HeroPhoto src={place.hero_photo_url} alt={place.name} />
       )}
 
-      {/* Expand affordance — a quiet maximize badge, bottom-right. It's
+      {/* Expand affordance, a quiet maximize badge, bottom-right. It's
           pointer-events-none so the tap lands on the photo button
           beneath it rather than being swallowed here. */}
       {expandable && (
@@ -203,8 +203,8 @@ export function PlaceHero({
         {/* Google's rating is deliberately NOT here any more.
             It used to sit beside the name at full size, which made somebody
             else's score the first and largest number on a page about our
-            verification. It still appears — labelled, beside Trust Halal's
-            own — in the reviews block, which is where a rating belongs and
+            verification. It still appears, labelled, beside Trust Halal's
+            own, in the reviews block, which is where a rating belongs and
             where the comparison is legible. */}
 
         {visibleCuisines.length > 0 && (
@@ -237,7 +237,7 @@ export function PlaceHero({
 // Hero photo with brand-gradient placeholder fallback. Same family as
 // the result-card placeholder so the absence of a photo reads as
 // intentional rather than broken. The aspect-ratio sizing keeps the
-// layout stable while the image is loading — no layout shift when the
+// layout stable while the image is loading, no layout shift when the
 // bytes land.
 // ---------------------------------------------------------------------------
 function HeroPhoto({
@@ -253,7 +253,7 @@ function HeroPhoto({
       <img
         src={src}
         alt={alt}
-        // Hero is above-the-fold — eager-load so the LCP isn't gated
+        // Hero is above-the-fold, eager-load so the LCP isn't gated
         // on lazy-load heuristics.
         loading="eager"
         decoding="async"
@@ -283,7 +283,7 @@ function HeroPhoto({
 // ---------------------------------------------------------------------------
 // Top-right primary halal pill. Slight elevation + backdrop blur so it
 // sits cleanly on top of any photo. Same tone classes as the result
-// card — brand consistency is the whole point of having a single pill
+// card, brand consistency is the whole point of having a single pill
 // helper.
 // ---------------------------------------------------------------------------
 function PrimaryPill({ signal }: { signal: PrimaryHalalSignal }) {
@@ -296,7 +296,7 @@ function PrimaryPill({ signal }: { signal: PrimaryHalalSignal }) {
         "inline-flex max-w-[55%] items-center truncate rounded-full border px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm",
         PRIMARY_TONE_CLASSES[signal.tone],
         // The muted tone's translucent bg (fine on cards) fails
-        // contrast when floating over a busy hero photo — swap in a
+        // contrast when floating over a busy hero photo, swap in a
         // near-solid background so "No halal info yet" stays legible
         // on any image.
         signal.tone === "muted" && "bg-background/90 text-foreground/70",

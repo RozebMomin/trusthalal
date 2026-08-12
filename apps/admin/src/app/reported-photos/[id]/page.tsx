@@ -4,7 +4,7 @@
  * Reported-photo detail + decision.
  *
  * Shows the photo large, because that's how this decision is actually made,
- * and shows the review it came from when there is one — a plate photo means
+ * and shows the review it came from when there is one, a plate photo means
  * something different once you can read what the diner said about it.
  *
  * Verdict and action are separate fields for the same reason they are on
@@ -266,7 +266,7 @@ export default function ReportedPhotoDetailPage() {
               rows={4}
               placeholder={
                 needsNote
-                  ? "Write this to them — they receive it verbatim."
+                  ? "Write this to them, they receive it verbatim."
                   : ""
               }
             />

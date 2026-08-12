@@ -47,7 +47,7 @@ export function VerifierProfileStatusBadge({
   className?: string;
 }) {
   // Defensive fallback for any future statuses that haven't been
-  // mapped here yet — render the raw enum string with a neutral
+  // mapped here yet, render the raw enum string with a neutral
   // outline so the page doesn't blow up at runtime.
   const presentation =
     STATUS_PRESENTATION[status as VerifierProfileAdminRead["status"]] ?? {

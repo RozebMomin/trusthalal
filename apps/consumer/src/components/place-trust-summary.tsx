@@ -1,5 +1,5 @@
 /**
- * The halal verdict — the one thing a diner came to this page for.
+ * The halal verdict, the one thing a diner came to this page for.
  *
  * ## What changed and why
  *
@@ -12,11 +12,11 @@
  *
  * Now it's one block with a fixed shape:
  *
- *   1. **Banner** — what the kitchen is, in the largest type on the page,
+ *   1. **Banner**, what the kitchen is, in the largest type on the page,
  *      over a colour that encodes how well we know it.
- *   2. **Facts** — pork, alcohol, anything the owner flagged.
- *   3. **Meats** — only what's actually served.
- *   4. **Provenance** — who checked, when, and a way into the evidence.
+ *   2. **Facts**, pork, alcohol, anything the owner flagged.
+ *   3. **Meats**, only what's actually served.
+ *   4. **Provenance**, who checked, when, and a way into the evidence.
  *
  * ## The one thing not to "simplify" later
  *
@@ -25,7 +25,7 @@
  * fully-halal kitchen and a verifier-inspected one make the identical claim
  * and are not the same fact, and this platform exists to keep that distinction
  * legible. A green banner on an unverified place would be the single most
- * damaging thing this component could do — it would launder the owner's word
+ * damaging thing this component could do, it would launder the owner's word
  * into Trust Halal's endorsement.
  *
  * That's also why the banner never reads "safe to eat here". Safety is an
@@ -68,7 +68,7 @@ import type {
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Headline — one sentence built from the tier + posture combo. Same
+// Headline, one sentence built from the tier + posture combo. Same
 // muscle as ``primaryHalalSignal`` but tuned for the detail page
 // (longer pill, more verbose because real estate isn't constrained).
 // ---------------------------------------------------------------------------
@@ -89,12 +89,12 @@ const TIER_DESCRIPTION: Record<ValidationTier, string> = {
 };
 
 /**
- * Banner fill. Encodes how much proof we hold — NOT how halal the place
+ * Banner fill. Encodes how much proof we hold, NOT how halal the place
  * claims to be. See the note at the top of this file before changing it, and
  * docs/brand-tier-colors.md for the canonical palette.
  *
  * One hue per tier: emerald 160°, amber 26°, slate 240°. This used to be
- * `bg-primary` over `emerald-700` over slate — two greens a shade apart at
+ * `bg-primary` over `emerald-700` over slate, two greens a shade apart at
  * the top, which is a severity ramp. A ramp only works if you can see both
  * ends at once, and nobody ever does: a diner opens one restaurant and gets
  * one banner. The amber matches the pill this same place already wears on the
@@ -117,11 +117,11 @@ const TIER_EDGE: Record<ValidationTier, string> = {
   SELF_ATTESTED: "border-slate-700 dark:border-slate-800",
 };
 
-/** The proof line under the headline — short, and always says who. */
+/** The proof line under the headline, short, and always says who. */
 const TIER_PROOF: Record<ValidationTier, string> = {
   TRUST_HALAL_VERIFIED: "A Trust Halal verifier checked this in person",
   CERTIFICATE_ON_FILE: "Halal certificate on file with us",
-  SELF_ATTESTED: "The owner's own description — nobody has verified it",
+  SELF_ATTESTED: "The owner's own description, nobody has verified it",
 };
 
 const MENU_POSTURE_HEADLINE: Record<MenuPosture, string> = {
@@ -135,7 +135,7 @@ const MENU_POSTURE_HEADLINE: Record<MenuPosture, string> = {
 const ALCOHOL_POLICY_LINE: Record<AlcoholPolicy, string> = {
   NONE: "No alcohol served",
   BEER_AND_WINE_ONLY: "Beer and wine served",
-  FULL_BAR: "Full bar — beer, wine, spirits",
+  FULL_BAR: "Full bar, beer, wine, spirits",
 };
 
 const SLAUGHTER_LABELS: Record<SlaughterMethod, string> = {
@@ -145,7 +145,7 @@ const SLAUGHTER_LABELS: Record<SlaughterMethod, string> = {
 };
 
 // Fully neutral: hand-slaughtered and machine-slaughtered get identical
-// treatment — the label states the fact, the chip doesn't rank one above the
+// treatment, the label states the fact, the chip doesn't rank one above the
 // other (per the redefinition doc: "present both as neutral facts"). Only
 // "not served" is visually muted.
 const SLAUGHTER_TONE: Record<SlaughterMethod, string> = {
@@ -172,7 +172,7 @@ export function PlaceTrustSummary({
       )}
     >
       {/* The claim, in the largest type on the page. Colour behind it is the
-          proof level — see the note at the top of this file. */}
+          proof level, see the note at the top of this file. */}
       <div className={cn("px-5 py-4", TIER_BANNER[profile.validation_tier])}>
         <h2 className="flex items-start gap-2.5 text-lg font-bold leading-tight tracking-tight sm:text-xl">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
@@ -189,13 +189,13 @@ export function PlaceTrustSummary({
         )}
 
         {/* Two renderings, one DOM, switched at `sm` by CSS rather than by a
-            media-query hook — this page is server-rendered, and reading the
+            media-query hook, this page is server-rendered, and reading the
             viewport in JS would mean the first paint is always the wrong one
             for somebody. `hidden` is display:none, so assistive tech is
             offered exactly one of these at any width, never both. */}
 
         {/* >=640px: unchanged. The fold below answers vertical space being
-            scarce, and on a desktop it isn't — there is nothing to buy by
+            scarce, and on a desktop it isn't, there is nothing to buy by
             hiding the pantry list, so it stays open. */}
         <div className="hidden sm:block">
           <KitchenAndPantry profile={profile} />
@@ -219,7 +219,7 @@ export function PlaceTrustSummary({
 
         {profile.seafood_only && (
           <p className="text-sm text-muted-foreground">
-            Seafood-only kitchen — no land meat or poultry served.
+            Seafood-only kitchen, no land meat or poultry served.
           </p>
         )}
 
@@ -283,8 +283,8 @@ function DisputeBanner({
 // bordered box the same size as a real one.
 //
 // Now: served meats get a chip each, and everything not served collapses into
-// one sentence underneath. The information is identical — a diner looking for
-// lamb still learns there isn't any — it just stops occupying the same visual
+// one sentence underneath. The information is identical, a diner looking for
+// lamb still learns there isn't any, it just stops occupying the same visual
 // weight as "beef is zabihah".
 //
 // Machine-slaughtered meat keeps its amber chip. That's a real distinction
@@ -294,7 +294,7 @@ function DisputeBanner({
 // Supplier-backed sourcing. Additive to the slaughter grid above: when a served
 // meat is traced to a registry supplier via a sourcing link, we say who and how
 // well-evidenced it is. Method is NEUTRAL (no hand-vs-machine ranking); the
-// confidence chip carries the honesty caveat — a self-stated link never gets a
+// confidence chip carries the honesty caveat, a self-stated link never gets a
 // confirming treatment, matching the rest of the product. Only supplier-backed
 // meats appear here; self-attested ones already live in the grid.
 // ---------------------------------------------------------------------------
@@ -351,7 +351,7 @@ function SupplierBackedSourcing({ profile }: { profile: HalalProfileEmbed }) {
             <span className="font-medium">{provenanceMeatLabel(p.meat_type)}</span>
             <span>{PROVENANCE_METHOD_LABEL[p.method] ?? p.method}</span>
             {p.supplier_name && (
-              <span className="text-muted-foreground">— {p.supplier_name}</span>
+              <span className="text-muted-foreground">· {p.supplier_name}</span>
             )}
             <ConfidenceChip confidence={p.confidence} />
             {p.as_of && (
@@ -383,7 +383,7 @@ function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
 
   // Prefer the per-product list when the restaurant supplied one. The rollup
   // above is least-conservative-wins, so a kitchen with zabihah breast and
-  // machine nuggets reports MACHINE for all chicken — the safe direction to
+  // machine nuggets reports MACHINE for all chicken, the safe direction to
   // round, but it leaves a diner unable to see which product is which. It
   // also covers turkey, duck and fish, which have no profile column and are
   // otherwise invisible entirely.
@@ -392,7 +392,7 @@ function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
     return <ServedProducts products={products} absent={absent} />;
   }
 
-  // Nothing on the list is served and it isn't a seafood kitchen — say so
+  // Nothing on the list is served and it isn't a seafood kitchen, say so
   // plainly rather than rendering an empty row.
   if (served.length === 0) {
     return (
@@ -439,7 +439,7 @@ function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
  *
  * "Chicken · Zabihah" with nothing behind it asks to be taken on faith,
  * which is the one thing this platform exists not to do. But the fix isn't
- * to state the supplier as fact — nobody has checked it. Verifier visits
+ * to state the supplier as fact, nobody has checked it. Verifier visits
  * record observations as free text, so there is no structured confirmation
  * that a named supplier is real or that the restaurant actually buys from
  * them.
@@ -448,7 +448,7 @@ function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
  * set muted, and placed under the product rather than beside it. A reader
  * should be able to tell at a glance which half we stand behind and which
  * half we're relaying. Presenting the supplier flatly would launder the
- * owner's word into our finding — the same mistake as a green banner on a
+ * owner's word into our finding, the same mistake as a green banner on a
  * self-attested place, which the note at the top of this file exists to
  * prevent.
  */
@@ -508,7 +508,7 @@ function ServedProducts({
 }
 
 // ---------------------------------------------------------------------------
-// Kitchen + pantry summary — the menu-posture line followed by the
+// Kitchen + pantry summary, the menu-posture line followed by the
 // pork and alcohol lines. Three to four compact rows, each a single
 // sentence the consumer can scan as a yes/no signal.
 //
@@ -518,7 +518,7 @@ function ServedProducts({
 // ---------------------------------------------------------------------------
 
 function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
-  // Menu posture is NOT repeated here — it's the banner headline above. It
+  // Menu posture is NOT repeated here, it's the banner headline above. It
   // used to lead this list back when the banner said something else, and
   // leaving it would print the same sentence twice, 40px apart.
   const lines: Array<{ icon: React.ReactNode; text: string }> = [
@@ -539,10 +539,10 @@ function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
       text: profile.has_pork ? "Pork is served" : "No pork on the menu",
     },
     {
-      // ``WineOff`` is a wine glass with a strikethrough — reads as
+      // ``WineOff`` is a wine glass with a strikethrough, reads as
       // "no alcohol" at a glance. Plain ``Wine`` keeps the served
       // states recognizable as a wine glass (the glass is the carrier
-      // signal — strike vs. not is the polarity bit).
+      // signal, strike vs. not is the polarity bit).
       icon:
         profile.alcohol_policy === "NONE" ? (
           <WineOff
@@ -589,8 +589,8 @@ function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
 // Everything below renders only under `sm:hidden`. The desktop card is
 // deliberately untouched: the fold exists because a phone has ~600px of
 // vertical space and this card was spending three lines of it confirming what
-// the banner already implied, then pushing the meat sourcing — the part people
-// came for — below the fold. A desktop card is not making that trade, so it
+// the banner already implied, then pushing the meat sourcing, the part people
+// came for, below the fold. A desktop card is not making that trade, so it
 // does not get the fix for it.
 // ---------------------------------------------------------------------------
 
@@ -605,7 +605,7 @@ function KitchenAndPantry({ profile }: { profile: HalalProfileEmbed }) {
  *
  * One thing that is not a confirmation: "no pork" at a kitchen that is not
  * fully halal. "Fully halal kitchen" entails it, so repeating it there is
- * noise — but nothing entails it at a shared or options-only kitchen, where it
+ * noise, but nothing entails it at a shared or options-only kitchen, where it
  * is real news and stays visible.
  */
 function KitchenExceptions({ profile }: { profile: HalalProfileEmbed }) {
@@ -654,7 +654,7 @@ function KitchenExceptions({ profile }: { profile: HalalProfileEmbed }) {
 }
 
 /** The good news, shown inside the disclosure. Nothing is removed from the
- *  page — only demoted, so a reader who wants to confirm still can. */
+ *  page, only demoted, so a reader who wants to confirm still can. */
 function KitchenConfirmations({ profile }: { profile: HalalProfileEmbed }) {
   const lines: string[] = [];
   if (!profile.has_pork && profile.menu_posture === "FULLY_HALAL") {
@@ -691,7 +691,7 @@ type MeatSummary = { text: string; machine: boolean; collapsible: boolean };
  *
  * `machine` is true whenever ANY item is machine-slaughtered, deliberately.
  * A summary that averaged to green would let "6 products" read as uniformly
- * fine while two of them were not — the exact rounding error the per-product
+ * fine while two of them were not, the exact rounding error the per-product
  * data was added to fix.
  *
  * `collapsible` is false when a slaughter method arrives that this build does
@@ -773,7 +773,7 @@ function meatSummary(profile: HalalProfileEmbed): MeatSummary {
 /**
  * The summary doubles as the disclosure control.
  *
- * What you click is the fact you came for, not a generic "Details" — so the
+ * What you click is the fact you came for, not a generic "Details", so the
  * row earns its height whether or not anyone opens it, and mixed sourcing,
  * the case that actually rewards a click, says so before you click.
  *
@@ -867,7 +867,7 @@ function CertificateDialog({
             </Row>
           )}
           <Row label="Validation tier">
-            {TIER_HEADLINE[profile.validation_tier]} —{" "}
+            {TIER_HEADLINE[profile.validation_tier]},{" "}
             {TIER_DESCRIPTION[profile.validation_tier]}
           </Row>
         </dl>
@@ -891,7 +891,7 @@ function CertificateDialog({
  *   * anything else      → "Open certificate" link that lets the
  *                          browser handle the unknown type natively.
  *
- * When the URL is null (cert not yet copied to the public bucket —
+ * When the URL is null (cert not yet copied to the public bucket,
  * approval failed, profile predates the cert-publish backend slice,
  * etc.) the visitor still sees the metadata above; the viewer falls
  * back to a small "viewer coming soon" callout so the dialog feels
@@ -954,7 +954,7 @@ function CertificateViewer({
     );
   }
 
-  // Unknown MIME — render a clean call-to-action that lets the
+  // Unknown MIME, render a clean call-to-action that lets the
   // browser handle the file natively.
   return <CertificateOpenLink url={url} prominent />;
 }
@@ -1003,7 +1003,7 @@ function Row({
 
 // ---------------------------------------------------------------------------
 // Owner-supplied caveats. Free-form so we render plain text on a soft
-// callout — no markdown or rich text.
+// callout, no markdown or rich text.
 // ---------------------------------------------------------------------------
 function Caveats({ text }: { text: string }) {
   return (
@@ -1023,7 +1023,7 @@ function Caveats({ text }: { text: string }) {
 }
 
 /**
- * Who checked this, when, and a way into the evidence — one line.
+ * Who checked this, when, and a way into the evidence, one line.
  *
  * Replaces two separate blocks (a full-width "Certified by X ›" button and a
  * bordered "Last verified N days ago" footer). They were always answering the

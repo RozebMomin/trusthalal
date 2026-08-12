@@ -3,14 +3,14 @@
 /**
  * Reported-reviews queue.
  *
- * Named "reported reviews", not "review queue" — "review" already means
+ * Named "reported reviews", not "review queue", "review" already means
  * *staff adjudication* everywhere else in this product (UNDER_REVIEW,
  * reviewed_by, the halal-claim review queue), and a "review queue" here
  * would be ambiguous in exactly the wrong place.
  *
  * Grouped by review rather than by report: several complaints about the same
- * content are one decision, not several. Lands on OPEN — the "waiting on me"
- * bucket — with the resolved states available for auditing.
+ * content are one decision, not several. Lands on OPEN, the "waiting on me"
+ * bucket, with the resolved states available for auditing.
  */
 
 import Link from "next/link";
@@ -128,7 +128,7 @@ export default function ReportedReviewsPage() {
                         </span>
                       </span>
                       {/* The owner's reply being the reported thing is a
-                          first-class case, not an edge one — flag it up
+                          first-class case, not an edge one, flag it up
                           front so the moderator reads the right text. */}
                       {row.targets_reply && (
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">

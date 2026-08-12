@@ -45,7 +45,7 @@ function captureRequestId(res: Response): void {
     });
     Sentry.setTag("last_request_id", requestId);
   } catch {
-    // Sentry not initialized (no DSN) — addBreadcrumb is normally a
+    // Sentry not initialized (no DSN): addBreadcrumb is normally a
     // no-op, but URL parsing can throw on edge cases. Swallow.
   }
 }
@@ -116,7 +116,7 @@ export async function apiFetch<T = unknown>(
   let extraHeaders: Record<string, string> = {};
   if (formData !== undefined) {
     body = formData;
-    // Intentionally NO Content-Type — the browser sets the multipart
+    // Intentionally NO Content-Type, the browser sets the multipart
     // boundary header automatically based on the FormData contents.
   } else if (json !== undefined) {
     body = JSON.stringify(json);

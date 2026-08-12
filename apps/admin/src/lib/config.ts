@@ -13,7 +13,7 @@ export const config = {
 
   /**
    * Browser-side Google Maps JS API key for the Places Autocomplete widget.
-   * Empty string ("") means the feature is disabled — callers check
+   * Empty string ("") means the feature is disabled, callers check
    * ``Boolean(config.googleMapsApiKey)`` and render a setup prompt instead.
    *
    * Keep this distinct from the trusthalal-api's GOOGLE_MAPS_API_KEY, which

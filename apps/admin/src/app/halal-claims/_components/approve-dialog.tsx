@@ -44,7 +44,7 @@ type Props = {
 
 // Statuses where approval requires the override flow. Mirrors
 // _OVERRIDE_APPROVABLE_STATUSES on the server. APPROVED + SUPERSEDED
-// + PENDING_REVIEW aren't here on purpose — the first two are
+// + PENDING_REVIEW aren't here on purpose, the first two are
 // meaningless to re-approve, and PENDING_REVIEW is the happy path.
 const OVERRIDE_REQUIRED_STATUSES: ReadonlySet<string> = new Set([
   "DRAFT",
@@ -53,7 +53,7 @@ const OVERRIDE_REQUIRED_STATUSES: ReadonlySet<string> = new Set([
   "REVOKED",
 ]);
 
-// Default is SELF_ATTESTED — the conservative pick. Admin upgrades
+// Default is SELF_ATTESTED, the conservative pick. Admin upgrades
 // to CERTIFICATE_ON_FILE only after verifying an uploaded cert;
 // TRUST_HALAL_VERIFIED requires the verifier site-visit flow that
 // Phase 8 introduces.
@@ -161,7 +161,7 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
           HALAL_CLAIM_NOT_DECIDABLE: {
             title: "Claim isn't reviewable",
             description:
-              "This claim is APPROVED or SUPERSEDED — there's nothing to approve from here. Reload the queue.",
+              "This claim is APPROVED or SUPERSEDED, there's nothing to approve from here. Reload the queue.",
           },
           HALAL_CLAIM_APPROVAL_REQUIRES_OVERRIDE: {
             title: "Override acknowledgement required",
@@ -186,7 +186,7 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
           <DialogHeader>
             <DialogTitle>Approve halal claim</DialogTitle>
             <DialogDescription>
-              Pick a validation tier — this drives the consumer-facing
+              Pick a validation tier, this drives the consumer-facing
               confidence level on the place&apos;s halal profile.
             </DialogDescription>
           </DialogHeader>
@@ -197,7 +197,7 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
               className="mt-4 space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950"
             >
               <p className="font-medium text-amber-950 dark:text-amber-100">
-                Override approval — outside the standard flow
+                Override approval, outside the standard flow
               </p>
               <p className="text-amber-900 dark:text-amber-100">
                 This claim is in <strong>{claim.status}</strong>, not
@@ -326,7 +326,7 @@ export function ApproveDialog({ claim, open, onOpenChange }: Props) {
                 />
                 <p className="text-xs text-muted-foreground">
                   Leave blank for the 90-day default. Overrides past
-                  90 days are clamped server-side — company policy.
+                  90 days are clamped server-side, company policy.
                 </p>
               </div>
               <div className="space-y-2">

@@ -8,13 +8,13 @@
  * full SHA on hover.
  *
  * Owner portal is customer-facing, so the styling is intentionally
- * understated — small, muted, sits next to the sign-out control.
+ * understated, small, muted, sits next to the sign-out control.
  */
 import packageJson from "../../package.json";
 
 /**
  * A SHA looks like 40 hex chars. Anything else is almost certainly
- * a misconfigured env var — most commonly the literal string
+ * a misconfigured env var, most commonly the literal string
  * ``$VERCEL_GIT_COMMIT_SHA`` saved as the value because Vercel doesn't
  * do shell-style $VAR expansion. Drop those rather than rendering a
  * confusing "v0.1.0 · $VERCEL" tag.

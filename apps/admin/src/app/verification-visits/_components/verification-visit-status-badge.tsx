@@ -2,7 +2,7 @@
  * Status badge for the admin verification-visit queue.
  *
  * Mirrors the server's ``VerificationVisitStatus`` enum. Adding a new
- * status over there means adding it here too — the explicit ``Record``
+ * status over there means adding it here too, the explicit ``Record``
  * keeps the type-checker honest if anything goes missing.
  *
  * Admin-flavored: SUBMITTED lands on the review palette (amber),
@@ -61,7 +61,7 @@ export function VerificationVisitStatusBadge({
   className?: string;
 }) {
   // Defensive fallback for any future statuses that haven't been
-  // mapped here yet — render the raw enum string with a neutral
+  // mapped here yet, render the raw enum string with a neutral
   // outline so the page doesn't blow up at runtime.
   const presentation =
     STATUS_PRESENTATION[status as VerificationVisitStatus] ?? {

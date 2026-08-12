@@ -1,7 +1,7 @@
 /**
  * Report a photo.
  *
- * The only lever anyone has over someone else's photo — restaurants
+ * The only lever anyone has over someone else's photo, restaurants
  * included, since they can't delete diner photos. That constraint is worth
  * stating in the dialog rather than leaving people to discover it: an owner
  * who arrives expecting a delete button and finds a report form should
@@ -80,7 +80,7 @@ export function ReportPhotoDialog({
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
 
-  // "Something else" with no explanation is unactionable — the server
+  // "Something else" with no explanation is unactionable, the server
   // rejects it, so the button shouldn't pretend otherwise.
   const needsDetail = reason === "OTHER";
   const canSubmit =
@@ -104,7 +104,7 @@ export function ReportPhotoDialog({
           PHOTO_ALREADY_REPORTED: {
             title: "",
             description:
-              "You've already reported this photo — it's in our queue.",
+              "You've already reported this photo, it's in our queue.",
           },
         },
       });
@@ -117,7 +117,7 @@ export function ReportPhotoDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Thanks — we&rsquo;ll take a look</DialogTitle>
+            <DialogTitle>Thanks, we&rsquo;ll take a look</DialogTitle>
             <DialogDescription>
               Someone on our team reviews reported photos within a day.
             </DialogDescription>
@@ -195,7 +195,7 @@ export function ReportPhotoDialog({
               photos stay up is cheaper now than an argument later. */}
           <p className="rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
             Photos of what a restaurant actually served stay up, including
-            unflattering ones — that&rsquo;s a large part of what makes Trust
+            unflattering ones, that&rsquo;s a large part of what makes Trust
             Halal worth reading. We remove photos that break our guidelines.
           </p>
 

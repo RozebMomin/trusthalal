@@ -2,9 +2,9 @@
  * Hooks + types for the consumer-preferences API.
  *
  * Kept in its own file (rather than appended to `hooks.ts`) because
- * the surface is self-contained and the local-store integration —
+ * the surface is self-contained and the local-store integration,
  * anonymous users save to localStorage via lib/preferences/local-store
- * — pulls in code that doesn't belong next to auth + search hooks.
+ *, pulls in code that doesn't belong next to auth + search hooks.
  *
  * Server-of-record posture:
  *   * Signed-in consumer → server. Reads via GET /me/preferences,
@@ -62,7 +62,7 @@ export type ConsumerPreferences = {
 };
 
 /**
- * Mirror of ``ConsumerPreferencesUpdate`` — same shape minus
+ * Mirror of ``ConsumerPreferencesUpdate``, same shape minus
  * ``updated_at``. Sending ``{}`` is the canonical 'reset all' op.
  */
 export type ConsumerPreferencesUpdate = Omit<ConsumerPreferences, "updated_at">;
@@ -71,7 +71,7 @@ export type ConsumerPreferencesUpdate = Omit<ConsumerPreferences, "updated_at">;
 // Query keys
 // ---------------------------------------------------------------------------
 
-// Single key for the prefs surface — there's only ever one row per
+// Single key for the prefs surface, there's only ever one row per
 // caller, so a constant key is fine.
 export const PREFERENCES_QK = ["me", "preferences"] as const;
 
@@ -83,7 +83,7 @@ export const PREFERENCES_QK = ["me", "preferences"] as const;
  * Read the caller's saved preferences. Server-of-record when signed
  * in; falls back to ``readLocal()`` when ``isAuthenticated`` is
  * false. The hook always returns a defined ``data`` once resolved
- * — there's no "no preferences saved yet" null state to branch on.
+ *, there's no "no preferences saved yet" null state to branch on.
  *
  * Pass ``isAuthenticated`` from the call site (which already
  * knows). We avoid pulling ``useCurrentUser`` directly here to keep
@@ -99,7 +99,7 @@ export function useMyPreferences(opts: { isAuthenticated: boolean }) {
         return await apiFetch<ConsumerPreferences>("/me/preferences");
       } catch (err) {
         // Owner / admin / verifier accounts get a 403 from the server
-        // — they don't have a consumer-prefs row by design. Resolve to
+        //, they don't have a consumer-prefs row by design. Resolve to
         // empty rather than blow up the page; the prefs surface is
         // hidden for those roles anyway.
         if (err instanceof ApiError && err.status === 403) {
@@ -108,7 +108,7 @@ export function useMyPreferences(opts: { isAuthenticated: boolean }) {
         throw err;
       }
     },
-    // Preferences barely change — long staleTime keeps the search
+    // Preferences barely change, long staleTime keeps the search
     // page from re-fetching on every navigation back.
     staleTime: 5 * 60 * 1000,
     retry: false,
@@ -155,7 +155,7 @@ export function useUpdatePreferences(opts: { isAuthenticated: boolean }) {
 /**
  * Push the local preferences (if any) to the server, then clear the
  * local copy. Called from the login/signup pages right after auth
- * succeeds and BEFORE invalidating /me — that way the user's first
+ * succeeds and BEFORE invalidating /me, that way the user's first
  * GET /me/preferences after sign-in already returns their migrated
  * filters.
  *

@@ -45,7 +45,7 @@ function captureRequestId(res: Response): void {
     });
     Sentry.setTag("last_request_id", requestId);
   } catch {
-    // Sentry not initialized (no DSN) — addBreadcrumb is normally a
+    // Sentry not initialized (no DSN): addBreadcrumb is normally a
     // no-op, but URL parsing can throw on edge cases. Swallow.
   }
 }
@@ -93,7 +93,7 @@ export type RequestOptions = Omit<RequestInit, "body"> & {
    * Array values are emitted as repeated keys (``?cuisine=A&cuisine=B``)
    * which is what FastAPI's ``Query(default=None)`` with a ``list[T]``
    * type expects. ``url.searchParams.append`` is the right primitive
-   * here — ``set`` would clobber prior entries for the same key.
+   * here, ``set`` would clobber prior entries for the same key.
    */
   searchParams?: Record<
     string,
@@ -110,7 +110,7 @@ function buildUrl(path: string, searchParams?: RequestOptions["searchParams"]) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
   // In the browser, call our OWN origin under `/api` and let the Next
   // rewrite (next.config) proxy through to the real API. This keeps the
-  // session cookie first-party to the consumer domain — a cross-site
+  // session cookie first-party to the consumer domain, a cross-site
   // SameSite=Lax cookie (api.trusthalal.org ↔ halalfoodnearme.com) would
   // otherwise never be sent on fetch, so sign-in wouldn't "take". On the
   // server there's no same-origin proxy, so hit the API directly.
@@ -147,7 +147,7 @@ export async function apiFetch<T = unknown>(
   let extraHeaders: Record<string, string> = {};
   if (formData !== undefined) {
     body = formData;
-    // Intentionally NO Content-Type — the browser sets the multipart
+    // Intentionally NO Content-Type, the browser sets the multipart
     // boundary header automatically based on the FormData contents.
   } else if (json !== undefined) {
     body = JSON.stringify(json);

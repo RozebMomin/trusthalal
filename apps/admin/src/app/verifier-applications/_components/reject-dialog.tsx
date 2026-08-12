@@ -92,7 +92,7 @@ export function RejectDialog({ application, open, onOpenChange }: Props) {
               id="reject-decision-note"
               value={decisionNote}
               onChange={(e) => setDecisionNote(e.target.value)}
-              placeholder="e.g. We're not onboarding verifiers in your region yet — please re-apply once coverage expands."
+              placeholder="e.g. We're not onboarding verifiers in your region yet, please re-apply once coverage expands."
               minLength={3}
               maxLength={2000}
               autoFocus

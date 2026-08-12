@@ -9,7 +9,7 @@
  * is required server-side (min_length=3) so the owner is never
  * stuck staring at a NEEDS_EVIDENCE badge with no instructions.
  *
- * Idempotent — calling again on an already-NEEDS_EVIDENCE request
+ * Idempotent, calling again on an already-NEEDS_EVIDENCE request
  * is a no-op for the status but logs a fresh note in the audit
  * trail.
  */
@@ -68,7 +68,7 @@ export function RequestEvidenceDialog({ request, open, onOpenChange }: Props) {
         title: "Evidence requested",
         description:
           request.status === "NEEDS_EVIDENCE"
-            ? "Request was already in NEEDS_EVIDENCE — we recorded a new note."
+            ? "Request was already in NEEDS_EVIDENCE, we recorded a new note."
             : "Status moved to NEEDS_EVIDENCE.",
       });
       onOpenChange(false);
@@ -96,7 +96,7 @@ export function RequestEvidenceDialog({ request, open, onOpenChange }: Props) {
             <DialogDescription>
               Tell the owner exactly what they need to upload next.
               The note is shown verbatim on their /my-claims detail
-              view, so be specific — vague instructions just bounce
+              view, so be specific, vague instructions just bounce
               the claim back without progress.
             </DialogDescription>
           </DialogHeader>

@@ -207,7 +207,7 @@ export default function OrganizationDetailPage() {
 }
 
 // Read-only members listing. Owners manage their team in the owner
-// portal — the admin role for this section is "see who's running the
+// portal, the admin role for this section is "see who's running the
 // org" while reviewing, not "edit the roster."
 function MembersSection({
   org,
@@ -302,7 +302,7 @@ function MemberRow({ member }: { member: OrganizationMemberAdminRead }) {
 
 /**
  * Lists PlaceOwner rows with the place nested inline. Server sorts
- * ACTIVE-first, then name-asc within a status group — this component
+ * ACTIVE-first, then name-asc within a status group, this component
  * just renders the order it's handed.
  *
  * Management (link / unlink / revoke) happens on the place detail
@@ -425,16 +425,16 @@ function ErrorState({ error }: { error: Error }) {
 
 
 // ---------------------------------------------------------------------------
-// Verification — status-aware section with Verify/Reject actions
+// Verification, status-aware section with Verify/Reject actions
 // ---------------------------------------------------------------------------
 
 /**
  * Status-aware verification panel. Behavior per state:
  *
- *   * UNDER_REVIEW — submitted_at + Verify and Reject buttons.
- *   * VERIFIED / REJECTED — read-only summary with the deciding admin
+ *   * UNDER_REVIEW, submitted_at + Verify and Reject buttons.
+ *   * VERIFIED / REJECTED, read-only summary with the deciding admin
  *     id, decision timestamp, and decision_note (the reason).
- *   * DRAFT — placeholder text noting the owner hasn't submitted yet.
+ *   * DRAFT, placeholder text noting the owner hasn't submitted yet.
  *
  * The Evidence section above this one is the actual document
  * viewer; this component just owns the decision metadata + the
@@ -491,7 +491,7 @@ function VerificationSection({
     );
   }
 
-  // VERIFIED / REJECTED — read-only audit summary.
+  // VERIFIED / REJECTED, read-only audit summary.
   const decidedTone =
     org.status === "VERIFIED"
       ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30"

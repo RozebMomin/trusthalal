@@ -117,7 +117,7 @@ export default function PlaceDetailPage() {
             </p>
           )}
           {place?.updated_at && (
-            // Intentionally subtle — the admin is here because they want
+            // Intentionally subtle, the admin is here because they want
             // to look at the place, not its metadata. "Last edited" gives
             // just enough context to judge whether the data is fresh
             // without stealing focus from the actions row.
@@ -206,7 +206,7 @@ function PlaceActions({
   // added manually before the ingest flow existed. We hide the button
   // when the place already has a canonical_source (almost certainly
   // means there's already a PlaceExternalId link for that provider),
-  // and on soft-deleted rows where linking is noisy — admin should
+  // and on soft-deleted rows where linking is noisy, admin should
   // restore first and then link if they want to augment the record.
   const showLinkToGoogle = !place.is_deleted && place.canonical_source == null;
 
@@ -234,13 +234,13 @@ function PlaceActions({
 }
 
 // ---------------------------------------------------------------------------
-// Halal claims for this place — read-only summary
+// Halal claims for this place, read-only summary
 // ---------------------------------------------------------------------------
 //
 // Lists every halal claim filed against this place, newest first,
 // with click-through to the per-claim review surface. The admin
 // halal-claim API supports a ``place_id`` filter, so we hit the
-// canonical queue endpoint with that one parameter — no separate
+// canonical queue endpoint with that one parameter, no separate
 // per-place collection to maintain.
 function HalalClaimsSection({ placeId }: { placeId: string }) {
   const { data, isLoading, error } = useAdminHalalClaims({ placeId });
@@ -295,7 +295,7 @@ function HalalClaimsSection({ placeId }: { placeId: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Consumer disputes for this place — read-only summary
+// Consumer disputes for this place, read-only summary
 // ---------------------------------------------------------------------------
 //
 // Mirrors HalalClaimsSection in shape: hits the canonical admin
@@ -358,7 +358,7 @@ function DisputesSection({ placeId }: { placeId: string }) {
 // ---------------------------------------------------------------------------
 
 /**
- * "What external providers is this place linked to?" — renders the
+ * "What external providers is this place linked to?", renders the
  * PlaceExternalId rows with last-synced context and per-row Resync /
  * Unlink actions. Empty state points the admin at the "Link to Google"
  * button in the header.
@@ -373,7 +373,7 @@ function ProviderLinksSection({ place }: { place: PlaceAdminRead }) {
   const { toast } = useToast();
   const resync = useResyncPlace();
 
-  // One dialog, reused across rows — capture the "target" before opening.
+  // One dialog, reused across rows, capture the "target" before opening.
   const [unlinkTarget, setUnlinkTarget] = React.useState<
     PlaceExternalIdAdminRead | null
   >(null);
@@ -383,7 +383,7 @@ function ProviderLinksSection({ place }: { place: PlaceAdminRead }) {
       const result = await resync.mutateAsync({ id: place.id });
       // fields_updated is typed as optional by codegen (Pydantic's
       // default_factory=list is conservative on response shapes) but
-      // always arrives as a list on the wire — default to [] defensively.
+      // always arrives as a list on the wire, default to [] defensively.
       const backfilled = result.fields_updated ?? [];
       const body =
         backfilled.length > 0
@@ -395,9 +395,9 @@ function ProviderLinksSection({ place }: { place: PlaceAdminRead }) {
         variant: "success",
       });
     } catch (err) {
-      // NO_GOOGLE_LINK shouldn't happen in practice — this handler is
+      // NO_GOOGLE_LINK shouldn't happen in practice, this handler is
       // attached to a button on a row that only renders when a link
-      // exists — but guard it anyway so the toast explains the state
+      // exists, but guard it anyway so the toast explains the state
       // instead of leaking the raw server message.
       const msg = friendlyApiError(err, {
         defaultTitle: "Resync failed",
@@ -537,7 +537,7 @@ function ProviderLinkRow({
 // ---------------------------------------------------------------------------
 
 /**
- * "Who owns this place" — organizations linked to the place via the
+ * "Who owns this place", organizations linked to the place via the
  * ``place_owners`` join, with role/status context and active member
  * count so the admin can see whether anyone in the org can actually
  * respond if contacted.
@@ -551,7 +551,7 @@ function ProviderLinkRow({
 function OwnershipSection({ place }: { place: PlaceAdminRead }) {
   const { data, isLoading, error } = useAdminPlaceOwners(place.id);
 
-  // Single dialog reused across rows — capture the row being revoked
+  // Single dialog reused across rows, capture the row being revoked
   // before opening so the dialog knows which org to name in its copy.
   const [revokeTarget, setRevokeTarget] =
     React.useState<PlaceOwnerAdminRead | null>(null);
@@ -619,7 +619,7 @@ function OwnershipSection({ place }: { place: PlaceAdminRead }) {
       {data && activeRows.length === 0 && revokedRows.length > 0 && !showRevoked && (
         <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
           No active owners. {revokedRows.length}{" "}
-          revoked owner{revokedRows.length === 1 ? "" : "s"} on file —{" "}
+          revoked owner{revokedRows.length === 1 ? "" : "s"} on file,{" "}
           <button
             type="button"
             onClick={() => setShowRevoked(true)}
@@ -686,7 +686,7 @@ function OwnerRow({
   onRevoke: () => void;
 }) {
   const { organization: org, role, status } = owner;
-  // Already-revoked rows are historical audit context — no action to
+  // Already-revoked rows are historical audit context, no action to
   // take, so the button would be a no-op. Hide it to keep the row
   // visually simpler.
   const canRevoke = status.toUpperCase() !== "REVOKED";
@@ -697,7 +697,7 @@ function OwnerRow({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             {/*
-              Link is live even though /organizations/{id} is still a stub —
+              Link is live even though /organizations/{id} is still a stub,
               keeps us from having to sweep back here later when the org
               detail page graduates.
             */}

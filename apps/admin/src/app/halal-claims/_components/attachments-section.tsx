@@ -9,7 +9,7 @@
  * single broken file doesn't tank the whole panel.
  *
  * Lives at the page level (not inside a dialog) because the halal-
- * claim detail surface is its own page — the questionnaire alone
+ * claim detail surface is its own page, the questionnaire alone
  * needs more vertical real-estate than fits in a modal.
  */
 import * as React from "react";

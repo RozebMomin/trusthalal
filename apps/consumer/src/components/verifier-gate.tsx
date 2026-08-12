@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * VerifierGate — wraps any /verifier/* route with the auth + role
+ * VerifierGate, wraps any /verifier/* route with the auth + role
  * checks it needs to render safely.
  *
  * Four states:
@@ -11,8 +11,8 @@
  *                              CTA to /become-a-verifier
  *   4. Signed in as VERIFIER + ACTIVE profile → render children
  *
- * The role check is a soft guard — the server still enforces the same
- * rules on every API call — so a stale-cache or race can't unlock a
+ * The role check is a soft guard, the server still enforces the same
+ * rules on every API call, so a stale-cache or race can't unlock a
  * screen a user shouldn't see for more than a paint.
  */
 
@@ -29,7 +29,7 @@ export function VerifierGate({ children }: { children: React.ReactNode }) {
   const { data: me, isLoading: meLoading } = useCurrentUser();
   const { data: profile, isLoading: profileLoading } = useVerifierProfile();
 
-  // Not signed in — bounce to login. Preserve the destination so we
+  // Not signed in, bounce to login. Preserve the destination so we
   // land back here on the way through.
   React.useEffect(() => {
     if (!meLoading && me === null) {
@@ -51,13 +51,13 @@ export function VerifierGate({ children }: { children: React.ReactNode }) {
 
   if (!me) return null; // redirect is pending
 
-  // Signed in but not a verifier — dead end here, offer the apply
+  // Signed in but not a verifier, dead end here, offer the apply
   // link instead.
   if (me.role !== "VERIFIER" || !profile) {
     return <NotAVerifierPage />;
   }
 
-  // Verifier but profile is SUSPENDED / REVOKED — read-only info.
+  // Verifier but profile is SUSPENDED / REVOKED, read-only info.
   if (profile.status !== "ACTIVE") {
     return <SuspendedProfilePage status={profile.status} />;
   }

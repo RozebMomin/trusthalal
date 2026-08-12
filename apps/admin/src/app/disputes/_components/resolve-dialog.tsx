@@ -3,9 +3,9 @@
 /**
  * Resolve a consumer dispute (uphold or dismiss).
  *
- * Two-radio decision picker. UPHELD — admin sided with the consumer
+ * Two-radio decision picker. UPHELD, admin sided with the consumer
  * (data correction goes through a separate owner-driven
- * RECONCILIATION halal_claim, not this endpoint). DISMISSED — admin
+ * RECONCILIATION halal_claim, not this endpoint). DISMISSED, admin
  * sided with the place; no profile change.
  *
  * The note is owner/consumer-visible on DISMISSED so the consumer
@@ -45,7 +45,7 @@ const DECISION_OPTIONS: ReadonlyArray<{
     value: "RESOLVED_UPHELD",
     label: "Uphold",
     description:
-      "Consumer was right. The place's halal profile is wrong. Data correction happens through a follow-up RECONCILIATION halal claim from the owner — this endpoint just clears the dispute badge.",
+      "Consumer was right. The place's halal profile is wrong. Data correction happens through a follow-up RECONCILIATION halal claim from the owner, this endpoint just clears the dispute badge.",
   },
   {
     value: "RESOLVED_DISMISSED",
@@ -77,7 +77,7 @@ export function ResolveDialog({
   }, [open, dispute.id]);
 
   // Server requires a non-trivial note on DISMISSED (the consumer
-  // sees it as the explanation). UPHELD keeps the note optional —
+  // sees it as the explanation). UPHELD keeps the note optional,
   // "we agreed, follow-up RECONCILIATION incoming" speaks for
   // itself.
   const noteRequired = decision === "RESOLVED_DISMISSED";

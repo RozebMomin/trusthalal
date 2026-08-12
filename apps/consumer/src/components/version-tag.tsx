@@ -8,13 +8,13 @@
  * full SHA on hover.
  *
  * Owner portal is customer-facing, so the styling is intentionally
- * understated — small, muted, sits next to the sign-out control.
+ * understated, small, muted, sits next to the sign-out control.
  */
 import packageJson from "../../package.json";
 
 /**
  * A SHA looks like 40 hex chars. Anything else is almost certainly
- * a misconfigured env var — most commonly the literal string
+ * a misconfigured env var, most commonly the literal string
  * ``$VERCEL_GIT_COMMIT_SHA`` saved as the value because Vercel doesn't
  * do shell-style $VAR expansion. Drop those rather than rendering a
  * confusing "v0.1.0 · $VERCEL" tag.
@@ -30,7 +30,7 @@ export function VersionTag({ className }: { className?: string }) {
   const shortSha = sha ? sha.slice(0, 7) : null;
 
   const display = shortSha ? `v${version} · ${shortSha}` : `v${version}`;
-  // "consumer" — this file was originally copied from the owner
+  // "consumer", this file was originally copied from the owner
   // portal; the tooltip said "owner vX.Y.Z" on the public site.
   const tooltip = shortSha
     ? `consumer v${version} (${sha})`

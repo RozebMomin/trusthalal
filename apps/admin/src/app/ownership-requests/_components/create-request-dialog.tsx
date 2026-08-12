@@ -8,12 +8,12 @@
  * submit flow. Structurally:
  *
  *   1. Pick a place via debounced search (useAdminPlaces q param).
- *   2. Optionally pick a requester user via debounced search — leave
+ *   2. Optionally pick a requester user via debounced search, leave
  *      null for anonymous / walk-in intakes.
  *   3. Fill in contact name / email / optional message and submit.
  *
  * Unlike the public claim form, the admin path bypasses the
- * per-place duplicate guard server-side — staff can record an
+ * per-place duplicate guard server-side, staff can record an
  * inbound intake even while another claim is in flight. The audit
  * trail prefers two parallel rows over a phantom one that never
  * got recorded.
@@ -184,7 +184,7 @@ export function CreateRequestDialog({
           // The admin path bypasses the per-place duplicate guard
           // server-side, so this code shouldn't fire here. Kept as
           // a defensive fallback in case the server contract
-          // changes — message is intentionally generic.
+          // changes, message is intentionally generic.
           OWNERSHIP_REQUEST_ALREADY_EXISTS: {
             title: "Active request already exists",
             description:
@@ -368,7 +368,7 @@ export function CreateRequestDialog({
                                   update("user", u);
                                   setUserQuery("");
                                   // Pre-fill the contact fields from
-                                  // the user — admin can still edit
+                                  // the user, admin can still edit
                                   // afterwards if the claimant is
                                   // giving different contact info.
                                   if (!form.contact_name && u.display_name) {

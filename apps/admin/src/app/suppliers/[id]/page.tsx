@@ -181,7 +181,7 @@ export default function SupplierDetailPage() {
               {supplier.products.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
-                    No product lines yet. Add one — that&apos;s where the slaughter
+                    No product lines yet. Add one, that&apos;s where the slaughter
                     method is recorded.
                   </TableCell>
                 </TableRow>
@@ -240,7 +240,7 @@ export default function SupplierDetailPage() {
             <li key={e.id} className="flex gap-3 text-sm">
               <span className="w-24 shrink-0 text-xs text-muted-foreground">{fmt(e.created_at)}</span>
               <span className="font-medium">{title(e.event_type)}</span>
-              {e.description && <span className="text-muted-foreground">— {e.description}</span>}
+              {e.description && <span className="text-muted-foreground">· {e.description}</span>}
             </li>
           ))}
           {(events ?? []).length === 0 && (

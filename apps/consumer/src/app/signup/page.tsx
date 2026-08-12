@@ -64,7 +64,7 @@ function SignupPageInner() {
 
   // Cheap client-side guards so the user gets immediate feedback
   // instead of a server roundtrip. The server still enforces these
-  // independently — never trust the client for security.
+  // independently, never trust the client for security.
   const passwordWeak = password.length > 0 && !isPasswordValid(password);
   const passwordMismatch =
     confirmPassword.length > 0 && password !== confirmPassword;
@@ -102,7 +102,7 @@ function SignupPageInner() {
         turnstile_token: captchaToken ?? undefined,
       });
       // Migrate any anonymous-saved preferences to the new account
-      // before redirecting. Best-effort — a failure here doesn't
+      // before redirecting. Best-effort, a failure here doesn't
       // block the signup flow; the local copy stays so the user
       // can retry from /preferences.
       await syncLocalToServerOnLogin();
@@ -145,7 +145,7 @@ function SignupPageInner() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
-      {/* Brand escape hatch — auth pages render without app chrome. */}
+      {/* Brand escape hatch, auth pages render without app chrome. */}
       <Link
         href="/"
         className="mb-6 text-lg font-semibold tracking-tight transition hover:opacity-80"
@@ -264,7 +264,7 @@ function SignupPageInner() {
 
           {/* Live only when NEXT_PUBLIC_TURNSTILE_SITE_KEY is set (prod). */}
           {/* Bot challenge. Renders nothing in dev (no site key); in prod
-              the submit button waits on its token — see formInvalid. */}
+              the submit button waits on its token, see formInvalid. */}
           <Turnstile onVerify={setCaptchaToken} resetSignal={captchaReset} />
 
         {/* Guideline 1.2 requires users of an app hosting user-generated

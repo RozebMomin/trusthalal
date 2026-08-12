@@ -8,7 +8,7 @@
  * the newer `PlaceAutocompleteElement` web component because:
  *
  *   1. The legacy widget emits a plain DOM event (`place_changed`) on the
- *      input we own, so Tailwind/shadcn styling "just works" — no shadow DOM
+ *      input we own, so Tailwind/shadcn styling "just works", no shadow DOM
  *      surprises. The New API's element is a web component whose styling is
  *      harder to override consistently.
  *   2. We only need the place_id string out of it; the server does the Place
@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Fields the widget passes back from a picked prediction. These come from the
- * Autocomplete's own response (not a separate API call) so they're free —
+ * Autocomplete's own response (not a separate API call) so they're free,
  * Google already billed us for the Autocomplete session that produced them.
  *
  * `name` + `formatted_address` are surfaced separately (instead of being

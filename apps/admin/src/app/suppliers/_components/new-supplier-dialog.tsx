@@ -132,7 +132,7 @@ export function NewSupplierDialog({ open, onOpenChange }: Props) {
                 pattern="[a-z0-9][a-z0-9.-]*"
               />
               <p className="text-xs text-muted-foreground">
-                Lowercase, letters/numbers/dashes. Permanent — it&apos;s the
+                Lowercase, letters/numbers/dashes. Permanent, it&apos;s the
                 idempotency key.
               </p>
             </div>

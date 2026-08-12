@@ -49,7 +49,7 @@ export function AppNav() {
   const { data: me } = useCurrentUser();
 
   // Hide items the current user can't actually open. We default-show
-  // if we don't have a role yet (`me` still loading) — AppShell is
+  // if we don't have a role yet (`me` still loading): AppShell is
   // already gatekeeping the render anyway, so a brief flash of the
   // full menu before the shell decides is not a real concern.
   const visibleItems = me
@@ -63,7 +63,7 @@ export function AppNav() {
           smaller "Admin portal" qualifier underneath, matching the
           pattern used in the owner-portal header. The old single-
           line "trusthalal admin" felt like a slug rather than a
-          brand — capitalization signals a polished surface, and
+          brand, capitalization signals a polished surface, and
           the explicit qualifier tells someone landing on the
           mobile drawer which Trust Halal surface they're on. */}
       <div className="mb-4 flex items-center gap-2.5 px-2">

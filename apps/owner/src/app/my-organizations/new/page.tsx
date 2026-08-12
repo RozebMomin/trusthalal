@@ -3,7 +3,7 @@
  *
  * Registering a business now happens inside the unified get-verified
  * flow (Stage 1). This route is kept only so stale bookmarks and any
- * lingering links resolve — it forwards to the new business step,
+ * lingering links resolve, it forwards to the new business step,
  * forcing a fresh entity (?new=1) since that's what "create a new
  * organization" meant here.
  */

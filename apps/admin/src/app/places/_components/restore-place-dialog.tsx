@@ -3,7 +3,7 @@
 /**
  * Restore Place dialog.
  *
- * Structural twin of DeletePlaceDialog — the two share the "reason that
+ * Structural twin of DeletePlaceDialog, the two share the "reason that
  * shows up in event history" UX but diverge on copy, button variant,
  * and intent. They're kept as separate components rather than a single
  * generic ActionWithReasonDialog so the placeholder text and wording

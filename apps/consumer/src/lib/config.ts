@@ -3,7 +3,7 @@
  *
  * Anything referenced here is injected at build time, so callers can
  * treat these values as constants. The consumer site's footprint is
- * minimal — just the API base URL, same shape as the owner portal.
+ * minimal, just the API base URL, same shape as the owner portal.
  */
 
 export const config = {

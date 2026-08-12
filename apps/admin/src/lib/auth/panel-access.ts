@@ -12,16 +12,16 @@
  *
  * Policy today
  * ------------
- *   * ADMIN    — full panel (every non-public path).
- *   * VERIFIER — /halal-claims queue + detail (their moderation
+ *   * ADMIN   , full panel (every non-public path).
+ *   * VERIFIER, /halal-claims queue + detail (their moderation
  *     surface) and /ownership-requests for cross-referencing the
  *     underlying ownership claim while reviewing a halal claim.
  *     Everything else is staff operations they don't participate
  *     in.
- *   * OWNER    — no panel access. The owner portal is its own app
- *     (apps/owner) — owners file claims and manage their orgs there,
+ *   * OWNER   , no panel access. The owner portal is its own app
+ *     (apps/owner): owners file claims and manage their orgs there,
  *     not in the admin panel.
- *   * CONSUMER — no panel access. Consumers browse the public catalog
+ *   * CONSUMER, no panel access. Consumers browse the public catalog
  *     (separate product), not the internal tool.
  *
  * "No panel access" is distinct from "403." We surface a friendly
@@ -35,7 +35,7 @@ import type { UserRole } from "@/lib/api/hooks";
 /**
  * Where a freshly-signed-in user of a given role should land.
  *
- * ``null`` means "this role has no home in the admin panel" — the
+ * ``null`` means "this role has no home in the admin panel", the
  * shell will render the NoAccessPane instead of routing them somewhere.
  * Keep the string values in lock-step with the server's
  * ``_redirect_path_for`` so a login that returns ``redirect_path:
@@ -43,7 +43,7 @@ import type { UserRole } from "@/lib/api/hooks";
  */
 export const PANEL_HOME_FOR_ROLE: Record<UserRole, string | null> = {
   ADMIN: "/places",
-  // VERIFIER lands on the halal-claim queue — the moderation surface
+  // VERIFIER lands on the halal-claim queue, the moderation surface
   // they exist to drive. The ownership-requests queue is also
   // reachable via the path list below for verifiers who need to
   // cross-reference an underlying ownership claim while reviewing
@@ -93,7 +93,7 @@ export function homeFor(role: UserRole): string | null {
  * (login, set-password) are handled separately by AppShell; this
  * function assumes the caller already established the path is gated.
  *
- * OWNER and CONSUMER can't access ANY gated path — they don't belong
+ * OWNER and CONSUMER can't access ANY gated path, they don't belong
  * in the panel at all. Short-circuit for them so the pattern list
  * doesn't have to enumerate every exclusion.
  */

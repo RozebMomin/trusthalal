@@ -5,7 +5,7 @@
  *
  * Three jobs, in order:
  *
- *  1. Render public routes bare (login, set-password) — no sidebar,
+ *  1. Render public routes bare (login, set-password): no sidebar,
  *     no auth check beyond "is this path public?"
  *
  *  2. Redirect unauthenticated users on gated paths to /login, and
@@ -23,7 +23,7 @@
  * Why client-side rather than Next.js middleware: the session cookie
  * is set with SameSite=Lax across the 3001↔8000 origin boundary, so
  * middleware sitting on the panel's origin can't actually SEE the
- * cookie on the first render — it'd always think you're logged out.
+ * cookie on the first render, it'd always think you're logged out.
  * The source of truth is the API's /me endpoint, not the cookie's
  * local presence.
  */
@@ -40,25 +40,25 @@ import { useCurrentUser, useLogout } from "@/lib/api/hooks";
 import { canAccess, homeFor } from "@/lib/auth/panel-access";
 import { useToast } from "@/lib/hooks/use-toast";
 
-// Routes that render without the authenticated chrome. Exact-match —
+// Routes that render without the authenticated chrome. Exact-match,
 // any subroute (e.g. /login/forgot) would also need to be added here.
 //
 // /set-password renders without auth because the whole point is that
-// the user doesn't have a password yet — they're completing an invite
+// the user doesn't have a password yet, they're completing an invite
 // via a token in the URL. The page rejects the token server-side if
 // the user has been deactivated, so there's no impersonation surface.
 /**
  * Routes that render without the auth gate.
  *
  * Every one of these is reached by someone who is, by definition, not
- * signed in — or who is proving something with a token rather than a
+ * signed in, or who is proving something with a token rather than a
  * session. Gating them sends the user to /login, which is the one page
  * they can't get past:
  *
- *   /login, /signup       — obvious.
- *   /forgot-password      — you're here because you can't sign in.
- *   /reset-password       — the token IS the credential.
- *   /verify-email         — the token IS the proof, and these links are
+ *   /login, /signup      , obvious.
+ *   /forgot-password     , you're here because you can't sign in.
+ *   /reset-password      , the token IS the credential.
+ *   /verify-email        , the token IS the proof, and these links are
  *                           routinely opened on a phone or in a mail
  *                           client where no session exists.
  *
@@ -79,7 +79,7 @@ const PUBLIC_PATHS = new Set<string>([
 /**
  * Public routes that must ALSO render for a signed-in user.
  *
- * The rest of PUBLIC_PATHS bounces an authenticated visitor home — sensible
+ * The rest of PUBLIC_PATHS bounces an authenticated visitor home, sensible
  * for /login, wrong for anything carrying a token. A signed-in owner
  * clicking their own confirmation link would otherwise be redirected away
  * before the token was ever redeemed, and the link would appear to do
@@ -152,7 +152,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isPublic) {
     // A home-less signed-in user (OWNER/CONSUMER today) who somehow
-    // reaches /login should not see the sign-in form again — they're
+    // reaches /login should not see the sign-in form again, they're
     // already signed in, they just don't belong in this panel. Show
     // the NoAccessPane so they get a coherent dead-end with a
     // sign-out button. Same check happens in the gated-path branch
@@ -161,7 +161,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (me && homeFor(me.role) === null) {
       return <NoAccessPane role={me.role} />;
     }
-    // /login and friends — bare render, no sidebar. The page itself
+    // /login and friends, bare render, no sidebar. The page itself
     // styles its own fullscreen centered layout.
     return <>{children}</>;
   }
@@ -244,7 +244,7 @@ function AuthedShell({
 
   // Single-scroll guarantee on desktop. The shell already pins the
   // layout to the viewport (h-[100dvh] + overflow-hidden) so <main> is
-  // the only scroll region — but a 1px rounding gap between 100dvh and
+  // the only scroll region, but a 1px rounding gap between 100dvh and
   // the html's 100% height can still let the document scroll a hair,
   // showing a phantom second scrollbar next to main's. Lock the
   // document itself on md+ so that can't happen; mobile keeps its
@@ -340,11 +340,11 @@ function AuthedShell({
         Inner content column.
 
         Desktop (md+): classic "fixed sidebar, scrolling main" pattern
-        — the wrapper clips overflow and `<main>` owns its own
+       , the wrapper clips overflow and `<main>` owns its own
         scroll region. Sidebar stays put while content scrolls.
 
         Mobile (< md): nested overflow regions confused mobile Safari
-        — the URL bar's collapse-on-scroll didn't expand the visible
+       , the URL bar's collapse-on-scroll didn't expand the visible
         area, leaving an empty band at the bottom (the "weird end
         scroll" the user reported). Drop the inner overflow and let
         the page scroll naturally on the body, the same way every
@@ -404,7 +404,7 @@ function NoAccessPane({ role }: { role: "OWNER" | "CONSUMER" | string }) {
     : "This tool isn't for your account";
   const body = isOwner
     ? "You're signed in as an OWNER. The owner dashboard where you'll be able to manage your restaurants and claims is under construction. We'll email you when it's ready."
-    : "This is Trust Halal's internal staff tool. If you're a customer looking for restaurants, our public site is the right place — this panel is for admin and moderation work only.";
+    : "This is Trust Halal's internal staff tool. If you're a customer looking for restaurants, our public site is the right place, this panel is for admin and moderation work only.";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -459,7 +459,7 @@ function SignedInIndicator() {
       router.replace("/login");
     } catch {
       // Logout failures are rare (server revokes are idempotent) and
-      // the cookie gets cleared by the server regardless — inform the
+      // the cookie gets cleared by the server regardless, inform the
       // user but still attempt to redirect so they aren't stuck.
       toast({
         title: "Logout issue",

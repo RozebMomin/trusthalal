@@ -7,7 +7,7 @@
  * Free text vs. enum:
  * The list is *suggestions*, not a closed set. The server stores
  * ``certifying_authority`` and ``issuing_authority`` as plain
- * strings — owners with a body that isn't on the list pick "Other"
+ * strings, owners with a body that isn't on the list pick "Other"
  * and type the name. We keep server-side validation lax on
  * purpose: the global halal-cert space is too long-tail to enforce
  * an enum without locking out edge cases (small mosque-issued
@@ -17,7 +17,7 @@
  *
  * When extending: keep the names short and unambiguous. If a body
  * has a well-known abbreviation (IFANCA, JAKIM), prefer the
- * abbreviation as the canonical token — the longer name lands in
+ * abbreviation as the canonical token, the longer name lands in
  * ``description``. Owners scan the abbreviations.
  */
 
@@ -76,7 +76,7 @@ export const AUTH_OTHER_SENTINEL = "__other__";
  *
  *   - ``null`` / ``undefined``  → ``__none__`` (nothing selected)
  *   - ``""`` (empty string)     → ``__other__`` (user just clicked
- *                                  "Other" but hasn't typed yet —
+ *                                  "Other" but hasn't typed yet,
  *                                  IMPORTANT: ``""`` must NOT
  *                                  collapse to ``__none__`` or the
  *                                  free-text input never gets a

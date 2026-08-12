@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Public verifier profile — /verifiers/[handle]
+ * Public verifier profile, /verifiers/[handle]
  *
  * This is the ambassador page. Verifiers link to it from their
  * Instagram bio, YouTube description, personal blog. The point is
@@ -17,7 +17,7 @@
  *
  * 404 handling: the backend returns 404 for private profiles OR
  * suspended/revoked verifiers OR non-existent handles. We render
- * the same friendly "not found" state for all three — no
+ * the same friendly "not found" state for all three, no
  * existence-leaks.
  */
 
@@ -293,7 +293,7 @@ function platformLabel(key: string): string {
 
 /**
  * Turn a stored handle-or-URL into a clickable URL. Verifiers may
- * store either raw handles (``@yasmeen_eats``) or full URLs — we
+ * store either raw handles (``@yasmeen_eats``) or full URLs, we
  * normalize so the link works either way.
  */
 function linkifyHandle(platform: string, value: string): string {

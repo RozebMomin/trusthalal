@@ -1,5 +1,5 @@
 /**
- * One row in the consumer search results list — refreshed for the
+ * One row in the consumer search results list, refreshed for the
  * aesthetic pass.
  *
  * Layout strategy (data-rich camp): horizontal card on desktop with
@@ -9,22 +9,22 @@
  *
  * Information rhythm, top to bottom:
  *
- *   1. Hero photo (or neutral placeholder) — visual anchor.
- *   2. Primary halal pill (top-right of content) — the single
+ *   1. Hero photo (or neutral placeholder): visual anchor.
+ *   2. Primary halal pill (top-right of content): the single
  *      most-important trust signal, derived by the halal-display
  *      helper from the embedded profile + dispute state.
  *   3. Place name (h3, prominent).
  *   4. Cuisine row + distance (compact metadata strip).
- *   5. Halal facts strip — Zabihah, cert, no pork, etc. Up to 4
+ *   5. Halal facts strip, Zabihah, cert, no pork, etc. Up to 4
  *      visible chips with "+N more" overflow.
  *   6. Address line (de-emphasized, last row).
  *
  * Whole card is a single ``next/link``: the entire 88+px row is the
- * tap target. No nested interactive elements — chips are
+ * tap target. No nested interactive elements, chips are
  * informational, not buttons.
  *
  * Distance pill renders inline in the metadata strip rather than as
- * a corner badge — the corner is now reserved for the primary halal
+ * a corner badge, the corner is now reserved for the primary halal
  * signal which is more important to scan first.
  */
 import { Clock, Navigation, Star } from "lucide-react";
@@ -42,7 +42,7 @@ import {
 } from "@/lib/halal-display";
 import { cn } from "@/lib/utils";
 
-// Compact display labels for cuisine chips. Same map as the picker —
+// Compact display labels for cuisine chips. Same map as the picker,
 // kept duplicated rather than imported because it's per-surface
 // display copy. If they drift on purpose later (e.g. shorter labels
 // on the result row) the duplication doesn't fight us.
@@ -98,7 +98,7 @@ const CARD_CUISINE_LABELS: Readonly<Record<Cuisine, string>> = {
   CAFE: "Café",
 };
 
-// Visible chip caps — overflow renders as "+N". Cuisines tend to be
+// Visible chip caps, overflow renders as "+N". Cuisines tend to be
 // 1-3 per place; halal facts can hit 6 on a verifier-confirmed
 // fully-halal certified place. Cap at 4 facts to keep the row from
 // wrapping on a phone.
@@ -135,7 +135,7 @@ export function PlaceResultCard({
     <li>
       <Link
         href={`/places/${place.id}`}
-        aria-label={`${place.name} — ${primary.label}`}
+        aria-label={`${place.name}, ${primary.label}`}
         className={cn(
           "group block overflow-hidden rounded-xl border bg-card transition",
           "hover:border-foreground/30 hover:shadow-md",
@@ -143,7 +143,7 @@ export function PlaceResultCard({
         )}
       >
         <div className="flex flex-col sm:flex-row">
-          {/* Photo column — wraps the actual image so the heart
+          {/* Photo column, wraps the actual image so the heart
               overlay can sit in its top-right corner without
               colliding with the trust pill in the content area. */}
           <div className="relative shrink-0">
@@ -208,7 +208,7 @@ export function PlaceResultCard({
 // Hero photo / placeholder. On desktop sits to the left of the
 // content (square 160x160). On mobile becomes a 16:10 top banner.
 // Falls back to a subtle gradient placeholder when the place has no
-// hero — better than a broken-image icon and reads as intentional
+// hero, better than a broken-image icon and reads as intentional
 // rather than missing.
 // ---------------------------------------------------------------------------
 function PlaceResultPhoto({
@@ -241,7 +241,7 @@ function PlaceResultPhoto({
         // Much more compact than the photo variant: most of the
         // catalog has no photo yet, and a full-height empty block
         // pushed real content (name, distance, trust pill) below
-        // the fold — one-and-a-half cards per phone screen. A slim
+        // the fold, one-and-a-half cards per phone screen. A slim
         // banner on mobile / narrow column on desktop keeps the
         // card scannable while photos roll in.
         "h-16 w-full sm:h-auto sm:min-h-full sm:w-24",
@@ -296,7 +296,7 @@ function MetadataStrip({
 }) {
   const visibleCuisines = cuisines.slice(0, MAX_CUISINE_CHIPS);
   const cuisineOverflow = cuisines.length - visibleCuisines.length;
-  // One rating per card — there isn't room for two, and two unlabelled
+  // One rating per card, there isn't room for two, and two unlabelled
   // numbers side by side is worse than one labelled one. Trust Halal's wins
   // where it exists; otherwise Google's, explicitly marked as Google's so a
   // bare star never again means something the reader can't identify.
@@ -366,7 +366,7 @@ function MetadataStrip({
 }
 
 // ---------------------------------------------------------------------------
-// Halal facts strip — small chips of true-only attributes (Zabihah,
+// Halal facts strip, small chips of true-only attributes (Zabihah,
 // pork-free, certified, etc.). Distinct from the cuisine line: this
 // is the granular halal evidence, the cuisine line is "what kind of
 // food."

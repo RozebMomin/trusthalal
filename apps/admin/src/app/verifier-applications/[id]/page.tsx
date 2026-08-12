@@ -238,7 +238,7 @@ export default function VerifierApplicationDetailPage() {
         </section>
       )}
 
-      {/* Verifier access — only meaningful once the application is
+      {/* Verifier access, only meaningful once the application is
           approved and we know which user was provisioned. */}
       {application.status === "APPROVED" && application.applicant_user_id && (
         <VerifierAccessPanel
@@ -300,8 +300,8 @@ export default function VerifierApplicationDetailPage() {
  *   - REVOKED    → Reinstate
  *
  * A missing profile (404 VERIFIER_PROFILE_NOT_FOUND) is an expected
- * edge case — an approved application whose profile hasn't materialized
- * — so we render a subtle note rather than an error. Any other failure
+ * edge case, an approved application whose profile hasn't materialized
+ *, so we render a subtle note rather than an error. Any other failure
  * surfaces a small inline message without taking down the page.
  */
 function VerifierAccessPanel({
@@ -392,7 +392,7 @@ function VerifierAccessPanel({
         {isSuspended &&
           "Temporarily on hold. Reinstate to restore access, or revoke to remove it permanently."}
         {isRevoked &&
-          "Access has been revoked — the user is back to consumer. Reinstate to promote them again."}
+          "Access has been revoked, the user is back to consumer. Reinstate to promote them again."}
       </p>
 
       {dialogAction && (

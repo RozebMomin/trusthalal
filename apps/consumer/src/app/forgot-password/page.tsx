@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Consumer "forgot password" — request a reset link.
+ * Consumer "forgot password", request a reset link.
  *
  * Always shows the same "check your inbox" confirmation whether or not
  * the email matches an account (the API is silent by design), so this

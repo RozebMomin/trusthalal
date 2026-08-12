@@ -8,7 +8,7 @@
  * slow (round-trip every time even for "Chicago"). 95% of queries
  * land on a well-known US city; we don't need Google for those.
  *
- * This module ships a hand-curated bundle of ~150 cities — every US
+ * This module ships a hand-curated bundle of ~150 cities, every US
  * state capital, the top US metros by population, the high-halal-
  * density cities the audience actually searches for (Dearborn, Plano,
  * Bay Area, etc.), plus a handful of international cities. Each row
@@ -18,7 +18,7 @@
  * The static list serves two roles:
  *   1. Instant prefix-match results while the user types (no network
  *      round-trip; no API quota burn).
- *   2. A fallback when the Google call errors / rate-limits — the
+ *   2. A fallback when the Google call errors / rate-limits, the
  *      visitor still gets a useful list to pick from.
  *
  * Anything not in this list falls through to Google Geocoding via
@@ -30,11 +30,11 @@
 import type { ForwardGeocodeMatch } from "@/lib/api/hooks";
 
 // ---------------------------------------------------------------------------
-// City entries — sorted alphabetically by label for diff-friendliness.
+// City entries, sorted alphabetically by label for diff-friendliness.
 // ---------------------------------------------------------------------------
 
 const CITIES: ReadonlyArray<ForwardGeocodeMatch> = [
-  // US — major metros + state capitals + halal-density cities. Lat/lng
+  // US, major metros + state capitals + halal-density cities. Lat/lng
   // are city-center approximations sourced from public Census /
   // Wikipedia data; precision is ~5 decimals (~1m), well below the
   // 1-mi smallest near-me radius.
@@ -179,7 +179,7 @@ const CITIES: ReadonlyArray<ForwardGeocodeMatch> = [
   { label: "Worcester, MA, USA", lat: 42.2626, lng: -71.8023, city: "Worcester", region: "MA", country_code: "US" },
   { label: "Yonkers, NY, USA", lat: 40.9312, lng: -73.8987, city: "Yonkers", region: "NY", country_code: "US" },
 
-  // International — top halal-density / commonly-searched cities. Lat/
+  // International, top halal-density / commonly-searched cities. Lat/
   // lng centered on the city's downtown reference point.
   { label: "Dubai, United Arab Emirates", lat: 25.2048, lng: 55.2708, city: "Dubai", region: null, country_code: "AE" },
   { label: "Istanbul, Türkiye", lat: 41.0082, lng: 28.9784, city: "Istanbul", region: null, country_code: "TR" },
@@ -208,7 +208,7 @@ const MAX_RESULTS = 5;
  *      Rows with score 0 are dropped.
  *   3. Sort descending by score, then alphabetically by label so
  *      ties surface in a deterministic order.
- *   4. Cap at ``MAX_RESULTS`` (5) — the picker dialog renders a
+ *   4. Cap at ``MAX_RESULTS`` (5): the picker dialog renders a
  *      compact list, not a results page.
  *
  * O(n) over ~150 entries is sub-millisecond; no need for a fancier

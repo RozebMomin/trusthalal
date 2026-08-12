@@ -12,12 +12,12 @@
  *   2. Dialog swaps to a success pane that shows the pre-baked
  *      set-password URL in a copy-to-clipboard box. The admin shares
  *      that link with the invitee via whatever channel makes sense
- *      (Slack DM, 1Password, in person). No email delivery —
+ *      (Slack DM, 1Password, in person). No email delivery,
  *      intentional scope cut; the URL is the deliverable today.
  *
  * Once closed, the dialog navigates to the new user's detail page,
  * same as the pre-invite version. "View the URL again" is not a
- * supported path — the server never exposes the token after this
+ * supported path, the server never exposes the token after this
  * response. If the admin loses it, they re-invite (a future
  * re-invite endpoint will burn the old token and mint a new one).
  *
@@ -66,8 +66,8 @@ type Props = {
 
 // Staff-only role list. The admin panel is an internal tool; this
 // dialog onboards internal teammates. CONSUMER is deliberately absent
-// — consumers self-register through the public catalog (separate
-// product). OWNER is deliberately absent for now — they'll belong on
+//, consumers self-register through the public catalog (separate
+// product). OWNER is deliberately absent for now, they'll belong on
 // the owner dashboard once that ships, and inviting them through the
 // admin panel would land them on a page covered in 403s.
 //
@@ -93,7 +93,7 @@ const INITIAL: FormState = {
   email: "",
   display_name: "",
   // Default to VERIFIER because the admin role should be a deliberate
-  // choice — defaulting to ADMIN is the classic "I clicked Invite
+  // choice, defaulting to ADMIN is the classic "I clicked Invite
   // without thinking and now this person has the keys" footgun.
   role: "VERIFIER",
 };
@@ -140,7 +140,7 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
     const payload: UserAdminCreate = {
       email: form.email.trim(),
       role: form.role,
-      // Server accepts null for an unset display name — normalize empty
+      // Server accepts null for an unset display name, normalize empty
       // strings so we don't store whitespace-only names.
       display_name: form.display_name.trim() || null,
     };
@@ -155,7 +155,7 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
         variant: "success",
       });
       // Switch to the success pane so the admin can copy the URL. We
-      // do NOT close the dialog or navigate yet — the token is only
+      // do NOT close the dialog or navigate yet, the token is only
       // visible here once, so closing early would orphan it.
       setInvited(created);
     } catch (err) {
@@ -206,7 +206,7 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
               <DialogDescription>
                 Adds a teammate to Trust Halal&apos;s admin or
                 moderation surface and generates a one-time set-password
-                link. You&apos;ll see the link on the next screen — copy
+                link. You&apos;ll see the link on the next screen, copy
                 it and share it however makes sense (email, Slack, in
                 person). Restaurant owners and consumers don&apos;t
                 belong here; they&apos;ll have their own surfaces.
@@ -300,7 +300,7 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
 }
 
 /**
- * Step 2 of the invite flow — shown after a successful POST
+ * Step 2 of the invite flow, shown after a successful POST
  * /admin/users. Renders the one-time set-password URL with a copy
  * button and a short explanation. The underlying plaintext token is
  * never reachable again; this is the only screen where it's visible.
@@ -352,7 +352,7 @@ function InviteSuccessPane({
         <DialogDescription>
           Share this set-password link with{" "}
           <span className="font-medium text-foreground">{invited.email}</span>.
-          This is the only time it&apos;ll be visible — if you lose it,
+          This is the only time it&apos;ll be visible, if you lose it,
           you&apos;ll have to re-invite.
         </DialogDescription>
       </DialogHeader>

@@ -36,7 +36,7 @@ const surfaces: Surface[] = [
   {
     title: "Verification visits",
     description:
-      "Review verifier-submitted site visits — disclosure, observations, and tagged evidence photos. Accept to mark the place Trust Halal Verified.",
+      "Review verifier-submitted site visits, disclosure, observations, and tagged evidence photos. Accept to mark the place Trust Halal Verified.",
     href: "/verification-visits",
     icon: ShieldCheck,
   },

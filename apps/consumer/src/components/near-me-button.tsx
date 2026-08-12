@@ -5,12 +5,12 @@
  *
  * Two modes, controlled by the parent:
  *
- *   1. **Inactive** — render a single button. Click → request browser
+ *   1. **Inactive**, render a single button. Click → request browser
  *      geolocation, on success bubble up the lat/lng + the default
  *      radius. Permission-denied / unsupported are surfaced as inline
  *      error copy under the button rather than thrown.
  *
- *   2. **Active** — render a status pill ("Searching 5 mi around you")
+ *   2. **Active**, render a status pill ("Searching 5 mi around you")
  *      plus a radius chip row plus a "Clear" affordance. Tapping the
  *      city label (or the new "Change" button) opens the location
  *      picker so the visitor can swap from "around me" to "around
@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 
 /** Radius options shown as chips below the active pill. Stored on the
  *  wire as meters (Trust Halal API contract); shown to the user as
- *  miles. The default — 5 mi — matches the radius hint in the API
+ *  miles. The default, 5 mi, matches the radius hint in the API
  *  route's "near me" copy. */
 export const RADIUS_OPTIONS_METERS: ReadonlyArray<{
   meters: number;
@@ -77,7 +77,7 @@ export function NearMeButton({
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
-  // Location picker state lives in this component — same dialog the
+  // Location picker state lives in this component, same dialog the
   // home page uses, but the active-state surface owns its own open/
   // close lifecycle so the parent doesn't have to thread props for
   // both.
@@ -119,7 +119,7 @@ export function NearMeButton({
       },
       // 10s is enough for cellular; cache an answer for 5 minutes so a
       // user toggling between text and near-me doesn't re-prompt every
-      // time. enableHighAccuracy stays off — restaurant search at
+      // time. enableHighAccuracy stays off, restaurant search at
       // 5–25 mi radius doesn't need GPS-level precision and the
       // wifi/IP fallback is much faster.
       { timeout: 10000, maximumAge: 5 * 60 * 1000 },
@@ -151,7 +151,7 @@ export function NearMeButton({
           />
           <span className="flex-1 text-foreground">
             Searching {radiusLabel} around{" "}
-            {/* The location label itself is a button — taps the
+            {/* The location label itself is a button, taps the
                 picker so a visitor can swap from "around me" to
                 "around Atlanta" without going back to the home
                 page. Underlines on hover so the affordance is
@@ -209,7 +209,7 @@ export function NearMeButton({
           })}
           {/* Explicit "Change location" button alongside the radius
               chips. Redundant with the underlined city label above
-              — kept on purpose because taps on a small inline link
+             , kept on purpose because taps on a small inline link
               are easy to miss on mobile, and a discrete chip gives
               keyboard / accessibility users a clearer hit target. */}
           <button
@@ -254,7 +254,7 @@ export function NearMeButton({
           <LocateFixed className="h-4 w-4" aria-hidden />
           {pending ? "Locating you…" : "Near me"}
         </Button>
-        {/* Inactive state also offers the picker — same pattern as
+        {/* Inactive state also offers the picker, same pattern as
             the cold-state home: the visitor can pick a location
             without ever asking the browser for geo permission. */}
         <Button

@@ -13,7 +13,7 @@
  * helper that ties this together.
  *
  * Why localStorage over a cookie:
- *   * The data isn't security-sensitive — at worst a stale set of
+ *   * The data isn't security-sensitive, at worst a stale set of
  *     filter defaults.
  *   * No reason to ship it to the API on every request; the
  *     anonymous code path computes filters client-side.
@@ -33,7 +33,7 @@ const STORAGE_KEY = "tht.consumer.preferences.v1";
 /**
  * Returns the locally-saved preferences, or an all-null object when
  * nothing has been saved yet. Safe to call on the server (returns
- * the empty preferences) — no localStorage access during SSR.
+ * the empty preferences): no localStorage access during SSR.
  */
 export function readLocal(): ConsumerPreferences {
   if (typeof window === "undefined") return EMPTY;
@@ -66,7 +66,7 @@ export function writeLocal(prefs: ConsumerPreferences): void {
     );
   } catch {
     // Storage may throw under quota limits or private-mode browsers.
-    // Preferences are best-effort — silently dropping the write here
+    // Preferences are best-effort, silently dropping the write here
     // keeps the rest of the page functional.
   }
 }
@@ -76,13 +76,13 @@ export function clearLocal(): void {
   try {
     window.localStorage.removeItem(STORAGE_KEY);
   } catch {
-    // see writeLocal — silently swallow.
+    // see writeLocal, silently swallow.
   }
 }
 
 /**
  * True when the local prefs payload contains at least one non-null
- * filter — used by the sync flow to skip the API call when there's
+ * filter, used by the sync flow to skip the API call when there's
  * nothing to push.
  */
 export function hasAnyFilter(prefs: ConsumerPreferences): boolean {

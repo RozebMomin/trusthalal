@@ -2,7 +2,7 @@
  * Geo helpers for near-me-style features.
  *
  * Distance math runs client-side because every search result already
- * carries the place's lat/lng — there's no need to round-trip a
+ * carries the place's lat/lng, there's no need to round-trip a
  * `distance_meters` column on the wire just to render a label. The
  * haversine formula is fine at restaurant scale: it ignores Earth's
  * polar flattening (off by < 0.5% at the equator, less at higher

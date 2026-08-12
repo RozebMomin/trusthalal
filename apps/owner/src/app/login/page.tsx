@@ -3,7 +3,7 @@
 /**
  * Owner portal login.
  *
- * Identical auth surface to the admin panel's /login — same
+ * Identical auth surface to the admin panel's /login, same
  * /auth/login endpoint, same single-error-code posture (no user
  * enumeration). After a successful login, the API returns the
  * user's role and a redirect_path; OWNERs land at /, everyone else
@@ -55,7 +55,7 @@ function LoginPageInner() {
       await login.mutateAsync({ email, password });
       // The API returns redirect_path scoped per role. For owners
       // that's "/owner" today, but the portal lives at the root of
-      // its own subdomain — so we ignore the server's path and just
+      // its own subdomain, so we ignore the server's path and just
       // route home. AppShell takes over and either shows the portal
       // (OWNER) or NotForYouPane (anyone else).
       router.push("/");

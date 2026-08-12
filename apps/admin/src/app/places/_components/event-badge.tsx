@@ -56,7 +56,7 @@ const EVENT_STYLES: Record<string, { label: string; variant: Variant }> = {
     variant: "destructive",
   },
   HALAL_CLAIM_NEEDS_INFO: {
-    label: "Halal claim — needs info",
+    label: "Halal claim, needs info",
     variant: "warning",
   },
   HALAL_CLAIM_REVOKED: {

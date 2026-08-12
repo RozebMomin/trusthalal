@@ -7,14 +7,14 @@
  * uploaded attachments, and runs one of the four decision actions.
  *
  * Layout:
- *   * Header — place name, address line, organization, status badge,
+ *   * Header, place name, address line, organization, status badge,
  *     submitted/decided timestamps.
- *   * Questionnaire — read-only renderer over the JSONB structured
+ *   * Questionnaire, read-only renderer over the JSONB structured
  *     response.
- *   * Attachments — click-to-View signed URLs.
- *   * Decision panel — buttons for Approve / Request more info /
+ *   * Attachments, click-to-View signed URLs.
+ *   * Decision panel, buttons for Approve / Request more info /
  *     Reject (when reviewable) and Revoke (when APPROVED).
- *   * Internal notes — staff-only context that previous admins
+ *   * Internal notes, staff-only context that previous admins
  *     recorded on this claim.
  *
  * The four decision dialogs ride on the page-level state ``action``

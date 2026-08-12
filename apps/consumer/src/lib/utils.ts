@@ -16,7 +16,7 @@ export function cn(...inputs: ClassValue[]) {
  * ``JSON.stringify`` alone is NOT safe here: it does not escape ``<``,
  * ``>`` or ``/``, so a stored value containing ``</script>`` (e.g. a
  * verifier bio or social link) would close the script element and
- * inject executable markup — a stored-XSS vector. We escape the HTML-
+ * inject executable markup, a stored-XSS vector. We escape the HTML-
  * significant characters and the JS line-separators to their unicode
  * escapes, which JSON parsers still read as the original characters.
  */

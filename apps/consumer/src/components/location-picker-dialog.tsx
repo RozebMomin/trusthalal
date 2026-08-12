@@ -5,16 +5,16 @@
  *
  * Two surfaces consume it:
  *
- *   1. **DiscoveryHome (cold home)** — opens it as both the
+ *   1. **DiscoveryHome (cold home)**, opens it as both the
  *      geolocation-denial fallback AND a proactive "Search a different
  *      city" entry point so a visitor can pick their search location
  *      without ever asking the browser for geo permission.
- *   2. **NearMeButton (search-active state)** — opens it from the
+ *   2. **NearMeButton (search-active state)**, opens it from the
  *      "Change location" affordance on the active pill so a visitor
  *      can swap from "around me" to "around Atlanta" without leaving
  *      the search results.
  *
- * The dialog itself is presentational — it accepts an ``onPick`` and
+ * The dialog itself is presentational, it accepts an ``onPick`` and
  * an optional ``onUseCurrentLocation`` and lets the caller route the
  * resulting coords wherever they need to go. Free-form search hits
  * the forward-geocode proxy; preset chips are hand-picked top-halal-
@@ -64,7 +64,7 @@ export type LocationPickerDialogProps = {
   open: boolean;
   onOpenChange: (next: boolean) => void;
   /** Headline at the top of the sheet. Defaults to "Pick a location"
-   *  — pass a context-specific override (e.g. "Search a different
+   * , pass a context-specific override (e.g. "Search a different
    *  city") when the dialog is opened from a non-default entry. */
   title?: string;
   /** One-line subtitle. Defaults to a generic "Search any city".
@@ -77,7 +77,7 @@ export type LocationPickerDialogProps = {
    *  (it might want to chain more state changes before closing). */
   onPick: (pick: LocationPickerPick) => void;
   /** Optional "Use my current location" entry at the top of the
-   *  sheet. When provided the dialog renders a 📍 button that fires
+   *  sheet. When provided the dialog renders a location button that fires
    *  this callback; the caller is responsible for the geolocation
    *  prompt + downstream activation. Omit to suppress the option
    *  (e.g. when the dialog itself was opened because geolocation
@@ -86,7 +86,7 @@ export type LocationPickerDialogProps = {
 };
 
 // Bumped twice based on tester feedback. The original 220 ms was
-// "autocomplete-fast" but burned a Google call per natural pause —
+// "autocomplete-fast" but burned a Google call per natural pause,
 // even a fast typist generates 4-5 calls for "chicago". 500 ms cut
 // that to ~1, but slower typists still triggered intermediate
 // queries between keystrokes.
@@ -95,7 +95,7 @@ export type LocationPickerDialogProps = {
 // typing" pause without feeling like the dialog is unresponsive.
 // Local prefix-search runs synchronously on every keystroke (see
 // ``localMatches`` below) so the visible feedback isn't gated on
-// this debounce — the remote-fallback call is what waits.
+// this debounce, the remote-fallback call is what waits.
 const DEBOUNCE_MS = 900;
 
 // Minimum characters before we even consider hitting the network.
@@ -105,7 +105,7 @@ const DEBOUNCE_MS = 900;
 const REMOTE_LOOKUP_MIN_CHARS = 3;
 
 // Skip the Google fallback entirely when local search already gave
-// the visitor at least this many results — most queries land here
+// the visitor at least this many results, most queries land here
 // (95%+ in practice for the curated city list) which keeps the
 // Google call count near zero in steady state.
 const LOCAL_RESULTS_SUFFICIENT_THRESHOLD = 3;
@@ -199,7 +199,7 @@ export function LocationPickerDialog({
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-4">
-            {/* Optional "Use my current location" button — top of the
+            {/* Optional "Use my current location" button, top of the
                 sheet so it reads as the strongest single tap when the
                 user wants the easy path AND happens to allow geo. The
                 caller decides whether to render this; we just route. */}
@@ -228,7 +228,7 @@ export function LocationPickerDialog({
               </button>
             )}
 
-            {/* Preset chips — single-tap for the most-likely metros. */}
+            {/* Preset chips, single-tap for the most-likely metros. */}
             <div className="space-y-2">
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Popular
@@ -286,12 +286,12 @@ export function LocationPickerDialog({
 }
 
 // ---------------------------------------------------------------------------
-// Combined-results panel — local prefix-match results render
+// Combined-results panel, local prefix-match results render
 // instantly; remote (Google) results merge in when the longer
 // debounce fires AND the local list wasn't enough on its own.
 //
 // Error UX nuance: a remote-only error while we already have local
-// matches is silently swallowed — no point telling the visitor
+// matches is silently swallowed, no point telling the visitor
 // "Couldn't look up that city" when they can already see Chicago in
 // the list. Errors only surface when local search has no matches
 // either.
@@ -306,10 +306,10 @@ function CombinedResults({
   remoteIsError,
   onPick,
 }: {
-  /** Raw (un-debounced) trimmed query — used for the "keep typing"
+  /** Raw (un-debounced) trimmed query, used for the "keep typing"
    *  copy so the visitor sees instant feedback. */
   query: string;
-  /** Debounced query — used to gate the network call. */
+  /** Debounced query, used to gate the network call. */
   debouncedQuery: string;
   localMatches: ForwardGeocodeMatch[];
   remoteMatches: ForwardGeocodeMatch[];
@@ -325,7 +325,7 @@ function CombinedResults({
   // Merge local + remote, deduping on coords. Local matches lead
   // (they're cheaper, instant, and curated). Pre-dedupe the remote
   // list so a Google result that happens to coincide with a static
-  // entry doesn't show twice — useful for popular metros that
+  // entry doesn't show twice, useful for popular metros that
   // exist in both.
   const merged = mergeMatches(localMatches, remoteMatches);
 
@@ -362,11 +362,11 @@ function CombinedResults({
     );
   }
 
-  // No local matches yet — pre-debounce / very short query.
+  // No local matches yet, pre-debounce / very short query.
   if (debouncedQuery.length < 3) {
     return (
       <p className="text-xs text-muted-foreground">
-        Keep typing — at least 3 characters.
+        Keep typing, at least 3 characters.
       </p>
     );
   }
@@ -378,7 +378,7 @@ function CombinedResults({
     );
   }
 
-  // Remote errored AND local had nothing — soft message that
+  // Remote errored AND local had nothing, soft message that
   // doesn't blame the network. Same UX as "no matches" because
   // from the visitor's POV the result is identical.
   if (remoteIsError) {
@@ -398,7 +398,7 @@ function CombinedResults({
 }
 
 // ---------------------------------------------------------------------------
-// Coordinate-rounded dedupe — two matches at the same lat/lng (within
+// Coordinate-rounded dedupe, two matches at the same lat/lng (within
 // ~100m) are treated as the same city even if the labels differ.
 // ---------------------------------------------------------------------------
 

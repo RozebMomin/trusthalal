@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Owner portal "reset password" — set a new password from an email link.
+ * Owner portal "reset password", set a new password from an email link.
  *
  * Reads ?token=, prefetches whose account it is (GET /auth/reset/{token}),
  * and on submit sets the new password. On success the account is signed

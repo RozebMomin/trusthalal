@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Verifier dashboard — the home surface after login.
+ * Verifier dashboard, the home surface after login.
  *
  * Two things at a glance:
  *   1. Your profile status card (are you set up? is your bio done?
@@ -9,7 +9,7 @@
  *   2. Your recent visits (SUBMITTED / UNDER_REVIEW / ACCEPTED /
  *      REJECTED / WITHDRAWN), with quick links to detail views.
  *
- * Primary CTA: "Submit a new visit" — the action verifiers came
+ * Primary CTA: "Submit a new visit", the action verifiers came
  * here to take.
  */
 
@@ -173,12 +173,12 @@ function ProfileStatusCard({
           : "A public profile makes your work visible and gives you something to link from your Instagram bio, blog, and community shares. Two minutes to finish."}
       </p>
       {!complete && (
-        <ul className="mb-4 space-y-1 text-sm text-muted-foreground">
+        <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
           {missingHandle && (
-            <li>&mdash; Pick a public handle (e.g. your name or IG handle)</li>
+            <li>Pick a public handle (e.g. your name or IG handle)</li>
           )}
-          {missingBio && <li>&mdash; Add a short bio</li>}
-          {notPublic && <li>&mdash; Turn on public visibility</li>}
+          {missingBio && <li>Add a short bio</li>}
+          {notPublic && <li>Turn on public visibility</li>}
         </ul>
       )}
       <Button asChild variant={complete ? "outline" : "default"} size="sm">
@@ -191,7 +191,7 @@ function ProfileStatusCard({
 }
 
 function BadgeCard({ hasPublicHandle }: { hasPublicHandle: boolean }) {
-  // The verifier badge is the ambassador asset — the graphic they
+  // The verifier badge is the ambassador asset, the graphic they
   // put in their IG bio, YouTube description, blog footer.
   // Deep-link the "download" as a right-click hint; the actual SVG
   // sits at /verifier-badge.svg in the consumer app's public dir.

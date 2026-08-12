@@ -183,7 +183,7 @@ export function PlaceEditDialog({ place, open, onOpenChange }: Props) {
       // pin them under their inputs. Only populates on VALIDATION_ERROR;
       // other codes produce {} so the form stays clean.
       const rawFieldErrors = fieldErrorsFromApiError(err);
-      // Narrow to FormState keys — the server may emit errors for
+      // Narrow to FormState keys, the server may emit errors for
       // fields the form doesn't render (e.g. extra="forbid" unknown
       // keys), which we let the toast announce instead.
       const narrowed: Partial<Record<keyof FormState, string>> = {};
@@ -211,7 +211,7 @@ export function PlaceEditDialog({ place, open, onOpenChange }: Props) {
               "None of the fields differ from what's already stored. Edit at least one value before saving.",
           },
           // If every error in the VALIDATION_ERROR detail mapped to a
-          // form field, the inline messages are the real feedback — make
+          // form field, the inline messages are the real feedback, make
           // the toast quieter by pointing the user at the form. If some
           // errors didn't map (unknown fields, cross-field rules), fall
           // through to BASE_COPY's generic "Request was rejected."

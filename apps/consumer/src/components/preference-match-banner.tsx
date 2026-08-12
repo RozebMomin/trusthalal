@@ -4,9 +4,9 @@
  * Renders ABOVE the halal profile detail when the consumer has at
  * least one preference saved. Two states:
  *
- *   * Match — short emerald confirmation chip listing what matched.
- *   * Mismatch — amber callout explaining which preferences this
- *     place fails on and why. Doesn't hide the rest of the page —
+ *   * Match, short emerald confirmation chip listing what matched.
+ *   * Mismatch, amber callout explaining which preferences this
+ *     place fails on and why. Doesn't hide the rest of the page,
  *     the consumer can still read the profile and decide for
  *     themselves.
  *

@@ -10,7 +10,7 @@
  *
  * Built as a plain fixed overlay rather than with Radix, because this app has
  * no dialog primitive and pulling one in for a single blocking panel would be
- * more surface than the panel. The trade is that focus is not trapped — worth
+ * more surface than the panel. The trade is that focus is not trapped, worth
  * naming, though the panel covers the whole viewport and the only interactive
  * elements behind it are a nav bar.
  *
@@ -53,7 +53,7 @@ export function TermsGate() {
           <p className="mt-1 text-muted-foreground">
             There&rsquo;s no tolerance for objectionable content or abusive
             users. You can reply to any review of your restaurant and report
-            one that breaks the rules — but a review can&rsquo;t be removed
+            one that breaks the rules, but a review can&rsquo;t be removed
             for being unflattering. What you tell us about your kitchen has to
             be accurate, because diners decide on it.
           </p>
@@ -80,7 +80,7 @@ export function TermsGate() {
 
         {failed && (
           <p className="mt-4 text-sm text-destructive">
-            Couldn&rsquo;t save that just now — check your connection and try
+            Couldn&rsquo;t save that just now, check your connection and try
             again. Nothing else has changed.
           </p>
         )}

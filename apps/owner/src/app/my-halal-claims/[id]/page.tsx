@@ -1,19 +1,19 @@
 "use client";
 
 /**
- * Owner portal — halal-claim detail with questionnaire + attachments
+ * Owner portal, halal-claim detail with questionnaire + attachments
  * + submit-for-review.
  *
  * Three sections, top to bottom:
  *
- *   1. Questionnaire — radios / selects / text inputs covering menu
+ *   1. Questionnaire, radios / selects / text inputs covering menu
  *      posture, alcohol, per-meat, certification, caveats. Save with
  *      explicit "Save draft" button (no auto-save). Editable while
  *      DRAFT or NEEDS_MORE_INFO.
- *   2. Attachments — drag-drop + classify (HALAL_CERTIFICATE /
+ *   2. Attachments, drag-drop + classify (HALAL_CERTIFICATE /
  *      SUPPLIER_LETTER / INVOICE / PHOTO / OTHER). Same pattern as
  *      the existing org/ownership-request upload UI.
- *   3. Submit — moves DRAFT → PENDING_REVIEW. Server re-validates
+ *   3. Submit, moves DRAFT → PENDING_REVIEW. Server re-validates
  *      the questionnaire strictly; field-level errors come back
  *      under error.detail and are surfaced inline.
  *
@@ -89,7 +89,7 @@ const MENU_POSTURE_OPTIONS: Array<{
   },
   {
     value: "MIXED_SEPARATE_KITCHENS",
-    label: "Mixed — separate kitchens",
+    label: "Mixed, separate kitchens",
     description:
       "Some non-halal exists, prepared in physically separate equipment to prevent cross-contamination.",
   },
@@ -107,7 +107,7 @@ const MENU_POSTURE_OPTIONS: Array<{
   },
   {
     value: "MIXED_SHARED_KITCHEN",
-    label: "Mixed — shared kitchen",
+    label: "Mixed, shared kitchen",
     description:
       "Halal proteins exist but are cooked on shared equipment with non-halal items.",
   },
@@ -287,7 +287,7 @@ function PlaceDetailLinkBanner({
 }
 
 // ---------------------------------------------------------------------------
-// Activity timeline — the audit trail for this claim
+// Activity timeline, the audit trail for this claim
 // ---------------------------------------------------------------------------
 function ActivitySection({ claimId }: { claimId: string }) {
   const { data, isLoading, error } = useMyHalalClaimEvents(claimId);
@@ -341,7 +341,7 @@ function QuestionnaireSection({
     setDraft((d) => ({ ...d, [key]: value }));
   }
 
-  // Per-product list helpers — questionnaire stores meat sourcing
+  // Per-product list helpers, questionnaire stores meat sourcing
   // as a flat list of products (Beef bacon, Ground beef, ...) so a
   // restaurant can declare different suppliers / certs per item.
   const products = draft.meat_products ?? [];
@@ -387,7 +387,7 @@ function QuestionnaireSection({
         <p className="mt-1 text-sm text-muted-foreground">
           {editable
             ? "Save your answers as you go. Submit for review when everything is filled in."
-            : "Read-only — the claim is past the editable stage."}
+            : "Read-only, the claim is past the editable stage."}
         </p>
       </div>
 
@@ -445,7 +445,7 @@ function QuestionnaireSection({
               )
             }
           >
-            <option value="">— select —</option>
+            <option value="">Select…</option>
             {ALCOHOL_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
@@ -464,7 +464,7 @@ function QuestionnaireSection({
         {/* Meat products */}
         <Field
           label="Meat products"
-          help="One entry per product you serve — e.g. 'Beef bacon' and 'Ground beef' as separate rows when they come from different suppliers. Each entry carries its own slaughter method and supplier / cert info. Skip if seafood-only."
+          help="One entry per product you serve, e.g. 'Beef bacon' and 'Ground beef' as separate rows when they come from different suppliers. Each entry carries its own slaughter method and supplier / cert info. Skip if seafood-only."
         >
           <div className="space-y-3">
             {products.map((p, i) => (
@@ -627,7 +627,7 @@ function BoolButton({
 }
 
 /**
- * One per-product card — same shape as the batch creation page's
+ * One per-product card, same shape as the batch creation page's
  * ProductRow. Owner picks meat type + product name + slaughter +
  * (optional) supplier and cert info; multiple products under a
  * single meat type are expected.
@@ -640,7 +640,7 @@ const REGISTRY_METHOD_LABEL: Record<string, string> = {
 
 /**
  * Optional: link this product to a verified supplier line in the registry.
- * Attaching one lets the listing show supplier-backed method — but it stays at
+ * Attaching one lets the listing show supplier-backed method, but it stays at
  * the owner's word (OWNER_STATED) until a document or verifier confirms it, so
  * we say so plainly and never imply it raises confidence.
  */
@@ -680,7 +680,7 @@ function RegistrySupplierPicker({
       <Input
         type="text"
         aria-label="Link a registry supplier"
-        placeholder="Link a verified supplier (optional) — search the registry"
+        placeholder="Link a verified supplier (optional): search the registry"
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
@@ -705,7 +705,7 @@ function RegistrySupplierPicker({
                   }}
                   className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
                 >
-                  <span className="font-medium">{s.name}</span> — {p.product_name}{" "}
+                  <span className="font-medium">{s.name}</span>, {p.product_name}{" "}
                   <span className="text-xs text-muted-foreground">
                     ({REGISTRY_METHOD_LABEL[p.slaughter_method] ?? p.slaughter_method})
                   </span>
@@ -716,7 +716,7 @@ function RegistrySupplierPicker({
         </div>
       )}
       <p className="text-[11px] text-muted-foreground">
-        Linking helps us show supplier-backed method — but it stays your word
+        Linking helps us show supplier-backed method, but it stays your word
         until we see a document.
       </p>
     </div>
@@ -929,7 +929,7 @@ function AttachmentsSection({
         <h2 className="text-lg font-semibold">Supporting documents</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Halal certificate, supplier letter, invoices showing meat
-          provenance, photos of the certificate or kitchen — anything
+          provenance, photos of the certificate or kitchen, anything
           that helps Trust Halal staff verify your claim.
         </p>
       </div>
@@ -1097,7 +1097,7 @@ function SubmitSection({ claim }: { claim: MyHalalClaimRead }) {
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
   // Two-step confirm: first click reveals the explicit "Yes,
   // delete" button rather than firing immediately. Inline state
-  // beats a Dialog primitive here — the section is already a
+  // beats a Dialog primitive here, the section is already a
   // bordered card, so the confirm fits naturally below the submit
   // button without a modal.
   const [confirmingDelete, setConfirmingDelete] = React.useState(false);
@@ -1234,7 +1234,7 @@ function SubmitSection({ claim }: { claim: MyHalalClaimRead }) {
                   {claim.attachments.length === 1 ? "" : "s"}.
                 </>
               ) : null}{" "}
-              The draft can&apos;t be recovered after this — you&apos;ll
+              The draft can&apos;t be recovered after this, you&apos;ll
               need to start a new claim.
             </p>
             {deleteError && (

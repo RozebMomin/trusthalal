@@ -3,13 +3,13 @@
 /**
  * Unlink Provider dialog.
  *
- * Structural twin of DeletePlaceDialog / RestorePlaceDialog — they share
+ * Structural twin of DeletePlaceDialog / RestorePlaceDialog, they share
  * the "reason appears in event history" UX. Kept as its own component
  * so the copy can stay specific (naming the provider, explaining what
  * stays vs. what changes) without juggling a generic config object.
  *
  * Unlinking an external provider doesn't clear the canonical fields
- * (city/region/etc.) on the Place — those are still valid data points.
+ * (city/region/etc.) on the Place, those are still valid data points.
  * It does clear ``canonical_source`` iff it pointed at the unlinked
  * provider, which is why the "Link to Google" button re-appears after
  * unlinking the active Google link.
@@ -111,7 +111,7 @@ export function UnlinkProviderDialog({
               (
               <code className="font-mono text-xs">{externalId}</code>).
               Canonical address fields that were filled in from this
-              provider stay put — only the link itself is removed.
+              provider stay put, only the link itself is removed.
             </DialogDescription>
           </DialogHeader>
 

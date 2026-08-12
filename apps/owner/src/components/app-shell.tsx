@@ -13,7 +13,7 @@
  *     home (owners land on / for now).
  *
  *  3. Enforce role: only OWNER role users get the portal chrome.
- *     ADMIN / VERIFIER / CONSUMER all get a friendly dead-end pane —
+ *     ADMIN / VERIFIER / CONSUMER all get a friendly dead-end pane,
  *     the portal is a customer-facing surface for restaurant owners,
  *     not internal staff or end users. This mirrors the admin
  *     panel's NoAccessPane pattern but inverted (admin allows ADMIN
@@ -21,7 +21,7 @@
  *
  * Why client-side rather than Next.js middleware: the session cookie
  * is set with SameSite=Lax across the api.trusthalal.org boundary, so
- * middleware on the portal's origin can't see it on first render —
+ * middleware on the portal's origin can't see it on first render,
  * source of truth is the API's /me endpoint.
  */
 
@@ -48,14 +48,14 @@ import {
  * Routes that render without the auth gate.
  *
  * Every one of these is reached by someone who is, by definition, not
- * signed in — or who is proving something with a token rather than a
+ * signed in, or who is proving something with a token rather than a
  * session. Gating them sends the user to /login, which is the one page
  * they can't get past:
  *
- *   /login, /signup       — obvious.
- *   /forgot-password      — you're here because you can't sign in.
- *   /reset-password       — the token IS the credential.
- *   /verify-email         — the token IS the proof, and these links are
+ *   /login, /signup      , obvious.
+ *   /forgot-password     , you're here because you can't sign in.
+ *   /reset-password      , the token IS the credential.
+ *   /verify-email        , the token IS the proof, and these links are
  *                           routinely opened on a phone or in a mail
  *                           client where no session exists.
  *
@@ -76,7 +76,7 @@ const PUBLIC_PATHS = new Set<string>([
 /**
  * Public routes that must ALSO render for a signed-in user.
  *
- * The rest of PUBLIC_PATHS bounces an authenticated visitor home — sensible
+ * The rest of PUBLIC_PATHS bounces an authenticated visitor home, sensible
  * for /login, wrong for anything carrying a token. A signed-in owner
  * clicking their own confirmation link would otherwise be redirected away
  * before the token was ever redeemed, and the link would appear to do
@@ -125,7 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (!me) {
-    // Effect above is redirecting to /login — render nothing during
+    // Effect above is redirecting to /login, render nothing during
     // the brief in-between state.
     return null;
   }
@@ -147,7 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       */}
       {/*
         Mobile bottom clearance for the fixed BottomTabBar now lives on the
-        footer (the new last element) rather than main — otherwise main's
+        footer (the new last element) rather than main, otherwise main's
         padding would open a dead gap between content and the footer. main
         keeps normal padding; the footer carries the tab-bar offset.
       */}
@@ -198,7 +198,7 @@ function PortalHeader() {
           </span>
           {/* "Owner portal" qualifier sits next to the brand at every
               viewport so a user landing on a phone knows immediately
-              which surface they're on. Used to be hidden below sm —
+              which surface they're on. Used to be hidden below sm,
               that left mobile users staring at "Trust Halal" with no
               indication this isn't the consumer site. */}
           <span className="text-xs text-muted-foreground">
@@ -215,7 +215,7 @@ function PortalHeader() {
             mental model: pick what to verify (Halal claims) → who
             owns it (Places) → which company (Organizations). The
             "Claim a place" action lives on the Places page itself
-            (header CTA + empty-state CTA) — claiming is a once-or-
+            (header CTA + empty-state CTA): claiming is a once-or-
             twice-per-month action and a top-level link for it
             crowds the nav on a portal users visit weekly. */}
         {me && (
@@ -291,8 +291,8 @@ function PortalHeader() {
         Mobile nav was previously a secondary row that wrapped below
         the brand. It's been replaced by the BottomTabBar (rendered by
         AppShell, fixed to the viewport bottom). That gives a more
-        native-app feel on a phone — three thumb-reachable tabs with
-        icons + labels — and frees up a row of vertical real estate
+        native-app feel on a phone, three thumb-reachable tabs with
+        icons + labels, and frees up a row of vertical real estate
         at the top of every screen.
       */}
     </header>
@@ -300,7 +300,7 @@ function PortalHeader() {
 }
 
 /**
- * Bottom tab bar — mobile-only, fixed to the viewport bottom.
+ * Bottom tab bar, mobile-only, fixed to the viewport bottom.
  *
  * Three peer-level surfaces (Claims, Places, Organizations) map
  * cleanly to a tab bar pattern lifted from native iOS / Android:
@@ -316,13 +316,13 @@ function PortalHeader() {
  *     scrolled page content the way native bars do.
  *   * Active item gets a stronger color treatment + thicker icon
  *     stroke via lucide's default fill for instant glanceability.
- *   * Each tab is a min-h-12 / min-w-16 touch target — comfortably
+ *   * Each tab is a min-h-12 / min-w-16 touch target, comfortably
  *     above Apple's 44pt and Material's 48dp guidance.
  */
 /**
  * Unreplied-review count on the desktop nav.
  *
- * Renders nothing at zero — a badge showing "0" is noise, and the absence
+ * Renders nothing at zero, a badge showing "0" is noise, and the absence
  * of a badge already says the same thing.
  */
 function UnrepliedBadge() {
@@ -337,7 +337,7 @@ function UnrepliedBadge() {
 }
 
 /**
- * Bottom tab bar — deliberately still FOUR tabs.
+ * Bottom tab bar, deliberately still FOUR tabs.
  *
  * Reviews is a fifth top-level destination on desktop but not here. Five
  * forces "Halal Claims" down to "Claims" and crowds a bar this file already
@@ -395,14 +395,14 @@ function BottomTabBar() {
           return (
             <li key={tab.href} className="flex-1">
               {/*
-                Active state stack — three signals working together so
+                Active state stack, three signals working together so
                 the selection is obvious at a glance even on a small,
                 glance-able mobile bar:
                   1. Top accent bar in --primary (3px, full width of
                      the cell) reads as the bar of an iOS-style
                      selection indicator.
                   2. Soft primary tint (`bg-primary/10`) washes the
-                     entire cell — distinguishes from inactive tabs
+                     entire cell, distinguishes from inactive tabs
                      even peripherally.
                   3. Icon + label switch to --primary text color and
                      the icon stroke thickens.
@@ -439,7 +439,7 @@ function BottomTabBar() {
 }
 
 /**
- * Slim portal footer. The owner portal previously had none — nav lived in
+ * Slim portal footer. The owner portal previously had none, nav lived in
  * the header and mobile BottomTabBar, and there was nowhere the brand's
  * social presence or legal links appeared. This adds a quiet footer with
  * both, carrying the mobile tab-bar bottom-clearance that used to sit on
@@ -478,7 +478,7 @@ function PortalFooter() {
 }
 
 /**
- * Social icon links — Instagram, TikTok, Facebook. Brand glyphs are
+ * Social icon links, Instagram, TikTok, Facebook. Brand glyphs are
  * single-path (simple-icons) so each is one <path fill="currentColor">;
  * colour inherits the muted footer tone and lifts to --foreground on hover.
  */
@@ -554,7 +554,7 @@ function NavLink({
 }
 
 /**
- * Rendered when a non-OWNER user reaches the portal — typically an
+ * Rendered when a non-OWNER user reaches the portal, typically an
  * admin who clicked the wrong link or a consumer who guessed the
  * URL. Friendly copy diverging by role so the message feels
  * intentional rather than like a wall.

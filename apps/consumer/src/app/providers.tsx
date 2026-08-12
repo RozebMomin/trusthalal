@@ -11,7 +11,7 @@ import { PostHogProvider } from "./posthog-provider";
  *
  * QueryClient is created once per browser session via useState so
  * React strict mode's double-invoke doesn't give us two stores.
- * Same shape used by apps/admin and apps/owner — keeping the three
+ * Same shape used by apps/admin and apps/owner, keeping the three
  * stacks consistent makes "why is this query stale?" debugging a
  * one-app problem instead of a three-app problem.
  *

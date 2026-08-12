@@ -2,7 +2,7 @@
  * Status badge for halal-claim workflow states.
  *
  * Mirrors the server's ``HalalClaimStatus`` enum. New statuses must
- * be added here with explicit copy — we never want owners to see a
+ * be added here with explicit copy, we never want owners to see a
  * raw enum string they can't interpret.
  */
 import * as React from "react";

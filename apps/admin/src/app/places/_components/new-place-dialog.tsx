@@ -17,7 +17,7 @@
  *   - existed, deleted   → stay open, show an inline Restore prompt; the admin
  *                          can restore + navigate, or dismiss
  *
- * The dialog is fully usable without the Google Maps key — the Autocomplete
+ * The dialog is fully usable without the Google Maps key, the Autocomplete
  * component renders a setup banner in that case, so the "Add place" button
  * stays disabled and no ingest call happens.
  */
@@ -61,7 +61,7 @@ const INGEST_ERROR_OVERRIDES = {
   GOOGLE_PLACE_NOT_FOUND: {
     title: "Place not found on Google",
     description:
-      "Google no longer recognizes this place — it may have closed, been delisted, " +
+      "Google no longer recognizes this place, it may have closed, been delisted, " +
       "or the autocomplete suggestion is stale. Please search for it again.",
   },
 } as const;
@@ -107,7 +107,7 @@ export function NewPlaceDialog({ open, onOpenChange }: Props) {
       });
 
       if (result.existed && result.was_deleted) {
-        // Stay open — user needs to decide whether to restore.
+        // Stay open, user needs to decide whether to restore.
         setSoftDeleted({ id: result.place.id, name: result.place.name });
         return;
       }
@@ -115,7 +115,7 @@ export function NewPlaceDialog({ open, onOpenChange }: Props) {
       toast({
         title: result.existed ? "Already in catalog" : "Place added",
         description: result.existed
-          ? `${result.place.name} was already here — opening it.`
+          ? `${result.place.name} was already here, opening it.`
           : `${result.place.name} was added.`,
         variant: "success",
       });
@@ -168,7 +168,7 @@ export function NewPlaceDialog({ open, onOpenChange }: Props) {
   //
   // Note: Radix wraps the original pointer/focus event in a CustomEvent
   // whose `target` can be the DialogContent itself in some code paths, so
-  // we also probe `detail.originalEvent.target` — that's always the real DOM.
+  // we also probe `detail.originalEvent.target`, that's always the real DOM.
   const isAutocompleteEvent = React.useCallback((e: Event): boolean => {
     const detailTarget = (
       e as CustomEvent<{ originalEvent: Event }>
@@ -199,7 +199,7 @@ export function NewPlaceDialog({ open, onOpenChange }: Props) {
             <DialogTitle>Add a place</DialogTitle>
             <DialogDescription>
               Search Google Places, then pick a result. We&apos;ll pull the
-              canonical name, address, and coordinates straight from Google —
+              canonical name, address, and coordinates straight from Google,
               no typing required.
             </DialogDescription>
           </DialogHeader>

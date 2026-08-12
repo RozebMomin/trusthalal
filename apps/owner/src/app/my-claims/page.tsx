@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Owner portal — Places.
+ * Owner portal, Places.
  *
  * The page is rooted at the URL ``/my-claims`` for backward
  * compatibility with bookmarks and the post-submit redirect from
- * ``/claim``, but the user-facing label is "Places" — in an owner
+ * ``/claim``, but the user-facing label is "Places", in an owner
  * portal the "my" is implied and "claim" is jargon. The list itself
  * is unchanged: every ownership request the signed-in user has
  * submitted, newest first, with its review status.
@@ -13,12 +13,12 @@
  * Lands here from:
  *   * The home page's "Recent places" preview ("View all" link)
  *   * The header's "Places" nav link
- *   * Post-submit redirect from /claim?submitted=1 — we show a small
+ *   * Post-submit redirect from /claim?submitted=1, we show a small
  *     success banner the first render so the owner knows their claim
  *     went through.
  *
  * "Claim a place" CTA in the header doubles as the entry point
- * back into ``/claim`` — pulling that action out of the global nav
+ * back into ``/claim``, pulling that action out of the global nav
  * means this page header is the canonical place to start one.
  */
 
@@ -40,7 +40,7 @@ import {
 
 // Status filter: keeps the page focused on the claims that need
 // attention by default. "In progress" surfaces SUBMITTED / UNDER_REVIEW /
-// NEEDS_EVIDENCE — anything where the owner is either waiting on Trust
+// NEEDS_EVIDENCE, anything where the owner is either waiting on Trust
 // Halal staff or being asked to act. "Approved" hides the verified
 // places the owner already owns; they're a click away when the owner
 // wants to revisit. Mirrors the organizations queue's UNDER_REVIEW-
@@ -94,7 +94,7 @@ export default function MyClaimsPage() {
   // render. (TanStack Query gives us a stable ``data`` reference.)
   const allClaims = React.useMemo(() => data ?? [], [data]);
 
-  // Default to "All" — owners usually arrive from a "Manage all →" link
+  // Default to "All", owners usually arrive from a "Manage all →" link
   // on the home hub after seeing a specific claim (often one that's
   // in-progress or needs a fix). Showing everything up front means the
   // claim they came to act on is visible instead of hidden behind a
@@ -141,7 +141,7 @@ export default function MyClaimsPage() {
         </Link>
       </header>
 
-      {/* Status filter — keeps the page focused on what needs your
+      {/* Status filter, keeps the page focused on what needs your
           attention by default; "Approved" hides verified places
           behind a dropdown so the daily view stays uncluttered. */}
       {!isLoading && !isError && allClaims.length > 0 && (
@@ -218,7 +218,7 @@ export default function MyClaimsPage() {
         </p>
       ) : claims.length === 0 ? (
         // Differentiate "no claims at all" from "filter excluded
-        // them all" — different copy + different next action.
+        // them all", different copy + different next action.
         allClaims.length === 0 ? (
           <EmptyState />
         ) : (
@@ -276,7 +276,7 @@ function ClaimRow({ claim }: { claim: MyOwnershipRequestRead }) {
           doesn't have to leave the page to act on it. */}
       {isNeedsEvidence && <NeedsEvidenceSection claim={claim} />}
 
-      {/* REJECTED callout: read-only — the row is terminal, but the
+      {/* REJECTED callout: read-only, the row is terminal, but the
           owner deserves to see why it was rejected verbatim so they
           know what to fix on the next attempt. */}
       {isRejected && claim.decision_note && (
@@ -315,7 +315,7 @@ function ClaimRow({ claim }: { claim: MyOwnershipRequestRead }) {
 }
 
 /**
- * REJECTED state UI block. Read-only — the row is terminal, no
+ * REJECTED state UI block. Read-only, the row is terminal, no
  * affordance to upload or resubmit. The owner sees the rejection
  * reason verbatim so they know what to fix before submitting a
  * fresh claim. Styled red rather than amber to make the
@@ -486,7 +486,7 @@ function EmptyState() {
     <div className="rounded-md border border-dashed bg-card px-6 py-10 text-center">
       <p className="text-base font-medium">No claims yet.</p>
       <p className="mt-2 text-sm text-muted-foreground">
-        Claim a place to confirm you&apos;re the owner — Trust Halal staff
+        Claim a place to confirm you&apos;re the owner, Trust Halal staff
         reviews each submission and ties verified owners to their listings.
       </p>
       <div className="mt-4">

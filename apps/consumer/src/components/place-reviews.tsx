@@ -9,7 +9,7 @@
  * Trust Halal's average and Google's are shown side by side and each is
  * labelled. This is the point of the section, not a detail of it. Before
  * reviews existed the product rendered a bare unattributed star that
- * silently meant Google's — two numbers measuring different things over
+ * silently meant Google's, two numbers measuring different things over
  * different populations. They must never be blended or shown unlabelled.
  */
 "use client";
@@ -189,7 +189,7 @@ function RatingHeader({
         )}
       </div>
 
-      {/* Explain a disabled action rather than hiding it — someone who can't
+      {/* Explain a disabled action rather than hiding it, someone who can't
           review should learn why here, not by pressing a button that fails. */}
       {!canReview && !hasMine && signedIn && !emailVerified && (
         <ConfirmEmailPrompt />
@@ -205,7 +205,7 @@ function ReviewRow({
   onEdit,
 }: {
   review: PlaceReviewRead;
-  /** The restaurant, not the organization that owns it — see the reply
+  /** The restaurant, not the organization that owns it, see the reply
    *  byline below. */
   placeName: string;
   onReport: (r: PlaceReviewRead) => void;
@@ -283,15 +283,15 @@ function ReviewRow({
       {review.reply && (
         <div className="ml-11 mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
           {/* The restaurant, not the owning organization.
-              `organization_name` is the legal entity — "Khan Restaurants
-              LLC" — which a diner reading a review of Jay's Deli has never
+              `organization_name` is the legal entity, "Khan Restaurants
+              LLC", which a diner reading a review of Jay's Deli has never
               heard of and can't connect to the place they're looking at.
               It also broke a promise the product makes: the owner's
               composer says "Posting publicly as Jay's Deli", and this
               rendered something else entirely.
 
               One org can own several restaurants, so the org name is
-              strictly less specific here too — the reply is from this
+              strictly less specific here too, the reply is from this
               location. */}
           <div className="text-[11px] font-bold text-primary">
             ✓ Response from {placeName} ·{" "}
@@ -378,7 +378,7 @@ export function PlaceReviews({
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   {data.total} review{data.total === 1 ? "" : "s"}
                 </span>
-                {/* One sort option per honest ordering. No "most helpful" —
+                {/* One sort option per honest ordering. No "most helpful",
                     there are no helpful votes to back it. */}
                 <div className="flex gap-1.5">
                   {SORTS.map((s) => (
@@ -439,7 +439,7 @@ export function PlaceReviews({
 
           {/* An unclaimed place has nobody who can reply, which makes this
               a conversion surface rather than a dead end. Gated on the real
-              signal — showing "claim this" to a restaurant that already has
+              signal, showing "claim this" to a restaurant that already has
               would read as broken. */}
           {place.is_claimed === false && items.length > 0 && (
             <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed">

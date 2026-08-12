@@ -1,7 +1,7 @@
 /**
  * TanStack Query hooks for the consumer site.
  *
- * Phase 9a footprint is intentionally tiny — just the auth surface
+ * Phase 9a footprint is intentionally tiny, just the auth surface
  * (sign in, sign up, /me self-lookup, sign out) so the AppShell can
  * branch on "is this person logged in?" Subsequent phases append
  * search hooks (9b), place detail hooks (9c), and preferences (9d).
@@ -30,7 +30,7 @@ export type UserRole = components["schemas"]["UserRole"];
 /**
  * `/me` response. Hand-typed because the endpoint currently returns
  * a plain dict (no `response_model` on the FastAPI side). Same
- * posture as apps/owner's hand type — when the server route grows a
+ * posture as apps/owner's hand type, when the server route grows a
  * Pydantic model, this gets replaced via codegen.
  */
 export type MeRead = {
@@ -42,12 +42,12 @@ export type MeRead = {
    *  reviews and owner replies; nothing else. */
   email_verified?: boolean;
   /** True when this account has never accepted the terms, or accepted an
-   *  older version. Computed server-side — no client compares versions. */
+   *  older version. Computed server-side, no client compares versions. */
   terms_acceptance_required?: boolean;
 };
 
 /**
- * Awaiting next codegen pass — swap to
+ * Awaiting next codegen pass, swap to
  * ``components["schemas"]["LoginRequest"]`` /
  * ``components["schemas"]["LoginResponse"]`` after running
  * `make export-openapi && npm run codegen`.
@@ -66,7 +66,7 @@ export type LoginResponse = {
 };
 
 /**
- * Awaiting next codegen pass — same caveat as LoginRequest. The
+ * Awaiting next codegen pass, same caveat as LoginRequest. The
  * server-side ``/auth/signup`` endpoint accepts an optional ``role``
  * (defaults to OWNER); the consumer site explicitly passes
  * ``CONSUMER`` so users created here don't show up in the owner
@@ -212,10 +212,10 @@ export type HalalProfileEmbed = {
    * profile-derivation service when the latest HALAL_CERTIFICATE
    * attachment is copied to the public certs bucket on approval.
    * Null when no cert is on file or the copy step failed (best-
-   * effort — approval still commits with a null URL). */
+   * effort, approval still commits with a null URL). */
   certificate_url: string | null;
   /** MIME type of the cert (image/jpeg, image/png, application/pdf,
-   * etc.). Drives consumer-side viewer choice — image/* renders in
+   * etc.). Drives consumer-side viewer choice, image/* renders in
    * an <img>, application/pdf in an <iframe>, anything else falls
    * back to a download link. Null when ``certificate_url`` is null. */
   certificate_content_type: string | null;
@@ -227,7 +227,7 @@ export type HalalProfileEmbed = {
   updated_at: string;
   /** Per-product sourcing, as the OWNER described it.
    *
-   *  `null` means this surface didn't load it — search results don't, since
+   *  `null` means this surface didn't load it, search results don't, since
    *  a result card only renders the rolled-up per-meat labels. `[]` means
    *  the restaurant listed no products. Don't collapse the two: showing
    *  "no products on file" on a search card would be a claim about the
@@ -258,7 +258,7 @@ export type SupplierProvenance = {
  * One product and where the restaurant says it comes from.
  *
  * Everything here is the owner's account of their own supply chain, not a
- * Trust Halal finding — verifier visits record observations as free text, so
+ * Trust Halal finding, verifier visits record observations as free text, so
  * nothing structurally confirms a supplier. Any UI rendering `supplier_name`
  * must attribute it, or the restaurant's claim starts reading as our
  * verification.
@@ -278,7 +278,7 @@ export type MeatProduct = {
  * ``PlacePhotoSource`` server-side. Drives the "Owner" / "Customer"
  * badge on the consumer gallery + the hero-eligibility gate.
  */
-/** Who supplied a photo, as stored. Includes GOOGLE — the data-ops backfill
+/** Who supplied a photo, as stored. Includes GOOGLE, the data-ops backfill
  *  writes those and they exist in production today. Prefer `attribution`
  *  below for anything user-visible. */
 export type PlacePhotoSource = "OWNER" | "CONSUMER" | "GOOGLE";
@@ -294,7 +294,7 @@ export type PhotoAttribution = "OWNER" | "DINER" | "REVIEW" | "GOOGLE";
 /**
  * Photo row as returned by GET /places/{id}/photos and embedded
  * in PlaceDetail.photos. ``url`` is the public Supabase Storage
- * URL — render directly in an <img>, no signing.
+ * URL, render directly in an <img>, no signing.
  */
 export type PlacePhotoRead = {
   id: string;
@@ -325,7 +325,7 @@ export type PhotoReportReason =
 
 /** POST /places/{id}/photos/{photoId}/report.
  *
- *  This is the only route anyone — including the restaurant — has for a
+ *  This is the only route anyone, including the restaurant, has for a
  *  diner's photo. Owners can't delete them, matching Google and Yelp, and
  *  mattering more here because a photo of what was served is evidence. */
 export function useReportPhoto(placeId: string) {
@@ -363,7 +363,7 @@ export type ReviewReportReason =
 
 /** Author identity on a review.
  *
- *  Carries no role, by design — a verifier's review renders exactly like
+ *  Carries no role, by design, a verifier's review renders exactly like
  *  anyone else's. Verifier standing is earned against facts and doesn't
  *  transfer to weight of opinion about a meal. The server doesn't send the
  *  field, which is what stops a badge creeping back in here. */
@@ -398,7 +398,7 @@ export type PlaceReviewRead = {
   reply: PlaceReviewReplyRead | null;
   /** The review changed after the reply was written, so the reply may be
    *  answering text that is no longer there. Computed server-side so all
-   *  clients agree — don't recompute it from the two timestamps. */
+   *  clients agree, don't recompute it from the two timestamps. */
   edited_after_reply: boolean;
   is_mine: boolean;
   reported_by_me: boolean;
@@ -408,7 +408,7 @@ export type PlaceReviewRead = {
 /** Both ratings ride together so a client can label each.
  *
  *  Showing a bare star that silently means Google's is exactly what this
- *  feature exists to stop doing — the two numbers measure different things
+ *  feature exists to stop doing, the two numbers measure different things
  *  over different populations and must never be blended. */
 export type ReviewSummary = {
   average: number | null;
@@ -423,7 +423,7 @@ export type PlaceReviewListResponse = {
   items: PlaceReviewRead[];
   total: number;
   next_offset: number | null;
-  /** False when signed out, unverified, or already reviewed — the client
+  /** False when signed out, unverified, or already reviewed, the client
    *  can then explain *why* rather than hiding the button. */
   can_review: boolean;
   my_review_id: string | null;
@@ -431,7 +431,7 @@ export type PlaceReviewListResponse = {
 
 /** One filter that is individually responsible for an empty result set. */
 export type SearchRelaxation = {
-  /** Machine key on SearchPlacesParams — clear exactly this one. */
+  /** Machine key on SearchPlacesParams, clear exactly this one. */
   field: string;
   count_if_removed: number;
 };
@@ -448,7 +448,7 @@ export type SearchDiagnostics = {
 /**
  * Why a search returned nothing.
  *
- * Only fires when a search has already come back empty — it's several COUNT
+ * Only fires when a search has already come back empty, it's several COUNT
  * queries, and there's no reason to pay for them on a search that worked.
  *
  * Returns counts, never places. Someone who filtered out alcohol or
@@ -493,7 +493,7 @@ export const REVIEWS_PAGE_SIZE = 10;
  * `limit: 10` once and never read `next_offset`, so a place with forty
  * reviews showed ten, permanently, with a "Show all" button that only
  * expanded the ten already in hand. The pagination existed on the server the
- * whole time — nothing called it.
+ * whole time, nothing called it.
  */
 export function usePlaceReviews(placeId: string, sort: ReviewSort = "recent") {
   return useInfiniteQuery<PlaceReviewListResponse>({
@@ -508,7 +508,7 @@ export function usePlaceReviews(placeId: string, sort: ReviewSort = "recent") {
         },
       }),
     // Server returns null when there's nothing more, so this is the whole
-    // termination condition — no arithmetic on our side to get wrong.
+    // termination condition, no arithmetic on our side to get wrong.
     getNextPageParam: (last) => last.next_offset ?? undefined,
     enabled: Boolean(placeId),
   });
@@ -520,7 +520,7 @@ export type PlaceReviewCreate = {
   visited_on?: string | null;
   /** Set on the second attempt, after the user has seen the "this reads
    *  heated" nudge and chosen to post anyway. Waives the soft WARN verdict
-   *  only — the text is re-scored server-side and profanity still blocks. */
+   *  only, the text is re-scored server-side and profanity still blocks. */
   acknowledged_warning?: boolean;
 };
 
@@ -542,7 +542,7 @@ export type MyReviewRead = PlaceReviewRead & {
 };
 
 /**
- * GET /me/reviews — everything you've written, including hidden and removed.
+ * GET /me/reviews, everything you've written, including hidden and removed.
  *
  * This is the only surface where a moderated review is visible to the person
  * who wrote it: the public place listing filters to published, so without
@@ -636,7 +636,7 @@ export type PlaceSearchResult = {
    * place has no owner-set hero (or no photos at all). The result
    * card renders a placeholder in that case. */
   hero_photo_url: string | null;
-  /** Embedded halal profile — null when the place has no approved
+  /** Embedded halal profile, null when the place has no approved
    * claim or the profile was revoked. The search result row renders
    * a "no halal profile yet" affordance in that case. */
   halal_profile: HalalProfileEmbed | null;
@@ -644,7 +644,7 @@ export type PlaceSearchResult = {
    * synced. Optional so cached payloads and fixtures stay valid. */
   google_rating?: number | null;
   google_rating_count?: number | null;
-  /** Trust Halal's own rating. Never blend this with google_rating — they
+  /** Trust Halal's own rating. Never blend this with google_rating, they
    *  measure different things over different populations, and every surface
    *  showing either must say which it is. */
   review_rating_avg?: number | null;
@@ -656,7 +656,7 @@ export type PlaceSearchResult = {
 
 /**
  * GET /places/{id} response. Mirrors ``PlaceDetail`` server-side.
- * Hand-typed for the same reason ``PlaceSearchResult`` is — codegen
+ * Hand-typed for the same reason ``PlaceSearchResult`` is, codegen
  * will land it next pass.
  */
 export type PlaceDetail = {
@@ -694,7 +694,7 @@ export type PlaceDetail = {
    * Google fields were last refreshed (for a "from Google" line). */
   google_rating?: number | null;
   google_rating_count?: number | null;
-  /** Trust Halal's own rating. Never blend this with google_rating — they
+  /** Trust Halal's own rating. Never blend this with google_rating, they
    *  measure different things over different populations, and every surface
    *  showing either must say which it is. */
   review_rating_avg?: number | null;
@@ -770,7 +770,7 @@ export type SearchPlacesParams = {
   radius?: number;
   limit?: number;
   offset?: number;
-  // Halal preference filters — all optional, all narrow the result.
+  // Halal preference filters, all optional, all narrow the result.
   min_validation_tier?: ValidationTier;
   min_menu_posture?: MenuPosture;
   has_certification?: boolean;
@@ -786,7 +786,7 @@ export type SearchPlacesParams = {
    *  places still come back, badged "No hours" client-side. */
   open_now?: boolean;
   /**
-   * UI-only flag (never sent to the API — see useSearchPlaces): the
+   * UI-only flag (never sent to the API, see useSearchPlaces): the
    * user has taken manual control of the filters on the search page,
    * so saved preferences must NOT auto-fill the empty axes. Without
    * this, clearing a preference-derived filter would just get
@@ -827,7 +827,7 @@ export const qk = {
 /**
  * Result shape from the consumer "near me" reverse-geocode proxy.
  * Mirrors ``ReverseGeocodeResult`` server-side. All three fields are
- * optional — Google can resolve a country but no locality for rural
+ * optional, Google can resolve a country but no locality for rural
  * coordinates, and the consumer pill falls back gracefully when
  * `city` is null.
  */
@@ -877,7 +877,7 @@ export function useCurrentUser() {
       try {
         return await apiFetch<MeRead>("/me");
       } catch (err) {
-        // 401 from /me is the signal for "not signed in" — resolve
+        // 401 from /me is the signal for "not signed in", resolve
         // to null so callers can render anonymous content instead of
         // a loading spinner forever. Other errors re-throw.
         if (err instanceof ApiError && err.status === 401) return null;
@@ -948,7 +948,7 @@ export type ResetPasswordRequest = { token: string; password: string };
 export type ResetPasswordResponse = { email: string };
 
 /** POST /auth/forgot-password. Always resolves (generic success) even for
- * unknown emails — the UI shows the same "check your inbox" either way. */
+ * unknown emails, the UI shows the same "check your inbox" either way. */
 export function useForgotPassword() {
   return useMutation({
     mutationFn: (payload: ForgotPasswordRequest) =>
@@ -959,7 +959,7 @@ export function useForgotPassword() {
   });
 }
 
-/** GET /auth/reset/{token} — prefetch to show whose password is being
+/** GET /auth/reset/{token}, prefetch to show whose password is being
  * reset. 400s on an invalid/expired/used token; no retry. */
 export function useResetInfo(token: string | null) {
   return useQuery<ResetInfoResponse>({
@@ -988,7 +988,7 @@ export function useResetPassword() {
 // ---------------------------------------------------------------------------
 // Email verification
 // ---------------------------------------------------------------------------
-// Confirming an address doesn't sign anyone in or out — it only unlocks the
+// Confirming an address doesn't sign anyone in or out, it only unlocks the
 // surfaces that publish content about a named business (reviews, owner
 // replies). See api/app/modules/auth/email_verification.py.
 
@@ -997,7 +997,7 @@ export type VerifyEmailResponse = { email: string; already_verified: boolean };
 export type ResendVerificationRequest = { audience?: "consumer" | "owner" | "admin" };
 export type ResendVerificationResponse = { sent: boolean; email: string };
 
-/** POST /auth/verify-email. Anonymous — the token is the proof, so a link
+/** POST /auth/verify-email. Anonymous, the token is the proof, so a link
  *  opened on a phone works while the account is signed in elsewhere. */
 export function useVerifyEmail() {
   return useMutation({
@@ -1011,7 +1011,7 @@ export function useVerifyEmail() {
 
 /** POST /auth/verify-email/resend. Requires a session; the address comes
  *  from that session, never from the body. ``sent: false`` means the address
- *  was already confirmed — success, not an error. */
+ *  was already confirmed, success, not an error. */
 export function useResendVerification() {
   const qc = useQueryClient();
   return useMutation({
@@ -1033,12 +1033,12 @@ export function useResendVerification() {
 
 /**
  * Payload for ``POST /verifier-applications``. Mirrors the server-
- * side ``VerifierApplicationCreate`` schema — see
+ * side ``VerifierApplicationCreate`` schema, see
  * ``api/app/modules/verifiers/schemas.py`` for the canonical spec.
  *
  * Requires a signed-in account (was anonymous-OK, which let bots
  * submit). The applicant email is taken from the session server-side,
- * not this payload — the field is sent for shape compatibility but
+ * not this payload, the field is sent for shape compatibility but
  * ignored. See the become-a-verifier page for the sign-in gating.
  */
 export type VerifierApplicationCreate = {
@@ -1054,7 +1054,7 @@ export type VerifierApplicationCreate = {
   } | null;
 };
 
-/** Response shape — echoes the created application row. */
+/** Response shape, echoes the created application row. */
 export type VerifierApplicationRead = {
   id: string;
   applicant_user_id: string | null;
@@ -1069,11 +1069,11 @@ export type VerifierApplicationRead = {
 };
 
 /**
- * POST /verifier-applications — public verifier application submit.
+ * POST /verifier-applications, public verifier application submit.
  *
  * Rate-limited server-side per IP. Response echoes the created row
  * so the success pane can show submission details. No cache
- * invalidation needed — this is a leaf action from the consumer
+ * invalidation needed, this is a leaf action from the consumer
  * side (admin sees it in their own queue).
  */
 export function useApplyAsVerifier() {
@@ -1093,7 +1093,7 @@ export function useApplyAsVerifier() {
 /** Mirrors ``VerifierProfileStatus`` on the server. */
 export type VerifierProfileStatus = "ACTIVE" | "SUSPENDED" | "REVOKED";
 
-/** GET /me/verifier-profile — the signed-in verifier's own profile. */
+/** GET /me/verifier-profile, the signed-in verifier's own profile. */
 export type VerifierProfileRead = {
   user_id: string;
   public_handle: string | null;
@@ -1184,7 +1184,7 @@ function invalidateMyVisits(qc: ReturnType<typeof useQueryClient>) {
   return qc.invalidateQueries({ queryKey: verifierQk.visits() });
 }
 
-/** GET /me/verifier-profile — resolves to null on 404 so the caller
+/** GET /me/verifier-profile, resolves to null on 404 so the caller
  *  can render an "you don't have a verifier profile yet" state
  *  instead of an error. Any non-404 error still throws. */
 export function useVerifierProfile() {
@@ -1218,7 +1218,7 @@ export function useUpdateVerifierProfile() {
   });
 }
 
-/** GET /me/verification-visits — signed-in verifier's own visits. */
+/** GET /me/verification-visits, signed-in verifier's own visits. */
 export function useMyVerificationVisits() {
   return useQuery({
     queryKey: verifierQk.visits(),
@@ -1253,7 +1253,7 @@ export function useSubmitVerificationVisit() {
 }
 
 // ---------------------------------------------------------------------------
-// Public verifier profile — /verifiers/{handle}
+// Public verifier profile, /verifiers/{handle}
 // ---------------------------------------------------------------------------
 
 /** Slim place summary embedded in a public visit row. */
@@ -1273,7 +1273,7 @@ export type VerifierPublicVisitSummary = {
   place: VerifierPublicVisitPlace;
 };
 
-/** GET /verifiers/{handle} response — public profile + recent visits. */
+/** GET /verifiers/{handle} response, public profile + recent visits. */
 export type VerifierPublicProfileDetail = {
   public_handle: string;
   bio: string | null;
@@ -1283,7 +1283,7 @@ export type VerifierPublicProfileDetail = {
   total_accepted_visits: number;
 };
 
-/** GET /verifiers/{handle} — resolves to null on 404 so the caller
+/** GET /verifiers/{handle}, resolves to null on 404 so the caller
  *  can render a "profile not found" state instead of throwing. */
 export function usePublicVerifierProfile(handle: string | undefined) {
   return useQuery({
@@ -1326,7 +1326,7 @@ export function useWithdrawVisit() {
  */
 /**
  * Accept the current terms. The response is the refreshed /me payload, so it
- * goes straight into the cache — invalidating would refetch and leave the
+ * goes straight into the cache, invalidating would refetch and leave the
  * blocking dialog up for the length of that request, which reads as the
  * button not having worked.
  */
@@ -1354,7 +1354,7 @@ export function useLogout() {
 // ---------------------------------------------------------------------------
 
 /**
- * GET /places — public catalog search.
+ * GET /places, public catalog search.
  *
  * Stays disabled until the caller passes a non-empty ``q`` (Phase 9b
  * focuses on the text-search path; geo-search lands when we add a
@@ -1362,7 +1362,7 @@ export function useLogout() {
  * string, so a search result is shareable.
  *
  * Halal-preference filters are passed through verbatim to the
- * server. Each filter narrows results — places without a matching
+ * server. Each filter narrows results, places without a matching
  * profile drop out entirely (the server does an INNER JOIN on
  * ``halal_profiles`` when any filter is set; otherwise a LEFT
  * OUTER JOIN so unprofiled places still appear with
@@ -1393,14 +1393,14 @@ export function useSearchPlaces(params: SearchPlacesParams) {
           no_alcohol_served: params.no_alcohol_served,
           supplier_verified: params.supplier_verified,
           open_now: params.open_now || undefined,
-          // Multi-value cuisine filter — encoded as repeated keys
+          // Multi-value cuisine filter, encoded as repeated keys
           // (``?cuisine=PAKISTANI&cuisine=INDIAN``) by the array-aware
           // buildUrl in client.ts. Empty array drops the param.
           cuisine: params.cuisines,
         },
       }),
     enabled,
-    // Search results live a little longer than the 30s default — the
+    // Search results live a little longer than the 30s default, the
     // public catalog doesn't churn quickly, and a refresh-on-back
     // navigation flicker is worse than a slightly stale list.
     staleTime: 60_000,
@@ -1412,7 +1412,7 @@ export function useSearchPlaces(params: SearchPlacesParams) {
 // ---------------------------------------------------------------------------
 
 /**
- * GET /places/google/reverse-geocode — proxy to Google Geocoding.
+ * GET /places/google/reverse-geocode, proxy to Google Geocoding.
  *
  * Powers the "Searching X mi around <City>" label on the near-me
  * pill. Disabled when lat/lng aren't both finite numbers (the hook
@@ -1451,18 +1451,18 @@ export function useReverseGeocode(
       }),
     enabled,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
-    // The pill is decoration — failures are silent. The active pill
+    // The pill is decoration, failures are silent. The active pill
     // falls back to "around you" when this hook returns no data.
     retry: false,
   });
 }
 
 /**
- * GET /places/google/forward-geocode — backs the consumer "Pick a
+ * GET /places/google/forward-geocode, backs the consumer "Pick a
  * city" dialog. Disabled until the user has typed something
  * meaningful (3+ chars) so we don't burn a Google call on every
  * keystroke. Empty / no-match queries return an empty
- * matches[] — never an error.
+ * matches[], never an error.
  *
  * 5-minute staleTime because city geometry doesn't change; we want
  * to keep typing-and-backspacing through the same query in the
@@ -1488,7 +1488,7 @@ export function useForwardGeocode(query: string) {
 // ---------------------------------------------------------------------------
 
 /**
- * GET /places/{id} — full place + embedded halal profile.
+ * GET /places/{id}, full place + embedded halal profile.
  *
  * Returns 404 (PLACE_NOT_FOUND) when the place doesn't exist or has
  * been hard-deleted; soft-deleted places resolve with
@@ -1503,7 +1503,7 @@ export function usePlaceDetail(placeId: string) {
     queryKey: qk.placeDetail(placeId),
     queryFn: () => apiFetch<PlaceDetail>(`/places/${placeId}`),
     enabled: Boolean(placeId),
-    // Same staleness window as search — the public read is cheap and
+    // Same staleness window as search, the public read is cheap and
     // the data doesn't churn quickly. A revoke or new approval will
     // beat the cache via TanStack's window-focus refetch.
     staleTime: 60_000,
@@ -1516,7 +1516,7 @@ export function usePlaceDetail(placeId: string) {
 // ---------------------------------------------------------------------------
 
 /**
- * GET /me/disputes — the caller's own disputes, newest-first.
+ * GET /me/disputes, the caller's own disputes, newest-first.
  *
  * The detail page uses this to:
  *   * Filter out places the caller has already disputed (so the
@@ -1524,7 +1524,7 @@ export function usePlaceDetail(placeId: string) {
  *   * Render a small "Your reports for this place" section so the
  *     caller can track their own follow-ups.
  *
- * Disabled when there's no signed-in user — the endpoint requires
+ * Disabled when there's no signed-in user, the endpoint requires
  * auth and would 401 otherwise.
  */
 export function useMyDisputes(opts: { enabled?: boolean } = {}) {
@@ -1537,13 +1537,13 @@ export function useMyDisputes(opts: { enabled?: boolean } = {}) {
 }
 
 /**
- * POST /places/{place_id}/disputes — file a new dispute.
+ * POST /places/{place_id}/disputes, file a new dispute.
  *
  * On success we invalidate two caches:
  *   * ``qk.myDisputes()`` so the caller's "your reports" section
  *     picks up the new row immediately.
  *   * ``qk.placeDetail(place_id)`` so the embedded halal profile's
- *     dispute_state badge updates without a manual refresh — the
+ *     dispute_state badge updates without a manual refresh, the
  *     server flips it to DISPUTED on first OPEN dispute.
  */
 export function useFileDispute(placeId: string) {
@@ -1566,12 +1566,12 @@ export function useFileDispute(placeId: string) {
 }
 
 /**
- * POST /me/disputes/{dispute_id}/attachments — multipart upload.
+ * POST /me/disputes/{dispute_id}/attachments, multipart upload.
  *
  * The fileDispute → uploadAttachment chain is two requests because
  * the dispute id is server-generated; the dialog runs them
  * sequentially after the dispute is created. We skip cache
- * invalidation here — the only consumer of attachment metadata is
+ * invalidation here, the only consumer of attachment metadata is
  * the dispute itself, and the user already sees their selected file
  * names in the dialog.
  */
@@ -1609,7 +1609,7 @@ export type FavoriteRead = {
 };
 
 /**
- * GET /me/favorites — newest-first list of saved places.
+ * GET /me/favorites, newest-first list of saved places.
  *
  * Disabled when the caller isn't signed in (the endpoint requires
  * auth and would 401). Pass ``isAuthenticated`` from
@@ -1630,7 +1630,7 @@ export function useMyFavorites(opts: { enabled?: boolean } = {}) {
  * heart re-renders every other heart instance for the same place
  * without a per-row fetch.
  *
- * Returns ``null`` when favorites haven't loaded yet — the caller
+ * Returns ``null`` when favorites haven't loaded yet, the caller
  * (the toggle button) shows a neutral state during the brief
  * fetch window so we don't flicker between "filled" and "empty".
  */
@@ -1644,7 +1644,7 @@ export function useIsFavorited(
 }
 
 /**
- * POST /me/favorites/{place_id} — idempotent save.
+ * POST /me/favorites/{place_id}, idempotent save.
  *
  * Optimistically flips the local TanStack cache: the heart toggles
  * to "filled" before the network call completes so the consumer
@@ -1670,7 +1670,7 @@ export function useAddFavorite() {
       await qc.cancelQueries({ queryKey: qk.myFavorites() });
       const previous = qc.getQueryData<FavoriteRead[]>(qk.myFavorites());
       // If we already have a list cached, prepend an optimistic row.
-      // Otherwise leave cache alone — onSuccess will populate it.
+      // Otherwise leave cache alone, onSuccess will populate it.
       if (previous) {
         const already = previous.some((r) => r.place.id === place.id);
         if (!already) {
@@ -1695,7 +1695,7 @@ export function useAddFavorite() {
 }
 
 /**
- * DELETE /me/favorites/{place_id} — idempotent unsave.
+ * DELETE /me/favorites/{place_id}, idempotent unsave.
  *
  * Same optimistic-update + rollback pattern as ``useAddFavorite``.
  * Server returns 204 (no body) on success, so the mutation result

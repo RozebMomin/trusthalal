@@ -5,17 +5,17 @@
  *
  * Used in two visual contexts:
  *
- *   * **Card overlay** — small icon-only button positioned in the
+ *   * **Card overlay**, small icon-only button positioned in the
  *     hero photo's top-right corner. Renders white-on-translucent so
  *     it stays legible over any photo. ``variant="overlay"``.
- *   * **Inline / detail page** — slightly larger button with a
+ *   * **Inline / detail page**, slightly larger button with a
  *     visible label ("Save" / "Saved"). ``variant="inline"``.
  *
  * Behavior:
  *
  *   * Anonymous → routes to ``/login?next=<currentPath>`` so the
  *     visitor lands back where they were after sign-in. The toggle
- *     never tries to mutate without auth — the API would 401 anyway,
+ *     never tries to mutate without auth, the API would 401 anyway,
  *     but the route bounce is cleaner UX than a toast.
  *   * Signed in CONSUMER → optimistic toggle, falls back to the
  *     previous state on error.
@@ -23,7 +23,7 @@
  *     tooltip. Owners / admins / verifiers don't have a personal
  *     "places to come back to" surface.
  *
- * The component owns NO data fetching of its own — it reads the
+ * The component owns NO data fetching of its own, it reads the
  * derived ``isFavorited`` from the shared favorites query so every
  * heart on the page re-renders when one toggles.
  */
@@ -65,7 +65,7 @@ export function FavoriteToggle({
   const pathname = usePathname();
   const { data: me } = useCurrentUser();
   const isAuthenticated = Boolean(me);
-  // Verifiers are consumers-plus on the diner surface — they save
+  // Verifiers are consumers-plus on the diner surface, they save
   // places like anyone else. Only OWNER / ADMIN get the disabled state.
   const isConsumer = isConsumerAudience(me?.role);
 
@@ -118,7 +118,7 @@ export function FavoriteToggle({
   }
 
   function handleClick(e: React.MouseEvent) {
-    // Cards are typically wrapped in a <Link> — the click on the
+    // Cards are typically wrapped in a <Link>, the click on the
     // heart shouldn't navigate to the place detail.
     e.preventDefault();
     e.stopPropagation();
@@ -141,7 +141,7 @@ export function FavoriteToggle({
       onClick={handleClick}
       aria-pressed={filled}
       aria-label={filled ? "Remove from favorites" : "Save to favorites"}
-      title={filled ? "Saved — tap to remove" : "Save"}
+      title={filled ? "Saved, tap to remove" : "Save"}
       disabled={pending}
       className={cn(
         renderClassName(variant, filled),
@@ -176,7 +176,7 @@ function HeartIcon({
       aria-hidden
       className={cn(
         variant === "overlay" ? "h-4 w-4" : "h-4 w-4",
-        // Filled state — current text color drives both stroke + fill
+        // Filled state, current text color drives both stroke + fill
         // so the heart always reads as the same color it's painted in.
         filled && "fill-current",
         // Subtle scale-up when filled to telegraph the toggle
@@ -191,7 +191,7 @@ function HeartIcon({
 function renderClassName(variant: Variant, filled: boolean): string {
   if (variant === "overlay") {
     return cn(
-      // Top-right corner overlay — small circular tap target.
+      // Top-right corner overlay, small circular tap target.
       "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
       "border shadow-sm backdrop-blur-sm transition",
       filled

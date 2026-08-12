@@ -7,7 +7,7 @@
  * rejection reasons we see most often (entity name mismatch,
  * illegible/expired docs, wrong document type, not in good
  * standing). Selecting "Other" reveals a free-text box for
- * anything that doesn't fit the presets — this is where the
+ * anything that doesn't fit the presets, this is where the
  * specific, owner-actionable detail goes.
  *
  * The dialog composes the final ``reason`` string from the
@@ -19,7 +19,7 @@
  * payload then.
  *
  * The owner sees the composed string verbatim on their org detail
- * page after rejection — preset labels are written so they read
+ * page after rejection, preset labels are written so they read
  * cleanly as a sentence.
  */
 
@@ -51,7 +51,7 @@ type Props = {
 
 // One-click presets covering the bulk of real rejections seen so
 // far. Each label is the verbatim string the owner reads on their
-// portal — keep them complete-sentence-ish so multiple selections
+// portal, keep them complete-sentence-ish so multiple selections
 // concatenated with "; " still read cleanly.
 const PRESET_REASONS = [
   {
@@ -67,7 +67,7 @@ const PRESET_REASONS = [
   {
     id: "wrong_document_type",
     label:
-      "Uploaded document is not the right type — articles of organization, certificate of incorporation, or a recent annual report is required.",
+      "Uploaded document is not the right type, articles of organization, certificate of incorporation, or a recent annual report is required.",
   },
   {
     id: "not_in_good_standing",
@@ -133,7 +133,7 @@ export function RejectOrgDialog({ org, open, onOpenChange }: Props) {
     otherChecked && otherText.trim().length >= MIN_OTHER_LENGTH;
   // Either at least one preset is checked, OR Other is checked and
   // has substantive content. A bare "Other" with no text isn't
-  // submittable — that's just clicking the box and stopping.
+  // submittable, that's just clicking the box and stopping.
   const canSubmit = selected.size > 0 || otherReady;
 
   const composed = composeReason(selected, otherChecked, otherText);
@@ -214,7 +214,7 @@ export function RejectOrgDialog({ org, open, onOpenChange }: Props) {
                 );
               })}
 
-              {/* Other — toggling the box reveals the textarea. */}
+              {/* Other, toggling the box reveals the textarea. */}
               <label
                 htmlFor={OTHER_ID}
                 className="flex cursor-pointer items-start gap-3 rounded-md border bg-card p-3 text-sm transition-colors hover:bg-accent/40 has-[:checked]:border-primary has-[:checked]:bg-accent/60"
@@ -256,7 +256,7 @@ export function RejectOrgDialog({ org, open, onOpenChange }: Props) {
             </div>
           </fieldset>
 
-          {/* Live preview of the composed reason — keeps staff
+          {/* Live preview of the composed reason, keeps staff
               honest about what the owner is going to see. */}
           {composed.length > 0 && (
             <div className="mt-4 rounded-md border bg-muted/30 p-3 text-xs">

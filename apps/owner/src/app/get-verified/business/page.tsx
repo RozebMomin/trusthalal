@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * `/get-verified` — Stage 1: register your business.
+ * `/get-verified`, Stage 1: register your business.
  *
  * Parallel restyle of the existing create-org + org-detail flow into
  * the onboarding wizard shell. The proven wiring is copied verbatim:
  *
- *   * Create the legal entity at DRAFT (`useCreateMyOrganization`) —
+ *   * Create the legal entity at DRAFT (`useCreateMyOrganization`),
  *     or resume the most-recent DRAFT if the owner already started
  *     one (the hub's "Resume" link lands here).
  *   * Stage formation-doc files in browser memory (same PDF/JPEG/PNG/
@@ -15,7 +15,7 @@
  *     (`useUploadMyOrganizationAttachment`) sequentially, then submit
  *     (`useSubmitMyOrganization`) to flip DRAFT → UNDER_REVIEW.
  *
- * At least one document is required before submit — the same gate the
+ * At least one document is required before submit, the same gate the
  * server enforces. On success we return to the hub, which now shows
  * stage 1 "in review" and unlocks stage 2.
  */
@@ -41,7 +41,7 @@ import { US_STATES } from "@/lib/us-states";
 import { FileDrop, stageFiles } from "../_components/file-drop";
 import { type RailStage, WizardShell } from "../_components/wizard";
 
-// Country is locked to US for v1 — same constant the existing org
+// Country is locked to US for v1, same constant the existing org
 // pages ship, so a future multi-country change is one edit.
 const DEFAULT_COUNTRY_CODE = "US";
 const MAX_FILES_PER_ORG = 10;
@@ -68,7 +68,7 @@ export default function BusinessStagePage() {
 
 function BusinessStageInner() {
   const searchParams = useSearchParams();
-  // `?new=1` forces a brand-new business — used by multi-entity owners who
+  // `?new=1` forces a brand-new business, used by multi-entity owners who
   // already have an org but run another store under a different legal entity.
   const forceNew = searchParams?.get("new") === "1";
 
@@ -76,7 +76,7 @@ function BusinessStageInner() {
 
   // Resume the most-recent DRAFT if one exists (the hub's "Resume"
   // CTA). Otherwise we create a fresh org on submit. In force-new mode we
-  // never resume — always start a blank entity.
+  // never resume, always start a blank entity.
   const draftOrg = React.useMemo(() => {
     if (forceNew) return null;
     const drafts = (orgs.data ?? [])
@@ -172,7 +172,7 @@ function BusinessForm({ draftOrg }: { draftOrg: MyOrganizationRead | null }) {
     setErrorMsg(null);
     setProgress(null);
 
-    // Step 1 — persist the entity. Resume path patches the existing
+    // Step 1, persist the entity. Resume path patches the existing
     // draft; fresh path creates a new one.
     let orgId: string;
     try {
@@ -204,7 +204,7 @@ function BusinessForm({ draftOrg }: { draftOrg: MyOrganizationRead | null }) {
       }
     } catch (err) {
       // NO_FIELDS surfaces when a resume-patch is a no-op (nothing
-      // changed) — harmless, keep going with the existing id.
+      // changed): harmless, keep going with the existing id.
       if (
         draftOrg &&
         err instanceof ApiError &&
@@ -224,7 +224,7 @@ function BusinessForm({ draftOrg }: { draftOrg: MyOrganizationRead | null }) {
       }
     }
 
-    // Step 2 — upload staged formation docs sequentially so a partial
+    // Step 2, upload staged formation docs sequentially so a partial
     // failure leaves a clear "we got this far" state.
     if (pendingFiles.length > 0) {
       for (let i = 0; i < pendingFiles.length; i++) {
@@ -250,7 +250,7 @@ function BusinessForm({ draftOrg }: { draftOrg: MyOrganizationRead | null }) {
       setProgress(null);
     }
 
-    // Step 3 — flip DRAFT → UNDER_REVIEW.
+    // Step 3, flip DRAFT → UNDER_REVIEW.
     try {
       await submit.mutateAsync(orgId);
     } catch (err) {
@@ -269,7 +269,7 @@ function BusinessForm({ draftOrg }: { draftOrg: MyOrganizationRead | null }) {
       <WizardShell
         stages={RAIL}
         title="Register your business"
-        lead="The legal entity that operates your restaurant. This is a one-time verification — every location you claim later rolls up under it."
+        lead="The legal entity that operates your restaurant. This is a one-time verification, every location you claim later rolls up under it."
         footer={
           <>
             <span className="text-xs text-muted-foreground">
@@ -382,7 +382,7 @@ function BusinessForm({ draftOrg }: { draftOrg: MyOrganizationRead | null }) {
             <Label>Formation documents</Label>
             <p className="text-xs text-muted-foreground">
               Articles of organization, certificate of formation, or EIN
-              letter — at least one is required. Files stay on this device
+              letter, at least one is required. Files stay on this device
               until you submit.
             </p>
             {existingAttachments > 0 && (

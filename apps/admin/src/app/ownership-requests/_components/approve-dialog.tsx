@@ -4,7 +4,7 @@
  * Approve-ownership-request dialog.
  *
  * Slice 5d redesign: admins no longer pick or create the sponsoring
- * organization here — that responsibility moved to the owners (who
+ * organization here, that responsibility moved to the owners (who
  * file claims under their own org) and to /admin/organizations
  * (where admin verifies the org separately). This dialog now reads
  * the org off the claim itself and gates approval on the org being
@@ -95,7 +95,7 @@ export function ApproveDialog({ request, open, onOpenChange }: Props) {
         payload: {
           organization_id: claimOrg ? null : legacyOrgId,
           note: note.trim() || null,
-          // Defaults — can be exposed in an Advanced section later.
+          // Defaults, can be exposed in an Advanced section later.
           member_role: "OWNER_ADMIN",
           place_owner_role: "PRIMARY",
         },
@@ -254,7 +254,7 @@ function ClaimOrgSection({
 }
 
 // ---------------------------------------------------------------------------
-// Legacy fallback — claim has no org, admin picks from VERIFIED orgs
+// Legacy fallback, claim has no org, admin picks from VERIFIED orgs
 // ---------------------------------------------------------------------------
 function LegacyOrgPicker({
   orgs,

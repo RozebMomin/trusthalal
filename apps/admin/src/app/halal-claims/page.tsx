@@ -3,8 +3,8 @@
 /**
  * Admin queue for halal-claim review.
  *
- * Phase 6 of the halal-trust v2 rebuild. Lands on PENDING_REVIEW —
- * the "waiting on me" bucket — and lets admin filter through the
+ * Phase 6 of the halal-trust v2 rebuild. Lands on PENDING_REVIEW,
+ * the "waiting on me" bucket, and lets admin filter through the
  * other lifecycle states for auditing or for picking up
  * NEEDS_MORE_INFO claims an owner re-submitted.
  *

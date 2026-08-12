@@ -7,7 +7,7 @@
  * render a bare checkmark in a rounded square, which didn't match the icon in
  * the browser tab or on the installed-app home screen.
  *
- * Colours are fixed (not theme tokens) on purpose — a logo should read the
+ * Colours are fixed (not theme tokens) on purpose, a logo should read the
  * same on every surface. Rounded corners and the star are baked into the SVG,
  * so no wrapping tile is needed; size via `className` (default h-8 w-8).
  */

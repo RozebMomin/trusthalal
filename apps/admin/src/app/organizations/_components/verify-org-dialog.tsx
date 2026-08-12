@@ -11,7 +11,7 @@
  * the audit row.
  *
  * The note is required server-side (min_length=3) so every
- * VERIFIED decision has a documented basis — no more bare
+ * VERIFIED decision has a documented basis, no more bare
  * "click-through" approvals that leave a confused future reviewer
  * wondering what was actually checked.
  */
@@ -43,7 +43,7 @@ type Props = {
 };
 
 // Preset verification checks. Each label is the verbatim string
-// that lands on decision_note — keep them complete-sentence-ish
+// that lands on decision_note, keep them complete-sentence-ish
 // so multiple selections concatenated with " " still read cleanly
 // in the audit log.
 const PRESET_CHECKS = [
@@ -169,7 +169,7 @@ export function VerifyOrgDialog({ org, open, onOpenChange }: Props) {
             <DialogDescription>
               Confirm <span className="font-medium">{org.name}</span> as a
               real, operating business entity. Tick every check you
-              actually performed — the audit log will show exactly
+              actually performed, the audit log will show exactly
               this. Once verified the org can sponsor new place
               claims.
             </DialogDescription>
@@ -208,7 +208,7 @@ export function VerifyOrgDialog({ org, open, onOpenChange }: Props) {
                 );
               })}
 
-              {/* Other — toggling the box reveals the textarea. */}
+              {/* Other, toggling the box reveals the textarea. */}
               <label
                 htmlFor={OTHER_ID}
                 className="flex cursor-pointer items-start gap-3 rounded-md border bg-card p-3 text-sm transition-colors hover:bg-accent/40 has-[:checked]:border-primary has-[:checked]:bg-accent/60"
@@ -249,7 +249,7 @@ export function VerifyOrgDialog({ org, open, onOpenChange }: Props) {
             </div>
           </fieldset>
 
-          {/* Live preview of the composed note — confirms what
+          {/* Live preview of the composed note, confirms what
               lands on the audit row. */}
           {composed.length > 0 && (
             <div className="mt-4 rounded-md border bg-muted/30 p-3 text-xs">

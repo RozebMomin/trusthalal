@@ -5,7 +5,7 @@
  *
  * Auth-gated: the place detail page only renders the trigger when
  * the caller is a signed-in consumer. The dialog itself doesn't
- * recheck — if the cookie expired between page load and submit, the
+ * recheck, if the cookie expired between page load and submit, the
  * server returns 401 and the catch block surfaces a friendly
  * "please sign in again" message.
  *
@@ -14,7 +14,7 @@
  *   2. Writes a description (10–2000 chars, server-validated).
  *   3. Optionally attaches up to 5 files (PDF / JPEG / PNG / HEIC).
  *   4. Submit creates the dispute, then sequentially uploads each
- *      attachment. Attachments are best-effort — if one fails, the
+ *      attachment. Attachments are best-effort, if one fails, the
  *      dispute itself remains filed and the user can retry from the
  *      "Your reports" panel later (Phase 9d will surface that flow).
  */
@@ -245,7 +245,7 @@ export function FileDisputeDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Thanks — your report was filed</DialogTitle>
+            <DialogTitle>Thanks, your report was filed</DialogTitle>
             <DialogDescription>
               Trust Halal will review your report on{" "}
               <strong>{placeName}</strong> and follow up with the

@@ -7,7 +7,7 @@
  * enforces ``min_length=3`` on ``decision_note``. Internal notes are
  * optional and stay staff-only.
  *
- * Rejection does NOT touch the place's HalalProfile — it's the
+ * Rejection does NOT touch the place's HalalProfile, it's the
  * absence of a new approval, not a removal of an existing one. (Use
  * the Revoke dialog for taking down a previously-APPROVED claim.)
  */

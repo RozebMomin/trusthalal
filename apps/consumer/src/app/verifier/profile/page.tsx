@@ -4,7 +4,7 @@
  * Verifier profile edit page.
  *
  * The only self-serve edit surface for the verifier's public
- * identity — handle (URL slug), bio, social links, and the
+ * identity, handle (URL slug), bio, social links, and the
  * public-visibility toggle. Status changes (SUSPEND, REVOKE) are
  * admin-only and live on the admin surface.
  *
@@ -136,7 +136,7 @@ export default function VerifierProfilePage() {
       </h1>
       <p className="mb-8 text-muted-foreground">
         This is what the community sees when they visit your public
-        profile page. Keep it honest and specific — the point is to
+        profile page. Keep it honest and specific, the point is to
         establish who you are and why your visits are trustworthy.
       </p>
 
@@ -145,7 +145,7 @@ export default function VerifierProfilePage() {
           <Label htmlFor="public_handle">
             Public handle{" "}
             <span className="text-muted-foreground">
-              (your URL slug — e.g. yasmeen-eats)
+              (your URL slug, e.g. yasmeen-eats)
             </span>
           </Label>
           <Input
@@ -172,7 +172,7 @@ export default function VerifierProfilePage() {
             id="bio"
             value={form.bio}
             onChange={(e) => update_("bio", e.target.value)}
-            placeholder="A few sentences about you — where you're based, your relationship with halal food, why you do this work."
+            placeholder="A few sentences about you, where you're based, your relationship with halal food, why you do this work."
             rows={4}
             maxLength={2000}
           />

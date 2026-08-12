@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * Consumer site home — the search surface.
+ * Consumer site home, the search surface.
  *
  * Two search modes the public ``GET /places`` endpoint accepts, and
  * both are wired here:
  *
- *   * **Text** — typing into the search input pushes a debounced
+ *   * **Text**, typing into the search input pushes a debounced
  *     ``q`` into the URL.
- *   * **Geo** — clicking "Near me" prompts the browser for
+ *   * **Geo**, clicking "Near me" prompts the browser for
  *     geolocation, then pushes ``lat`` + ``lng`` + ``radius`` into
  *     the URL. Text and geo COMBINE: when both are set the API
  *     constrains the name match to the active radius, so typing a
@@ -17,7 +17,7 @@
  * URL state: every input writes its value into the query string so
  * a search result is shareable and the back button restores the
  * previous query without a re-type. The router's ``replace`` (not
- * ``push``) keeps history short — typing into the search box
+ * ``push``) keeps history short, typing into the search box
  * shouldn't fill the back stack with intermediate keystrokes.
  *
  * Empty / loading / error / "no results" all render distinct
@@ -134,7 +134,7 @@ const DEBOUNCE_MS = 250;
 
 /**
  * Default export. The actual page lives in `HomePageInner` so we can
- * wrap it in `<Suspense>` — `useSearchParams()` requires a Suspense
+ * wrap it in `<Suspense>`, `useSearchParams()` requires a Suspense
  * boundary above it during the production prerender pass; without
  * one Next 14's static analyzer bails on the route. The fallback is
  * a compact hero + an empty results column so first paint matches
@@ -166,12 +166,12 @@ function HomePageInner() {
   const { data: me } = useCurrentUser();
   const isAuthenticated = Boolean(me);
 
-  // Saved preferences — server-of-record for signed-in consumers,
+  // Saved preferences, server-of-record for signed-in consumers,
   // localStorage for anonymous. The hook resolves to a defined object
   // on success regardless.
   const prefsQuery = useMyPreferences({ isAuthenticated });
 
-  // Build the current SearchPlacesParams from the URL — the URL is
+  // Build the current SearchPlacesParams from the URL, the URL is
   // the source of truth so a deep-link / refresh restores the same
   // search.
   const filtersFromUrl = React.useMemo(
@@ -188,7 +188,7 @@ function HomePageInner() {
     // Once the user has taken manual control of the filters (cleared
     // one, removed a chip, or edited them in the sheet), the URL is
     // authoritative and saved preferences must NOT re-fill the empty
-    // axes — otherwise clearing a pref-derived filter would instantly
+    // axes, otherwise clearing a pref-derived filter would instantly
     // reappear on the next render.
     if (filtersFromUrl.pref_override) return filtersFromUrl;
     const prefs = prefsQuery.data;
@@ -247,7 +247,7 @@ function HomePageInner() {
   }, [filtersFromUrl.q]);
 
   // Push debounced text changes into the URL. Geo context is
-  // PRESERVED — the API constrains a text match to the active radius
+  // PRESERVED, the API constrains a text match to the active radius
   // when both are set, so typing a name narrows within "around
   // Atlanta" instead of silently resetting to a global search.
   React.useEffect(() => {
@@ -257,7 +257,7 @@ function HomePageInner() {
       q: debouncedQuery,
     };
     router.replace(`/?${stringifySearchParams(next)}`, { scroll: false });
-    // We intentionally don't depend on `router` — Next's router
+    // We intentionally don't depend on `router`, Next's router
     // identity is stable enough that the lint rule is overly strict
     // here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -267,7 +267,7 @@ function HomePageInner() {
     // Every filter interaction (sheet apply, cuisine rail, active-filter
     // chip removal, "clear all") routes through here. Stamp the
     // pref_override flag so the written URL becomes authoritative and
-    // saved preferences stop auto-filling — this is what lets a
+    // saved preferences stop auto-filling, this is what lets a
     // signed-in user actually clear or broaden a preference-derived
     // filter instead of watching it snap back.
     router.replace(
@@ -277,7 +277,7 @@ function HomePageInner() {
   }
 
   // "Open now" is an availability toggle, not a halal preference, so it
-  // updates the URL directly and does NOT flip pref_override — a diner's
+  // updates the URL directly and does NOT flip pref_override, a diner's
   // saved halal filters keep applying while they narrow to what's open.
   function toggleOpenNow() {
     router.replace(
@@ -292,7 +292,7 @@ function HomePageInner() {
   // Near-me coords from the URL, packed into the shape the
   // NearMeButton expects. null when geo is off. Memoized so the
   // object identity is stable across renders that don't actually
-  // change the geo trio — otherwise the decoratedResults useMemo
+  // change the geo trio, otherwise the decoratedResults useMemo
   // below re-fires on every render even when nothing has changed.
   const nearMeActive = React.useMemo<
     { lat: number; lng: number; radius: number } | null
@@ -369,12 +369,12 @@ function HomePageInner() {
     );
   }
 
-  // Search uses the merged ``effectiveFilters`` — URL plus prefs —
+  // Search uses the merged ``effectiveFilters``, URL plus prefs,
   // so saved defaults narrow results without the user re-typing
   // them every visit.
   const search = useSearchPlaces(effectiveFilters);
 
-  // Only asked when the search already came back empty — it's several COUNT
+  // Only asked when the search already came back empty, it's several COUNT
   // queries and there's no reason to pay for them on a search that worked.
   const WIDER_RADIUS_M = 40234; // 25 mi
   const diagnostics = useSearchDiagnostics(effectiveFilters, {
@@ -385,7 +385,7 @@ function HomePageInner() {
         : undefined,
   });
 
-  // Analytics — fire a ``search_executed`` event whenever a search
+  // Analytics, fire a ``search_executed`` event whenever a search
   // resolves. Keyed off the JSON-stringified filter shape so a
   // single user typing "chicago" → "chicago il" gets two events
   // (the second supersedes the first as a refinement signal). We
@@ -448,14 +448,14 @@ function HomePageInner() {
   // Distance-aware sort, only meaningful when near-me is active.
   // Default = closest first; the toggle flips to farthest. Lives in
   // local state (not the URL) because it's a pure presentation
-  // choice — sharing a near-me link shouldn't surprise the recipient
+  // choice, sharing a near-me link shouldn't surprise the recipient
   // with a non-default sort.
   const [sortMode, setSortMode] = React.useState<SortMode>("closest");
 
   // Decorate every result with its distance from the geo center so
   // each row can render a "X.X mi away" badge and the list can be
   // sorted by it. Done client-side because every place already
-  // carries lat/lng on the wire — no need to add a `distance_meters`
+  // carries lat/lng on the wire, no need to add a `distance_meters`
   // column to GET /places just to display.
   const decoratedResults = React.useMemo<
     Array<{ place: PlaceSearchResult; distanceMeters?: number }>
@@ -474,7 +474,7 @@ function HomePageInner() {
     }));
     withDistance.sort((a, b) => {
       // Two rating sorts, because there are two ratings. This used to be a
-      // single "Highest rated" that silently meant Google's — the same
+      // single "Highest rated" that silently meant Google's, the same
       // conflation the place page now avoids by labelling both.
       //
       // Both comparators live in lib/ranking.ts, where the weighting is
@@ -490,7 +490,7 @@ function HomePageInner() {
     return withDistance;
   }, [search.data, nearMeActive, sortMode]);
 
-  // Filter sheet open/close state. Lives here (not in the URL) — a
+  // Filter sheet open/close state. Lives here (not in the URL): a
   // shareable link with ``?filters_open=true`` would be confusing
   // and the sheet is a pure UI concern, not search context.
   const [filtersOpen, setFiltersOpen] = React.useState(false);
@@ -586,7 +586,7 @@ function HomePageInner() {
 
       {filtersSheetEl}
 
-      {/* Active filters bar — only when an actual search is running
+      {/* Active filters bar, only when an actual search is running
           AND filters are set. The cuisine rail above already shows
           which TOP cuisines are toggled; this bar surfaces every
           other active axis (validation, posture, prefs) plus
@@ -615,7 +615,7 @@ function HomePageInner() {
             onClearFilter={(field) =>
               setFilters(clearFilterField(effectiveFilters, field))
             }
-            // Only offered when widening would actually find something —
+            // Only offered when widening would actually find something,
             // a button that produces the same empty screen is worse than
             // no button, and the server already priced it.
             widenLabel={
@@ -649,7 +649,7 @@ function HomePageInner() {
         search.data &&
         search.data.length > 0 && (
           <div className="space-y-3">
-            {/* Sort control only renders when near-me is active —
+            {/* Sort control only renders when near-me is active,
                 without a geo center there's no meaningful "closest
                 first" to sort by. The control sits above the list
                 and right-aligns so the result count or other future
@@ -698,7 +698,7 @@ function HomePageInner() {
 // ---------------------------------------------------------------------------
 
 /**
- * Search input — refreshed for the aesthetic pass.
+ * Search input, refreshed for the aesthetic pass.
  *
  * Tall single-input row with a leading magnifying-glass icon and a
  * trailing clear (×) button when there's text. The visual weight
@@ -734,7 +734,7 @@ function SearchBox({
         onChange={(e) => onChange(e.target.value)}
         aria-label="Search restaurants"
         // ``[&::-webkit-search-*]:hidden`` suppresses WebKit's native
-        // clear (×) control — we render our own, and two side-by-side
+        // clear (×) control, we render our own, and two side-by-side
         // clear icons read as a glitch.
         className="block h-12 w-full rounded-full border border-input bg-card pl-11 pr-11 text-base text-foreground shadow-sm transition placeholder:text-muted-foreground/80 hover:border-foreground/30 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
       />
@@ -784,14 +784,14 @@ function LoadingState() {
 /**
  * The empty state, with a reason attached.
  *
- * "Nothing matched — try removing a filter" makes the person guess which of
+ * "Nothing matched, try removing a filter" makes the person guess which of
  * six filters was the problem. On a catalogue this size most empty searches
  * are one filter away from something, so the server tells us which one and
  * how much it would open up, and we say so.
  *
  * What this deliberately does NOT do is show near-miss restaurants. Someone
  * who filtered out alcohol or non-zabihah meat isn't looking for places that
- * *almost* qualify — those aren't close enough, they're food they can't eat.
+ * *almost* qualify, those aren't close enough, they're food they can't eat.
  * Offering them under a friendly "here are some others" would make this
  * product the thing it exists to protect people from.
  */
@@ -815,7 +815,7 @@ function NoResultsState({
 }) {
   const relaxations = diagnostics?.single_filter_relaxations ?? [];
   // Nothing here at all is a coverage problem, not a filter problem, and the
-  // two need different words — telling someone to loosen their filters in a
+  // two need different words, telling someone to loosen their filters in a
   // city we haven't ingested yet sends them round in a circle.
   const areaIsEmpty = diagnostics != null && diagnostics.total_in_area === 0;
 
@@ -826,7 +826,7 @@ function NoResultsState({
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
         {areaIsEmpty
           ? mode === "geo"
-            ? "We don't have any restaurants here yet — coverage is growing city by city. Try a wider radius or a different city."
+            ? "We don't have any restaurants here yet, coverage is growing city by city. Try a wider radius or a different city."
             : "No restaurants matched that name. Try a different spelling."
           : relaxations.length > 0
             ? "Your filters are narrower than what's here. Loosening one would help:"
@@ -928,10 +928,10 @@ function parseSearchParams(p: URLSearchParams | null): SearchPlacesParams {
   if (p.get("no_alcohol_served") === "true") out.no_alcohol_served = true;
   if (p.get("has_certification") === "true") out.has_certification = true;
   if (p.get("open_now") === "true") out.open_now = true;
-  // "prefs overridden" flag — the user has manually edited filters, so
+  // "prefs overridden" flag, the user has manually edited filters, so
   // saved preferences must not auto-fill the empty axes.
   if (p.get("px") === "1") out.pref_override = true;
-  // Multi-value cuisine filter — repeated keys (?cuisine=A&cuisine=B).
+  // Multi-value cuisine filter, repeated keys (?cuisine=A&cuisine=B).
   // Drop unknown values rather than 422ing the user's first request.
   const rawCuisines = p.getAll("cuisine");
   if (rawCuisines.length > 0) {
@@ -973,7 +973,7 @@ function stringifySearchParams(params: SearchPlacesParams): string {
   if (params.cuisines && params.cuisines.length > 0) {
     for (const c of params.cuisines) u.append("cuisine", c);
   }
-  // Geo trio — same all-or-nothing posture as the parser. Truncate
+  // Geo trio, same all-or-nothing posture as the parser. Truncate
   // lat/lng to 5 decimals (~1.1m precision, far below the 1-mile
   // smallest radius) so the URL stays short and shareable.
   if (
@@ -1014,7 +1014,7 @@ function formatCityLabel(
 }
 
 // ---------------------------------------------------------------------------
-// useDebounced — copy of the helper used in the admin places page
+// useDebounced, copy of the helper used in the admin places page
 // ---------------------------------------------------------------------------
 
 function useDebounced<T>(value: T, ms: number): T {

@@ -5,7 +5,7 @@
  *
  * Used when the dispute is plausible enough to ask the owner to
  * file a RECONCILIATION halal_claim instead of admin resolving
- * directly. Today the owner-notification path is a TODO — this
+ * directly. Today the owner-notification path is a TODO, this
  * just changes status; staff follow up via existing channels until
  * the notification surface ships.
  *
@@ -63,7 +63,7 @@ export function RequestReconciliationDialog({
         title: "Reconciliation requested",
         description:
           dispute.status === "OWNER_RECONCILING"
-            ? "Already in OWNER_RECONCILING — your note has been recorded."
+            ? "Already in OWNER_RECONCILING, your note has been recorded."
             : "Status moved to OWNER_RECONCILING. Owner-notification path is a TODO; follow up via existing channels for now.",
       });
       onOpenChange(false);

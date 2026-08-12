@@ -3,7 +3,7 @@
 /**
  * Admin queue for verification-visit review.
  *
- * Lands on SUBMITTED — the "waiting on me" bucket — and lets admin
+ * Lands on SUBMITTED, the "waiting on me" bucket, and lets admin
  * filter through the rest of the lifecycle for auditing. Per-row click
  * goes to /verification-visits/[id], the detail page where the full
  * visit renders and the Accept / Reject decision dialogs live.

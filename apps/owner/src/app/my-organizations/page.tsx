@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Owner portal — my organizations.
+ * Owner portal, my organizations.
  *
  * Lists every Organization the signed-in user is an active member
  * of, with status badges and "Manage" links into the detail page.
@@ -12,7 +12,7 @@
  *
  * Status filter mirrors the /my-claims page pattern (single
  * dropdown, default "Verified", in-progress / rejected behind it).
- * Switching between the two surfaces feels consistent — same
+ * Switching between the two surfaces feels consistent, same
  * affordance, same default-to-the-working-set posture.
  */
 
@@ -27,7 +27,7 @@ import {
   useMyOrganizations,
 } from "@/lib/api/hooks";
 
-// Status filter buckets — same shape as the /my-claims page so the
+// Status filter buckets, same shape as the /my-claims page so the
 // owner doesn't have to re-learn a different control on each
 // surface. "Verified" is the default working set; everything else
 // stays one click away in the dropdown.
@@ -63,10 +63,10 @@ export default function MyOrganizationsPage() {
   // fresh array literal on every render.
   const orgs = React.useMemo(() => data ?? [], [data]);
 
-  // Default to "Verified" — the working set most owners visit
+  // Default to "Verified", the working set most owners visit
   // /my-organizations to look at. DRAFT / UNDER_REVIEW / REJECTED
   // are still one click away in the dropdown.
-  // Default to "All" — owners usually land here from a "Manage all →"
+  // Default to "All", owners usually land here from a "Manage all →"
   // link on the home hub, where they've just seen a specific business
   // (including in-progress or rejected ones). Opening straight to the
   // full list means the org they came to find is always visible instead
@@ -115,7 +115,7 @@ export default function MyOrganizationsPage() {
         </Link>
       </header>
 
-      {/* Status filter — mirrors the /my-claims dropdown so the
+      {/* Status filter, mirrors the /my-claims dropdown so the
           owner gets a consistent affordance across both surfaces.
           Hidden when the owner has no orgs at all (nothing to
           filter on a fresh account). */}
@@ -263,7 +263,7 @@ function EmptyState() {
     <div className="rounded-md border border-dashed bg-card px-6 py-10 text-center">
       <p className="text-base font-medium">No organizations yet.</p>
       <p className="mt-2 text-sm text-muted-foreground">
-        Add the business entity that operates your restaurant — an LLC,
+        Add the business entity that operates your restaurant, an LLC,
         DBA, sole proprietorship, etc. Trust Halal verifies each
         entity before claims can be filed under it.
       </p>

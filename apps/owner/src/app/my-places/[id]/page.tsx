@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * Owner portal — single-place detail page.
+ * Owner portal, single-place detail page.
  *
  * The architectural separation we made in this branch:
  *
- *   * /my-halal-claims/[id]    →  ONLY halal-related — questionnaire,
+ *   * /my-halal-claims/[id]    →  ONLY halal-related, questionnaire,
  *                                 evidence attachments, submit state.
  *   * /my-places/[id]          →  EVERYTHING ELSE about a place that
- *                                 the owner manages — cuisine tags,
+ *                                 the owner manages, cuisine tags,
  *                                 photos (incl. hero selection), and
  *                                 a list of any halal claims attached
  *                                 to this place.
@@ -20,7 +20,7 @@
  * and edited continuously. Separate pages keep the mental model
  * clean and let each page focus on its own primary action.
  *
- * Disputes + activity history sections are deferred — they need
+ * Disputes + activity history sections are deferred, they need
  * owner-facing API surfaces that don't exist yet (consumer
  * disputes filed against this place, place-level event timeline).
  * Stub-now-ship-later was rejected by the user; we'll add them in
@@ -145,7 +145,7 @@ function PlaceDetailBody({ place }: { place: PlaceDetail }) {
 }
 
 // ---------------------------------------------------------------------------
-// Hero thumbnail in the page header — small enough to be glanceable
+// Hero thumbnail in the page header, small enough to be glanceable
 // without dominating the layout. Falls back to a neutral placeholder
 // when no hero is set so the layout doesn't shift after the first
 // upload.
@@ -173,7 +173,7 @@ function PlaceHeroThumb({ url }: { url: string | null }) {
 }
 
 // ---------------------------------------------------------------------------
-// Cuisine section — moved verbatim from the claim editor in the
+// Cuisine section, moved verbatim from the claim editor in the
 // PR-A.5 architectural split. Same hook, same UX, just a different
 // home. Place metadata, not claim metadata.
 // ---------------------------------------------------------------------------
@@ -289,7 +289,7 @@ function CuisineSection({ place }: { place: PlaceDetail }) {
 }
 
 // ---------------------------------------------------------------------------
-// Photos section — moved from the claim editor. Same hooks, same
+// Photos section, moved from the claim editor. Same hooks, same
 // UX. Always editable (not gated by anything claim-status-related
 // since photos are place metadata).
 // ---------------------------------------------------------------------------
@@ -496,7 +496,7 @@ function PhotosSection({ placeId }: { placeId: string }) {
 
           {counts.diner > 0 && (
             <p className="rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
-              Photos diners add stay on your page — you can report one if it
+              Photos diners add stay on your page, you can report one if it
               breaks our guidelines, but you can&rsquo;t remove it. Honest
               photos of what you served are a large part of what makes a
               listing worth trusting.
@@ -598,7 +598,7 @@ function PhotoCard({
 }
 
 // ---------------------------------------------------------------------------
-// Halal claims for this place — connective tissue between place
+// Halal claims for this place, connective tissue between place
 // management and claim management. Lists every claim the caller has
 // on this place, with status badges and links into the claim editor.
 //

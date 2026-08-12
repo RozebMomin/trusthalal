@@ -3,7 +3,7 @@
 /**
  * Consumer site login.
  *
- * Identical auth surface to the admin panel and owner portal —
+ * Identical auth surface to the admin panel and owner portal,
  * same /auth/login endpoint, same single-error-code posture (no
  * user enumeration).
  *
@@ -11,7 +11,7 @@
  * with ``/login?next=/places/{id}`` so signing in drops the user
  * back where they were (to save a place, file a dispute) instead of
  * stranding them on the home page. Only same-site paths are honored
- * — anything that isn't a single-slash-rooted path falls back to
+ *, anything that isn't a single-slash-rooted path falls back to
  * "/" so the param can't be abused as an open redirect.
  */
 
@@ -31,7 +31,7 @@ import { safeNextPath } from "@/lib/utils";
 
 /**
  * `useSearchParams` needs a Suspense boundary above it during the
- * production prerender pass — same pattern as the home page.
+ * production prerender pass, same pattern as the home page.
  */
 export default function LoginPage() {
   return (
@@ -63,7 +63,7 @@ function LoginPageInner() {
       await login.mutateAsync({ email, password });
       // Best-effort: push any locally-saved preferences to the
       // server so the user's defaults follow them across devices.
-      // Server failures here don't block the redirect — the local
+      // Server failures here don't block the redirect, the local
       // copy stays so they can retry from /preferences.
       await syncLocalToServerOnLogin();
       router.push(nextPath);
@@ -91,7 +91,7 @@ function LoginPageInner() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
-      {/* Brand escape hatch — the auth pages render without the app
+      {/* Brand escape hatch, the auth pages render without the app
           chrome, so without this the only way "home" is the browser
           back button. */}
       <Link

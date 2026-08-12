@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /favorites — the signed-in consumer's saved places.
+ * /favorites, the signed-in consumer's saved places.
  *
  * Renders the same ``PlaceResultCard`` rows the search page uses so
  * a saved place looks identical wherever it shows up. Newest-first
@@ -38,7 +38,7 @@ import {
 export default function FavoritesPage() {
   const { data: me, isLoading: meLoading } = useCurrentUser();
   const isAuthenticated = Boolean(me);
-  // Verifiers keep the diner surface (saved places) after approval — treat
+  // Verifiers keep the diner surface (saved places) after approval, treat
   // them like consumers here; only owner/admin see the "consumer-only" notice.
   const isConsumer = me?.role === "CONSUMER" || me?.role === "VERIFIER";
 
@@ -62,7 +62,7 @@ export default function FavoritesPage() {
       </header>
 
       {/* Auth gate. Show the soft pitch BEFORE we know who the
-          caller is — meLoading window is short, but flashing a
+          caller is, meLoading window is short, but flashing a
           prompt then the list is worse than waiting briefly. */}
       {meLoading && <SkeletonList />}
 
@@ -134,7 +134,7 @@ function WrongAudienceState() {
         Saved places is a consumer-account feature.
       </p>
       <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
-        You&rsquo;re signed in as staff or an owner — those accounts
+        You&rsquo;re signed in as staff or an owner, those accounts
         don&rsquo;t carry a personal favorites list. The owner portal
         and admin panel have their own surfaces for the places you
         manage or moderate.

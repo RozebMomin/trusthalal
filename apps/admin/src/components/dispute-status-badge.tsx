@@ -2,7 +2,7 @@
  * Status badge for the admin dispute review queue.
  *
  * Mirrors the server's ``DisputeStatus`` enum (six states). Adding a
- * new status over there means adding it here too — the explicit
+ * new status over there means adding it here too, the explicit
  * ``Record`` keeps the type-checker honest.
  */
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +64,7 @@ export function DisputeStatusBadge({
   className?: string;
 }) {
   // Defensive fallback for any future statuses that haven't been
-  // mapped yet — render the raw enum string so the page doesn't blow
+  // mapped yet, render the raw enum string so the page doesn't blow
   // up at runtime.
   const presentation =
     STATUS_PRESENTATION[status as DisputeStatus] ?? {

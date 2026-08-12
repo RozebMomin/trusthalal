@@ -1,19 +1,19 @@
 "use client";
 
 /**
- * "Confirm your email to do that" — with a button that actually sends one.
+ * "Confirm your email to do that", with a button that actually sends one.
  *
  * ## Why this component exists
  *
  * Email verification shipped after the platform had users. Everyone who
  * signed up before it existed has `email_verified_at = NULL` and has never
- * been sent a confirmation link — nothing backfilled them, and nothing
+ * been sent a confirmation link, nothing backfilled them, and nothing
  * triggers a send on login or when the gate refuses.
  *
  * The first version of this prompt said "check your inbox for the
  * confirmation link", which for those accounts pointed at an email that
  * doesn't exist. The only resend button in the product lived on
- * /verify-email — the page you land on *from a link* — so the people who
+ * /verify-email, the page you land on *from a link*, so the people who
  * most needed it were the ones who couldn't reach it.
  *
  * So the prompt sends. Deliberately user-initiated rather than automatic on
@@ -46,7 +46,7 @@ export function ConfirmEmailPrompt({
         }
       >
         {resend.data?.sent
-          ? `Sent — check ${resend.data.email} and click the link. Then you're all set.`
+          ? `Sent, check ${resend.data.email} and click the link. Then you're all set.`
           : "Your email is already confirmed. Refresh the page and try again."}
       </p>
     );

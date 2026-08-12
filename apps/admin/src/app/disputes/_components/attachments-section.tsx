@@ -41,7 +41,7 @@ export function AttachmentsSection({
       const resp = await apiFetch<AdminDisputeAttachmentSignedUrl>(
         `/admin/disputes/${disputeId}/attachments/${attachment.id}/url`,
       );
-      // 60-second TTL signed URL — opening in a new tab so a stale
+      // 60-second TTL signed URL, opening in a new tab so a stale
       // browser tab can't replay later. Each click mints a fresh
       // URL.
       window.open(resp.url, "_blank", "noopener,noreferrer");

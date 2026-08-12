@@ -5,7 +5,7 @@
  *
  * Signed URLs (60s TTL) are minted for every attachment on load and
  * rendered straight into <img> thumbnails so the reviewer sees the
- * evidence at a glance — no click-to-fetch. Clicking a thumbnail opens a
+ * evidence at a glance, no click-to-fetch. Clicking a thumbnail opens a
  * larger version in a modal (a fresh URL is minted on open so a lingering
  * page never hits an expired link). Photos carry a ``caption`` tag
  * (e.g. "Cert" / "Menu" / "Meal") shown as an overlay chip.
@@ -79,7 +79,7 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
     setActive(a);
     setActiveUrl(null);
     try {
-      // Mint a fresh URL on open — the load-time one may have aged out.
+      // Mint a fresh URL on open, the load-time one may have aged out.
       const resp = await fetchVisitAttachmentUrl(visitId, a.id);
       setActiveUrl(resp.url);
     } catch {

@@ -13,7 +13,7 @@ const TIER: Record<SupplierTier, { label: string; cls: string }> = {
   },
 };
 
-/** Confidence tier — legitimately ranked, so colour tracks rigour. */
+/** Confidence tier, legitimately ranked, so colour tracks rigour. */
 export function TierBadge({ tier }: { tier: SupplierTier }) {
   const { label, cls } = TIER[tier];
   return (
@@ -30,7 +30,7 @@ const METHOD: Record<SlaughterMethodValue, string> = {
 };
 
 /**
- * Slaughter method. Deliberately NEUTRAL — hand-cut and machine-cut get the
+ * Slaughter method. Deliberately NEUTRAL, hand-cut and machine-cut get the
  * same visual weight (no green-vs-amber ranking), per the brand neutrality
  * rule; only "not disclosed" is muted. We describe the fact, we don't judge it.
  */

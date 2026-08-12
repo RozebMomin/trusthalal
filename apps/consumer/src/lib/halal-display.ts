@@ -4,14 +4,14 @@
  *
  * Two concerns:
  *
- *   1. ``primaryHalalSignal(place)``  — derives ONE pill that lands at
+ *   1. ``primaryHalalSignal(place)`` , derives ONE pill that lands at
  *      the top-right of every result card. Combines validation tier +
  *      menu posture + dispute state into a single trust statement.
  *      Returns the copy, a tone classification (positive / neutral /
  *      muted / warning), and an icon hint the card renderer can map.
- *   2. ``halalFactsFor(place)``       — returns a list of compact "fact
+ *   2. ``halalFactsFor(place)``      , returns a list of compact "fact
  *      chips" to render under the name. Only positive / specific
- *      signals — Zabihah slaughter, certification on file, no pork,
+ *      signals, Zabihah slaughter, certification on file, no pork,
  *      no alcohol, fully halal kitchen, etc. Negative cases are
  *      conveyed by ABSENCE of the chip, never by an anti-chip.
  *
@@ -20,10 +20,10 @@
  * need to render the same trust language. Centralizing the copy
  * here means a wording change is a one-line edit instead of a
  * grep-and-pray across surfaces. Tests (when they land) exercise
- * these as plain functions — no React renderer needed.
+ * these as plain functions, no React renderer needed.
  *
  * Anything that escapes the curated copy table here lands as ``raw``
- * — defensive for forward-compat: if the API adds a new
+ *, defensive for forward-compat: if the API adds a new
  * MenuPosture variant we don't immediately know about, the result
  * card still renders something sane until the consumer ships an
  * update.
@@ -38,20 +38,20 @@ import type {
 } from "@/lib/api/hooks";
 
 /**
- * Card-level tone classification — drives the pill's color treatment.
+ * Card-level tone classification, drives the pill's color treatment.
  *
- *   * ``positive`` — verifier-confirmed halal. The strongest trust
+ *   * ``positive``, verifier-confirmed halal. The strongest trust
  *     signal we can give. Olive/sage primary, the brand color.
- *   * ``trusted``  — certificate on file. Cert paper carries weight
+ *   * ``trusted`` , certificate on file. Cert paper carries weight
  *     but is one step below an in-person verification. Amber accent
  *     so it reads warm and legitimate without claiming the verifier
  *     gravitas.
- *   * ``neutral``  — owner-attested. The owner says it's halal; we
+ *   * ``neutral`` , owner-attested. The owner says it's halal; we
  *     have no third-party validation. Honest, not glamorous.
- *   * ``muted``    — no profile yet. Place exists in the catalog but
+ *   * ``muted``   , no profile yet. Place exists in the catalog but
  *     nobody has filed an approved halal claim. Distinct from
- *     "we know it's not halal" — we just don't know.
- *   * ``warning``  — disputed. Someone reported the profile may be
+ *     "we know it's not halal", we just don't know.
+ *   * ``warning`` , disputed. Someone reported the profile may be
  *     wrong. The user should be aware before relying on the place.
  */
 export type HalalSignalTone =
@@ -64,7 +64,7 @@ export type HalalSignalTone =
 export type PrimaryHalalSignal = {
   /** Short label that fits in a pill (target: <= 22 chars). */
   label: string;
-  /** Color treatment for the pill — see HalalSignalTone above. */
+  /** Color treatment for the pill, see HalalSignalTone above. */
   tone: HalalSignalTone;
   /**
    * Long-form tooltip / accessibility description. Spelled-out so
@@ -114,7 +114,7 @@ const ALCOHOL_POLICY_LABELS: Record<AlcoholPolicy, string> = {
 /**
  * Build the single primary trust pill for a place. Returns null when
  * we can't render a profile signal at all (place exists but no embed
- * was sent down — not the same as "no halal info yet"; the missing
+ * was sent down, not the same as "no halal info yet"; the missing
  * profile case has its own pill via ``noHalalProfileSignal``).
  */
 export function primaryHalalSignal(
@@ -124,7 +124,7 @@ export function primaryHalalSignal(
     return noHalalProfileSignal();
   }
 
-  // Disputes outrank everything else — a verified profile that's
+  // Disputes outrank everything else, a verified profile that's
   // currently disputed should NOT read "verified halal" without
   // qualification. Owner-reconciling is a softer state (the owner
   // has acknowledged + is updating), but still warrants the warning
@@ -173,7 +173,7 @@ export function primaryHalalSignal(
   }
 
   // Forward-compat fallback when the API ships a new tier we don't
-  // recognize yet — render a neutral "Halal information available"
+  // recognize yet, render a neutral "Halal information available"
   // pill rather than nothing, and let the user dig into the detail
   // page for the real story.
   return {
@@ -186,7 +186,7 @@ export function primaryHalalSignal(
 /**
  * Pill returned when a place has no approved halal profile. Visual
  * distinction matters: this is "we don't know" rather than "we know
- * it's not halal" — the consumer might still want to go (it could
+ * it's not halal", the consumer might still want to go (it could
  * just be unclaimed) and the detail page surfaces a dispute /
  * verifier visit CTA.
  */
@@ -200,7 +200,7 @@ export function noHalalProfileSignal(): PrimaryHalalSignal {
 }
 
 /**
- * Compact chips of true-only halal facts. Order matters — the most
+ * Compact chips of true-only halal facts. Order matters, the most
  * informationally dense / commonly-filtered-on chips come first so
  * a max-4-visible truncation still tells the most useful story.
  *
@@ -214,7 +214,7 @@ export function noHalalProfileSignal(): PrimaryHalalSignal {
 export function halalFactsFor(profile: HalalProfileEmbed): HalalFactChip[] {
   const out: HalalFactChip[] = [];
 
-  // Slaughter method — show one Zabihah chip when ANY meat is hand-
+  // Slaughter method, show one Zabihah chip when ANY meat is hand-
   // slaughtered. Per-meat granularity belongs on the detail page; on
   // a result card "Zabihah" is the reassurance signal users scan
   // for. ``hint`` enumerates which meats specifically.
@@ -250,7 +250,7 @@ export function halalFactsFor(profile: HalalProfileEmbed): HalalFactChip[] {
   // Pork + alcohol are shown as RED FLAGS, not reassurances. In a
   // halal directory pork-free / alcohol-free is the expected default,
   // so an always-on "Pork-free" chip is noise. We instead surface the
-  // exceptions — a place that serves pork or alcohol — in a warning
+  // exceptions, a place that serves pork or alcohol, in a warning
   // tone so it's the thing that catches the eye.
   if (profile.has_pork) {
     out.push({
@@ -263,7 +263,7 @@ export function halalFactsFor(profile: HalalProfileEmbed): HalalFactChip[] {
   if (profile.alcohol_policy === "FULL_BAR") {
     out.push({
       label: "Alcohol served",
-      hint: "Full bar — spirits, beer, and wine served on premises.",
+      hint: "Full bar, spirits, beer, and wine served on premises.",
       tone: "warning",
     });
   } else if (profile.alcohol_policy === "BEER_AND_WINE_ONLY") {
@@ -277,7 +277,7 @@ export function halalFactsFor(profile: HalalProfileEmbed): HalalFactChip[] {
   if (profile.seafood_only) {
     out.push({
       label: "Seafood only",
-      hint: "No land meat served — only fish / seafood.",
+      hint: "No land meat served, only fish / seafood.",
     });
   }
 
@@ -332,7 +332,7 @@ export function halalDisplayFor(place: PlaceSearchResult): {
  * consume. Keeping them in lock-step from one place avoids drift
  * when (e.g.) we tweak the amber for ``trusted``.
  *
- * Returned classes are scoped to the pill itself — caller is
+ * Returned classes are scoped to the pill itself, caller is
  * responsible for sizing / typography.
  */
 export const PRIMARY_TONE_CLASSES: Record<HalalSignalTone, string> = {
@@ -344,7 +344,7 @@ export const PRIMARY_TONE_CLASSES: Record<HalalSignalTone, string> = {
   // actively confidence-inspiring.
   trusted:
     "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100",
-  // Neutral == slate. Honest, not loud — the owner says it's halal
+  // Neutral == slate. Honest, not loud, the owner says it's halal
   // and we're rendering that as-is.
   neutral:
     "border-slate-300 bg-slate-50 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
@@ -352,7 +352,7 @@ export const PRIMARY_TONE_CLASSES: Record<HalalSignalTone, string> = {
   muted:
     "border-dashed border-muted-foreground/40 bg-muted/40 text-muted-foreground",
   // Warning == disputed / reconciling. Red-amber to flag without
-  // being a hard "do not eat" red — the place is questioned, not
+  // being a hard "do not eat" red, the place is questioned, not
   // condemned.
   warning:
     "border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100",

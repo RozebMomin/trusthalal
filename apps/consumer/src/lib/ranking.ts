@@ -3,8 +3,8 @@
  *
  * ## Why this isn't just `sort by average`
  *
- * A raw average makes one 5.0 review beat fifty 4.8s. That's both wrong —
- * one person's opinion is weaker evidence than fifty — and trivially gameable:
+ * A raw average makes one 5.0 review beat fifty 4.8s. That's both wrong,
+ * one person's opinion is weaker evidence than fifty, and trivially gameable:
  * a single review from a friend puts a restaurant at the top of every search.
  *
  * The first attempt at this was a hard floor: only places with 3+ reviews were
@@ -16,7 +16,7 @@
  *
  * ## What this does instead
  *
- * The standard fix — a Bayesian weighted average, the same shape IMDb uses for
+ * The standard fix, a Bayesian weighted average, the same shape IMDb uses for
  * the Top 250. Each place's average is shrunk toward a neutral prior, weighted
  * by how many reviews back it up:
  *
@@ -45,7 +45,7 @@
  */
 
 /**
- * Prior mean — the score assumed for a place we know nothing about.
+ * Prior mean, the score assumed for a place we know nothing about.
  *
  * 3.5 rather than 3.0: restaurant rating distributions skew high, so the
  * midpoint of the scale is not the midpoint of real behavior. A place has to
@@ -54,7 +54,7 @@
 export const PRIOR_MEAN = 3.5;
 
 /**
- * Prior weight, in units of reviews — how much evidence it takes before a
+ * Prior weight, in units of reviews, how much evidence it takes before a
  * place's own average outweighs the prior.
  *
  * At m = 5, the 5th review is the point where the place's average carries half
@@ -85,7 +85,7 @@ export function trustHalalScore(place: Rateable): number {
  *
  * Rated places always outrank unrated ones, ahead of any score comparison.
  * Without that, a single 2-star review scores below the prior and would sink
- * a place *beneath* restaurants nobody has reviewed at all — technically the
+ * a place *beneath* restaurants nobody has reviewed at all, technically the
  * correct posterior, but nonsense to read in a list titled "top rated". The
  * unrated tail keeps its distance ordering, so it still reads as a useful
  * list rather than a shuffled one.
@@ -118,7 +118,7 @@ export function compareByTrustHalalRating(
  * Comparator for "Top rated on Google".
  *
  * No shrinkage here, on purpose. These counts arrive in the hundreds or
- * thousands, so the prior would be noise against them — and it isn't our
+ * thousands, so the prior would be noise against them, and it isn't our
  * average to adjust. We display Google's number; we rank by Google's number.
  */
 export function compareByGoogleRating(

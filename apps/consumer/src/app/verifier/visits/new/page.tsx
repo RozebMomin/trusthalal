@@ -15,7 +15,7 @@
  * slice.
  *
  * Attachments (photos of the certificate, the menu) are also
- * follow-up — the backend accepts them at
+ * follow-up, the backend accepts them at
  * ``POST /me/verification-visits/{id}/attachments`` after the visit
  * is created.
  */
@@ -57,7 +57,7 @@ const DISCLOSURE_OPTIONS: { value: VisitDisclosure; label: string; help: string 
   {
     value: "OTHER_DISCLOSURE",
     label: "Other",
-    help: "Any other relationship worth flagging — explain below.",
+    help: "Any other relationship worth flagging, explain below.",
   },
 ];
 
@@ -80,7 +80,7 @@ export default function NewVisitPage() {
   const debouncedQuery = useDebounced(rawQuery.trim(), 300);
 
   // ``useSearchPlaces`` gates its own enabled state on a non-empty
-  // query — so passing an empty string when a place is already
+  // query, so passing an empty string when a place is already
   // selected keeps the request from firing. We also require ≥2
   // chars to avoid a burst of one-letter queries as the user types.
   const effectiveQuery =
@@ -120,7 +120,7 @@ export default function NewVisitPage() {
     if (submit.isPending || !selectedPlace) return;
     setErrorMsg(null);
 
-    // Server expects ISO-8601 datetime. We captured a date — pin it
+    // Server expects ISO-8601 datetime. We captured a date, pin it
     // to noon local time so the DB row lands on the actual date the
     // verifier picked (a bare midnight can drift a day off in some
     // timezones).
@@ -165,7 +165,7 @@ export default function NewVisitPage() {
       </h1>
       <p className="mb-8 text-muted-foreground">
         Report on a halal restaurant you&apos;ve visited in person.
-        Admin reviews every submission — usually within a few days.
+        Admin reviews every submission, usually within a few days.
       </p>
 
       <form onSubmit={onSubmit} className="space-y-6">
@@ -278,7 +278,7 @@ export default function NewVisitPage() {
           </legend>
           <p className="text-xs text-muted-foreground">
             Every visit requires an honest declaration of any
-            compensation. Not disqualifying — just required.
+            compensation. Not disqualifying, just required.
           </p>
           {DISCLOSURE_OPTIONS.map((opt) => (
             <label
@@ -328,7 +328,7 @@ export default function NewVisitPage() {
             id="notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="What did you see? Anything specific about the halal claims — supplier stickers on the packaging, cert on the wall, kitchen setup, etc."
+            placeholder="What did you see? Anything specific about the halal claims, supplier stickers on the packaging, cert on the wall, kitchen setup, etc."
             rows={5}
             maxLength={4000}
           />

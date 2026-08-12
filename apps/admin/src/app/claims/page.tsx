@@ -5,8 +5,8 @@
  * ownership requests with halal claims. The halal-trust v2 rebuild
  * split those into two separate routes:
  *
- *   * /halal-claims        — halal-posture verification queue
- *   * /ownership-requests  — claim-this-place requests
+ *   * /halal-claims       , halal-posture verification queue
+ *   * /ownership-requests , claim-this-place requests
  *
  * This file forwards the old /claims URL to /halal-claims so stale
  * bookmarks land in the right place instead of seeing a 404. The

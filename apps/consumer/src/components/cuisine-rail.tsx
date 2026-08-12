@@ -14,7 +14,7 @@
  * cuisine (e.g. picked "Yemeni" from the sheet earlier), the
  * trailing "More" pill carries the count: "More (2)".
  *
- * Horizontal-scrolling on small viewports — chips don't wrap, so
+ * Horizontal-scrolling on small viewports, chips don't wrap, so
  * narrower phones can scroll right to see the full top 8. Scrollbar
  * is hidden via CSS for a native-feel rail.
  */
@@ -83,7 +83,7 @@ const CUISINE_LABELS: Readonly<Record<Cuisine, string>> = {
  * Re-tune when we have real telemetry.
  *
  * Exported so the ActiveFiltersBar can EXCLUDE these from its chip
- * strip — an on-rail cuisine already shows its active state as a
+ * strip, an on-rail cuisine already shows its active state as a
  * highlighted rail pill, and rendering it a second time as a
  * removable chip below reads as duplicate UI.
  */
@@ -112,7 +112,7 @@ export function CuisineRail({
 }) {
   // Memo'd here (rather than ``filters.cuisines ?? []``) so the
   // identity is stable across renders that don't actually change the
-  // selection — keeps offRailCount's deps array honest and stops
+  // selection, keeps offRailCount's deps array honest and stops
   // useMemo from re-firing on every parent render.
   const selected = React.useMemo<ReadonlyArray<Cuisine>>(
     () => filters.cuisines ?? [],

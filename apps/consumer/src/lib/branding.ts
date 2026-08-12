@@ -2,7 +2,7 @@
  * Single source of truth for the consumer-site brand.
  *
  * The consumer surface carries the "Trust Halal" brand directly; the
- * domain — halalfoodnearme.com — stays as the SEO-friendly entry point
+ * domain, halalfoodnearme.com, stays as the SEO-friendly entry point
  * that funnels people to the destination. One name across the platform
  * (site, mobile app, and the verification layer) so trust compounds
  * instead of being split across sub-brands.
@@ -21,8 +21,8 @@ export const BRAND_TAGLINE = "The source of truth for halal.";
 /** Long-form description used as the default OG/meta description. */
 export const BRAND_DESCRIPTION =
   "The definitive record of verified halal restaurants. Every claim is " +
-  "checked — validation tier, menu posture, slaughter method, alcohol " +
-  "policy, and open disputes — so you know exactly what you're eating " +
+  "checked, validation tier, menu posture, slaughter method, alcohol " +
+  "policy, and open disputes, so you know exactly what you're eating " +
   "before you go.";
 
 /**
@@ -35,10 +35,10 @@ export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://halalfoodnearme.com"
 ).replace(/\/$/, "");
 
-/** Trust Halal platform URL — target for the "Powered by" attribution. */
+/** Trust Halal platform URL, target for the "Powered by" attribution. */
 export const TRUST_HALAL_URL = "https://trusthalal.org";
 /**
- * Legal pages live on the brand domain, not here — one copy, one place to
+ * Legal pages live on the brand domain, not here, one copy, one place to
  * update. Both stores require a reachable privacy policy, and Guideline 1.2
  * requires the terms.
  */
@@ -52,7 +52,7 @@ export const PRIVACY_URL = `${TRUST_HALAL_URL}/privacy`;
 export const OWNER_PORTAL_URL = "https://owner.trusthalal.org";
 
 /**
- * Onboarding handoff — where a restaurant operator coming from the
+ * Onboarding handoff, where a restaurant operator coming from the
  * consumer site should land: the unified get-verified flow (register
  * business → claim restaurant → confirm halal). Deep-links past the
  * bare portal root so the CTA drops them straight into onboarding.

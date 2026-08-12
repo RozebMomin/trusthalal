@@ -2,7 +2,7 @@
  * Owner portal home.
  *
  * The onboarding hub at /get-verified is now the owner's landing
- * surface — it shows the full verify-your-business roadmap, an
+ * surface, it shows the full verify-your-business roadmap, an
  * at-a-glance view of every business and claim, and flips to a
  * steady-state dashboard once everything is approved. The old
  * "Claim a place" home was a thinner slice of the same information,

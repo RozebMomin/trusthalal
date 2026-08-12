@@ -8,23 +8,23 @@
  *
  * Shape, top to bottom:
  *
- *   1. **Tagline + collapsed name search** — keeps "Looking for a
+ *   1. **Tagline + collapsed name search**, keeps "Looking for a
  *      specific place?" reachable without dominating the page.
- *   2. **Big "Find halal near me" CTA** — primary discovery action.
+ *   2. **Big "Find halal near me" CTA**, primary discovery action.
  *      Tap → request browser geolocation. On success, fires
  *      ``onLaunchNearMe(coords)``. On denial / unsupported, opens
  *      the location picker dialog with a fallback subtitle.
- *   3. **"Search a different city" secondary affordance** — opens
+ *   3. **"Search a different city" secondary affordance**, opens
  *      the same location picker dialog WITHOUT first asking for
  *      geolocation. This is the proactive entry point: a visitor
  *      who's planning a trip ("halal in Atlanta this weekend")
  *      doesn't have to deny their browser geo prompt to pick a
  *      different spot.
- *   4. **Cuisine discovery grid** — 8 cards (gradient background +
+ *   4. **Cuisine discovery grid**, 8 cards (gradient background +
  *      flag emoji + name). Tap → same near-me request flow but
  *      with that cuisine pre-applied to the resulting search URL.
  *
- * Most-used user intent is "what halal is near me?" — sometimes
+ * Most-used user intent is "what halal is near me?", sometimes
  * narrowed to "what [cuisine] is near me?". The home page
  * prioritizes those. Name-search is the secondary surface (rolled
  * into a small toggle).
@@ -45,7 +45,7 @@ import { type Cuisine } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Cuisine card metadata — emoji + display label per Top 8 cuisine.
+// Cuisine card metadata, emoji + display label per Top 8 cuisine.
 //
 // Country flags where Unicode supports them; a single olive emoji
 // for Mediterranean (region, not a country); American gets the US
@@ -113,7 +113,7 @@ const TOP_CUISINES: ReadonlyArray<{
 ];
 
 // ---------------------------------------------------------------------------
-// Public types — what the page passes in.
+// Public types, what the page passes in.
 // ---------------------------------------------------------------------------
 
 export type LaunchNearMeOpts = {
@@ -125,7 +125,7 @@ export type LaunchNearMeOpts = {
 
 type Props = {
   /** Open the name-search input. The page already owns the search
-   *  string state — DiscoveryHome just toggles a small disclosure
+   *  string state, DiscoveryHome just toggles a small disclosure
    *  and lets the page render whatever search input it wants
    *  through ``nameSearchSlot``. */
   nameSearchSlot: React.ReactNode;
@@ -155,7 +155,7 @@ export function DiscoveryHome({
   // without the user having to remember.
   const [pendingCuisine, setPendingCuisine] = React.useState<Cuisine | null>(null);
 
-  // Name-search disclosure — collapsed by default so the discovery
+  // Name-search disclosure, collapsed by default so the discovery
   // CTAs dominate. Page passes the actual input via the slot prop
   // so URL state ownership stays in one place.
   const [nameSearchOpen, setNameSearchOpen] = React.useState(false);
@@ -172,7 +172,7 @@ export function DiscoveryHome({
    *  in fallback mode and stash the cuisine so it survives the
    *  city pick. When the Permissions API reports geolocation is
    *  already denied, we skip the doomed request entirely and open
-   *  the picker instantly — no multi-second dead tap. */
+   *  the picker instantly, no multi-second dead tap. */
   const tryGeolocate = React.useCallback(
     (cuisine?: Cuisine) => {
       const openFallback = () => {
@@ -208,7 +208,7 @@ export function DiscoveryHome({
 
       // Permission pre-check (where supported): a known-denied state
       // means getCurrentPosition would just burn its timeout before
-      // erroring — jump straight to the city picker instead.
+      // erroring, jump straight to the city picker instead.
       if (navigator.permissions?.query) {
         navigator.permissions
           .query({ name: "geolocation" })
@@ -228,7 +228,7 @@ export function DiscoveryHome({
   );
 
   /** Open the location picker proactively (NO geolocation prompt
-   *  first). This is the "search a different city" entry — the
+   *  first). This is the "search a different city" entry, the
    *  visitor wants to skip past their current location entirely. */
   function openProactivePicker() {
     setPendingCuisine(null);
@@ -256,7 +256,7 @@ export function DiscoveryHome({
           on <span className="text-primary">halal.</span>
         </h1>
         <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
-          Every restaurant, every claim — checked against the certificate,
+          Every restaurant, every claim, checked against the certificate,
           the slaughter method, the menu, and any open disputes. The full
           record, before you eat.
         </p>
@@ -353,7 +353,7 @@ export function DiscoveryHome({
               : "We couldn't get your location. Pick a city to search."
         }
         // The "Use my current location" inline option only makes
-        // sense in proactive mode — in fallback mode the dialog is
+        // sense in proactive mode, in fallback mode the dialog is
         // already a consequence of the geolocation prompt failing,
         // so re-offering it would just send the visitor back through
         // the same denial they already gave.
@@ -378,7 +378,7 @@ function pendingCuisineLabel(value: Cuisine | null): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Big near-me CTA — primary discovery action.
+// Big near-me CTA, primary discovery action.
 // ---------------------------------------------------------------------------
 
 function NearMeCTA({
@@ -441,11 +441,11 @@ function NearMeCTA({
 }
 
 // ---------------------------------------------------------------------------
-// Cuisine card — tries a custom image first, falls back to
+// Cuisine card, tries a custom image first, falls back to
 // gradient + flag emoji when the image isn't available.
 //
 // Image convention: ``public/cuisines/<lowercase cuisine>.webp``. Drop
-// a file at that path and the card automatically picks it up — the
+// a file at that path and the card automatically picks it up, the
 // fallback gradient stays as the parent's background, so during the
 // brief load window OR when the image fails (404) the gradient + emoji
 // show through cleanly. No per-cuisine code change to roll out
@@ -472,7 +472,7 @@ function CuisineCard({
   disabled?: boolean;
   onClick: () => void;
 }) {
-  // Defaults to "image present" — the moment the browser confirms a
+  // Defaults to "image present", the moment the browser confirms a
   // 404 the onError handler flips this to false and the gradient +
   // emoji are revealed. The parent ``<button>``'s gradient
   // background is always rendered underneath, so even during the
@@ -502,7 +502,7 @@ function CuisineCard({
             src={imageSrc}
             alt=""
             onError={() => setImageFailed(true)}
-            // Above-the-fold on the cold home — eager so the LCP
+            // Above-the-fold on the cold home, eager so the LCP
             // isn't gated on lazy-load heuristics.
             loading="eager"
             decoding="async"
@@ -547,9 +547,9 @@ function CuisineCard({
 
 
 // ---------------------------------------------------------------------------
-// Verifier invite — sits below the cuisine grid on the home page.
+// Verifier invite, sits below the cuisine grid on the home page.
 // Warm, understated invitation to the recruitment landing. Not
-// pushy — the goal is discoverability, not conversion pressure.
+// pushy, the goal is discoverability, not conversion pressure.
 // ---------------------------------------------------------------------------
 
 function VerifierInvite() {

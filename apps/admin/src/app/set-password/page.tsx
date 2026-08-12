@@ -73,7 +73,7 @@ function SetPasswordInner() {
 
   if (inviteInfo.error) {
     // All the "why" cases collapse to a single BadLinkState on purpose
-    // — the server deliberately doesn't distinguish invalid / expired
+    //, the server deliberately doesn't distinguish invalid / expired
     // / consumed tokens, and the UI shouldn't invent that info either.
     const err = inviteInfo.error;
     const reason =

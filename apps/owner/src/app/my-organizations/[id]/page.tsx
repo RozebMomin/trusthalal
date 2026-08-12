@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Owner portal — organization detail.
+ * Owner portal, organization detail.
  *
  * One page covers the full self-service lifecycle for a single org:
  *
@@ -12,7 +12,7 @@
  *     claim attachment endpoint: PDF/JPEG/PNG/HEIC, 10MB, max 10
  *     files per org). Per the polish-pass requirement, files are
  *     held in browser memory until the owner clicks Submit for
- *     review — uploading on pick was creating orphan files when
+ *     review, uploading on pick was creating orphan files when
  *     users navigated away mid-flow.
  *   * Submit for admin review (DRAFT → UNDER_REVIEW; uploads
  *     pending files first, then transitions). Requires at least one
@@ -50,7 +50,7 @@ import { US_STATES } from "@/lib/us-states";
 // uses so the two stay in sync.
 const DEFAULT_COUNTRY_CODE = "US";
 
-// Wire shape of the owner-self attachment signed-URL endpoint —
+// Wire shape of the owner-self attachment signed-URL endpoint,
 // /me/organizations/{id}/attachments/{aid}/url. Hand-typed pending
 // the next codegen pass; mirrors ``_MyOrgAttachmentSignedUrl`` on
 // the API.
@@ -297,7 +297,7 @@ function DetailsSection({
           address: address.trim() || null,
           city: city.trim() || null,
           region: region.trim() || null,
-          // Country stays locked to US — explicit on every save so
+          // Country stays locked to US, explicit on every save so
           // even an admin-created row with a different value gets
           // normalized once the owner edits.
           country_code: DEFAULT_COUNTRY_CODE,
@@ -307,7 +307,7 @@ function DetailsSection({
       setSavedAt(Date.now());
     } catch (err) {
       // NO_FIELDS surfaces from the server when nothing meaningfully
-      // changed. Silently no-op rather than alarming the user — the
+      // changed. Silently no-op rather than alarming the user, the
       // dirty-flag should already gate this, but the cross-tab race
       // exists.
       if (err instanceof ApiError && err.code === "NO_FIELDS") {
@@ -350,7 +350,7 @@ function DetailsSection({
           />
           <p className="text-xs text-muted-foreground">
             Required at create time. Leaving blank here clears the
-            value for now — Trust Halal staff will fall back to your
+            value for now, Trust Halal staff will fall back to your
             account email.
           </p>
         </div>
@@ -464,7 +464,7 @@ function DetailsSection({
 }
 
 // ---------------------------------------------------------------------------
-// Attachments — stage in browser memory; upload happens at submit time.
+// Attachments, stage in browser memory; upload happens at submit time.
 // ---------------------------------------------------------------------------
 function AttachmentsSection({
   org,
@@ -536,7 +536,7 @@ function AttachmentsSection({
     <section className="space-y-3 rounded-md border bg-card p-4">
       <h2 className="text-lg font-semibold">Supporting documents</h2>
       <p className="text-sm text-muted-foreground">
-        Upload formation or renewal filings for this entity — articles of
+        Upload formation or renewal filings for this entity, articles of
         organization, certificate of incorporation, your most recent
         state annual report, or a comparable filing from your jurisdiction.
         These prove the entity exists and is currently in good standing.
@@ -549,7 +549,7 @@ function AttachmentsSection({
       {editable && org.status === "DRAFT" && (
         <p className="text-xs text-muted-foreground">
           Files stay on this device until you click{" "}
-          <strong>Submit for review</strong> below — that&rsquo;s when
+          <strong>Submit for review</strong> below, that&rsquo;s when
           they upload to Trust Halal.
         </p>
       )}
@@ -640,14 +640,14 @@ function AttachmentsSection({
         </div>
       )}
 
-      {/* Pending files — held in browser, not yet uploaded. Shown
+      {/* Pending files, held in browser, not yet uploaded. Shown
           beneath the already-uploaded set so the user can tell them
           apart. Each row gets a remove button so a misclick is
           fixable without re-picking the rest. */}
       {pendingFiles.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Pending — upload on submit
+            Pending, upload on submit
           </p>
           <ul className="space-y-1.5">
             {pendingFiles.map((file, index) => (
@@ -693,7 +693,7 @@ function AttachmentRow({
   organizationId: string;
   attachment: OrganizationAttachmentRead;
 }) {
-  // Per-row pending + error state — each click mints a fresh signed
+  // Per-row pending + error state, each click mints a fresh signed
   // URL; an error on one row shouldn't bleed into the others. Same
   // pattern as the admin-side dispute / claim attachment viewers.
   const [pending, setPending] = React.useState(false);
@@ -706,7 +706,7 @@ function AttachmentRow({
       const resp = await apiFetch<OwnerOrgAttachmentSignedUrl>(
         `/me/organizations/${organizationId}/attachments/${attachment.id}/url`,
       );
-      // 60s TTL — opening in a new tab so a stale tab can't replay
+      // 60s TTL, opening in a new tab so a stale tab can't replay
       // later. Each click mints a fresh URL.
       window.open(resp.url, "_blank", "noopener,noreferrer");
     } catch (err) {
@@ -758,7 +758,7 @@ function formatBytes(bytes: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Submit-for-review — uploads pending files first, then transitions.
+// Submit-for-review, uploads pending files first, then transitions.
 // ---------------------------------------------------------------------------
 function SubmitSection({
   org,
@@ -804,7 +804,7 @@ function SubmitSection({
     if (!canSubmit) return;
     setErrorMsg(null);
 
-    // Upload phase — sequential so a partial failure leaves a clear
+    // Upload phase, sequential so a partial failure leaves a clear
     // "we got this far" state. After each successful upload we
     // surface progress so a slow connection doesn't feel hung.
     if (pendingFiles.length > 0) {
@@ -836,7 +836,7 @@ function SubmitSection({
       setProgress(null);
     }
 
-    // Submit phase — flips DRAFT → UNDER_REVIEW server-side.
+    // Submit phase, flips DRAFT → UNDER_REVIEW server-side.
     try {
       await submit.mutateAsync(org.id);
     } catch (err) {

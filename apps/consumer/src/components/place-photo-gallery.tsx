@@ -13,8 +13,8 @@
  *
  * ## Addressing photos by id, not by position
  *
- * This component previously did `photos.slice(1)` — assuming the hero was
- * always index 0 — and passed array offsets to the lightbox, which then did
+ * This component previously did `photos.slice(1)`, assuming the hero was
+ * always index 0, and passed array offsets to the lightbox, which then did
  * its own `+1` arithmetic to compensate. Two coupled index maps, both
  * positional, both silently wrong the moment the array is filtered or
  * reordered (which grouping by provenance does).
@@ -46,14 +46,14 @@ function isOwnerSide(photo: PlacePhotoRead): boolean {
 
 type PhotoTab = "all" | "owner" | "diner";
 
-/** Below this, tabs are furniture — you can see every photo at once. */
+/** Below this, tabs are furniture, you can see every photo at once. */
 const TABS_MIN_PHOTOS = 6;
 
 /** Human labels for provenance.
  *
  *  Keyed off `attribution`, not `source`. The old map keyed off `source` and
- *  had no entry for GOOGLE, so backfilled photos — which exist in production
- *  — rendered an empty chip. */
+ *  had no entry for GOOGLE, so backfilled photos, which exist in production
+ * , rendered an empty chip. */
 const ATTRIBUTION_LABEL: Record<PhotoAttribution, string> = {
   OWNER: "From the restaurant",
   DINER: "From a diner",
@@ -106,7 +106,7 @@ export function PlacePhotoGallery({
   }, [galleryPhotos, tab]);
 
   // Tabs only earn their space once there are enough photos to scan, and
-  // only when both sides are actually represented — a "By diners (0)" tab
+  // only when both sides are actually represented, a "By diners (0)" tab
   // is a dead end dressed as a choice.
   const showTabs =
     galleryPhotos.length >= TABS_MIN_PHOTOS &&
@@ -195,14 +195,14 @@ export function PlacePhotoGallery({
                     isLastVisible
                       ? `View all ${photos.length} photos`
                       : `View photo: ${ATTRIBUTION_LABEL[photo.attribution]}${
-                          photo.caption ? ` — ${photo.caption}` : ""
+                          photo.caption ? `, ${photo.caption}` : ""
                         }`
                   }
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={photo.url}
-                    alt={photo.caption ?? `${placeName} — photo`}
+                    alt={photo.caption ?? `${placeName}, photo`}
                     loading="lazy"
                     decoding="async"
                     className="h-full w-full object-cover transition group-hover:scale-105"
@@ -280,7 +280,7 @@ export function PlacePhotoGallery({
 }
 
 // ---------------------------------------------------------------------------
-// Lightbox — full-bleed photo with prev/next controls.
+// Lightbox, full-bleed photo with prev/next controls.
 //
 // Takes the id of the photo to open rather than its index. Position is
 // derived here and nowhere else, so a caller can pass any subset of photos
@@ -354,8 +354,8 @@ function Lightbox({
       >
         <DialogTitle className="sr-only">
           {photo?.caption
-            ? `${placeName} — ${photo.caption}`
-            : `${placeName} — photo ${index + 1} of ${photos.length}`}
+            ? `${placeName}, ${photo.caption}`
+            : `${placeName}, photo ${index + 1} of ${photos.length}`}
         </DialogTitle>
 
         <div className="relative flex h-[80dvh] w-full items-center justify-center">
@@ -364,7 +364,7 @@ function Lightbox({
             <img
               key={photo.id}
               src={photo.url}
-              alt={photo.caption ?? `${placeName} — photo ${index + 1}`}
+              alt={photo.caption ?? `${placeName}, photo ${index + 1}`}
               loading="eager"
               decoding="async"
               className="max-h-full max-w-full object-contain"
@@ -439,7 +439,7 @@ function Lightbox({
 
             <div className="flex items-center gap-3">
               {/* Reporting is the only lever anyone has over someone else's
-                  photo — including the restaurant, which cannot delete it. */}
+                  photo, including the restaurant, which cannot delete it. */}
               {onReport && photo.id !== "__hero__" && !isOwnerSide(photo) && (
                 <button
                   type="button"

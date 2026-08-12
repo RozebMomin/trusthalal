@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Owner portal — batch-create halal claims.
+ * Owner portal, batch-create halal claims.
  *
  * Reached from /my-halal-claims/new when the owner picks 2+ places.
  * Selections come in via the query string (multiple ?p=…&o=…
@@ -9,7 +9,7 @@
  * for display, capture a single shared questionnaire, then POST
  * /me/halal-claims/batch to create N drafts at once.
  *
- * The questionnaire shape here mirrors the per-claim detail page —
+ * The questionnaire shape here mirrors the per-claim detail page,
  * a leaner subset because there's no submit step (you batch-create
  * drafts, then submit each individually). Owners who want to fine-
  * tune one location's answers can edit that draft after creation.
@@ -50,7 +50,7 @@ const MENU_POSTURE_OPTIONS: Array<{
   },
   {
     value: "MIXED_SEPARATE_KITCHENS",
-    label: "Mixed — separate kitchens",
+    label: "Mixed, separate kitchens",
     description:
       "Some non-halal exists, prepared in physically separate equipment.",
   },
@@ -68,7 +68,7 @@ const MENU_POSTURE_OPTIONS: Array<{
   },
   {
     value: "MIXED_SHARED_KITCHEN",
-    label: "Mixed — shared kitchen",
+    label: "Mixed, shared kitchen",
     description:
       "Halal proteins exist but cooked on shared equipment with non-halal.",
   },
@@ -120,7 +120,7 @@ export default function BatchHalalClaimPage() {
   const batchCreate = useBatchCreateMyHalalClaims();
 
   // Decode selections from the querystring. ?p and ?o are paired
-  // by index — they were emitted in order from the picker.
+  // by index, they were emitted in order from the picker.
   const selections: MyHalalClaimBatchSelection[] = React.useMemo(() => {
     const placeIds = params?.getAll("p") ?? [];
     const orgIds = params?.getAll("o") ?? [];
@@ -248,12 +248,12 @@ export default function BatchHalalClaimPage() {
           ← Pick different places
         </Link>
         <h1 className="mt-2 text-3xl font-bold tracking-tight">
-          Halal claim — {selections.length} place
+          Halal claim, {selections.length} place
           {selections.length === 1 ? "" : "s"}
         </h1>
         <p className="mt-2 text-muted-foreground">
           Fill out the questionnaire once. We&apos;ll create a draft
-          for each place below — you can edit any of them
+          for each place below, you can edit any of them
           individually before submitting for review.
         </p>
       </header>
@@ -344,7 +344,7 @@ export default function BatchHalalClaimPage() {
               )
             }
           >
-            <option value="">— select —</option>
+            <option value="">Select…</option>
             {ALCOHOL_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
@@ -362,7 +362,7 @@ export default function BatchHalalClaimPage() {
 
         <Field
           label="Meat products"
-          help="One entry per product you serve — a restaurant might list 'Beef bacon' and 'Ground beef' separately if they come from different suppliers. Each entry carries its own slaughter method and supplier / cert info. Skip if seafood-only."
+          help="One entry per product you serve, a restaurant might list 'Beef bacon' and 'Ground beef' separately if they come from different suppliers. Each entry carries its own slaughter method and supplier / cert info. Skip if seafood-only."
         >
           <div className="space-y-3">
             {products.map((p, i) => (
@@ -515,7 +515,7 @@ function BoolButton({
 /**
  * One per-product card. Owner specifies meat type + product name +
  * slaughter method + (optional) supplier and cert info. Multiple
- * products under the same meat type are expected and supported —
+ * products under the same meat type are expected and supported,
  * a restaurant might list 'Beef bacon' and 'Ground beef' as
  * separate rows with different suppliers.
  */

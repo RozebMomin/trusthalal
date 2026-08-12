@@ -5,7 +5,7 @@
  *
  * Search + table over the org directory, defaulting to UNDER_REVIEW
  * (the work queue). Org creation, edits, and member management
- * happen on the owner portal — admin staff don't author rows here;
+ * happen on the owner portal, admin staff don't author rows here;
  * they review what owners submit. The detail page surfaces the
  * decision actions (verify / reject) and the read-only audit data.
  */

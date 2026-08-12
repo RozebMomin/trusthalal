@@ -158,7 +158,7 @@ export default function UserDetailPage() {
                 )}
               </Field>
               {/* Email verification. Distinct from Account state, which is
-                  about invites and passwords — a user can be ACTIVE and still
+                  about invites and passwords, a user can be ACTIVE and still
                   have an unconfirmed email, which gates posting reviews and
                   owner replies. Shows the date when known, since "when" is
                   what an operator investigating an account is usually after. */}
@@ -324,12 +324,12 @@ function ErrorState({ error }: { error: Error }) {
 }
 
 // ---------------------------------------------------------------------------
-// Organizations — user's membership in orgs (if any)
+// Organizations, user's membership in orgs (if any)
 // ---------------------------------------------------------------------------
 
 /**
  * Show the user's org memberships inline. Every user can *technically*
- * be a member of an org, but the common case is OWNERs — so the empty
+ * be a member of an org, but the common case is OWNERs, so the empty
  * state for non-OWNER roles is a bit softer ("no memberships, and
  * consumers/admins/verifiers typically don't need any"). Management
  * happens from the org detail page; this section is read-only plus a
