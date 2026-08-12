@@ -112,7 +112,7 @@ export default function Onboarding() {
             </Text>
           </View>
           <View style={{ paddingTop: space.xl, paddingBottom: insets.bottom + space.lg, gap: space.md }}>
-            <Button title="Allow location" variant="accent" onPress={allowLocation} />
+            <Button title="Continue" variant="accent" onPress={allowLocation} />
             <Pressable onPress={finish}>
               <Text style={[ty.label, { color: t.sub, textAlign: "center", paddingVertical: 10 }]}>
                 Pick a city instead
