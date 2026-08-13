@@ -12,6 +12,14 @@ import type {
   HalalClaimReject,
   HalalClaimRequestInfo,
   HalalClaimStatus,
+  AdminPhotoQueueResponse,
+  AdminPhotoReportDetail,
+  AdminPhotoReportRow,
+  AdminReportDetailResponse,
+  AdminReportQueueResponse,
+  AdminReportQueueRow,
+  AdminResolvePhotoReport,
+  AdminResolveReportRequest,
   ConsumerDisputeAdminRead,
   DisputeResolve,
   OwnershipRequestAdminRead,
@@ -282,6 +290,80 @@ export function useVisitUnderReview() {
       ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["verification-visits"] });
+    },
+  });
+}
+
+// ---- Reported reviews ----------------------------------------------------
+
+export function useReviewReports(status?: string) {
+  return useQuery<AdminReportQueueRow[]>({
+    queryKey: ["review-reports", "list", status ?? "OPEN"],
+    queryFn: async () => {
+      const res = await apiFetch<AdminReportQueueResponse>(
+        withParams("/admin/review-reports", { status, limit: 200 }),
+      );
+      return res.items;
+    },
+  });
+}
+
+export function useReviewReport(reviewId: string | null | undefined) {
+  return useQuery<AdminReportDetailResponse>({
+    queryKey: ["review-reports", "detail", reviewId ?? "__nil__"],
+    queryFn: () =>
+      apiFetch<AdminReportDetailResponse>(`/admin/review-reports/${reviewId}`),
+    enabled: typeof reviewId === "string" && reviewId.length > 0,
+  });
+}
+
+export function useResolveReviewReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { reviewId: string; payload: AdminResolveReportRequest }) =>
+      apiFetch<AdminReportDetailResponse>(
+        `/admin/review-reports/${args.reviewId}/resolve`,
+        { method: "POST", body: JSON.stringify(args.payload) },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["review-reports"] });
+    },
+  });
+}
+
+// ---- Reported photos -----------------------------------------------------
+
+export function usePhotoReports(status?: string) {
+  return useQuery<AdminPhotoReportRow[]>({
+    queryKey: ["photo-reports", "list", status ?? "OPEN"],
+    queryFn: async () => {
+      const res = await apiFetch<AdminPhotoQueueResponse>(
+        withParams("/admin/photo-reports", { status, limit: 200 }),
+      );
+      return res.items;
+    },
+  });
+}
+
+export function usePhotoReport(photoId: string | null | undefined) {
+  return useQuery<AdminPhotoReportDetail>({
+    queryKey: ["photo-reports", "detail", photoId ?? "__nil__"],
+    queryFn: () =>
+      apiFetch<AdminPhotoReportDetail>(`/admin/photo-reports/${photoId}`),
+    enabled: typeof photoId === "string" && photoId.length > 0,
+  });
+}
+
+export function useResolvePhotoReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { photoId: string; payload: AdminResolvePhotoReport }) =>
+      apiFetch<AdminPhotoReportDetail>(
+        `/admin/photo-reports/${args.photoId}/resolve`,
+        { method: "POST", body: JSON.stringify(args.payload) },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["photo-reports"] });
     },
   });
 }

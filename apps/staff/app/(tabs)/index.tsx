@@ -6,6 +6,8 @@ import {
   useDisputes,
   useHalalClaims,
   useOwnershipRequests,
+  usePhotoReports,
+  useReviewReports,
   useVerificationVisits,
   useVerifierApplications,
 } from "@/lib/api/hooks";
@@ -40,6 +42,10 @@ export default function Queues() {
   const openVisits = (visits.data ?? []).filter((v) =>
     VISIT_OPEN.includes(v.status),
   ).length;
+  const reviewReports = useReviewReports();
+  const openReviewReports = reviewReports.data?.length ?? 0;
+  const photoReports = usePhotoReports();
+  const openPhotoReports = photoReports.data?.length ?? 0;
 
   return (
     <Screen topInset>
@@ -81,8 +87,8 @@ export default function Queues() {
           <QueueRow icon="check-circle" tone="green" label="Halal claims" count={pending} onPress={() => router.push("/claims")} />
           <QueueRow icon="alert-octagon" tone="danger" label="Disputes" count={openDisputes} countTone="danger" onPress={() => router.push("/disputes")} />
           <QueueRow icon="map-pin" tone="info" label="Verification visits" count={openVisits} countTone="info" onPress={() => router.push("/verification-visits")} />
-          <QueueRow icon="flag" tone="amber" label="Reported reviews" disabled />
-          <QueueRow icon="image" tone="amber" label="Reported photos" disabled />
+          <QueueRow icon="flag" tone="amber" label="Reported reviews" count={openReviewReports} onPress={() => router.push("/reported-reviews")} />
+          <QueueRow icon="image" tone="amber" label="Reported photos" count={openPhotoReports} onPress={() => router.push("/reported-photos")} />
           <QueueRow icon="user-check" tone="info" label="Verifier applications" count={pendingVerifiers} countTone="info" last onPress={() => router.push("/verifier-applications")} />
         </Card>
       </View>

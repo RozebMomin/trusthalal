@@ -62,9 +62,13 @@ dashboard, and these sections end to end:
 - **Disputes** — list, detail, uphold / dismiss / request owner reconciliation.
 - **Verification visits** — list, detail (findings + disclosure), accept /
   reject / mark under review.
+- **Reported reviews** — grouped queue, detail (review + all reports + author
+  context), uphold (keep / hide / remove) or dismiss.
+- **Reported photos** — thumbnail queue, detail (image + linked review),
+  uphold (with remove) or dismiss.
 
-Coming next (parity pass): reported reviews, reported photos, users, suppliers,
-organizations. Each is a list + detail + actions screen following the same
+That completes the Review group. Coming next: users, suppliers, organizations
+(the Manage group). Each is a list + detail + actions screen following the same
 pattern, backed by the corresponding `/admin/*` endpoints. Sections whose API
 has no per-item GET (verifier applications, ownership requests) read the item
 from the list query cache.

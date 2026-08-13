@@ -379,3 +379,110 @@ export type VerificationVisitDecision = {
   decision: "ACCEPTED" | "REJECTED";
   decision_note?: string | null;
 };
+
+// ---- Reported reviews ----------------------------------------------------
+
+export type ReviewReportStatus = "OPEN" | "UPHELD" | "DISMISSED";
+export type ModerationAction = "NONE" | "HIDE" | "REMOVE";
+
+export type ReviewAuthor = { display_name: string | null };
+
+export type AdminReportQueueRow = {
+  review_id: string;
+  reply_id: string | null;
+  place_id: string;
+  place_name: string | null;
+  excerpt: string;
+  rating: number;
+  review_status: string;
+  reasons: string[];
+  report_count: number;
+  open_report_count: number;
+  latest_report_at: string;
+  targets_reply: boolean;
+};
+
+export type AdminReportQueueResponse = {
+  items: AdminReportQueueRow[];
+  total: number;
+  next_offset: number | null;
+};
+
+export type AdminReviewReportRead = {
+  id: string;
+  reason: string;
+  detail: string | null;
+  status: ReviewReportStatus;
+  reporter_display_name: string | null;
+  reporter_relationship: string | null;
+  created_at: string;
+  resolution_note: string | null;
+};
+
+export type AdminReportReviewSnapshot = {
+  id: string;
+  place_id: string;
+  place_name: string | null;
+  author: ReviewAuthor;
+  author_account_age_days: number | null;
+  author_review_count: number;
+  rating: number;
+  body: string;
+  status: string;
+  created_at: string;
+};
+
+export type AdminReportDetailResponse = {
+  review: AdminReportReviewSnapshot;
+  reports: AdminReviewReportRead[];
+};
+
+export type AdminResolveReportRequest = {
+  decision: "UPHELD" | "DISMISSED";
+  action?: ModerationAction;
+  resolution_note?: string | null;
+};
+
+// ---- Reported photos -----------------------------------------------------
+
+export type PhotoReportStatus = "OPEN" | "UPHELD" | "DISMISSED";
+
+export type AdminPhotoReportRow = {
+  photo_id: string;
+  place_id: string;
+  place_name: string | null;
+  url: string;
+  uploader_display_name: string | null;
+  reasons: string[];
+  report_count: number;
+  open_report_count: number;
+  latest_report_at: string;
+  reported_by_owner: boolean;
+};
+
+export type AdminPhotoQueueResponse = {
+  items: AdminPhotoReportRow[];
+  total: number;
+  next_offset: number | null;
+};
+
+export type AdminPhotoReportDetail = {
+  photo_id: string;
+  place_id: string;
+  place_name: string | null;
+  url: string;
+  caption: string | null;
+  uploader_display_name: string | null;
+  is_hero: boolean;
+  created_at: string;
+  review_id: string | null;
+  review_rating: number | null;
+  review_body: string | null;
+  reports: Array<Record<string, unknown>>;
+};
+
+export type AdminResolvePhotoReport = {
+  decision: "UPHELD" | "DISMISSED";
+  remove?: boolean;
+  resolution_note?: string | null;
+};
