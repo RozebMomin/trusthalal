@@ -12,9 +12,13 @@ import type {
   HalalClaimReject,
   HalalClaimRequestInfo,
   HalalClaimStatus,
+  OwnershipRequestAdminRead,
   PlaceBulkImportResponse,
   PlaceBulkPreviewResponse,
   PlaceIngestResponse,
+  VerifierApplicationDecision,
+  VerifierApplicationRead,
+  VerifierApplicationStatus,
 } from "./types";
 
 /** Append defined params as a query string. */
@@ -118,3 +122,65 @@ export function useBulkImportPlaces() {
       }),
   });
 }
+
+// ---- Verifier applications -----------------------------------------------
+
+export function useVerifierApplications(status?: VerifierApplicationStatus | "ALL") {
+  return useQuery<VerifierApplicationRead[]>({
+    queryKey: ["verifier-applications", "list", status ?? "PENDING"],
+    queryFn: () =>
+      apiFetch<VerifierApplicationRead[]>(
+        withParams("/admin/verifier-applications", {
+          status: status && status !== "ALL" ? status : undefined,
+          limit: 200,
+        }),
+      ),
+  });
+}
+
+export function useDecideVerifierApplication() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: VerifierApplicationDecision }) =>
+      apiFetch<VerifierApplicationRead>(
+        `/admin/verifier-applications/${args.id}/decide`,
+        { method: "POST", body: JSON.stringify(args.payload) },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["verifier-applications"] });
+    },
+  });
+}
+
+// ---- Ownership requests --------------------------------------------------
+
+export function useOwnershipRequests(status?: string) {
+  return useQuery<OwnershipRequestAdminRead[]>({
+    queryKey: ["ownership-requests", "list", status ?? "OPEN"],
+    queryFn: () =>
+      apiFetch<OwnershipRequestAdminRead[]>(
+        withParams("/admin/ownership-requests", { status, limit: 200 }),
+      ),
+  });
+}
+
+function useOwnershipMutation<TPayload>(action: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: TPayload }) =>
+      apiFetch<OwnershipRequestAdminRead>(
+        `/admin/ownership-requests/${args.id}/${action}`,
+        { method: "POST", body: JSON.stringify(args.payload) },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["ownership-requests"] });
+    },
+  });
+}
+
+export const useApproveOwnershipRequest = () =>
+  useOwnershipMutation<{ note?: string | null }>("approve");
+export const useRejectOwnershipRequest = () =>
+  useOwnershipMutation<{ reason: string }>("reject");
+export const useRequestOwnershipEvidence = () =>
+  useOwnershipMutation<{ note: string }>("request-evidence");

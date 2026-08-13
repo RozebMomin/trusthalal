@@ -61,6 +61,10 @@ export default function RootLayout() {
             <Stack.Screen name="places/index" options={{ title: "Places" }} />
             <Stack.Screen name="places/add" options={{ title: "Add place" }} />
             <Stack.Screen name="places/bulk" options={{ title: "Bulk add" }} />
+            <Stack.Screen name="verifier-applications/index" options={{ title: "Verifier applications" }} />
+            <Stack.Screen name="verifier-applications/[id]" options={{ title: "Application" }} />
+            <Stack.Screen name="ownership-requests/index" options={{ title: "Ownership requests" }} />
+            <Stack.Screen name="ownership-requests/[id]" options={{ title: "Request" }} />
           </Stack>
         </QueryClientProvider>
       </SafeAreaProvider>

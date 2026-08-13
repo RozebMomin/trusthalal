@@ -223,3 +223,71 @@ export type PlaceBulkImportResponse = {
   items: PlaceBulkImportItem[];
   summary: PlaceBulkImportSummary;
 };
+
+// ---- Verifier applications -----------------------------------------------
+
+export type VerifierApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type VerifierApplicationRead = {
+  id: string;
+  applicant_email: string;
+  applicant_name: string;
+  motivation: string;
+  background: string | null;
+  social_links: Record<string, unknown> | null;
+  status: VerifierApplicationStatus;
+  decided_at: string | null;
+  decision_note: string | null;
+  submitted_at: string;
+  updated_at: string;
+};
+
+export type VerifierApplicationDecision = {
+  decision: "APPROVED" | "REJECTED";
+  decision_note?: string | null;
+};
+
+// ---- Ownership requests --------------------------------------------------
+
+export type OwnershipRequestStatus =
+  | "SUBMITTED"
+  | "NEEDS_EVIDENCE"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED";
+
+export type OwnershipRequestPlaceSummary = {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  region: string | null;
+};
+
+export type OwnershipRequestOrgSummary = {
+  id: string;
+  name: string;
+  status?: string | null;
+};
+
+export type OwnershipRequestAttachment = {
+  id: string;
+  original_filename: string;
+  size_bytes?: number;
+};
+
+export type OwnershipRequestAdminRead = {
+  id: string;
+  place_id: string;
+  contact_name: string;
+  contact_email: string;
+  message: string | null;
+  decision_note: string | null;
+  status: OwnershipRequestStatus | string;
+  created_at: string;
+  updated_at: string;
+  attachments: OwnershipRequestAttachment[];
+  place: OwnershipRequestPlaceSummary;
+  organization: OwnershipRequestOrgSummary | null;
+};

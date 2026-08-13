@@ -2,8 +2,13 @@ import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 
 import { Card, H1, IconTile, Muted, Screen, SectionLabel, QueueRow } from "@/components/ui";
-import { useHalalClaims } from "@/lib/api/hooks";
+import {
+  useHalalClaims,
+  useOwnershipRequests,
+  useVerifierApplications,
+} from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-store";
+import { OWNERSHIP_OPEN } from "@/lib/status";
 import { type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 
@@ -19,6 +24,12 @@ export default function Queues() {
   const user = useAuth((s) => s.user);
   const claims = useHalalClaims("PENDING_REVIEW");
   const pending = claims.data?.length ?? 0;
+  const verifiers = useVerifierApplications("PENDING");
+  const pendingVerifiers = verifiers.data?.length ?? 0;
+  const ownership = useOwnershipRequests();
+  const openOwnership = (ownership.data ?? []).filter((r) =>
+    OWNERSHIP_OPEN.includes(r.status),
+  ).length;
 
   return (
     <Screen topInset>
@@ -62,7 +73,7 @@ export default function Queues() {
           <QueueRow icon="map-pin" tone="info" label="Verification visits" disabled />
           <QueueRow icon="flag" tone="amber" label="Reported reviews" disabled />
           <QueueRow icon="image" tone="amber" label="Reported photos" disabled />
-          <QueueRow icon="user-check" tone="info" label="Verifier applications" last disabled />
+          <QueueRow icon="user-check" tone="info" label="Verifier applications" count={pendingVerifiers} countTone="info" last onPress={() => router.push("/verifier-applications")} />
         </Card>
       </View>
 
@@ -70,7 +81,7 @@ export default function Queues() {
         <SectionLabel>Manage</SectionLabel>
         <Card padded={false}>
           <QueueRow icon="map" tone="green" label="Places" onPress={() => router.push("/places")} />
-          <QueueRow icon="briefcase" tone="neutral" label="Ownership requests" disabled />
+          <QueueRow icon="briefcase" tone="neutral" label="Ownership requests" count={openOwnership} onPress={() => router.push("/ownership-requests")} />
           <QueueRow icon="users" tone="neutral" label="Users" disabled />
           <QueueRow icon="truck" tone="neutral" label="Suppliers" disabled />
           <QueueRow icon="home" tone="neutral" label="Organizations" last disabled />

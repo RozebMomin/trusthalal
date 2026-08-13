@@ -54,11 +54,14 @@ Shared UI lives in `src/components/ui.tsx`; new sections should reuse it.
 ## Status
 
 Built: auth + login, push registration + tap routing, tab bar, the Queues
-dashboard, the **Halal claims** section end to end (list, detail, approve /
-reject / request-info), and **Places** (single add via Google search, and bulk
-add with stage → preview → import).
+dashboard, and these sections end to end:
+- **Halal claims** — list, detail, approve / reject / request-info.
+- **Places** — single add via Google search; bulk add (stage → preview → import).
+- **Verifier applications** — list, detail, approve / reject.
+- **Ownership requests** — list, detail, approve / reject / request-evidence.
 
 Coming next (parity pass): disputes, verification visits, reported reviews,
-reported photos, verifier applications, ownership requests, users, suppliers,
-organizations. Each is a list + detail + actions screen following the claims
-pattern, backed by the corresponding `/admin/*` endpoints.
+reported photos, users, suppliers, organizations. Each is a list + detail +
+actions screen following the same pattern, backed by the corresponding
+`/admin/*` endpoints. Sections whose API has no per-item GET (verifier
+applications, ownership requests) read the item from the list query cache.
