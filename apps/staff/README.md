@@ -66,9 +66,15 @@ dashboard, and these sections end to end:
   context), uphold (keep / hide / remove) or dismiss.
 - **Reported photos** — thumbnail queue, detail (image + linked review),
   uphold (with remove) or dismiss.
+- **Users** — searchable list, detail with role picker + activate/deactivate.
+- **Organizations** — list (under review / all), detail (docs), verify / reject.
+- **Suppliers** — list (active / all), detail (product lines), revoke / restore.
 
-That completes the Review group. Coming next: users, suppliers, organizations
-(the Manage group). Each is a list + detail + actions screen following the same
-pattern, backed by the corresponding `/admin/*` endpoints. Sections whose API
-has no per-item GET (verifier applications, ownership requests) read the item
-from the list query cache.
+**All eleven admin sections are now live** — every dashboard tile navigates to a
+working screen. Depth notes: suppliers is view + revoke/restore (product-line
+CRUD stays on the web admin for now); users is role + active toggle. Sections
+whose API has no per-item GET (verifier applications, ownership requests, users)
+read the item from the list query cache.
+
+Next up: the backend push-trigger fan-out (see project tasks) so these queues
+start notifying staff on new items.

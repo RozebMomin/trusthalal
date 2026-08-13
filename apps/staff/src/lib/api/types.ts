@@ -486,3 +486,84 @@ export type AdminResolvePhotoReport = {
   remove?: boolean;
   resolution_note?: string | null;
 };
+
+// ---- Users ---------------------------------------------------------------
+
+export type UserAdminRead = {
+  id: string;
+  email: string;
+  role: UserRole;
+  display_name: string | null;
+  is_active: boolean;
+  account_state: string;
+  email_verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserAdminPatch = {
+  role?: UserRole;
+  display_name?: string | null;
+  is_active?: boolean;
+};
+
+// ---- Organizations -------------------------------------------------------
+
+export type OrganizationStatus = "DRAFT" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED";
+
+export type OrgAttachment = { id: string; original_filename: string };
+
+export type OrganizationAdminRead = {
+  id: string;
+  name: string;
+  contact_email: string | null;
+  address: string | null;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+  postal_code: string | null;
+  status: OrganizationStatus | string;
+  submitted_at: string | null;
+  decision_note: string | null;
+  created_at: string;
+  updated_at: string;
+  attachments: OrgAttachment[];
+};
+
+// ---- Suppliers -----------------------------------------------------------
+
+export type SupplierProductAdminRead = {
+  id: string;
+  meat_type: string;
+  product_name: string;
+  slaughter_method: string;
+  line_tier: string;
+  stunning: string | null;
+  certifying_body_name: string | null;
+  certificate_number: string | null;
+  notes: string | null;
+  last_verified_at: string;
+};
+
+export type SupplierAdminRead = {
+  id: string;
+  name: string;
+  slug: string;
+  aliases: string[];
+  website_url: string | null;
+  country_code: string | null;
+  region: string | null;
+  city: string | null;
+  verification_tier: string;
+  certifying_body_name: string | null;
+  notes: string | null;
+  last_verified_at: string;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+  product_count: number;
+};
+
+export type SupplierDetailRead = SupplierAdminRead & {
+  products: SupplierProductAdminRead[];
+};

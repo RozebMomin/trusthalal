@@ -22,7 +22,12 @@ import type {
   AdminResolveReportRequest,
   ConsumerDisputeAdminRead,
   DisputeResolve,
+  OrganizationAdminRead,
   OwnershipRequestAdminRead,
+  SupplierAdminRead,
+  SupplierDetailRead,
+  UserAdminPatch,
+  UserAdminRead,
   PlaceBulkImportResponse,
   PlaceBulkPreviewResponse,
   PlaceIngestResponse,
@@ -364,6 +369,128 @@ export function useResolvePhotoReport() {
       ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["photo-reports"] });
+    },
+  });
+}
+
+// ---- Users ---------------------------------------------------------------
+
+export function useUsers(q?: string) {
+  return useQuery<UserAdminRead[]>({
+    queryKey: ["users", "list", q ?? ""],
+    queryFn: () =>
+      apiFetch<UserAdminRead[]>(withParams("/admin/users", { q, limit: 200 })),
+  });
+}
+
+export function usePatchUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: UserAdminPatch }) =>
+      apiFetch<UserAdminRead>(`/admin/users/${args.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(args.payload),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+// ---- Organizations -------------------------------------------------------
+
+export function useOrganizations(status?: string) {
+  return useQuery<OrganizationAdminRead[]>({
+    queryKey: ["organizations", "list", status ?? "ALL"],
+    queryFn: () =>
+      apiFetch<OrganizationAdminRead[]>(
+        withParams("/admin/organizations", { status, limit: 200 }),
+      ),
+  });
+}
+
+export function useOrganization(id: string | null | undefined) {
+  return useQuery<OrganizationAdminRead>({
+    queryKey: ["organizations", "detail", id ?? "__nil__"],
+    queryFn: () => apiFetch<OrganizationAdminRead>(`/admin/organizations/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+export function useVerifyOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; note: string }) =>
+      apiFetch<OrganizationAdminRead>(`/admin/organizations/${args.id}/verify`, {
+        method: "POST",
+        body: JSON.stringify({ note: args.note }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["organizations"] });
+    },
+  });
+}
+
+export function useRejectOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; reason: string }) =>
+      apiFetch<OrganizationAdminRead>(`/admin/organizations/${args.id}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason: args.reason }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["organizations"] });
+    },
+  });
+}
+
+// ---- Suppliers -----------------------------------------------------------
+
+export function useSuppliers(includeRevoked = false) {
+  return useQuery<SupplierAdminRead[]>({
+    queryKey: ["suppliers", "list", includeRevoked],
+    queryFn: () =>
+      apiFetch<SupplierAdminRead[]>(
+        withParams("/admin/suppliers", {
+          include_revoked: includeRevoked ? "true" : undefined,
+          limit: 200,
+        }),
+      ),
+  });
+}
+
+export function useSupplier(id: string | null | undefined) {
+  return useQuery<SupplierDetailRead>({
+    queryKey: ["suppliers", "detail", id ?? "__nil__"],
+    queryFn: () => apiFetch<SupplierDetailRead>(`/admin/suppliers/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+export function useRevokeSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; reason?: string | null }) =>
+      apiFetch<SupplierDetailRead>(`/admin/suppliers/${args.id}/revoke`, {
+        method: "POST",
+        body: JSON.stringify({ reason: args.reason ?? null }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+  });
+}
+
+export function useRestoreSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<SupplierDetailRead>(`/admin/suppliers/${id}/restore`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["suppliers"] });
     },
   });
 }

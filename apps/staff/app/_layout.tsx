@@ -73,6 +73,12 @@ export default function RootLayout() {
             <Stack.Screen name="reported-reviews/[id]" options={{ title: "Reported review" }} />
             <Stack.Screen name="reported-photos/index" options={{ title: "Reported photos" }} />
             <Stack.Screen name="reported-photos/[id]" options={{ title: "Reported photo" }} />
+            <Stack.Screen name="users/index" options={{ title: "Users" }} />
+            <Stack.Screen name="users/[id]" options={{ title: "User" }} />
+            <Stack.Screen name="organizations/index" options={{ title: "Organizations" }} />
+            <Stack.Screen name="organizations/[id]" options={{ title: "Organization" }} />
+            <Stack.Screen name="suppliers/index" options={{ title: "Suppliers" }} />
+            <Stack.Screen name="suppliers/[id]" options={{ title: "Supplier" }} />
           </Stack>
         </QueryClientProvider>
       </SafeAreaProvider>

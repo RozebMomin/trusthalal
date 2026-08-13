@@ -5,6 +5,7 @@ import { Card, H1, IconTile, Muted, Screen, SectionLabel, QueueRow } from "@/com
 import {
   useDisputes,
   useHalalClaims,
+  useOrganizations,
   useOwnershipRequests,
   usePhotoReports,
   useReviewReports,
@@ -46,6 +47,8 @@ export default function Queues() {
   const openReviewReports = reviewReports.data?.length ?? 0;
   const photoReports = usePhotoReports();
   const openPhotoReports = photoReports.data?.length ?? 0;
+  const orgs = useOrganizations();
+  const orgsUnderReview = (orgs.data ?? []).filter((o) => o.status === "UNDER_REVIEW").length;
 
   return (
     <Screen topInset>
@@ -98,9 +101,9 @@ export default function Queues() {
         <Card padded={false}>
           <QueueRow icon="map" tone="green" label="Places" onPress={() => router.push("/places")} />
           <QueueRow icon="briefcase" tone="neutral" label="Ownership requests" count={openOwnership} onPress={() => router.push("/ownership-requests")} />
-          <QueueRow icon="users" tone="neutral" label="Users" disabled />
-          <QueueRow icon="truck" tone="neutral" label="Suppliers" disabled />
-          <QueueRow icon="home" tone="neutral" label="Organizations" last disabled />
+          <QueueRow icon="users" tone="neutral" label="Users" onPress={() => router.push("/users")} />
+          <QueueRow icon="truck" tone="neutral" label="Suppliers" onPress={() => router.push("/suppliers")} />
+          <QueueRow icon="home" tone="neutral" label="Organizations" count={orgsUnderReview} countTone="info" last onPress={() => router.push("/organizations")} />
         </Card>
       </View>
     </Screen>
