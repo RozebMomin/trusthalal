@@ -18,17 +18,24 @@ import type { Palette } from "@/lib/theme";
 export function Screen({
   children,
   scroll = true,
+  topInset = false,
   contentStyle,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
+  /** Add the top safe-area inset. Use on screens with no native header
+   *  (e.g. the tab screens) so content clears the status bar / notch. */
+  topInset?: boolean;
   contentStyle?: object;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const top = (topInset ? insets.top : 0) + space.md;
   if (!scroll) {
     return (
-      <View style={{ flex: 1, backgroundColor: t.bg }}>{children}</View>
+      <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: topInset ? insets.top : 0 }}>
+        {children}
+      </View>
     );
   }
   return (
@@ -36,10 +43,10 @@ export function Screen({
       style={{ flex: 1, backgroundColor: t.bg }}
       contentContainerStyle={{
         paddingHorizontal: 18,
-        paddingTop: space.md,
         paddingBottom: insets.bottom + space.xl,
         gap: space.md,
         ...contentStyle,
+        paddingTop: top,
       }}
       keyboardShouldPersistTaps="handled"
     >

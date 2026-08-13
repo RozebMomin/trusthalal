@@ -4,7 +4,7 @@ import { Text, View } from "react-native";
 import { Card, H1, IconTile, Muted, Screen, SectionLabel, QueueRow } from "@/components/ui";
 import { useHalalClaims } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-store";
-import { space, type as ty } from "@/lib/theme";
+import { type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 
 function initials(email: string | undefined): string {
@@ -21,7 +21,7 @@ export default function Queues() {
   const pending = claims.data?.length ?? 0;
 
   return (
-    <Screen contentStyle={{ paddingTop: space.lg }}>
+    <Screen topInset>
       <View
         style={{
           flexDirection: "row",

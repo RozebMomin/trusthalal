@@ -28,7 +28,7 @@ export default function Me() {
   const logout = useAuth((s) => s.logout);
 
   return (
-    <Screen contentStyle={{ paddingTop: space.lg }}>
+    <Screen topInset>
       <H1>Me</H1>
 
       <SectionLabel>Account</SectionLabel>
