@@ -37,7 +37,12 @@
       ]
     ],
     "extra": {
-      "apiBaseUrl": "https://api.trusthalal.org"
-    }
+      "apiBaseUrl": "https://api.trusthalal.org",
+      "router": {},
+      "eas": {
+        "projectId": "bbec830f-247d-49fa-8f75-72b0d7fde473"
+      }
+    },
+    "owner": "rozebmomin"
   }
 }
