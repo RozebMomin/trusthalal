@@ -3,12 +3,14 @@ import { Text, View } from "react-native";
 
 import { Card, H1, IconTile, Muted, Screen, SectionLabel, QueueRow } from "@/components/ui";
 import {
+  useDisputes,
   useHalalClaims,
   useOwnershipRequests,
+  useVerificationVisits,
   useVerifierApplications,
 } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-store";
-import { OWNERSHIP_OPEN } from "@/lib/status";
+import { DISPUTE_OPEN, OWNERSHIP_OPEN, VISIT_OPEN } from "@/lib/status";
 import { type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 
@@ -29,6 +31,14 @@ export default function Queues() {
   const ownership = useOwnershipRequests();
   const openOwnership = (ownership.data ?? []).filter((r) =>
     OWNERSHIP_OPEN.includes(r.status),
+  ).length;
+  const disputes = useDisputes();
+  const openDisputes = (disputes.data ?? []).filter((d) =>
+    DISPUTE_OPEN.includes(d.status),
+  ).length;
+  const visits = useVerificationVisits();
+  const openVisits = (visits.data ?? []).filter((v) =>
+    VISIT_OPEN.includes(v.status),
   ).length;
 
   return (
@@ -69,8 +79,8 @@ export default function Queues() {
         <SectionLabel>Review</SectionLabel>
         <Card padded={false}>
           <QueueRow icon="check-circle" tone="green" label="Halal claims" count={pending} onPress={() => router.push("/claims")} />
-          <QueueRow icon="alert-octagon" tone="danger" label="Disputes" disabled />
-          <QueueRow icon="map-pin" tone="info" label="Verification visits" disabled />
+          <QueueRow icon="alert-octagon" tone="danger" label="Disputes" count={openDisputes} countTone="danger" onPress={() => router.push("/disputes")} />
+          <QueueRow icon="map-pin" tone="info" label="Verification visits" count={openVisits} countTone="info" onPress={() => router.push("/verification-visits")} />
           <QueueRow icon="flag" tone="amber" label="Reported reviews" disabled />
           <QueueRow icon="image" tone="amber" label="Reported photos" disabled />
           <QueueRow icon="user-check" tone="info" label="Verifier applications" count={pendingVerifiers} countTone="info" last onPress={() => router.push("/verifier-applications")} />

@@ -3,6 +3,12 @@ export type PillTone = "neutral" | "amber" | "info" | "green" | "danger" | "slat
 /** Ownership-request statuses that still need an admin decision. */
 export const OWNERSHIP_OPEN = ["SUBMITTED", "NEEDS_EVIDENCE", "UNDER_REVIEW"];
 
+/** Dispute statuses that are still active (not resolved/withdrawn). */
+export const DISPUTE_OPEN = ["OPEN", "OWNER_RECONCILING", "ADMIN_REVIEWING"];
+
+/** Verification-visit statuses awaiting an admin decision. */
+export const VISIT_OPEN = ["SUBMITTED", "UNDER_REVIEW"];
+
 /** Human label for any SCREAMING_SNAKE status. */
 export function statusLabel(s: string): string {
   return s.replace(/_/g, " ").toLowerCase();

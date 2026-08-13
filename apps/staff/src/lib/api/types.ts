@@ -291,3 +291,91 @@ export type OwnershipRequestAdminRead = {
   place: OwnershipRequestPlaceSummary;
   organization: OwnershipRequestOrgSummary | null;
 };
+
+// ---- Disputes ------------------------------------------------------------
+
+export type DisputeStatus =
+  | "OPEN"
+  | "OWNER_RECONCILING"
+  | "ADMIN_REVIEWING"
+  | "RESOLVED_UPHELD"
+  | "RESOLVED_DISMISSED"
+  | "WITHDRAWN";
+
+export type DisputedAttribute =
+  | "PORK_SERVED"
+  | "ALCOHOL_PRESENT"
+  | "MENU_POSTURE_INCORRECT"
+  | "SLAUGHTER_METHOD_INCORRECT"
+  | "CERTIFICATION_INVALID"
+  | "PLACE_CLOSED"
+  | "OTHER";
+
+export type DisputeAttachment = { id: string; original_filename: string };
+
+export type ConsumerDisputeAdminRead = {
+  id: string;
+  place_id: string;
+  status: DisputeStatus;
+  disputed_attribute: DisputedAttribute;
+  description: string;
+  attachments: DisputeAttachment[];
+  submitted_at: string;
+  decided_at: string | null;
+  admin_decision_note: string | null;
+  updated_at: string;
+};
+
+export type DisputeResolve = {
+  decision: "RESOLVED_UPHELD" | "RESOLVED_DISMISSED";
+  admin_decision_note?: string | null;
+};
+
+// ---- Verification visits -------------------------------------------------
+
+export type VerificationVisitStatus =
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN";
+
+export type VisitDisclosure =
+  | "SELF_FUNDED"
+  | "MEAL_COMPED"
+  | "PAID_PARTNERSHIP"
+  | "OTHER_DISCLOSURE";
+
+export type VisitPlaceSummary = {
+  id: string;
+  name: string;
+  city?: string | null;
+  region?: string | null;
+};
+
+export type VerificationVisitAttachment = {
+  id: string;
+  original_filename: string;
+};
+
+export type VerificationVisitRead = {
+  id: string;
+  place_id: string;
+  place: VisitPlaceSummary | null;
+  visited_at: string;
+  structured_findings: HalalQuestionnaireDraft | null;
+  notes_for_admin: string | null;
+  public_review_url: string | null;
+  disclosure: VisitDisclosure;
+  disclosure_note: string | null;
+  status: VerificationVisitStatus;
+  attachments: VerificationVisitAttachment[];
+  decision_note: string | null;
+  submitted_at: string;
+  updated_at: string;
+};
+
+export type VerificationVisitDecision = {
+  decision: "ACCEPTED" | "REJECTED";
+  decision_note?: string | null;
+};

@@ -12,10 +12,14 @@ import type {
   HalalClaimReject,
   HalalClaimRequestInfo,
   HalalClaimStatus,
+  ConsumerDisputeAdminRead,
+  DisputeResolve,
   OwnershipRequestAdminRead,
   PlaceBulkImportResponse,
   PlaceBulkPreviewResponse,
   PlaceIngestResponse,
+  VerificationVisitDecision,
+  VerificationVisitRead,
   VerifierApplicationDecision,
   VerifierApplicationRead,
   VerifierApplicationStatus,
@@ -184,3 +188,100 @@ export const useRejectOwnershipRequest = () =>
   useOwnershipMutation<{ reason: string }>("reject");
 export const useRequestOwnershipEvidence = () =>
   useOwnershipMutation<{ note: string }>("request-evidence");
+
+// ---- Disputes ------------------------------------------------------------
+
+export function useDisputes(status?: string) {
+  return useQuery<ConsumerDisputeAdminRead[]>({
+    queryKey: ["disputes", "list", status ?? "ALL"],
+    queryFn: () =>
+      apiFetch<ConsumerDisputeAdminRead[]>(
+        withParams("/admin/disputes", { status, limit: 200 }),
+      ),
+  });
+}
+
+export function useDispute(id: string | null | undefined) {
+  return useQuery<ConsumerDisputeAdminRead>({
+    queryKey: ["disputes", "detail", id ?? "__nil__"],
+    queryFn: () => apiFetch<ConsumerDisputeAdminRead>(`/admin/disputes/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+export function useResolveDispute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: DisputeResolve }) =>
+      apiFetch<ConsumerDisputeAdminRead>(`/admin/disputes/${args.id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify(args.payload),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["disputes"] });
+    },
+  });
+}
+
+export function useRequestOwnerReconciliation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; note?: string | null }) =>
+      apiFetch<ConsumerDisputeAdminRead>(
+        `/admin/disputes/${args.id}/request-owner-reconciliation`,
+        { method: "POST", body: JSON.stringify({ admin_decision_note: args.note ?? null }) },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["disputes"] });
+    },
+  });
+}
+
+// ---- Verification visits -------------------------------------------------
+
+export function useVerificationVisits(status?: string) {
+  return useQuery<VerificationVisitRead[]>({
+    queryKey: ["verification-visits", "list", status ?? "ALL"],
+    queryFn: () =>
+      apiFetch<VerificationVisitRead[]>(
+        withParams("/admin/verification-visits", { status, limit: 200 }),
+      ),
+  });
+}
+
+export function useVerificationVisit(id: string | null | undefined) {
+  return useQuery<VerificationVisitRead>({
+    queryKey: ["verification-visits", "detail", id ?? "__nil__"],
+    queryFn: () =>
+      apiFetch<VerificationVisitRead>(`/admin/verification-visits/${id}`),
+    enabled: typeof id === "string" && id.length > 0,
+  });
+}
+
+export function useDecideVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; payload: VerificationVisitDecision }) =>
+      apiFetch<VerificationVisitRead>(
+        `/admin/verification-visits/${args.id}/decide`,
+        { method: "POST", body: JSON.stringify(args.payload) },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["verification-visits"] });
+    },
+  });
+}
+
+export function useVisitUnderReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<VerificationVisitRead>(
+        `/admin/verification-visits/${id}/under-review`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["verification-visits"] });
+    },
+  });
+}

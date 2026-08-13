@@ -59,9 +59,12 @@ dashboard, and these sections end to end:
 - **Places** — single add via Google search; bulk add (stage → preview → import).
 - **Verifier applications** — list, detail, approve / reject.
 - **Ownership requests** — list, detail, approve / reject / request-evidence.
+- **Disputes** — list, detail, uphold / dismiss / request owner reconciliation.
+- **Verification visits** — list, detail (findings + disclosure), accept /
+  reject / mark under review.
 
-Coming next (parity pass): disputes, verification visits, reported reviews,
-reported photos, users, suppliers, organizations. Each is a list + detail +
-actions screen following the same pattern, backed by the corresponding
-`/admin/*` endpoints. Sections whose API has no per-item GET (verifier
-applications, ownership requests) read the item from the list query cache.
+Coming next (parity pass): reported reviews, reported photos, users, suppliers,
+organizations. Each is a list + detail + actions screen following the same
+pattern, backed by the corresponding `/admin/*` endpoints. Sections whose API
+has no per-item GET (verifier applications, ownership requests) read the item
+from the list query cache.
