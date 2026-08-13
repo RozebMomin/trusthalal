@@ -166,3 +166,60 @@ export const HALAL_CLAIM_OPEN_STATUSES: ReadonlyArray<HalalClaimStatus> = [
   "PENDING_REVIEW",
   "NEEDS_MORE_INFO",
 ];
+
+// ---- Places (add + bulk add) --------------------------------------------
+
+export type PlaceAdminRead = {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+};
+
+export type GoogleAutocompletePrediction = {
+  google_place_id: string;
+  description: string;
+  primary_text: string | null;
+  secondary_text: string | null;
+};
+
+export type PlaceIngestResponse = {
+  place: PlaceAdminRead;
+  existed: boolean;
+  was_deleted: boolean;
+};
+
+export type PlaceBulkPreviewStatus = "NEW" | "EXISTS" | "SOFT_DELETED";
+export type PlaceBulkPreviewItem = {
+  google_place_id: string;
+  status: PlaceBulkPreviewStatus;
+  existing_place_id?: string | null;
+  existing_name?: string | null;
+};
+export type PlaceBulkPreviewResponse = { items: PlaceBulkPreviewItem[] };
+
+export type PlaceBulkImportOutcome =
+  | "CREATED"
+  | "EXISTED"
+  | "SOFT_DELETED"
+  | "FAILED";
+export type PlaceBulkImportItem = {
+  google_place_id: string;
+  outcome: PlaceBulkImportOutcome;
+  place_id?: string | null;
+  place_name?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
+};
+export type PlaceBulkImportSummary = {
+  created: number;
+  existed: number;
+  soft_deleted: number;
+  failed: number;
+};
+export type PlaceBulkImportResponse = {
+  items: PlaceBulkImportItem[];
+  summary: PlaceBulkImportSummary;
+};

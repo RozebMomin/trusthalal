@@ -1,18 +1,18 @@
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 
 import {
-  Body,
+  ActionBar,
   Button,
   Card,
   ErrorState,
   Field,
-  H1,
+  IconTile,
   Loading,
   Muted,
   Pill,
-  Screen,
+  SectionLabel,
 } from "@/components/ui";
 import {
   useApproveClaim,
@@ -34,29 +34,38 @@ const MENU_POSTURE: Record<string, string> = {
   MIXED_SHARED_KITCHEN: "Mixed, shared kitchen",
 };
 const ALCOHOL: Record<string, string> = {
-  NONE: "No alcohol",
+  NONE: "None",
   BEER_AND_WINE_ONLY: "Beer and wine only",
   FULL_BAR: "Full bar",
 };
 const SLAUGHTER: Record<string, string> = {
-  HAND_CUT: "Hand-slaughtered",
-  MACHINE_CUT: "Machine-slaughtered",
+  HAND_CUT: "Hand-cut",
+  MACHINE_CUT: "Machine-cut",
   NOT_SERVED: "Not served",
 };
 const TIERS: { value: ValidationTier; label: string }[] = [
   { value: "SELF_ATTESTED", label: "Owner-attested" },
-  { value: "CERTIFICATE_ON_FILE", label: "Certificate on file" },
-  { value: "TRUST_HALAL_VERIFIED", label: "Verified in person" },
+  { value: "CERTIFICATE_ON_FILE", label: "Certificate" },
+  { value: "TRUST_HALAL_VERIFIED", label: "Verified" },
 ];
 
 type Action = "approve" | "reject" | "request-info" | null;
 
-function Line({ label, value }: { label: string; value: string }) {
+function InfoLine({ label, value, last }: { label: string; value: string; last?: boolean }) {
   const t = useTheme();
   return (
-    <View style={{ flexDirection: "row", justifyContent: "space-between", gap: space.md }}>
-      <Text style={[ty.small, { color: t.sub }]}>{label}</Text>
-      <Text style={[ty.small, { color: t.ink, flexShrink: 1, textAlign: "right" }]}>
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        gap: space.md,
+        paddingVertical: 11,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: t.line,
+      }}
+    >
+      <Text style={{ ...ty.body, color: t.sub }}>{label}</Text>
+      <Text style={{ ...ty.body, fontWeight: "600", color: t.ink, flexShrink: 1, textAlign: "right" }}>
         {value}
       </Text>
     </View>
@@ -79,12 +88,17 @@ export default function ClaimDetail() {
   const [note, setNote] = useState("");
 
   if (!authed) return <Redirect href="/login" />;
-  if (q.isLoading) return <Screen><Loading /></Screen>;
+  if (q.isLoading)
+    return (
+      <View style={{ flex: 1, backgroundColor: t.bg }}>
+        <Loading />
+      </View>
+    );
   if (q.isError || !q.data)
     return (
-      <Screen>
+      <View style={{ flex: 1, backgroundColor: t.bg }}>
         <ErrorState message="Couldn't load this claim." onRetry={() => void q.refetch()} />
-      </Screen>
+      </View>
     );
 
   const c = q.data;
@@ -92,6 +106,11 @@ export default function ClaimDetail() {
   const decidable = c.status === "PENDING_REVIEW" || c.status === "NEEDS_MORE_INFO";
   const needsOverride = c.status !== "PENDING_REVIEW";
   const busy = approve.isPending || reject.isPending || requestInfo.isPending;
+
+  function reset() {
+    setAction(null);
+    setNote("");
+  }
 
   async function submit() {
     try {
@@ -118,175 +137,166 @@ export default function ClaimDetail() {
   }
 
   return (
-    <Screen>
-      <View style={{ gap: 4 }}>
-        <H1>{c.place?.name ?? "Unknown place"}</H1>
-        {c.place?.address ? <Muted>{c.place.address}</Muted> : null}
-        <View style={{ marginTop: space.xs }}>
-          <Pill label={statusLabel(c.status)} tone={statusTone(c.status)} />
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 18, paddingTop: space.md, paddingBottom: space.xl, gap: space.md }}
+      >
+        <View>
+          <Text style={{ ...ty.title, fontSize: 22, color: t.ink }}>
+            {c.place?.name ?? "Unknown place"}
+          </Text>
+          {c.place?.address ? <Muted style={{ marginTop: 2 }}>{c.place.address}</Muted> : null}
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+            <Pill label={statusLabel(c.status)} tone={statusTone(c.status)} />
+            <Pill label={c.claim_type.toLowerCase()} tone="neutral" />
+          </View>
         </View>
-      </View>
 
-      <Card>
-        <Text style={[ty.seg, { color: t.sub }]}>Questionnaire</Text>
-        {r?.menu_posture ? (
-          <Line label="Menu" value={MENU_POSTURE[r.menu_posture] ?? r.menu_posture} />
-        ) : null}
-        <Line label="Pork on menu" value={r?.has_pork ? "Yes" : "No"} />
-        {r?.alcohol_policy ? (
-          <Line label="Alcohol" value={ALCOHOL[r.alcohol_policy] ?? r.alcohol_policy} />
-        ) : null}
-        <Line label="Alcohol in cooking" value={r?.alcohol_in_cooking ? "Yes" : "No"} />
-        <Line label="Certification" value={r?.has_certification ? "Yes" : "No"} />
-        {r?.certifying_body_name ? (
-          <Line label="Certifier" value={r.certifying_body_name} />
-        ) : null}
-      </Card>
-
-      {r?.meat_products && r.meat_products.length > 0 ? (
-        <Card>
-          <Text style={[ty.seg, { color: t.sub }]}>Meat products</Text>
-          {r.meat_products.map((p, i) => (
-            <View key={i} style={{ gap: 2, paddingVertical: 4 }}>
-              <Text style={[ty.label, { color: t.ink }]}>
-                {p.product_name} ({p.meat_type.toLowerCase()})
-              </Text>
-              <Muted>
-                {SLAUGHTER[p.slaughter_method] ?? p.slaughter_method}
-                {p.supplier_name ? ` · ${p.supplier_name}` : ""}
-              </Muted>
-            </View>
-          ))}
+        <Card padded={false} style={{ paddingHorizontal: space.lg }}>
+          {r?.menu_posture ? (
+            <InfoLine label="Menu" value={MENU_POSTURE[r.menu_posture] ?? r.menu_posture} />
+          ) : null}
+          <InfoLine label="Pork on menu" value={r?.has_pork ? "Yes" : "No"} />
+          {r?.alcohol_policy ? (
+            <InfoLine label="Alcohol" value={ALCOHOL[r.alcohol_policy] ?? r.alcohol_policy} />
+          ) : null}
+          <InfoLine label="Certification" value={r?.has_certification ? "Yes" : "No"} />
+          {r?.certifying_body_name ? (
+            <InfoLine label="Certifier" value={r.certifying_body_name} last />
+          ) : null}
         </Card>
-      ) : null}
 
-      {r?.caveats ? (
-        <Card>
-          <Text style={[ty.seg, { color: t.sub }]}>Owner caveats</Text>
-          <Body>{r.caveats}</Body>
-        </Card>
-      ) : null}
+        {r?.meat_products && r.meat_products.length > 0 ? (
+          <View>
+            <SectionLabel>Meat products</SectionLabel>
+            <Card>
+              {r.meat_products.map((p, i) => (
+                <View key={i}>
+                  {i > 0 ? (
+                    <View style={{ height: 1, backgroundColor: t.line, marginVertical: 11 }} />
+                  ) : null}
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ ...ty.label, color: t.ink }}>{p.product_name}</Text>
+                      <Muted style={{ marginTop: 2 }}>
+                        {p.meat_type.toLowerCase()}
+                        {p.supplier_name ? ` · ${p.supplier_name}` : ""}
+                      </Muted>
+                    </View>
+                    <Pill
+                      label={SLAUGHTER[p.slaughter_method] ?? p.slaughter_method}
+                      tone={p.slaughter_method === "HAND_CUT" ? "green" : "neutral"}
+                    />
+                  </View>
+                </View>
+              ))}
+            </Card>
+          </View>
+        ) : null}
 
-      <Card>
-        <Text style={[ty.seg, { color: t.sub }]}>
-          Attachments ({c.attachments.length})
-        </Text>
-        {c.attachments.length === 0 ? (
-          <Muted>None attached.</Muted>
-        ) : (
-          c.attachments.map((a) => (
-            <Muted key={a.id}>
-              {a.original_filename} · {a.document_type.replace(/_/g, " ").toLowerCase()}
-            </Muted>
-          ))
-        )}
-      </Card>
+        {r?.caveats ? (
+          <View>
+            <SectionLabel>Owner caveats</SectionLabel>
+            <Card>
+              <Text style={{ ...ty.body, color: t.ink }}>{r.caveats}</Text>
+            </Card>
+          </View>
+        ) : null}
 
-      {decidable ? (
-        <Card>
-          <Text style={[ty.seg, { color: t.sub }]}>Decision</Text>
-          <View style={{ flexDirection: "row", gap: space.sm }}>
-            {(["approve", "request-info", "reject"] as const).map((a) => {
-              const active = action === a;
-              const color = a === "reject" ? t.danger : a === "approve" ? t.accent : t.info;
-              return (
-                <Pressable
-                  key={a}
-                  onPress={() => setAction(active ? null : a)}
+        <View>
+          <SectionLabel>Attachments ({c.attachments.length})</SectionLabel>
+          {c.attachments.length === 0 ? (
+            <Card>
+              <Muted>None attached.</Muted>
+            </Card>
+          ) : (
+            <Card padded={false} style={{ paddingHorizontal: space.lg }}>
+              {c.attachments.map((a, i) => (
+                <View
+                  key={a.id}
                   style={{
-                    flex: 1,
+                    flexDirection: "row",
                     alignItems: "center",
-                    paddingVertical: 10,
-                    borderRadius: radii.md,
-                    borderWidth: 1,
-                    borderColor: active ? color : t.line,
-                    backgroundColor: active ? color : t.card,
+                    gap: 11,
+                    paddingVertical: 12,
+                    borderBottomWidth: i === c.attachments.length - 1 ? 0 : 1,
+                    borderBottomColor: t.line,
                   }}
                 >
-                  <Text style={[ty.small, { color: active ? "#FFFFFF" : t.ink }]}>
-                    {a === "request-info" ? "Request info" : a[0].toUpperCase() + a.slice(1)}
+                  <IconTile icon="file-text" tone="neutral" />
+                  <Text style={{ ...ty.body, fontWeight: "600", color: t.ink, flex: 1 }} numberOfLines={1}>
+                    {a.original_filename}
                   </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                </View>
+              ))}
+            </Card>
+          )}
+        </View>
+      </ScrollView>
 
-          {action === "approve" ? (
-            <View style={{ gap: space.sm, marginTop: space.sm }}>
-              <Text style={[ty.small, { color: t.sub }]}>Validation tier</Text>
-              <View style={{ gap: space.xs }}>
+      {decidable && action === null ? (
+        <ActionBar>
+          <Button title="Reject" variant="danger" onPress={() => setAction("reject")} />
+          <Button title="Request info" variant="secondary" onPress={() => setAction("request-info")} />
+          <Button title="Approve" variant="primary" onPress={() => setAction("approve")} />
+        </ActionBar>
+      ) : null}
+
+      {action !== null ? (
+        <ActionBar>
+          <View style={{ flex: 1, gap: space.sm }}>
+            {action === "approve" ? (
+              <View style={{ flexDirection: "row", gap: 6 }}>
                 {TIERS.map((opt) => {
-                  const active = tier === opt.value;
+                  const on = tier === opt.value;
                   return (
                     <Pressable
                       key={opt.value}
                       onPress={() => setTier(opt.value)}
                       style={{
-                        flexDirection: "row",
+                        flex: 1,
                         alignItems: "center",
-                        gap: space.sm,
-                        padding: space.sm,
+                        paddingVertical: 8,
                         borderRadius: radii.md,
                         borderWidth: 1,
-                        borderColor: active ? t.accent : t.line,
+                        borderColor: on ? t.accent : t.line,
+                        backgroundColor: on ? t.accentSoft : "transparent",
                       }}
                     >
-                      <View
-                        style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: 999,
-                          borderWidth: 2,
-                          borderColor: active ? t.accent : t.sub,
-                          backgroundColor: active ? t.accent : "transparent",
-                        }}
-                      />
-                      <Text style={[ty.body, { color: t.ink }]}>{opt.label}</Text>
+                      <Text style={{ ...ty.small, color: on ? t.accentDeep : t.sub }}>
+                        {opt.label}
+                      </Text>
                     </Pressable>
                   );
                 })}
               </View>
-              {needsOverride ? (
-                <Muted>
-                  This claim isn&apos;t in the standard pending state; approving here overrides
-                  its current status.
-                </Muted>
-              ) : null}
-            </View>
-          ) : null}
-
-          {action ? (
-            <View style={{ gap: space.sm, marginTop: space.sm }}>
-              <Field
-                label={
-                  action === "approve"
-                    ? "Note (optional)"
-                    : action === "reject"
-                      ? "Reason (required, shown to owner)"
-                      : "What's needed (required, shown to owner)"
-                }
-                value={note}
-                onChangeText={setNote}
-                multiline
-                numberOfLines={3}
-                placeholder="Add context…"
-              />
+            ) : null}
+            <Field
+              label={
+                action === "approve"
+                  ? "Note (optional)"
+                  : action === "reject"
+                    ? "Reason (shown to owner)"
+                    : "What's needed (shown to owner)"
+              }
+              value={note}
+              onChangeText={setNote}
+              multiline
+              placeholder="Add context…"
+            />
+            <View style={{ flexDirection: "row", gap: 9 }}>
+              <Button title="Cancel" variant="secondary" onPress={reset} style={{ flex: 1 }} />
               <Button
-                title={
-                  action === "approve"
-                    ? "Approve claim"
-                    : action === "reject"
-                      ? "Reject claim"
-                      : "Request more info"
-                }
+                title={action === "approve" ? "Approve" : action === "reject" ? "Reject" : "Send"}
                 variant={action === "reject" ? "danger" : "primary"}
                 loading={busy}
                 onPress={submit}
+                style={{ flex: 2 }}
               />
             </View>
-          ) : null}
-        </Card>
+          </View>
+        </ActionBar>
       ) : null}
-    </Screen>
+    </View>
   );
 }

@@ -6,11 +6,15 @@ import {
 
 import { apiFetch } from "./client";
 import type {
+  GoogleAutocompletePrediction,
   HalalClaimAdminRead,
   HalalClaimApprove,
   HalalClaimReject,
   HalalClaimRequestInfo,
   HalalClaimStatus,
+  PlaceBulkImportResponse,
+  PlaceBulkPreviewResponse,
+  PlaceIngestResponse,
 } from "./types";
 
 /** Append defined params as a query string. */
@@ -68,3 +72,49 @@ export const useApproveClaim = () => useClaimMutation<HalalClaimApprove>("approv
 export const useRejectClaim = () => useClaimMutation<HalalClaimReject>("reject");
 export const useRequestInfoClaim = () =>
   useClaimMutation<HalalClaimRequestInfo>("request-info");
+
+// ---- Places (add + bulk add) --------------------------------------------
+
+/** Google Places autocomplete proxy. Enabled once the query is long enough. */
+export function usePlaceAutocomplete(q: string) {
+  const query = q.trim();
+  return useQuery<GoogleAutocompletePrediction[]>({
+    queryKey: ["places", "autocomplete", query],
+    queryFn: () =>
+      apiFetch<GoogleAutocompletePrediction[]>(
+        withParams("/places/google/autocomplete", { q: query }),
+      ),
+    enabled: query.length >= 3,
+    staleTime: 60_000,
+  });
+}
+
+export function useIngestPlace() {
+  return useMutation({
+    mutationFn: (googlePlaceId: string) =>
+      apiFetch<PlaceIngestResponse>("/admin/places/ingest", {
+        method: "POST",
+        body: JSON.stringify({ google_place_id: googlePlaceId }),
+      }),
+  });
+}
+
+export function useBulkPreviewPlaces() {
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      apiFetch<PlaceBulkPreviewResponse>("/admin/places/bulk/preview", {
+        method: "POST",
+        body: JSON.stringify({ google_place_ids: ids }),
+      }),
+  });
+}
+
+export function useBulkImportPlaces() {
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      apiFetch<PlaceBulkImportResponse>("/admin/places/bulk/import", {
+        method: "POST",
+        body: JSON.stringify({ google_place_ids: ids }),
+      }),
+  });
+}

@@ -43,13 +43,22 @@ Uses the same EAS/App Store Connect team as the consumer app
   claims / disputes / reported content / verifier activity is separate backend
   work (see the project tasks).
 
+## Design
+
+The look follows `docs/mockups.html` (open it in a browser): a Queues home with
+a summary card and grouped Review/Manage sections, a bottom tab bar (Queues /
+Me), iOS-style grouped cards, segmented filters, status pills, and a sticky
+action bar on the claim review screen. Light and dark are both first-class.
+Shared UI lives in `src/components/ui.tsx`; new sections should reuse it.
+
 ## Status
 
-Built: auth + login, push registration + tap routing, dashboard of all queues,
-and the **Halal claims** section end to end (list, detail, approve / reject /
-request-info).
+Built: auth + login, push registration + tap routing, tab bar, the Queues
+dashboard, the **Halal claims** section end to end (list, detail, approve /
+reject / request-info), and **Places** (single add via Google search, and bulk
+add with stage → preview → import).
 
 Coming next (parity pass): disputes, verification visits, reported reviews,
 reported photos, verifier applications, ownership requests, users, suppliers,
-organizations, places. Each is a list + detail + actions screen following the
-claims pattern, backed by the corresponding `/admin/*` endpoints.
+organizations. Each is a list + detail + actions screen following the claims
+pattern, backed by the corresponding `/admin/*` endpoints.

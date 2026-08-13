@@ -14,12 +14,14 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useAuth } from "@/lib/auth/auth-store";
 import { usePushRouting } from "@/lib/push";
+import { useTheme } from "@/lib/theme/useTheme";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
 
 export default function RootLayout() {
+  const t = useTheme();
   const bootstrap = useAuth((s) => s.bootstrap);
   const status = useAuth((s) => s.status);
   usePushRouting();
@@ -42,11 +44,23 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: true, headerBackTitle: "Back" }}>
-            <Stack.Screen name="index" options={{ title: "Trust Halal Staff" }} />
+          <Stack
+            screenOptions={{
+              headerStyle: { backgroundColor: t.card },
+              headerTintColor: t.accent,
+              headerTitleStyle: { color: t.ink, fontFamily: "Inter_700Bold" },
+              headerShadowVisible: false,
+              headerBackTitle: "Back",
+              contentStyle: { backgroundColor: t.bg },
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="claims/index" options={{ title: "Halal claims" }} />
             <Stack.Screen name="claims/[id]" options={{ title: "Claim" }} />
+            <Stack.Screen name="places/index" options={{ title: "Places" }} />
+            <Stack.Screen name="places/add" options={{ title: "Add place" }} />
+            <Stack.Screen name="places/bulk" options={{ title: "Bulk add" }} />
           </Stack>
         </QueryClientProvider>
       </SafeAreaProvider>

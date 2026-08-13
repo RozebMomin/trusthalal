@@ -13,31 +13,34 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
+import type { Palette } from "@/lib/theme";
 
 export function Screen({
   children,
   scroll = true,
+  contentStyle,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
+  contentStyle?: object;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const pad = {
-    paddingHorizontal: space.lg,
-    paddingBottom: insets.bottom + space.xl,
-  };
   if (!scroll) {
     return (
-      <View style={{ flex: 1, backgroundColor: t.bg, ...pad, paddingTop: space.md }}>
-        {children}
-      </View>
+      <View style={{ flex: 1, backgroundColor: t.bg }}>{children}</View>
     );
   }
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: t.bg }}
-      contentContainerStyle={{ ...pad, paddingTop: space.md, gap: space.md }}
+      contentContainerStyle={{
+        paddingHorizontal: 18,
+        paddingTop: space.md,
+        paddingBottom: insets.bottom + space.xl,
+        gap: space.md,
+        ...contentStyle,
+      }}
       keyboardShouldPersistTaps="handled"
     >
       {children}
@@ -45,17 +48,25 @@ export function Screen({
   );
 }
 
-export function Card({ children, style }: { children: React.ReactNode; style?: object }) {
+export function Card({
+  children,
+  style,
+  padded = true,
+}: {
+  children: React.ReactNode;
+  style?: object;
+  padded?: boolean;
+}) {
   const t = useTheme();
   return (
     <View
       style={{
         backgroundColor: t.card,
-        borderRadius: radii.lg,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: t.line,
-        padding: space.lg,
-        gap: space.sm,
+        overflow: "hidden",
+        ...(padded ? { padding: space.lg } : {}),
         ...style,
       }}
     >
@@ -66,7 +77,26 @@ export function Card({ children, style }: { children: React.ReactNode; style?: o
 
 export function H1({ children }: { children: React.ReactNode }) {
   const t = useTheme();
-  return <Text style={[ty.title, { color: t.ink }]}>{children}</Text>;
+  return (
+    <Text style={{ ...ty.title, fontSize: 30, color: t.ink }}>{children}</Text>
+  );
+}
+
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <Text
+      style={{
+        ...ty.seg,
+        color: t.sub,
+        marginLeft: 4,
+        marginBottom: space.sm,
+        marginTop: space.xs,
+      }}
+    >
+      {children}
+    </Text>
+  );
 }
 
 export function Muted({ children, style }: { children: React.ReactNode; style?: object }) {
@@ -79,6 +109,166 @@ export function Body({ children, style }: { children: React.ReactNode; style?: o
   return <Text style={[ty.body, { color: t.ink }, style]}>{children}</Text>;
 }
 
+type Tone = "neutral" | "amber" | "info" | "green" | "danger" | "slate";
+
+function toneColors(t: Palette, tone: Tone): { bg: string; fg: string } {
+  switch (tone) {
+    case "amber":
+      return { bg: t.amberSoft, fg: t.amber };
+    case "info":
+      return { bg: t.infoSoft, fg: t.info };
+    case "green":
+      return { bg: t.accentSoft, fg: t.accentDeep };
+    case "danger":
+      return { bg: t.dangerSoft, fg: t.danger };
+    case "slate":
+      return { bg: t.slate, fg: t.onSlate };
+    default:
+      return { bg: t.card2, fg: t.sub };
+  }
+}
+
+export function IconTile({
+  icon,
+  tone = "neutral",
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  tone?: Tone;
+}) {
+  const t = useTheme();
+  const c = toneColors(t, tone);
+  return (
+    <View
+      style={{
+        width: 38,
+        height: 38,
+        borderRadius: 11,
+        backgroundColor: c.bg,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Feather name={icon} size={18} color={c.fg} />
+    </View>
+  );
+}
+
+export function Pill({ label, tone = "neutral" }: { label: string; tone?: Tone }) {
+  const t = useTheme();
+  const c = toneColors(t, tone);
+  return (
+    <View
+      style={{
+        alignSelf: "flex-start",
+        backgroundColor: c.bg,
+        borderRadius: radii.pill,
+        paddingHorizontal: 9,
+        paddingVertical: 4,
+      }}
+    >
+      <Text style={{ ...ty.seg, color: c.fg }}>{label}</Text>
+    </View>
+  );
+}
+
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        backgroundColor: t.card2,
+        borderRadius: 11,
+        borderWidth: 1,
+        borderColor: t.line,
+        padding: 3,
+        gap: 2,
+      }}
+    >
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <Pressable
+            key={o.value}
+            onPress={() => onChange(o.value)}
+            style={{
+              flex: 1,
+              alignItems: "center",
+              paddingVertical: 7,
+              borderRadius: 8,
+              backgroundColor: active ? t.card : "transparent",
+            }}
+          >
+            <Text style={{ ...ty.label, color: active ? t.ink : t.sub }}>
+              {o.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** A row inside a grouped Card: icon tile + label + optional count + chevron. */
+export function QueueRow({
+  icon,
+  tone,
+  label,
+  count,
+  countTone = "amber",
+  last = false,
+  disabled = false,
+  onPress,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  tone?: Tone;
+  label: string;
+  count?: number;
+  countTone?: Tone;
+  last?: boolean;
+  disabled?: boolean;
+  onPress?: () => void;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || !onPress}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 13,
+        paddingHorizontal: 14,
+        paddingVertical: 13,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: t.line,
+        opacity: disabled ? 0.55 : 1,
+      }}
+    >
+      <IconTile icon={icon} tone={tone} />
+      <Text style={{ ...ty.body, fontWeight: "600", color: t.ink, flex: 1 }}>
+        {label}
+      </Text>
+      {count !== undefined && count > 0 ? (
+        <Pill label={String(count)} tone={countTone} />
+      ) : null}
+      {disabled ? (
+        <Pill label="Soon" tone="neutral" />
+      ) : (
+        <Feather name="chevron-right" size={18} color={t.sub} />
+      )}
+    </Pressable>
+  );
+}
+
 type ButtonVariant = "primary" | "secondary" | "danger";
 
 export function Button({
@@ -87,18 +277,22 @@ export function Button({
   variant = "primary",
   loading = false,
   disabled = false,
+  style,
 }: {
   title: string;
   onPress: () => void;
   variant?: ButtonVariant;
   loading?: boolean;
   disabled?: boolean;
+  style?: object;
 }) {
   const t = useTheme();
   const bg =
-    variant === "primary" ? t.accent : variant === "danger" ? t.danger : t.card;
+    variant === "primary" ? t.accent : variant === "danger" ? "transparent" : "transparent";
   const fg =
-    variant === "secondary" ? t.ink : variant === "primary" ? t.onAccent : "#FFFFFF";
+    variant === "primary" ? t.onAccent : variant === "danger" ? t.danger : t.ink;
+  const border =
+    variant === "primary" ? "transparent" : variant === "danger" ? t.danger : t.line;
   const isDisabled = disabled || loading;
   return (
     <Pressable
@@ -107,36 +301,34 @@ export function Button({
       style={{
         backgroundColor: bg,
         opacity: isDisabled ? 0.5 : 1,
-        borderRadius: radii.md,
-        borderWidth: variant === "secondary" ? 1 : 0,
-        borderColor: t.line,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: border,
         paddingVertical: 13,
         alignItems: "center",
         justifyContent: "center",
+        ...style,
       }}
     >
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
-        <Text style={[ty.label, { color: fg }]}>{title}</Text>
+        <Text style={{ ...ty.label, fontWeight: "700", color: fg }}>{title}</Text>
       )}
     </Pressable>
   );
 }
 
-export function Field({
-  label,
-  ...props
-}: { label: string } & TextInputProps) {
+export function Field({ label, ...props }: { label: string } & TextInputProps) {
   const t = useTheme();
   return (
     <View style={{ gap: space.xs }}>
-      <Text style={[ty.small, { color: t.sub }]}>{label}</Text>
+      <Text style={{ ...ty.seg, color: t.sub }}>{label}</Text>
       <TextInput
         placeholderTextColor={t.sub}
         style={{
           backgroundColor: t.card,
-          borderRadius: radii.md,
+          borderRadius: 12,
           borderWidth: 1,
           borderColor: t.line,
           paddingHorizontal: space.md,
@@ -150,73 +342,25 @@ export function Field({
   );
 }
 
-type Tone = "neutral" | "amber" | "green" | "danger" | "info";
-
-export function Pill({ label, tone = "neutral" }: { label: string; tone?: Tone }) {
+/** Sticky bottom bar for primary actions (sits outside the scroll view). */
+export function ActionBar({ children }: { children: React.ReactNode }) {
   const t = useTheme();
-  const map: Record<Tone, { bg: string; fg: string }> = {
-    neutral: { bg: t.zincSoft, fg: t.zinc },
-    amber: { bg: t.amberSoft, fg: t.amber },
-    green: { bg: t.accentSoft, fg: t.accentDeep },
-    danger: { bg: t.dangerSoft, fg: t.danger },
-    info: { bg: t.infoSoft, fg: t.info },
-  };
-  const c = map[tone];
+  const insets = useSafeAreaInsets();
   return (
     <View
       style={{
-        alignSelf: "flex-start",
-        backgroundColor: c.bg,
-        borderRadius: radii.pill,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-      }}
-    >
-      <Text style={{ ...ty.seg, color: c.fg }}>{label}</Text>
-    </View>
-  );
-}
-
-export function ListRow({
-  title,
-  subtitle,
-  right,
-  onPress,
-}: {
-  title: string;
-  subtitle?: string;
-  right?: React.ReactNode;
-  onPress: () => void;
-}) {
-  const t = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        backgroundColor: t.card,
-        borderRadius: radii.md,
-        borderWidth: 1,
-        borderColor: t.line,
-        paddingHorizontal: space.lg,
-        paddingVertical: space.md,
         flexDirection: "row",
-        alignItems: "center",
-        gap: space.md,
+        gap: 9,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: insets.bottom + 12,
+        borderTopWidth: 1,
+        borderTopColor: t.line,
+        backgroundColor: t.card,
       }}
     >
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[ty.label, { color: t.ink }]} numberOfLines={1}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text style={[ty.small, { color: t.sub }]} numberOfLines={1}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-      {right}
-      <Feather name="chevron-right" size={18} color={t.sub} />
-    </Pressable>
+      {children}
+    </View>
   );
 }
 
@@ -234,7 +378,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   return (
     <View style={{ padding: space.xl, gap: space.md, alignItems: "center" }}>
       <Feather name="alert-triangle" size={22} color={t.danger} />
-      <Text style={[ty.body, { color: t.ink, textAlign: "center" }]}>{message}</Text>
+      <Text style={{ ...ty.body, color: t.ink, textAlign: "center" }}>{message}</Text>
       {onRetry ? <Button title="Try again" variant="secondary" onPress={onRetry} /> : null}
     </View>
   );
@@ -245,7 +389,7 @@ export function EmptyState({ message }: { message: string }) {
   return (
     <View style={{ padding: space.xxl, alignItems: "center" }}>
       <Feather name="inbox" size={22} color={t.sub} />
-      <Text style={[ty.small, { color: t.sub, marginTop: space.sm }]}>{message}</Text>
+      <Text style={{ ...ty.small, color: t.sub, marginTop: space.sm }}>{message}</Text>
     </View>
   );
 }
