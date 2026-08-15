@@ -153,6 +153,64 @@ type Evidence = (typeof EVIDENCE)[number]["v"];
 type MeatCheck = { finding: Finding; evidence: Evidence };
 type OtherCheck = { label: string; finding: Finding; evidence: Evidence };
 
+/** Equal-width single-select button used in the per-item grids. Aligned rows,
+ *  so nothing wraps into an orphan the way free chips do. */
+function OptBtn({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: active ? t.accent : t.line,
+        backgroundColor: active ? t.accent : t.card,
+      }}
+    >
+      <Text
+        numberOfLines={1}
+        style={{
+          color: active ? t.onAccent : t.ink,
+          fontFamily: "Inter_600SemiBold",
+          fontSize: mockupPx(12),
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** Small uppercase caption that names each question group. */
+function GroupLabel({ children }: { children: string }) {
+  const t = useTheme();
+  return (
+    <Text
+      style={{
+        color: t.sub,
+        fontFamily: "Inter_700Bold",
+        fontSize: mockupPx(9),
+        letterSpacing: 0.8,
+        textTransform: "uppercase",
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
+
 function checkTone(v: CheckVal | undefined, good: CheckVal): "wash" | "danger" | "amber" | "zinc" {
   if (!v) return "zinc";
   if (v === "PARTIAL") return "amber";
@@ -709,7 +767,7 @@ export default function FileVisit() {
 
             <Seg size={mockupPx(10)}>Per-item</Seg>
             <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10), marginBottom: 2 }]}>
-              Tap what staff told you about each meat, then how you know.
+              For each meat, tap what staff told you, then how you know it.
             </Text>
             <Card>
               {MEATS.map((m, mi) => {
@@ -718,37 +776,41 @@ export default function FileVisit() {
                   <View
                     key={m.v}
                     style={{
-                      paddingVertical: 10,
+                      paddingVertical: 14,
                       borderBottomWidth: mi === MEATS.length - 1 ? 0 : 1,
                       borderBottomColor: t.line,
-                      gap: 8,
+                      gap: 12,
                     }}
                   >
-                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{m.label}</Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                      {FINDINGS.map((f) => (
-                        <Chip
-                          key={f.v}
-                          label={f.label}
-                          on={mc?.finding === f.v}
-                          ghost={mc?.finding !== f.v}
-                          size={mockupPx(11)}
-                          onPress={() => setMeatFinding(m.v, f.v)}
-                        />
+                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(13.5) }]}>{m.label}</Text>
+                    <View style={{ gap: 8 }}>
+                      <GroupLabel>Staff said</GroupLabel>
+                      {[FINDINGS.slice(0, 2), FINDINGS.slice(2, 4)].map((rowFs, ri) => (
+                        <View key={ri} style={{ flexDirection: "row", gap: 8 }}>
+                          {rowFs.map((f) => (
+                            <OptBtn
+                              key={f.v}
+                              label={f.label}
+                              active={mc?.finding === f.v}
+                              onPress={() => setMeatFinding(m.v, f.v)}
+                            />
+                          ))}
+                        </View>
                       ))}
                     </View>
                     {mc && mc.finding !== "NOT_SERVED" ? (
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                        {EVIDENCE.map((e) => (
-                          <Chip
-                            key={e.v}
-                            label={e.label}
-                            on={mc.evidence === e.v}
-                            ghost={mc.evidence !== e.v}
-                            size={mockupPx(10.5)}
-                            onPress={() => setMeatEvidence(m.v, e.v)}
-                          />
-                        ))}
+                      <View style={{ gap: 8 }}>
+                        <GroupLabel>How you know</GroupLabel>
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          {EVIDENCE.map((e) => (
+                            <OptBtn
+                              key={e.v}
+                              label={e.label}
+                              active={mc.evidence === e.v}
+                              onPress={() => setMeatEvidence(m.v, e.v)}
+                            />
+                          ))}
+                        </View>
                       </View>
                     ) : null}
                   </View>
@@ -756,45 +818,54 @@ export default function FileVisit() {
               })}
 
               {otherChecks.map((o, i) => (
-                <View key={`other-${i}`} style={{ paddingTop: 12, gap: 8, borderTopWidth: 1, borderTopColor: t.line }}>
+                <View
+                  key={`other-${i}`}
+                  style={{ paddingTop: 14, gap: 12, borderTopWidth: 1, borderTopColor: t.line }}
+                >
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{o.label}</Text>
-                    <Chip label="Remove" ghost size={mockupPx(10)} onPress={() => removeOther(i)} />
+                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(13.5) }]}>{o.label}</Text>
+                    <Pressable onPress={() => removeOther(i)} hitSlop={8}>
+                      <Text style={{ color: t.sub, fontFamily: "Inter_600SemiBold", fontSize: mockupPx(11) }}>Remove</Text>
+                    </Pressable>
                   </View>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                    {FINDINGS.map((f) => (
-                      <Chip
-                        key={f.v}
-                        label={f.label}
-                        on={o.finding === f.v}
-                        ghost={o.finding !== f.v}
-                        size={mockupPx(11)}
-                        onPress={() => patchOther(i, { finding: f.v })}
-                      />
+                  <View style={{ gap: 8 }}>
+                    <GroupLabel>Staff said</GroupLabel>
+                    {[FINDINGS.slice(0, 2), FINDINGS.slice(2, 4)].map((rowFs, ri) => (
+                      <View key={ri} style={{ flexDirection: "row", gap: 8 }}>
+                        {rowFs.map((f) => (
+                          <OptBtn
+                            key={f.v}
+                            label={f.label}
+                            active={o.finding === f.v}
+                            onPress={() => patchOther(i, { finding: f.v })}
+                          />
+                        ))}
+                      </View>
                     ))}
                   </View>
                   {o.finding !== "NOT_SERVED" ? (
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                      {EVIDENCE.map((e) => (
-                        <Chip
-                          key={e.v}
-                          label={e.label}
-                          on={o.evidence === e.v}
-                          ghost={o.evidence !== e.v}
-                          size={mockupPx(10.5)}
-                          onPress={() => patchOther(i, { evidence: e.v })}
-                        />
-                      ))}
+                    <View style={{ gap: 8 }}>
+                      <GroupLabel>How you know</GroupLabel>
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        {EVIDENCE.map((e) => (
+                          <OptBtn
+                            key={e.v}
+                            label={e.label}
+                            active={o.evidence === e.v}
+                            onPress={() => patchOther(i, { evidence: e.v })}
+                          />
+                        ))}
+                      </View>
                     </View>
                   ) : null}
                 </View>
               ))}
 
-              <View style={{ paddingTop: 12, borderTopWidth: 1, borderTopColor: t.line }}>
+              <View style={{ flexDirection: "row", paddingTop: 14, borderTopWidth: 1, borderTopColor: t.line }}>
                 {addingOther ? (
                   <TextInput
-                    style={[field, { paddingVertical: 8 }]}
-                    placeholder="Other item (e.g. duck, lamb chops)"
+                    style={[field, { paddingVertical: 8, flex: 1 }]}
+                    placeholder="Other item (e.g. duck, fish)"
                     placeholderTextColor={t.sub}
                     value={otherDraft}
                     onChangeText={setOtherDraft}
