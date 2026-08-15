@@ -81,7 +81,7 @@ export default function OwnershipRequestDetail() {
   const loc = [r.place.address, r.place.city, r.place.region].filter(Boolean).join(", ");
   const busy = approve.isPending || reject.isPending || evidence.isPending;
 
-  async function submit() {
+  const submit = async () => {
     if (action !== "approve" && !note.trim())
       return Alert.alert("A note is required.");
     try {

@@ -106,14 +106,38 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Muted({ children, style }: { children: React.ReactNode; style?: object }) {
+export function Muted({
+  children,
+  style,
+  numberOfLines,
+}: {
+  children: React.ReactNode;
+  style?: object;
+  numberOfLines?: number;
+}) {
   const t = useTheme();
-  return <Text style={[ty.small, { color: t.sub }, style]}>{children}</Text>;
+  return (
+    <Text numberOfLines={numberOfLines} style={[ty.small, { color: t.sub }, style]}>
+      {children}
+    </Text>
+  );
 }
 
-export function Body({ children, style }: { children: React.ReactNode; style?: object }) {
+export function Body({
+  children,
+  style,
+  numberOfLines,
+}: {
+  children: React.ReactNode;
+  style?: object;
+  numberOfLines?: number;
+}) {
   const t = useTheme();
-  return <Text style={[ty.body, { color: t.ink }, style]}>{children}</Text>;
+  return (
+    <Text numberOfLines={numberOfLines} style={[ty.body, { color: t.ink }, style]}>
+      {children}
+    </Text>
+  );
 }
 
 type Tone = "neutral" | "amber" | "info" | "green" | "danger" | "slate";

@@ -69,7 +69,7 @@ export default function UserDetail() {
   const curActive = active ?? u.is_active;
   const dirty = curRole !== u.role || curActive !== u.is_active;
 
-  async function save() {
+  const save = async () => {
     try {
       await patch.mutateAsync({ id: u.id, payload: { role: curRole, is_active: curActive } });
       router.back();

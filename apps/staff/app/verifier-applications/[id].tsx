@@ -52,7 +52,7 @@ export default function VerifierApplicationDetail() {
     ? Object.entries(a.social_links).filter(([, v]) => Boolean(v))
     : [];
 
-  async function submit() {
+  const submit = async () => {
     if (action === "reject" && !note.trim())
       return Alert.alert("A note is required to reject.");
     try {
