@@ -149,7 +149,7 @@ export function useVerifierApplications(status?: VerifierApplicationStatus | "AL
       apiFetch<VerifierApplicationRead[]>(
         withParams("/admin/verifier-applications", {
           status: status && status !== "ALL" ? status : undefined,
-          limit: 200,
+          limit: 100,
         }),
       ),
   });
@@ -257,7 +257,7 @@ export function useVerificationVisits(status?: string) {
     queryKey: ["verification-visits", "list", status ?? "ALL"],
     queryFn: () =>
       apiFetch<VerificationVisitRead[]>(
-        withParams("/admin/verification-visits", { status, limit: 200 }),
+        withParams("/admin/verification-visits", { status, limit: 100 }),
       ),
   });
 }
