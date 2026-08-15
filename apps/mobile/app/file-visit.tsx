@@ -786,16 +786,23 @@ export default function FileVisit() {
                       <Pressable
                         onPress={() => cycleMeatEvidence(m.v)}
                         style={{
+                          marginHorizontal: 16,
+                          marginTop: 2,
+                          marginBottom: 12,
                           flexDirection: "row",
                           alignItems: "center",
                           justifyContent: "space-between",
-                          gap: 8,
-                          paddingHorizontal: 16,
-                          paddingBottom: 13,
+                          paddingHorizontal: 12,
+                          paddingVertical: 9,
+                          borderRadius: 10,
+                          backgroundColor: t.zincSoft,
                         }}
                       >
                         <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>How you know</Text>
-                        <Tag label={EVIDENCE_LABEL[mc!.evidence]} tone={evidenceTone(mc!.evidence)} size={mockupPx(9)} />
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Tag label={EVIDENCE_LABEL[mc!.evidence]} tone={evidenceTone(mc!.evidence)} size={mockupPx(9)} />
+                          <Feather name="chevron-down" size={mockupPx(13)} color={t.sub} />
+                        </View>
                       </Pressable>
                     ) : null}
                   </View>
@@ -832,16 +839,23 @@ export default function FileVisit() {
                       <Pressable
                         onPress={() => cycleOtherEvidence(i)}
                         style={{
+                          marginHorizontal: 16,
+                          marginTop: 2,
+                          marginBottom: 12,
                           flexDirection: "row",
                           alignItems: "center",
                           justifyContent: "space-between",
-                          gap: 8,
-                          paddingHorizontal: 16,
-                          paddingBottom: 13,
+                          paddingHorizontal: 12,
+                          paddingVertical: 9,
+                          borderRadius: 10,
+                          backgroundColor: t.zincSoft,
                         }}
                       >
                         <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>How you know</Text>
-                        <Tag label={EVIDENCE_LABEL[o.evidence]} tone={evidenceTone(o.evidence)} size={mockupPx(9)} />
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Tag label={EVIDENCE_LABEL[o.evidence]} tone={evidenceTone(o.evidence)} size={mockupPx(9)} />
+                          <Feather name="chevron-down" size={mockupPx(13)} color={t.sub} />
+                        </View>
                       </Pressable>
                     ) : null}
                   </View>
