@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -795,13 +795,14 @@ export default function FileVisit() {
                           paddingHorizontal: 12,
                           paddingVertical: 9,
                           borderRadius: 10,
-                          backgroundColor: t.zincSoft,
+                          borderWidth: 1,
+                          borderColor: t.line,
                         }}
                       >
                         <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>How you know</Text>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                           <Tag label={EVIDENCE_LABEL[mc!.evidence]} tone={evidenceTone(mc!.evidence)} size={mockupPx(9)} />
-                          <Feather name="chevron-down" size={mockupPx(13)} color={t.sub} />
+                          <MaterialCommunityIcons name="gesture-tap" size={mockupPx(15)} color={t.sub} />
                         </View>
                       </Pressable>
                     ) : null}
@@ -848,13 +849,14 @@ export default function FileVisit() {
                           paddingHorizontal: 12,
                           paddingVertical: 9,
                           borderRadius: 10,
-                          backgroundColor: t.zincSoft,
+                          borderWidth: 1,
+                          borderColor: t.line,
                         }}
                       >
                         <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>How you know</Text>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                           <Tag label={EVIDENCE_LABEL[o.evidence]} tone={evidenceTone(o.evidence)} size={mockupPx(9)} />
-                          <Feather name="chevron-down" size={mockupPx(13)} color={t.sub} />
+                          <MaterialCommunityIcons name="gesture-tap" size={mockupPx(15)} color={t.sub} />
                         </View>
                       </Pressable>
                     ) : null}
