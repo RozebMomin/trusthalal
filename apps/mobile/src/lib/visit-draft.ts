@@ -19,6 +19,10 @@ export type VisitDraft = {
   selected: PlaceSearchResult | null;
   ordered: string[];
   checks: Record<string, CheckResult>;
+  // Per-meat findings from the observe step. Optional so drafts saved by a
+  // build before this feature still hydrate cleanly.
+  meatChecks?: Record<string, { finding: string; evidence: string }>;
+  otherChecks?: { label: string; finding: string; evidence: string }[];
   photos: { uri: string; name: string; type: string; tag?: string }[];
   disclosure: VisitDisclosure;
   disclosureNote: string;

@@ -21,7 +21,12 @@ import {
   useSearchPlaces,
   useSubmitVerificationVisit,
 } from "@/lib/api/hooks";
-import type { PlaceSearchResult, VisitDisclosure } from "@/lib/api/types";
+import type {
+  PlaceSearchResult,
+  VerifierMeatCheck,
+  VisitDisclosure,
+  VisitObservations,
+} from "@/lib/api/types";
 import { visitDraft } from "@/lib/visit-draft";
 import { mockupPx, radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -123,6 +128,31 @@ const CHECK_ITEMS = [
 type CheckItem = (typeof CHECK_ITEMS)[number]["label"];
 const CHECK_CYCLE: (CheckVal | undefined)[] = [undefined, "YES", "NO", "PARTIAL"];
 
+// Item-wise findings: the four tracked meats, what staff said, and how well
+// it was backed up. Mirrors the API's VerifierMeatFinding / MeatCheckEvidence.
+const MEATS = [
+  { v: "CHICKEN", label: "Chicken" },
+  { v: "BEEF", label: "Beef" },
+  { v: "LAMB", label: "Lamb" },
+  { v: "GOAT", label: "Goat" },
+] as const;
+type MeatKey = (typeof MEATS)[number]["v"];
+const FINDINGS = [
+  { v: "HAND_CUT", label: "Hand-cut" },
+  { v: "MACHINE_CUT", label: "Machine" },
+  { v: "NOT_SERVED", label: "Not served" },
+  { v: "UNSURE", label: "Unsure" },
+] as const;
+type Finding = (typeof FINDINGS)[number]["v"];
+const EVIDENCE = [
+  { v: "VERBAL", label: "Verbal" },
+  { v: "INVOICE", label: "Invoice" },
+  { v: "CERTIFICATE", label: "Cert" },
+] as const;
+type Evidence = (typeof EVIDENCE)[number]["v"];
+type MeatCheck = { finding: Finding; evidence: Evidence };
+type OtherCheck = { label: string; finding: Finding; evidence: Evidence };
+
 function checkTone(v: CheckVal | undefined, good: CheckVal): "wash" | "danger" | "amber" | "zinc" {
   if (!v) return "zinc";
   if (v === "PARTIAL") return "amber";
@@ -162,6 +192,10 @@ export default function FileVisit() {
   const [addingItem, setAddingItem] = useState(false);
   const [itemDraft, setItemDraft] = useState("");
   const [checks, setChecks] = useState<Partial<Record<CheckItem, CheckVal>>>({});
+  const [meatChecks, setMeatChecks] = useState<Partial<Record<MeatKey, MeatCheck>>>({});
+  const [otherChecks, setOtherChecks] = useState<OtherCheck[]>([]);
+  const [addingOther, setAddingOther] = useState(false);
+  const [otherDraft, setOtherDraft] = useState("");
   const [photos, setPhotos] = useState<VisitPhoto[]>([]);
   // Stamp the visit at open time — shown on the report card and sent as visited_at.
   const [visitedAt] = useState(() => new Date());
@@ -213,11 +247,45 @@ export default function FileVisit() {
       return copy;
     });
 
+  // Per-meat: tapping a finding sets it (default evidence VERBAL); tapping the
+  // same finding again clears the whole meat.
+  const setMeatFinding = (m: MeatKey, f: Finding) =>
+    setMeatChecks((c) => {
+      if (c[m]?.finding === f) {
+        const copy = { ...c };
+        delete copy[m];
+        return copy;
+      }
+      return { ...c, [m]: { finding: f, evidence: c[m]?.evidence ?? "VERBAL" } };
+    });
+  const setMeatEvidence = (m: MeatKey, e: Evidence) =>
+    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m]!, evidence: e } } : c));
+  const addOther = () => {
+    const v = otherDraft.trim();
+    if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "HAND_CUT", evidence: "VERBAL" }]);
+    setOtherDraft("");
+    setAddingOther(false);
+  };
+  const patchOther = (i: number, patch: Partial<OtherCheck>) =>
+    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, ...patch } : o)));
+  const removeOther = (i: number) =>
+    setOtherChecks((xs) => xs.filter((_, j) => j !== i));
+
   // Structured observations for the API — only send when non-empty.
-  const buildObservations = () => {
+  const buildObservations = (): VisitObservations | undefined => {
     const hasChecks = CHECK_ITEMS.some((c) => checks[c.label]);
-    if (!ordered.length && !hasChecks) return undefined;
-    return { ordered_items: ordered, checks: { ...checks } };
+    const meatEntries = Object.entries(meatChecks);
+    const hasMeat = meatEntries.length > 0 || otherChecks.length > 0;
+    if (!ordered.length && !hasChecks && !hasMeat) return undefined;
+    const obs: VisitObservations = {
+      ordered_items: ordered,
+      checks: { ...checks },
+    };
+    if (meatEntries.length) {
+      obs.meat_checks = meatChecks as Record<string, VerifierMeatCheck>;
+    }
+    if (otherChecks.length) obs.other_meat_checks = otherChecks;
+    return obs;
   };
 
   // Scroll a just-focused low input clear of the keyboard. automaticallyAdjust
@@ -239,6 +307,8 @@ export default function FileVisit() {
         setSelected(d.selected ?? null);
         setOrdered(d.ordered ?? []);
         setChecks(d.checks ?? {});
+        setMeatChecks((d.meatChecks ?? {}) as Partial<Record<MeatKey, MeatCheck>>);
+        setOtherChecks((d.otherChecks ?? []) as OtherCheck[]);
         setPhotos(d.photos ?? []);
         setDisclosure(d.disclosure ?? "SELF_FUNDED");
         setDisclosureNote(d.disclosureNote ?? "");
@@ -256,13 +326,15 @@ export default function FileVisit() {
       selected,
       ordered,
       checks,
+      meatChecks,
+      otherChecks,
       photos,
       disclosure,
       disclosureNote,
       notes,
       reviewUrl,
     });
-  }, [step, selected, ordered, checks, photos, disclosure, disclosureNote, notes, reviewUrl]);
+  }, [step, selected, ordered, checks, meatChecks, otherChecks, photos, disclosure, disclosureNote, notes, reviewUrl]);
 
   const typed = query.trim();
   // Text query wins; otherwise fall back to nearby suggestions from the
@@ -633,6 +705,108 @@ export default function FileVisit() {
                   }
                 />
               ))}
+            </Card>
+
+            <Seg size={mockupPx(10)}>Per-item</Seg>
+            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10), marginBottom: 2 }]}>
+              Tap what staff told you about each meat, then how you know.
+            </Text>
+            <Card>
+              {MEATS.map((m, mi) => {
+                const mc = meatChecks[m.v];
+                return (
+                  <View
+                    key={m.v}
+                    style={{
+                      paddingVertical: 10,
+                      borderBottomWidth: mi === MEATS.length - 1 ? 0 : 1,
+                      borderBottomColor: t.line,
+                      gap: 8,
+                    }}
+                  >
+                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{m.label}</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+                      {FINDINGS.map((f) => (
+                        <Chip
+                          key={f.v}
+                          label={f.label}
+                          on={mc?.finding === f.v}
+                          ghost={mc?.finding !== f.v}
+                          size={mockupPx(11)}
+                          onPress={() => setMeatFinding(m.v, f.v)}
+                        />
+                      ))}
+                    </View>
+                    {mc && mc.finding !== "NOT_SERVED" ? (
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+                        {EVIDENCE.map((e) => (
+                          <Chip
+                            key={e.v}
+                            label={e.label}
+                            on={mc.evidence === e.v}
+                            ghost={mc.evidence !== e.v}
+                            size={mockupPx(10.5)}
+                            onPress={() => setMeatEvidence(m.v, e.v)}
+                          />
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+
+              {otherChecks.map((o, i) => (
+                <View key={`other-${i}`} style={{ paddingTop: 12, gap: 8, borderTopWidth: 1, borderTopColor: t.line }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{o.label}</Text>
+                    <Chip label="Remove" ghost size={mockupPx(10)} onPress={() => removeOther(i)} />
+                  </View>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+                    {FINDINGS.map((f) => (
+                      <Chip
+                        key={f.v}
+                        label={f.label}
+                        on={o.finding === f.v}
+                        ghost={o.finding !== f.v}
+                        size={mockupPx(11)}
+                        onPress={() => patchOther(i, { finding: f.v })}
+                      />
+                    ))}
+                  </View>
+                  {o.finding !== "NOT_SERVED" ? (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+                      {EVIDENCE.map((e) => (
+                        <Chip
+                          key={e.v}
+                          label={e.label}
+                          on={o.evidence === e.v}
+                          ghost={o.evidence !== e.v}
+                          size={mockupPx(10.5)}
+                          onPress={() => patchOther(i, { evidence: e.v })}
+                        />
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              ))}
+
+              <View style={{ paddingTop: 12, borderTopWidth: 1, borderTopColor: t.line }}>
+                {addingOther ? (
+                  <TextInput
+                    style={[field, { paddingVertical: 8 }]}
+                    placeholder="Other item (e.g. duck, lamb chops)"
+                    placeholderTextColor={t.sub}
+                    value={otherDraft}
+                    onChangeText={setOtherDraft}
+                    onSubmitEditing={addOther}
+                    onBlur={addOther}
+                    autoFocus
+                    returnKeyType="done"
+                  />
+                ) : (
+                  <Chip label="+ Add other" ghost size={mockupPx(11)} onPress={() => setAddingOther(true)} />
+                )}
+              </View>
             </Card>
 
             <Seg size={mockupPx(10)}>Notes</Seg>

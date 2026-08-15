@@ -295,9 +295,20 @@ export type CheckResult = "YES" | "NO" | "PARTIAL";
 
 /** Lightweight structured observations from the observe step — kept
  *  separate from the heavy owner-style questionnaire. */
+export type VerifierMeatFinding = "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED" | "UNSURE";
+export type MeatCheckEvidence = "VERBAL" | "INVOICE" | "CERTIFICATE";
+export type VerifierMeatCheck = {
+  finding: VerifierMeatFinding;
+  evidence: MeatCheckEvidence;
+  note?: string | null;
+};
+
 export type VisitObservations = {
   ordered_items: string[];
   checks: Record<string, CheckResult>;
+  /** Per-meat findings, keyed by MeatType. Optional; older builds omit it. */
+  meat_checks?: Record<string, VerifierMeatCheck>;
+  other_meat_checks?: Array<VerifierMeatCheck & { label: string }>;
 };
 
 export type VerificationVisitAttachment = {
