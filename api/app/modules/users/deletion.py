@@ -66,6 +66,7 @@ from app.modules.places.photos.storage_cleanup import enqueue_orphans
 from app.modules.reviews.models import PlaceReview
 from app.modules.reviews.repo import recompute_place_review_stats
 from app.modules.users.models import User
+from app.modules.verifiers.models import VerifierApplication
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +235,27 @@ def delete_account(db: Session, *, user_id: UUID) -> DeletionSummary:
         select(PlaceReview).where(PlaceReview.author_user_id == user_id)
     ).scalars().all():
         db.delete(review)
+    db.flush()
+
+    # Verifier applications this user filed. Their user FK is ON DELETE SET
+    # NULL (nullable so anonymous people can apply), so the cascade would
+    # leave them behind as orphaned rows that still carry the email and a
+    # PENDING/APPROVED status — and the apply-again duplicate check is keyed
+    # on email, so those orphans would block a fresh signup from the same
+    # address forever. Delete the ones this user owns; genuinely anonymous
+    # applications (null user) aren't theirs to remove. Must run before the
+    # user delete, which is what nulls the FK. The 1:1 VerifierProfile rides
+    # its own ON DELETE CASCADE.
+    for application in (
+        db.execute(
+            select(VerifierApplication).where(
+                VerifierApplication.applicant_user_id == user_id
+            )
+        )
+        .scalars()
+        .all()
+    ):
+        db.delete(application)
     db.flush()
 
     # Everything else rides the foreign keys.

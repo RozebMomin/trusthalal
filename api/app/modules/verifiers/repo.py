@@ -112,9 +112,14 @@ def submit_application(
         db, email=payload.applicant_email
     )
     if existing_by_email is not None:
+        approved = (
+            existing_by_email.status == VerifierApplicationStatus.APPROVED.value
+        )
         raise ConflictError(
             "VERIFIER_APPLICATION_DUPLICATE",
-            "An application from this email is already pending review.",
+            "This email already has an approved verifier application."
+            if approved
+            else "An application from this email is already pending review.",
         )
 
     application = VerifierApplication(

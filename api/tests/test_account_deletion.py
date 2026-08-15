@@ -19,6 +19,8 @@ from app.modules.places.models import Place, PlacePhoto
 from app.modules.places.photos.storage_cleanup import StorageOrphan
 from app.modules.reviews.models import PlaceReview
 from app.modules.users.models import User
+from app.modules.verifiers.enums import VerifierApplicationStatus
+from app.modules.verifiers.models import VerifierApplication
 
 PASSWORD = "S3cure-passphrase"
 BODY = "Ordered the mixed grill and asked about the chicken; they showed me the certificate."
@@ -62,6 +64,40 @@ def test_deleting_an_account_removes_the_user_and_their_reviews(
     db_session.expire_all()
     assert db_session.get(User, deletable_user.id) is None
     assert db_session.execute(select(PlaceReview)).scalars().all() == []
+
+
+def test_deleting_an_account_removes_its_verifier_applications(
+    api, db_session, deletable_user
+):
+    """A verifier application's user FK is ON DELETE SET NULL, so without an
+    explicit delete the row survives the account carrying the applicant's
+    email and status. The apply-again check is keyed on email + PENDING/
+    APPROVED, so an orphan would block a fresh signup from the same address
+    forever. An APPROVED row is the worst case (it's what got left behind in
+    real use)."""
+    app_row = VerifierApplication(
+        applicant_user_id=deletable_user.id,
+        applicant_email=deletable_user.email,
+        applicant_name="Test Verifier",
+        motivation="I eat at halal restaurants often and want to help verify them.",
+        status=VerifierApplicationStatus.APPROVED.value,
+    )
+    db_session.add(app_row)
+    db_session.commit()
+
+    assert _delete(api, deletable_user.id).status_code == 204
+
+    db_session.expire_all()
+    remaining = (
+        db_session.execute(
+            select(VerifierApplication).where(
+                VerifierApplication.applicant_email == deletable_user.email
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert remaining == []
 
 
 def test_deletion_rolls_back_the_place_rating(
