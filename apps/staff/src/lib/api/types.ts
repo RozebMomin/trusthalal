@@ -358,12 +358,29 @@ export type VerificationVisitAttachment = {
   original_filename: string;
 };
 
+export type VerifierMeatFinding = "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED" | "UNSURE";
+export type MeatCheckEvidence = "VERBAL" | "INVOICE" | "CERTIFICATE";
+
+export type VerifierMeatCheck = {
+  finding: VerifierMeatFinding;
+  evidence: MeatCheckEvidence;
+  note?: string | null;
+};
+
+export type VisitObservations = {
+  ordered_items: string[];
+  checks: Record<string, string>;
+  meat_checks: Record<string, VerifierMeatCheck>;
+  other_meat_checks: Array<VerifierMeatCheck & { label: string }>;
+};
+
 export type VerificationVisitRead = {
   id: string;
   place_id: string;
   place: VisitPlaceSummary | null;
   visited_at: string;
   structured_findings: HalalQuestionnaireDraft | null;
+  observations: VisitObservations | null;
   notes_for_admin: string | null;
   public_review_url: string | null;
   disclosure: VisitDisclosure;

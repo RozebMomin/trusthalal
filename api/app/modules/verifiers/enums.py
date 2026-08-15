@@ -78,6 +78,41 @@ class CheckResult(StrEnum):
     PARTIAL = "PARTIAL"
 
 
+class VerifierMeatFinding(StrEnum):
+    """What staff told the verifier about a single meat, on the spot.
+
+    Mirrors the profile slaughter vocabulary (HAND_CUT / MACHINE_CUT /
+    NOT_SERVED) so a verifier's per-meat finding can be diffed directly
+    against the owner's per-meat claim, plus ``UNSURE`` for when staff
+    gave no clear answer (which is itself a signal, distinct from a
+    blank).
+    """
+
+    HAND_CUT = "HAND_CUT"
+    MACHINE_CUT = "MACHINE_CUT"
+    NOT_SERVED = "NOT_SERVED"
+    UNSURE = "UNSURE"
+
+
+class MeatCheckEvidence(StrEnum):
+    """How well the verifier corroborated a per-meat finding.
+
+    This is the trust ladder for a single visit observation: staff's word
+    is weaker than a supplier invoice, which is weaker than a halal
+    certificate. Maps onto the platform's confidence tiers so a documented
+    or certified finding can carry more weight than a verbal one.
+    """
+
+    VERBAL = "VERBAL"
+    """Staff said so; no document seen."""
+
+    INVOICE = "INVOICE"
+    """Saw a supplier invoice, receipt, or product packaging."""
+
+    CERTIFICATE = "CERTIFICATE"
+    """Saw a current halal certificate for the item."""
+
+
 class VerificationVisitStatus(StrEnum):
     SUBMITTED = "SUBMITTED"
     """Verifier submitted; awaiting admin review."""

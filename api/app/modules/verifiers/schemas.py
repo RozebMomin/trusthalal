@@ -8,10 +8,13 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.modules.halal_claims.schemas import HalalQuestionnaireResponse
+from app.modules.halal_profiles.enums import MeatType
 from app.modules.verifiers.enums import (
     CheckResult,
+    MeatCheckEvidence,
     VerificationVisitStatus,
     VerifierApplicationStatus,
+    VerifierMeatFinding,
     VerifierProfileStatus,
     VisitDisclosure,
 )
@@ -218,6 +221,30 @@ class VerificationVisitAttachmentRead(BaseModel):
     uploaded_at: datetime
 
 
+class VerifierMeatCheck(BaseModel):
+    """A verifier's on-the-spot finding for one meat.
+
+    ``finding`` is what staff said (mirrors the slaughter vocab, plus
+    UNSURE); ``evidence`` is how well it was corroborated. Together they
+    let a visit speak to a *single meat* rather than the whole kitchen,
+    and map onto the confidence tiers so a cert-backed finding outweighs a
+    verbal one.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    finding: VerifierMeatFinding
+    evidence: MeatCheckEvidence = MeatCheckEvidence.VERBAL
+    note: Optional[str] = Field(default=None, max_length=500)
+
+
+class VerifierOtherMeatCheck(VerifierMeatCheck):
+    """A per-item finding for something outside the four tracked meats
+    (duck, fish, a specific dish), labelled free-text by the verifier."""
+
+    label: str = Field(..., min_length=1, max_length=100)
+
+
 class VisitObservations(BaseModel):
     """Lightweight structured observations a verifier logs on the spot.
 
@@ -240,6 +267,24 @@ class VisitObservations(BaseModel):
             "Prompt → YES/NO/PARTIAL. Keys are the check labels shown in "
             "the app (e.g. 'Halal cert visible on premises')."
         ),
+    )
+    # Item-wise findings: the verifier asks staff about each meat and records
+    # what they were told + how well it was backed up. Keyed by MeatType for
+    # the four tracked meats (CHICKEN/BEEF/LAMB/GOAT); anything else goes in
+    # ``other_meat_checks`` with a free-text label. Empty when the verifier
+    # only did the blanket ``checks`` above — additive, so pre-existing visits
+    # and older app builds that omit it stay valid.
+    meat_checks: dict[MeatType, VerifierMeatCheck] = Field(
+        default_factory=dict,
+        description=(
+            "Per-meat finding keyed by MeatType. What staff said about each "
+            "meat, plus the evidence level behind it."
+        ),
+    )
+    other_meat_checks: list[VerifierOtherMeatCheck] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Per-item findings for meats/dishes outside the four tracked.",
     )
 
 

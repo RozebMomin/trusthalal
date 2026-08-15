@@ -40,6 +40,28 @@ const ALCOHOL: Record<string, string> = {
   BEER_AND_WINE_ONLY: "Beer and wine only",
   FULL_BAR: "Full bar",
 };
+const FINDING_LABEL: Record<string, string> = {
+  HAND_CUT: "Hand-cut",
+  MACHINE_CUT: "Machine-cut",
+  NOT_SERVED: "Not served",
+  UNSURE: "Unsure",
+};
+function findingTone(f: string): "green" | "amber" | "neutral" {
+  if (f === "HAND_CUT") return "green";
+  if (f === "UNSURE") return "amber";
+  return "neutral";
+}
+const EVIDENCE_LABEL: Record<string, string> = {
+  VERBAL: "verbal",
+  INVOICE: "invoice seen",
+  CERTIFICATE: "cert seen",
+};
+const MEAT_LABEL: Record<string, string> = {
+  CHICKEN: "Chicken",
+  BEEF: "Beef",
+  LAMB: "Lamb",
+  GOAT: "Goat",
+};
 
 type Action = "accept" | "reject" | null;
 
@@ -143,6 +165,45 @@ export default function VisitDetail() {
             </Card>
           </View>
         ) : null}
+
+        {(() => {
+          const mc = v.observations?.meat_checks ?? {};
+          const other = v.observations?.other_meat_checks ?? [];
+          const rows = [
+            ...Object.entries(mc).map(([meat, c]) => ({ key: meat, label: MEAT_LABEL[meat] ?? meat, c })),
+            ...other.map((o, i) => ({ key: `other-${i}`, label: o.label, c: o })),
+          ];
+          if (rows.length === 0) return null;
+          return (
+            <View>
+              <SectionLabel>Per-item findings</SectionLabel>
+              <Card padded={false} style={{ paddingHorizontal: space.lg }}>
+                {rows.map((r, i) => (
+                  <View
+                    key={r.key}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      paddingVertical: 12,
+                      borderBottomWidth: i === rows.length - 1 ? 0 : 1,
+                      borderBottomColor: t.line,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ ...ty.label, color: t.ink }}>{r.label}</Text>
+                      {r.c.finding !== "NOT_SERVED" ? (
+                        <Muted style={{ marginTop: 2 }}>{EVIDENCE_LABEL[r.c.evidence] ?? r.c.evidence}</Muted>
+                      ) : null}
+                    </View>
+                    <Pill label={FINDING_LABEL[r.c.finding] ?? r.c.finding} tone={findingTone(r.c.finding)} />
+                  </View>
+                ))}
+              </Card>
+            </View>
+          );
+        })()}
 
         {v.notes_for_admin ? (
           <View>
