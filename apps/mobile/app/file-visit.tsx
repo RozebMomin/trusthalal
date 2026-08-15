@@ -128,8 +128,8 @@ const CHECK_ITEMS = [
 type CheckItem = (typeof CHECK_ITEMS)[number]["label"];
 const CHECK_CYCLE: (CheckVal | undefined)[] = [undefined, "YES", "NO", "PARTIAL"];
 
-// Item-wise findings: the four tracked meats, what staff said, and how well
-// it was backed up. Mirrors the API's VerifierMeatFinding / MeatCheckEvidence.
+// Item-wise findings: the four tracked meats, what staff said, and the evidence
+// behind it. Captured with the same tap-to-cycle Tag idiom as the Checks card.
 const MEATS = [
   { v: "CHICKEN", label: "Chicken" },
   { v: "BEEF", label: "Beef" },
@@ -137,121 +137,39 @@ const MEATS = [
   { v: "GOAT", label: "Goat" },
 ] as const;
 type MeatKey = (typeof MEATS)[number]["v"];
-const FINDINGS = [
-  { v: "HAND_CUT", label: "Hand-cut" },
-  { v: "MACHINE_CUT", label: "Machine" },
-  { v: "NOT_SERVED", label: "Not served" },
-  { v: "UNSURE", label: "Unsure" },
-] as const;
-type Finding = (typeof FINDINGS)[number]["v"];
-const EVIDENCE = [
-  { v: "VERBAL", label: "Verbal" },
-  { v: "INVOICE", label: "Invoice" },
-  { v: "CERTIFICATE", label: "Cert" },
-] as const;
-type Evidence = (typeof EVIDENCE)[number]["v"];
+
+type Finding = "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED" | "UNSURE";
+const FINDING_LABEL: Record<Finding, string> = {
+  HAND_CUT: "Hand-cut",
+  MACHINE_CUT: "Machine",
+  NOT_SERVED: "Not served",
+  UNSURE: "Unsure",
+};
+// Tap cycles through these; undefined = cleared (matches the Checks card).
+const FINDING_CYCLE: (Finding | undefined)[] = [
+  undefined,
+  "HAND_CUT",
+  "MACHINE_CUT",
+  "NOT_SERVED",
+  "UNSURE",
+];
+// Neutral for a recorded method (the label carries the fact); amber flags
+// "unsure" as needing follow-up.
+const findingTone = (f: Finding): "zinc" | "amber" => (f === "UNSURE" ? "amber" : "zinc");
+
+type Evidence = "VERBAL" | "INVOICE" | "CERTIFICATE";
+const EVIDENCE_LABEL: Record<Evidence, string> = {
+  VERBAL: "Verbal",
+  INVOICE: "Invoice",
+  CERTIFICATE: "Cert",
+};
+const EVIDENCE_CYCLE: Evidence[] = ["VERBAL", "INVOICE", "CERTIFICATE"];
+// Evidence strengthens verbal -> invoice -> cert; the tag colour tracks it.
+const evidenceTone = (e: Evidence): "zinc" | "wash" | "solid" =>
+  e === "CERTIFICATE" ? "solid" : e === "INVOICE" ? "wash" : "zinc";
+
 type MeatCheck = { finding: Finding; evidence: Evidence };
 type OtherCheck = { label: string; finding: Finding; evidence: Evidence };
-
-/** Equal-width single-select button used in the per-item grids. Aligned rows,
- *  so nothing wraps into an orphan the way free chips do. */
-function OptBtn({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const t = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 9,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: active ? t.accent : t.line,
-        backgroundColor: active ? t.accent : t.card,
-      }}
-    >
-      <Text
-        numberOfLines={1}
-        style={{
-          color: active ? t.onAccent : t.ink,
-          fontFamily: "Inter_600SemiBold",
-          fontSize: mockupPx(11.5),
-        }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-/** Small uppercase caption that names each question group. */
-function GroupLabel({ children }: { children: string }) {
-  const t = useTheme();
-  return (
-    <Text
-      style={{
-        color: t.sub,
-        fontFamily: "Inter_700Bold",
-        fontSize: mockupPx(9),
-        letterSpacing: 0.8,
-        textTransform: "uppercase",
-      }}
-    >
-      {children}
-    </Text>
-  );
-}
-
-/** The two labelled groups for one item: "Staff said" (2x2 method grid) and,
- *  once a method is picked, "How you know" (evidence row). Shared by the four
- *  tracked meats and the free-text "other" rows so spacing never drifts. */
-function MeatFindingGroups({
-  finding,
-  evidence,
-  onFinding,
-  onEvidence,
-}: {
-  finding: Finding | undefined;
-  evidence: Evidence | undefined;
-  onFinding: (f: Finding) => void;
-  onEvidence: (e: Evidence) => void;
-}) {
-  return (
-    <>
-      <View style={{ gap: 6 }}>
-        <GroupLabel>Staff said</GroupLabel>
-        <View style={{ gap: 7 }}>
-          {[FINDINGS.slice(0, 2), FINDINGS.slice(2, 4)].map((rowFs, ri) => (
-            <View key={ri} style={{ flexDirection: "row", gap: 7 }}>
-              {rowFs.map((f) => (
-                <OptBtn key={f.v} label={f.label} active={finding === f.v} onPress={() => onFinding(f.v)} />
-              ))}
-            </View>
-          ))}
-        </View>
-      </View>
-      {finding && finding !== "NOT_SERVED" ? (
-        <View style={{ gap: 6 }}>
-          <GroupLabel>How you know</GroupLabel>
-          <View style={{ flexDirection: "row", gap: 7 }}>
-            {EVIDENCE.map((e) => (
-              <OptBtn key={e.v} label={e.label} active={evidence === e.v} onPress={() => onEvidence(e.v)} />
-            ))}
-          </View>
-        </View>
-      ) : null}
-    </>
-  );
-}
 
 function checkTone(v: CheckVal | undefined, good: CheckVal): "wash" | "danger" | "amber" | "zinc" {
   if (!v) return "zinc";
@@ -347,29 +265,54 @@ export default function FileVisit() {
       return copy;
     });
 
-  // Per-meat: tapping a finding sets it (default evidence VERBAL); tapping the
-  // same finding again clears the whole meat.
-  const setMeatFinding = (m: MeatKey, f: Finding) =>
+  // Per-meat: tap the row to cycle the method (…→ hand-cut → machine → not
+  // served → unsure → cleared); tap the sub-line to cycle the evidence.
+  const cycleMeatFinding = (m: MeatKey) =>
     setMeatChecks((c) => {
-      if (c[m]?.finding === f) {
+      const i = FINDING_CYCLE.indexOf(c[m]?.finding);
+      const next = FINDING_CYCLE[(i + 1) % FINDING_CYCLE.length];
+      if (!next) {
         const copy = { ...c };
         delete copy[m];
         return copy;
       }
-      return { ...c, [m]: { finding: f, evidence: c[m]?.evidence ?? "VERBAL" } };
+      return { ...c, [m]: { finding: next, evidence: c[m]?.evidence ?? "VERBAL" } };
     });
-  const setMeatEvidence = (m: MeatKey, e: Evidence) =>
-    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m]!, evidence: e } } : c));
+  const cycleMeatEvidence = (m: MeatKey) =>
+    setMeatChecks((c) => {
+      const cur = c[m];
+      if (!cur) return c;
+      const i = EVIDENCE_CYCLE.indexOf(cur.evidence);
+      return { ...c, [m]: { ...cur, evidence: EVIDENCE_CYCLE[(i + 1) % EVIDENCE_CYCLE.length] } };
+    });
+
   const addOther = () => {
     const v = otherDraft.trim();
     if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "HAND_CUT", evidence: "VERBAL" }]);
     setOtherDraft("");
     setAddingOther(false);
   };
-  const patchOther = (i: number, patch: Partial<OtherCheck>) =>
-    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, ...patch } : o)));
   const removeOther = (i: number) =>
     setOtherChecks((xs) => xs.filter((_, j) => j !== i));
+  // "Other" rows always carry a method (Remove deletes them), so their cycle
+  // skips the cleared state.
+  const OTHER_FINDING_CYCLE: Finding[] = ["HAND_CUT", "MACHINE_CUT", "NOT_SERVED", "UNSURE"];
+  const cycleOtherFinding = (i: number) =>
+    setOtherChecks((xs) =>
+      xs.map((o, j) => {
+        if (j !== i) return o;
+        const k = OTHER_FINDING_CYCLE.indexOf(o.finding);
+        return { ...o, finding: OTHER_FINDING_CYCLE[(k + 1) % OTHER_FINDING_CYCLE.length] };
+      }),
+    );
+  const cycleOtherEvidence = (i: number) =>
+    setOtherChecks((xs) =>
+      xs.map((o, j) => {
+        if (j !== i) return o;
+        const k = EVIDENCE_CYCLE.indexOf(o.evidence);
+        return { ...o, evidence: EVIDENCE_CYCLE[(k + 1) % EVIDENCE_CYCLE.length] };
+      }),
+    );
 
   // Structured observations for the API — only send when non-empty.
   const buildObservations = (): VisitObservations | undefined => {
@@ -809,53 +752,103 @@ export default function FileVisit() {
 
             <Seg size={mockupPx(10)}>Per-item</Seg>
             <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10), marginBottom: 2 }]}>
-              For each meat, tap what staff told you, then how you know it.
+              Tap a meat to log what staff said; tap again to change or clear.
             </Text>
             <Card>
               {MEATS.map((m, mi) => {
                 const mc = meatChecks[m.v];
+                const showEv = Boolean(mc) && mc!.finding !== "NOT_SERVED";
                 return (
                   <View
                     key={m.v}
-                    style={{
-                      paddingVertical: 13,
-                      borderBottomWidth: mi === MEATS.length - 1 ? 0 : 1,
-                      borderBottomColor: t.line,
-                      gap: 10,
-                    }}
+                    style={{ borderBottomWidth: mi === MEATS.length - 1 ? 0 : 1, borderBottomColor: t.line }}
                   >
-                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(13) }]}>{m.label}</Text>
-                    <MeatFindingGroups
-                      finding={mc?.finding}
-                      evidence={mc?.evidence}
-                      onFinding={(f) => setMeatFinding(m.v, f)}
-                      onEvidence={(e) => setMeatEvidence(m.v, e)}
-                    />
+                    <Pressable
+                      onPress={() => cycleMeatFinding(m.v)}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        paddingHorizontal: 16,
+                        paddingTop: 13,
+                        paddingBottom: showEv ? 6 : 13,
+                      }}
+                    >
+                      <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{m.label}</Text>
+                      {mc ? (
+                        <Tag label={FINDING_LABEL[mc.finding]} tone={findingTone(mc.finding)} size={mockupPx(9.5)} />
+                      ) : (
+                        <Tag label="TAP" tone="dashed" size={mockupPx(9.5)} />
+                      )}
+                    </Pressable>
+                    {showEv ? (
+                      <Pressable
+                        onPress={() => cycleMeatEvidence(m.v)}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          paddingHorizontal: 16,
+                          paddingBottom: 13,
+                        }}
+                      >
+                        <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>How you know</Text>
+                        <Tag label={EVIDENCE_LABEL[mc!.evidence]} tone={evidenceTone(mc!.evidence)} size={mockupPx(9)} />
+                      </Pressable>
+                    ) : null}
                   </View>
                 );
               })}
 
-              {otherChecks.map((o, i) => (
-                <View
-                  key={`other-${i}`}
-                  style={{ paddingVertical: 13, gap: 10, borderTopWidth: 1, borderTopColor: t.line }}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(13) }]}>{o.label}</Text>
-                    <Pressable onPress={() => removeOther(i)} hitSlop={8}>
-                      <Text style={{ color: t.sub, fontFamily: "Inter_600SemiBold", fontSize: mockupPx(11) }}>Remove</Text>
+              {otherChecks.map((o, i) => {
+                const showEv = o.finding !== "NOT_SERVED";
+                return (
+                  <View key={`other-${i}`} style={{ borderTopWidth: 1, borderTopColor: t.line }}>
+                    <Pressable
+                      onPress={() => cycleOtherFinding(i)}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        paddingHorizontal: 16,
+                        paddingTop: 13,
+                        paddingBottom: showEv ? 6 : 13,
+                      }}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                        <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]} numberOfLines={1}>
+                          {o.label}
+                        </Text>
+                        <Pressable onPress={() => removeOther(i)} hitSlop={8}>
+                          <Text style={{ color: t.sub, fontFamily: "Inter_600SemiBold", fontSize: mockupPx(10) }}>Remove</Text>
+                        </Pressable>
+                      </View>
+                      <Tag label={FINDING_LABEL[o.finding]} tone={findingTone(o.finding)} size={mockupPx(9.5)} />
                     </Pressable>
+                    {showEv ? (
+                      <Pressable
+                        onPress={() => cycleOtherEvidence(i)}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          paddingHorizontal: 16,
+                          paddingBottom: 13,
+                        }}
+                      >
+                        <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>How you know</Text>
+                        <Tag label={EVIDENCE_LABEL[o.evidence]} tone={evidenceTone(o.evidence)} size={mockupPx(9)} />
+                      </Pressable>
+                    ) : null}
                   </View>
-                  <MeatFindingGroups
-                    finding={o.finding}
-                    evidence={o.evidence}
-                    onFinding={(f) => patchOther(i, { finding: f })}
-                    onEvidence={(e) => patchOther(i, { evidence: e })}
-                  />
-                </View>
-              ))}
+                );
+              })}
 
-              <View style={{ flexDirection: "row", paddingTop: 13, borderTopWidth: 1, borderTopColor: t.line }}>
+              <View style={{ flexDirection: "row", paddingHorizontal: 16, paddingVertical: 13, borderTopWidth: 1, borderTopColor: t.line }}>
                 {addingOther ? (
                   <TextInput
                     style={[field, { paddingVertical: 8, flex: 1 }]}
