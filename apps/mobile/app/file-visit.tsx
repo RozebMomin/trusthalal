@@ -172,8 +172,8 @@ function OptBtn({
         flex: 1,
         alignItems: "center",
         justifyContent: "center",
-        paddingVertical: 10,
-        borderRadius: 12,
+        paddingVertical: 9,
+        borderRadius: 10,
         borderWidth: 1,
         borderColor: active ? t.accent : t.line,
         backgroundColor: active ? t.accent : t.card,
@@ -184,7 +184,7 @@ function OptBtn({
         style={{
           color: active ? t.onAccent : t.ink,
           fontFamily: "Inter_600SemiBold",
-          fontSize: mockupPx(12),
+          fontSize: mockupPx(11.5),
         }}
       >
         {label}
@@ -208,6 +208,48 @@ function GroupLabel({ children }: { children: string }) {
     >
       {children}
     </Text>
+  );
+}
+
+/** The two labelled groups for one item: "Staff said" (2x2 method grid) and,
+ *  once a method is picked, "How you know" (evidence row). Shared by the four
+ *  tracked meats and the free-text "other" rows so spacing never drifts. */
+function MeatFindingGroups({
+  finding,
+  evidence,
+  onFinding,
+  onEvidence,
+}: {
+  finding: Finding | undefined;
+  evidence: Evidence | undefined;
+  onFinding: (f: Finding) => void;
+  onEvidence: (e: Evidence) => void;
+}) {
+  return (
+    <>
+      <View style={{ gap: 6 }}>
+        <GroupLabel>Staff said</GroupLabel>
+        <View style={{ gap: 7 }}>
+          {[FINDINGS.slice(0, 2), FINDINGS.slice(2, 4)].map((rowFs, ri) => (
+            <View key={ri} style={{ flexDirection: "row", gap: 7 }}>
+              {rowFs.map((f) => (
+                <OptBtn key={f.v} label={f.label} active={finding === f.v} onPress={() => onFinding(f.v)} />
+              ))}
+            </View>
+          ))}
+        </View>
+      </View>
+      {finding && finding !== "NOT_SERVED" ? (
+        <View style={{ gap: 6 }}>
+          <GroupLabel>How you know</GroupLabel>
+          <View style={{ flexDirection: "row", gap: 7 }}>
+            {EVIDENCE.map((e) => (
+              <OptBtn key={e.v} label={e.label} active={evidence === e.v} onPress={() => onEvidence(e.v)} />
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -776,43 +818,19 @@ export default function FileVisit() {
                   <View
                     key={m.v}
                     style={{
-                      paddingVertical: 14,
+                      paddingVertical: 13,
                       borderBottomWidth: mi === MEATS.length - 1 ? 0 : 1,
                       borderBottomColor: t.line,
-                      gap: 12,
+                      gap: 10,
                     }}
                   >
-                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(13.5) }]}>{m.label}</Text>
-                    <View style={{ gap: 8 }}>
-                      <GroupLabel>Staff said</GroupLabel>
-                      {[FINDINGS.slice(0, 2), FINDINGS.slice(2, 4)].map((rowFs, ri) => (
-                        <View key={ri} style={{ flexDirection: "row", gap: 8 }}>
-                          {rowFs.map((f) => (
-                            <OptBtn
-                              key={f.v}
-                              label={f.label}
-                              active={mc?.finding === f.v}
-                              onPress={() => setMeatFinding(m.v, f.v)}
-                            />
-                          ))}
-                        </View>
-                      ))}
-                    </View>
-                    {mc && mc.finding !== "NOT_SERVED" ? (
-                      <View style={{ gap: 8 }}>
-                        <GroupLabel>How you know</GroupLabel>
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          {EVIDENCE.map((e) => (
-                            <OptBtn
-                              key={e.v}
-                              label={e.label}
-                              active={mc.evidence === e.v}
-                              onPress={() => setMeatEvidence(m.v, e.v)}
-                            />
-                          ))}
-                        </View>
-                      </View>
-                    ) : null}
+                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(13) }]}>{m.label}</Text>
+                    <MeatFindingGroups
+                      finding={mc?.finding}
+                      evidence={mc?.evidence}
+                      onFinding={(f) => setMeatFinding(m.v, f)}
+                      onEvidence={(e) => setMeatEvidence(m.v, e)}
+                    />
                   </View>
                 );
               })}
@@ -820,48 +838,24 @@ export default function FileVisit() {
               {otherChecks.map((o, i) => (
                 <View
                   key={`other-${i}`}
-                  style={{ paddingTop: 14, gap: 12, borderTopWidth: 1, borderTopColor: t.line }}
+                  style={{ paddingVertical: 13, gap: 10, borderTopWidth: 1, borderTopColor: t.line }}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(13.5) }]}>{o.label}</Text>
+                    <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(13) }]}>{o.label}</Text>
                     <Pressable onPress={() => removeOther(i)} hitSlop={8}>
                       <Text style={{ color: t.sub, fontFamily: "Inter_600SemiBold", fontSize: mockupPx(11) }}>Remove</Text>
                     </Pressable>
                   </View>
-                  <View style={{ gap: 8 }}>
-                    <GroupLabel>Staff said</GroupLabel>
-                    {[FINDINGS.slice(0, 2), FINDINGS.slice(2, 4)].map((rowFs, ri) => (
-                      <View key={ri} style={{ flexDirection: "row", gap: 8 }}>
-                        {rowFs.map((f) => (
-                          <OptBtn
-                            key={f.v}
-                            label={f.label}
-                            active={o.finding === f.v}
-                            onPress={() => patchOther(i, { finding: f.v })}
-                          />
-                        ))}
-                      </View>
-                    ))}
-                  </View>
-                  {o.finding !== "NOT_SERVED" ? (
-                    <View style={{ gap: 8 }}>
-                      <GroupLabel>How you know</GroupLabel>
-                      <View style={{ flexDirection: "row", gap: 8 }}>
-                        {EVIDENCE.map((e) => (
-                          <OptBtn
-                            key={e.v}
-                            label={e.label}
-                            active={o.evidence === e.v}
-                            onPress={() => patchOther(i, { evidence: e.v })}
-                          />
-                        ))}
-                      </View>
-                    </View>
-                  ) : null}
+                  <MeatFindingGroups
+                    finding={o.finding}
+                    evidence={o.evidence}
+                    onFinding={(f) => patchOther(i, { finding: f })}
+                    onEvidence={(e) => patchOther(i, { evidence: e })}
+                  />
                 </View>
               ))}
 
-              <View style={{ flexDirection: "row", paddingTop: 14, borderTopWidth: 1, borderTopColor: t.line }}>
+              <View style={{ flexDirection: "row", paddingTop: 13, borderTopWidth: 1, borderTopColor: t.line }}>
                 {addingOther ? (
                   <TextInput
                     style={[field, { paddingVertical: 8, flex: 1 }]}
