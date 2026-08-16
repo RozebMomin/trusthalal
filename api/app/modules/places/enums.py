@@ -266,3 +266,32 @@ class PlaceEventType(StrEnum):
     REVIEW_POSTED = "REVIEW_POSTED"
     REVIEW_REPLIED = "REVIEW_REPLIED"
     REVIEW_REMOVED = "REVIEW_REMOVED"
+
+    # De-listing: a reason-required, reversible removal that leaves a public
+    # tombstone (distinct from the plain DELETED junk/duplicate soft-delete).
+    # Cross-writes to the halal profile timeline too, so consumers see it.
+    DELISTED = "DELISTED"
+    RELISTED = "RELISTED"
+
+
+class DelistReason(StrEnum):
+    """Why a place was de-listed. Presence of a reason on a soft-deleted
+    place is the discriminator between a public tombstone (de-listed for
+    cause) and a silent junk/duplicate delete (reason is NULL).
+
+    Stored as a plain VARCHAR (no DB CHECK), so adding values is a
+    code-only change.
+    """
+
+    NOT_HALAL = "NOT_HALAL"
+    """Verified not to serve halal food — the headline case. Shown to
+    consumers as 'Removed — verified not to serve halal food.'"""
+
+    PERMANENTLY_CLOSED = "PERMANENTLY_CLOSED"
+    """The restaurant has closed for good."""
+
+    FRAUDULENT = "FRAUDULENT"
+    """The listing or its halal claim was fraudulent."""
+
+    OTHER = "OTHER"
+    """Anything else — the de-list note carries the specifics."""

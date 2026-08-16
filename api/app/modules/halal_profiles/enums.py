@@ -187,3 +187,11 @@ class HalalProfileEventType(StrEnum):
     last_verified_at refreshed to the visit's visited_at. The
     related visit id is stashed in the event description (we don't
     have a dedicated FK column for verification_visit refs)."""
+
+    DELISTED = "DELISTED"
+    """The place was de-listed (removed from the platform for cause —
+    e.g. verified not halal). Mirrors the place-level DELISTED event so
+    the removal shows on the consumer trust timeline."""
+
+    RELISTED = "RELISTED"
+    """A previously de-listed place was restored to the platform."""

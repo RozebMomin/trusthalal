@@ -10,7 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
+  DELIST_REASON_LABELS,
   type ConsumerDisputeAdminRead,
+  type DelistReason,
   type HalalClaimAdminRead,
   type PlaceAdminRead,
   type PlaceEventRead,
@@ -33,10 +35,12 @@ import { HalalClaimStatusBadge } from "@/components/halal-claim-status-badge";
 
 import { CreateRequestDialog } from "../../ownership-requests/_components/create-request-dialog";
 import { SourcingLinksSection } from "./_components/sourcing-links";
+import { DelistPlaceDialog } from "../_components/delist-place-dialog";
 import { DeletePlaceDialog } from "../_components/delete-place-dialog";
 import { PlaceEventBadge } from "../_components/event-badge";
 import { LinkGoogleDialog } from "../_components/link-google-dialog";
 import { PlaceEditDialog } from "../_components/place-edit-dialog";
+import { RelistPlaceDialog } from "../_components/relist-place-dialog";
 import { RestorePlaceDialog } from "../_components/restore-place-dialog";
 import { RevokeOwnerDialog } from "../_components/revoke-owner-dialog";
 import { UnlinkProviderDialog } from "../_components/unlink-provider-dialog";
@@ -76,6 +80,8 @@ export default function PlaceDetailPage() {
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [restoreOpen, setRestoreOpen] = React.useState(false);
+  const [delistOpen, setDelistOpen] = React.useState(false);
+  const [relistOpen, setRelistOpen] = React.useState(false);
   const [linkOpen, setLinkOpen] = React.useState(false);
 
   return (
@@ -92,17 +98,35 @@ export default function PlaceDetailPage() {
             <h1 className="text-3xl font-bold tracking-tight">
               {isLoading ? <Skeleton className="h-8 w-64" /> : place?.name}
             </h1>
-            {place?.is_deleted && (
+            {place?.delist_reason ? (
+              // De-listed *for cause* (a public tombstone), distinct from
+              // the plain junk/duplicate soft-delete. Give it its own
+              // prominent badge naming the reason.
               <Badge
                 variant="destructive"
                 title={
-                  place.deleted_at
-                    ? `Deleted ${formatTimestamp(place.deleted_at)}`
+                  place.delist_note
+                    ? `De-list note: ${place.delist_note}`
                     : undefined
                 }
               >
-                Deleted
+                De-listed:{" "}
+                {DELIST_REASON_LABELS[place.delist_reason as DelistReason] ??
+                  place.delist_reason}
               </Badge>
+            ) : (
+              place?.is_deleted && (
+                <Badge
+                  variant="destructive"
+                  title={
+                    place.deleted_at
+                      ? `Deleted ${formatTimestamp(place.deleted_at)}`
+                      : undefined
+                  }
+                >
+                  Deleted
+                </Badge>
+              )
             )}
           </div>
           {place?.address && (
@@ -132,6 +156,8 @@ export default function PlaceDetailPage() {
             onEdit={() => setEditOpen(true)}
             onDelete={() => setDeleteOpen(true)}
             onRestore={() => setRestoreOpen(true)}
+            onDelist={() => setDelistOpen(true)}
+            onRelist={() => setRelistOpen(true)}
             onLinkGoogle={() => setLinkOpen(true)}
           />
         )}
@@ -178,6 +204,16 @@ export default function PlaceDetailPage() {
             open={restoreOpen}
             onOpenChange={setRestoreOpen}
           />
+          <DelistPlaceDialog
+            place={place}
+            open={delistOpen}
+            onOpenChange={setDelistOpen}
+          />
+          <RelistPlaceDialog
+            place={place}
+            open={relistOpen}
+            onOpenChange={setRelistOpen}
+          />
           <LinkGoogleDialog
             place={place}
             open={linkOpen}
@@ -194,12 +230,16 @@ function PlaceActions({
   onEdit,
   onDelete,
   onRestore,
+  onDelist,
+  onRelist,
   onLinkGoogle,
 }: {
   place: PlaceAdminRead;
   onEdit: () => void;
   onDelete: () => void;
   onRestore: () => void;
+  onDelist: () => void;
+  onRelist: () => void;
   onLinkGoogle: () => void;
 }) {
   // "Link to Google" is a retroactive operation for places that were
@@ -218,6 +258,22 @@ function PlaceActions({
       {showLinkToGoogle && (
         <Button size="sm" variant="outline" onClick={onLinkGoogle}>
           Link to Google
+        </Button>
+      )}
+      {/*
+        De-list / Re-list is a separate axis from the plain Delete /
+        Restore below: de-listing removes the place *for cause* and
+        leaves a public tombstone, whereas delete is for junk/dupes.
+        A place carrying a non-null delist_reason is de-listed, offer
+        Re-list; otherwise offer De-list.
+      */}
+      {place.delist_reason ? (
+        <Button size="sm" variant="outline" onClick={onRelist}>
+          Re-list
+        </Button>
+      ) : (
+        <Button size="sm" variant="destructive" onClick={onDelist}>
+          De-list
         </Button>
       )}
       {place.is_deleted ? (

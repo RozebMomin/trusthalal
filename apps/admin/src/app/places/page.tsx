@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/table";
 import { ApiError } from "@/lib/api/client";
 import {
+  DELIST_REASON_LABELS,
+  type DelistReason,
   type PlacesOrderBy,
   useAdminPlaceCountries,
   useAdminPlaces,
@@ -248,10 +250,30 @@ export default function PlacesPage() {
                       >
                         {row.name}
                       </Link>
-                      {row.is_deleted && (
-                        <Badge variant="destructive" className="shrink-0">
-                          Deleted
+                      {row.delist_reason ? (
+                        // De-listed *for cause* (public tombstone), a
+                        // distinct state from the plain junk/duplicate
+                        // soft-delete, so give it its own badge.
+                        <Badge
+                          variant="warning"
+                          className="shrink-0"
+                          title={
+                            row.delist_note
+                              ? `De-list note: ${row.delist_note}`
+                              : undefined
+                          }
+                        >
+                          De-listed:{" "}
+                          {DELIST_REASON_LABELS[
+                            row.delist_reason as DelistReason
+                          ] ?? row.delist_reason}
                         </Badge>
+                      ) : (
+                        row.is_deleted && (
+                          <Badge variant="destructive" className="shrink-0">
+                            Deleted
+                          </Badge>
+                        )
                       )}
                     </div>
                   </TableCell>

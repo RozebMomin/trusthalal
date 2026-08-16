@@ -83,7 +83,62 @@ export type OrganizationPlaceOwnerRead =
 export type OrganizationSummaryAdmin =
   components["schemas"]["OrganizationSummaryAdmin"];
 export type PlaceAdminPatch = components["schemas"]["PlaceAdminPatch"];
-export type PlaceAdminRead = components["schemas"]["PlaceAdminRead"];
+
+/**
+ * Reason a place was de-listed *for cause* (a public "tombstone"),
+ * distinct from a plain junk/duplicate soft-delete. Mirrors the server's
+ * ``DelistReason`` enum. Human labels live in ``DELIST_REASON_LABELS``.
+ */
+export type DelistReason =
+  | "NOT_HALAL"
+  | "PERMANENTLY_CLOSED"
+  | "FRAUDULENT"
+  | "OTHER";
+
+/** DelistReason → operator-facing label. Reused across the detail
+ * page, the de-list/re-list dialogs, the resolve dialog, and the
+ * places list badge. */
+export const DELIST_REASON_LABELS: Record<DelistReason, string> = {
+  NOT_HALAL: "Not halal (verified)",
+  PERMANENTLY_CLOSED: "Permanently closed",
+  FRAUDULENT: "Fraudulent",
+  OTHER: "Other",
+};
+
+/**
+ * The four DelistReason options with the longer, more explicit labels
+ * the de-list dialog's select shows (the brief calls for a fuller
+ * "Fraudulent listing/claim" wording in the picker, vs the terse badge
+ * label above). Order is intentional: most-common first.
+ */
+export const DELIST_REASON_OPTIONS: ReadonlyArray<{
+  value: DelistReason;
+  label: string;
+}> = [
+  { value: "NOT_HALAL", label: "Not halal (verified)" },
+  { value: "PERMANENTLY_CLOSED", label: "Permanently closed" },
+  { value: "FRAUDULENT", label: "Fraudulent listing/claim" },
+  { value: "OTHER", label: "Other" },
+];
+
+// Layered onto the generated PlaceAdminRead pending the next codegen
+// pass (same pattern as the org-address extras above). The server's
+// PlaceAdminRead now also carries the de-list-for-cause fields; drop
+// this intersection once ``make export-openapi && npm run codegen``
+// picks them up. ``delist_reason`` non-null ⇒ de-listed for cause.
+type _PlaceDelistExtras = {
+  delist_reason?: DelistReason | null;
+  delist_note?: string | null;
+};
+export type PlaceAdminRead =
+  components["schemas"]["PlaceAdminRead"] & _PlaceDelistExtras;
+
+/** POST /admin/places/{id}/delist. Reason is required. */
+export type PlaceDelistRequest = { reason: DelistReason; note?: string | null };
+
+/** POST /admin/places/{id}/relist. Note is optional. */
+export type PlaceRelistRequest = { note?: string | null };
+
 export type PlaceDeleteRequest = components["schemas"]["PlaceDeleteRequest"];
 export type PlaceDetail = components["schemas"]["PlaceDetail"];
 export type PlaceEventRead = components["schemas"]["PlaceEventRead"];
@@ -507,6 +562,55 @@ export function useRestorePlace() {
         ? { reason: trimmed }
         : undefined;
       return apiFetch<void>(`/admin/places/${args.id}/restore`, {
+        method: "POST",
+        json: payload,
+      });
+    },
+    onSuccess: () => {
+      void invalidatePlaces(qc);
+    },
+  });
+}
+
+/**
+ * De-list a place *for cause* (a public tombstone), distinct from the
+ * plain junk/duplicate soft-delete above. ``reason`` is required; the
+ * optional ``note`` lands on the audit event. Returns the updated
+ * PlaceAdminRead (now carrying ``delist_reason`` / ``delist_note``).
+ */
+export function useDelistPlace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      id: string;
+      reason: DelistReason;
+      note?: string | null;
+    }) => {
+      const note = args.note?.trim() || null;
+      const payload: PlaceDelistRequest = { reason: args.reason, note };
+      return apiFetch<PlaceAdminRead>(`/admin/places/${args.id}/delist`, {
+        method: "POST",
+        json: payload,
+      });
+    },
+    onSuccess: () => {
+      void invalidatePlaces(qc);
+    },
+  });
+}
+
+/**
+ * Re-list a place that was de-listed for cause, clearing the tombstone.
+ * ``note`` is optional (audit context). Server 409s with
+ * ``PLACE_NOT_DELISTED`` if the place isn't currently de-listed.
+ */
+export function useRelistPlace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; note?: string | null }) => {
+      const note = args.note?.trim() || null;
+      const payload: PlaceRelistRequest = { note };
+      return apiFetch<PlaceAdminRead>(`/admin/places/${args.id}/relist`, {
         method: "POST",
         json: payload,
       });
@@ -1507,6 +1611,13 @@ export type ConsumerDisputeAdminRead = {
 export type DisputeResolve = {
   decision: "RESOLVED_UPHELD" | "RESOLVED_DISMISSED";
   admin_decision_note?: string | null;
+  /**
+   * When present, the place is de-listed for cause in the same action.
+   * Only valid alongside a ``RESOLVED_UPHELD`` decision, the server
+   * 409s with ``DISPUTE_DELIST_REQUIRES_UPHELD`` if sent with
+   * ``RESOLVED_DISMISSED``.
+   */
+  delist?: { reason: DelistReason; note?: string | null } | null;
 };
 
 /** POST /admin/disputes/{id}/request-owner-reconciliation. */

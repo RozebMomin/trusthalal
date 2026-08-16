@@ -26,10 +26,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
+  DELIST_REASON_OPTIONS,
   type ConsumerDisputeAdminRead,
+  type DelistReason,
   useResolveDispute,
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -66,6 +75,11 @@ export function ResolveDialog({
 }) {
   const [decision, setDecision] = React.useState<Decision>("RESOLVED_DISMISSED");
   const [note, setNote] = React.useState<string>("");
+  // Optional "also de-list" side-effect, only valid on the UPHELD path.
+  const [delistEnabled, setDelistEnabled] = React.useState(false);
+  const [delistReason, setDelistReason] =
+    React.useState<DelistReason>("NOT_HALAL");
+  const [delistNote, setDelistNote] = React.useState<string>("");
   const { toast } = useToast();
   const resolve = useResolveDispute();
 
@@ -73,8 +87,19 @@ export function ResolveDialog({
     if (open) {
       setDecision("RESOLVED_DISMISSED");
       setNote("");
+      setDelistEnabled(false);
+      setDelistReason("NOT_HALAL");
+      setDelistNote("");
     }
   }, [open, dispute.id]);
+
+  // The de-list side-effect is UPHELD-only (server 409s otherwise).
+  // Clear it the moment the admin flips back to DISMISSED so a stale
+  // toggle can't ride along in the payload.
+  const isUpheld = decision === "RESOLVED_UPHELD";
+  React.useEffect(() => {
+    if (!isUpheld) setDelistEnabled(false);
+  }, [isUpheld]);
 
   // Server requires a non-trivial note on DISMISSED (the consumer
   // sees it as the explanation). UPHELD keeps the note optional,
@@ -93,6 +118,13 @@ export function ResolveDialog({
         payload: {
           decision,
           admin_decision_note: note.trim() || null,
+          // Only ride the de-list side-effect on the UPHELD path; the
+          // effect that clears it on DISMISSED keeps this in sync, but
+          // guard on isUpheld too so the payload can't drift.
+          delist:
+            isUpheld && delistEnabled
+              ? { reason: delistReason, note: delistNote.trim() || null }
+              : undefined,
         },
       });
       toast({
@@ -118,6 +150,11 @@ export function ResolveDialog({
             title: "Bad decision",
             description:
               "Decision must be uphold or dismiss. This is a panel/server contract drift.",
+          },
+          DISPUTE_DELIST_REQUIRES_UPHELD: {
+            title: "De-list needs an upheld decision",
+            description:
+              "You can only de-list the place when upholding the dispute. Switch to Uphold or clear the de-list option.",
           },
         },
       });
@@ -201,6 +238,75 @@ export function ResolveDialog({
                 </p>
               )}
             </div>
+
+            {/*
+              Optional de-list side-effect, UPHELD-only. When the admin
+              upholds a report that means the place shouldn't be on the
+              platform (not halal, closed, fraudulent), they can de-list
+              it in the same action instead of a second trip to the place
+              page.
+            */}
+            {isUpheld && (
+              <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={delistEnabled}
+                    onChange={(e) => setDelistEnabled(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      Also de-list this place (remove from platform)
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Leaves a public tombstone explaining why. Use for
+                      places that shouldn&apos;t be listed at all, not just
+                      a data correction.
+                    </p>
+                  </div>
+                </label>
+
+                {delistEnabled && (
+                  <div className="space-y-3 pl-7">
+                    <div className="space-y-2">
+                      <Label htmlFor="resolve-delist-reason">
+                        De-list reason
+                      </Label>
+                      <Select
+                        value={delistReason}
+                        onValueChange={(v) =>
+                          setDelistReason(v as DelistReason)
+                        }
+                      >
+                        <SelectTrigger id="resolve-delist-reason">
+                          <SelectValue placeholder="Pick a reason" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DELIST_REASON_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="resolve-delist-note">
+                        De-list note (optional)
+                      </Label>
+                      <Textarea
+                        id="resolve-delist-note"
+                        value={delistNote}
+                        onChange={(e) => setDelistNote(e.target.value)}
+                        placeholder="Optional context saved on the audit event."
+                        maxLength={500}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter className="mt-6">

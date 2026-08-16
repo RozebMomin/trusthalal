@@ -14,7 +14,9 @@ from app.modules.organizations.models import (
     OrganizationMember,
     PlaceOwner,
 )
-from app.modules.places.enums import ExternalIdProvider, PlaceEventType
+from app.modules.halal_profiles.enums import HalalProfileEventType
+from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
+from app.modules.places.enums import DelistReason, ExternalIdProvider, PlaceEventType
 from app.modules.places.models import Place, PlaceEvent, PlaceExternalId
 from app.modules.places.repo import (
     LIKE_ESCAPE,
@@ -410,6 +412,154 @@ def admin_restore_place(
 
     db.add(place)
     db.commit()
+
+
+def _log_profile_event(
+    db: Session,
+    *,
+    place_id: UUID,
+    event_type: HalalProfileEventType,
+    actor_user_id: UUID | None,
+    description: str,
+) -> None:
+    """Mirror a place-level milestone onto the halal-profile timeline so it
+    shows on the consumer-facing verification history. No-op when the place
+    has no profile (nothing for consumers to see there yet)."""
+    profile = db.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place_id)
+    ).scalar_one_or_none()
+    if profile is None:
+        return
+    db.add(
+        HalalProfileEvent(
+            profile_id=profile.id,
+            event_type=event_type.value,
+            actor_user_id=actor_user_id,
+            description=description,
+        )
+    )
+
+
+def admin_delist_place(
+    db: Session,
+    *,
+    place_id: UUID,
+    reason: DelistReason,
+    note: str | None = None,
+    actor_user_id: UUID | None = None,
+) -> Place:
+    """De-list a place: a reason-required, reversible removal that leaves a
+    public tombstone (unlike the plain junk/duplicate soft-delete).
+
+    Reuses the soft-delete columns but additionally sets ``delist_reason`` /
+    ``delist_note`` — the reason's presence is what drives the tombstone
+    instead of a 404. Writes both a place-timeline event and a
+    halal-profile-timeline event (so consumers see the removal).
+    """
+    place: Place | None = get_place(db, place_id, include_deleted=True)
+    if not place:
+        raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
+
+    trimmed = note.strip() if isinstance(note, str) else None
+    place.is_deleted = True
+    place.deleted_at = datetime.now(timezone.utc)
+    if actor_user_id is not None and hasattr(place, "deleted_by_user_id"):
+        place.deleted_by_user_id = actor_user_id
+    place.delist_reason = reason.value
+    place.delist_note = trimmed
+
+    label = _DELIST_REASON_LABEL.get(reason, reason.value)
+    # Admin timeline: full detail including the free-text note.
+    message = f"Place de-listed. Reason: {label}"
+    if trimmed:
+        message = f"{message} — {trimmed}"
+    # Consumer timeline: reason label only — the note may hold internal
+    # specifics, so it never crosses to the public profile history.
+    public_desc = f"Removed from platform. {label}."
+
+    log_place_event(
+        db,
+        place_id=place_id,
+        event_type=PlaceEventType.DELISTED,
+        actor_user_id=actor_user_id,
+        message=message,
+    )
+    _log_profile_event(
+        db,
+        place_id=place_id,
+        event_type=HalalProfileEventType.DELISTED,
+        actor_user_id=actor_user_id,
+        description=public_desc,
+    )
+
+    db.add(place)
+    db.commit()
+    db.refresh(place)
+    return place
+
+
+def admin_relist_place(
+    db: Session,
+    *,
+    place_id: UUID,
+    note: str | None = None,
+    actor_user_id: UUID | None = None,
+) -> Place:
+    """Reverse a de-list: restore the place and clear the de-list reason/note.
+
+    Idempotent-ish: a place that isn't currently de-listed for cause raises,
+    so the admin gets a clear signal rather than a silent no-op that logs a
+    misleading 'restored' row.
+    """
+    place: Place | None = get_place(db, place_id, include_deleted=True)
+    if not place:
+        raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
+    if place.delist_reason is None:
+        raise ConflictError(
+            "PLACE_NOT_DELISTED",
+            "This place is not currently de-listed.",
+        )
+
+    place.is_deleted = False
+    place.deleted_at = None
+    if hasattr(place, "deleted_by_user_id"):
+        place.deleted_by_user_id = None
+    place.delist_reason = None
+    place.delist_note = None
+
+    trimmed = note.strip() if isinstance(note, str) else None
+    message = "Place re-listed"
+    if trimmed:
+        message = f"{message}. {trimmed}"
+
+    log_place_event(
+        db,
+        place_id=place_id,
+        event_type=PlaceEventType.RELISTED,
+        actor_user_id=actor_user_id,
+        message=message,
+    )
+    _log_profile_event(
+        db,
+        place_id=place_id,
+        event_type=HalalProfileEventType.RELISTED,
+        actor_user_id=actor_user_id,
+        description="Re-listed on the platform.",
+    )
+
+    db.add(place)
+    db.commit()
+    db.refresh(place)
+    return place
+
+
+# Human labels for de-list reasons, used in audit messages.
+_DELIST_REASON_LABEL: dict[DelistReason, str] = {
+    DelistReason.NOT_HALAL: "Verified not to serve halal food",
+    DelistReason.PERMANENTLY_CLOSED: "Permanently closed",
+    DelistReason.FRAUDULENT: "Fraudulent listing or claim",
+    DelistReason.OTHER: "Other",
+}
 
 
 # ---------------------------------------------------------------------------

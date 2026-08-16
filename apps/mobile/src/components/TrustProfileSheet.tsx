@@ -38,6 +38,8 @@ const EVENT_LABELS: Record<string, string> = {
   DISPUTE_RESOLVED: "Dispute resolved",
   REVOKED: "Revoked",
   RESTORED: "Restored",
+  DELISTED: "Removed from platform",
+  RELISTED: "Re-listed",
 };
 
 const EVENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -50,7 +52,52 @@ const EVENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   DISPUTE_RESOLVED: "check-circle",
   REVOKED: "x-circle",
   RESTORED: "rotate-ccw",
+  DELISTED: "slash",
+  RELISTED: "refresh-cw",
 };
+
+/** Public-safe labels for a dispute's category, shown on DISPUTE_* rows. */
+const DISPUTE_CATEGORY_LABELS: Record<string, string> = {
+  PORK_SERVED: "Pork concern",
+  ALCOHOL_PRESENT: "Alcohol concern",
+  MENU_POSTURE_INCORRECT: "Menu accuracy",
+  SLAUGHTER_METHOD_INCORRECT: "Slaughter method",
+  CERTIFICATION_INVALID: "Certification",
+  PLACE_CLOSED: "Closed",
+  OTHER: "Other",
+};
+
+/** How a resolved dispute was decided. */
+const DISPUTE_OUTCOME_LABELS: Record<string, string> = {
+  UPHELD: "upheld",
+  DISMISSED: "dismissed",
+  WITHDRAWN: "withdrawn",
+};
+
+/** The secondary line under a history row's title, when the event carries one:
+ *  the public-safe reason for a de-list/re-list, or the category (+ outcome)
+ *  behind a dispute. Everything else has no detail line. */
+function eventDetail(event: HalalHistoryEvent): string | null {
+  const category = event.dispute_category
+    ? (DISPUTE_CATEGORY_LABELS[event.dispute_category] ?? event.dispute_category)
+    : null;
+  switch (event.event_type) {
+    case "DELISTED":
+    case "RELISTED":
+      return event.description ?? null;
+    case "DISPUTE_OPENED":
+      return category;
+    case "DISPUTE_RESOLVED": {
+      const outcome = event.dispute_outcome
+        ? (DISPUTE_OUTCOME_LABELS[event.dispute_outcome] ?? event.dispute_outcome)
+        : null;
+      const parts = [category, outcome].filter(Boolean) as string[];
+      return parts.length ? parts.join(", ") : (event.description ?? null);
+    }
+    default:
+      return null;
+  }
+}
 
 function methodLabel(m: string | null | undefined): string | null {
   if (!m || m === "NOT_SERVED") return null;
@@ -67,12 +114,26 @@ function monthYear(iso: string | null | undefined): string {
 /** Expanded trust profile — mockup 23. Full per-meat sourcing, kitchen,
  *  certificate (with View cert), and verification history. Opened as a
  *  full-screen modal from the place detail's "Details ›". */
-export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onClose: () => void }) {
+export function TrustProfileSheet({
+  place,
+  onClose,
+  scrollTo,
+}: {
+  place: PlaceDetail;
+  onClose: () => void;
+  /** Open scrolled straight to a section. "history" jumps past the profile to
+   *  the verification timeline — used by the place screen's "Trust history"
+   *  entry point, whose whole promise is that row. */
+  scrollTo?: "history";
+}) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const p = place.halal_profile;
-  const history = useHalalHistory(place.id, true);
   const [certOpen, setCertOpen] = useState(false);
+  // Y offset of the history section within the scroll content, captured on
+  // layout so `scrollTo="history"` can jump to it once the content is measured.
+  const scrollRef = useRef<ScrollView>(null);
+  const historyY = useRef(0);
 
   // Slide in from the right (a push, matching the "Details ›" arrow), and
   // slide back out before unmounting. Modal itself is instant + transparent;
@@ -144,7 +205,10 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={{ paddingTop: space.md, paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.xl }}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={{ paddingTop: space.md, paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.xl }}
+        >
           {p ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <TierTag signal={primaryHalalSignal(p)} />
@@ -232,18 +296,19 @@ export function TrustProfileSheet({ place, onClose }: { place: PlaceDetail; onCl
             <Text style={[ty.body, { color: t.sub }]}>No halal profile yet.</Text>
           )}
 
-          <Text style={[ty.seg, { color: t.sub, fontSize: 15, letterSpacing: 0.4, marginBottom: 12, marginLeft: 2 }]}>Verification history</Text>
-          {history.isLoading ? (
-            <Text style={[ty.small, { color: t.sub }]}>Loading…</Text>
-          ) : (history.data?.length ?? 0) === 0 ? (
-            <Text style={[ty.small, { color: t.sub }]}>No recorded changes yet.</Text>
-          ) : (
-            <View style={{ backgroundColor: t.card, borderRadius: radii.xl, paddingHorizontal: 18 }}>
-              {history.data!.map((e, i) => (
-                <HistoryRow key={i} event={e} last={i === history.data!.length - 1} />
-              ))}
-            </View>
-          )}
+          <View
+            onLayout={(e) => {
+              historyY.current = e.nativeEvent.layout.y;
+              if (scrollTo === "history") {
+                // Nudge past the header divider so the section title sits clear
+                // of the pinned header once we land on it.
+                scrollRef.current?.scrollTo({ y: Math.max(0, historyY.current - space.md), animated: true });
+              }
+            }}
+          >
+            <Text style={[ty.seg, { color: t.sub, fontSize: 15, letterSpacing: 0.4, marginBottom: 12, marginLeft: 2 }]}>Verification history</Text>
+            <HalalHistoryTimeline placeId={place.id} />
+          </View>
         </ScrollView>
       </Animated.View>
 
@@ -307,12 +372,38 @@ function Pill({ label, tone = "accent" }: { label: string; tone?: "accent" | "zi
   );
 }
 
+/** The verification-history timeline as a self-contained card. Fetches its own
+ *  data so it can be dropped anywhere the place id is known — inside the
+ *  expanded profile sheet, and on the tombstone screen where it's the only
+ *  thing explaining the removal. */
+export function HalalHistoryTimeline({ placeId }: { placeId: string }) {
+  const t = useTheme();
+  const history = useHalalHistory(placeId, true);
+
+  if (history.isLoading) {
+    return <Text style={[ty.small, { color: t.sub }]}>Loading…</Text>;
+  }
+  if ((history.data?.length ?? 0) === 0) {
+    return <Text style={[ty.small, { color: t.sub }]}>No recorded changes yet.</Text>;
+  }
+  return (
+    <View style={{ backgroundColor: t.card, borderRadius: radii.xl, paddingHorizontal: 18 }}>
+      {history.data!.map((e, i) => (
+        <HistoryRow key={i} event={e} last={i === history.data!.length - 1} />
+      ))}
+    </View>
+  );
+}
+
 /** One verification-history line: leading avatar (verifier visit) or event
- *  icon, a title (with the handle highlighted for visits), and the month on
- *  the right — matching the mockup's card rows. */
+ *  icon, a title (with the handle highlighted for visits), an optional detail
+ *  line (de-list reason, dispute category/outcome), and the month on the right
+ *  — matching the mockup's card rows. A removal (DELISTED) is drawn in the
+ *  danger colour so it never reads as a routine change. */
 function HistoryRow({ event, last }: { event: HalalHistoryEvent; last: boolean }) {
   const t = useTheme();
   const isVisit = event.event_type === "VERIFIER_VISIT";
+  const isRemoval = event.event_type === "DELISTED";
   const handle = event.actor_handle;
   const initial = (event.actor_display_name ?? event.actor_handle ?? "")
     .trim()
@@ -320,11 +411,12 @@ function HistoryRow({ event, last }: { event: HalalHistoryEvent; last: boolean }
     .charAt(0)
     .toUpperCase();
   const date = new Date(event.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" });
+  const detail = eventDetail(event);
 
   return (
     <View
       style={{
-        flexDirection: "row", alignItems: "center", gap: 12,
+        flexDirection: "row", alignItems: detail ? "flex-start" : "center", gap: 12,
         paddingVertical: 15, borderBottomWidth: last ? 0 : 1, borderBottomColor: t.line,
       }}
     >
@@ -337,8 +429,8 @@ function HistoryRow({ event, last }: { event: HalalHistoryEvent; last: boolean }
           )}
         </View>
       ) : (
-        <View style={{ width: 30, alignItems: "center" }}>
-          <Feather name={EVENT_ICONS[event.event_type] ?? "activity"} size={17} color={t.sub} />
+        <View style={{ width: 30, alignItems: "center", marginTop: detail ? 1 : 0 }}>
+          <Feather name={EVENT_ICONS[event.event_type] ?? "activity"} size={17} color={isRemoval ? t.danger : t.sub} />
         </View>
       )}
       <View style={{ flex: 1 }}>
@@ -347,10 +439,22 @@ function HistoryRow({ event, last }: { event: HalalHistoryEvent; last: boolean }
             Visit by <Text style={{ color: t.accentDeep, fontFamily: "Inter_700Bold" }}>{handle}</Text>
           </Text>
         ) : (
-          <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 15 }]}>
+          <Text
+            style={[
+              ty.body,
+              {
+                color: isRemoval ? t.danger : t.ink,
+                fontFamily: isRemoval ? "Inter_700Bold" : "Inter_600SemiBold",
+                fontSize: 15,
+              },
+            ]}
+          >
             {EVENT_LABELS[event.event_type] ?? event.event_type}
           </Text>
         )}
+        {detail ? (
+          <Text style={[ty.small, { color: t.sub, fontSize: 13, marginTop: 2, lineHeight: 18 }]}>{detail}</Text>
+        ) : null}
       </View>
       <Text style={[ty.small, { color: t.sub, fontSize: 13 }]}>{date}</Text>
     </View>

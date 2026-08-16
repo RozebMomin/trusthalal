@@ -104,14 +104,58 @@ export type MeatProduct = {
   certifying_authority: string | null;
 };
 
+/** Every kind of entry the halal-history timeline can carry. Kept as a union
+ *  (not a bare string) so the label/icon maps in TrustProfileSheet are checked
+ *  against the real set and a new backend event type surfaces as a type error
+ *  rather than silently falling through to the "activity" default. */
+export type HalalHistoryEventType =
+  | "PROFILE_CREATED"
+  | "PROFILE_UPDATED"
+  | "CLAIM_SUBMITTED"
+  | "CLAIM_APPROVED"
+  | "VERIFIER_VISIT"
+  | "EXPIRED"
+  | "REVOKED"
+  | "RESTORED"
+  | "DISPUTE_OPENED"
+  | "DISPUTE_RESOLVED"
+  | "DELISTED"
+  | "RELISTED";
+
+/** What a diner reported when opening a dispute. Public-safe labels live in
+ *  TrustProfileSheet; the raw code rides on DISPUTE_* history events. */
+export type DisputeCategory =
+  | "PORK_SERVED"
+  | "ALCOHOL_PRESENT"
+  | "MENU_POSTURE_INCORRECT"
+  | "SLAUGHTER_METHOD_INCORRECT"
+  | "CERTIFICATION_INVALID"
+  | "PLACE_CLOSED"
+  | "OTHER";
+
+/** How a dispute closed — carried on DISPUTE_RESOLVED only. */
+export type DisputeOutcome = "UPHELD" | "DISMISSED" | "WITHDRAWN";
+
+/** Why a place was removed from the platform (tombstone). Non-null on the
+ *  place read means the listing is a tombstone: no profile, no photos. */
+export type DelistReason =
+  | "NOT_HALAL"
+  | "PERMANENTLY_CLOSED"
+  | "FRAUDULENT"
+  | "OTHER";
+
 export type HalalHistoryEvent = {
-  event_type: string;
+  event_type: HalalHistoryEventType;
   description: string | null;
   created_at: string;
   /** Who the event is attributed to — drives the avatar + "Visit by @handle"
    *  line. Optional until the API populates it. */
   actor_display_name?: string | null;
   actor_handle?: string | null;
+  /** Set on DISPUTE_OPENED / DISPUTE_RESOLVED — what the concern was about. */
+  dispute_category?: DisputeCategory | null;
+  /** Set on DISPUTE_RESOLVED only — how it was decided. */
+  dispute_outcome?: DisputeOutcome | null;
 };
 
 export type PlaceSearchResult = {
@@ -169,6 +213,13 @@ export type PlacePhoto = {
 
 export type PlaceDetail = PlaceSearchResult & {
   is_deleted: boolean;
+  /** Non-null when the place was removed FOR CAUSE — a tombstone. The read
+   *  then carries a null `halal_profile` and empty `photos`; render the
+   *  removal state (see app/places/[id].tsx) instead of the normal body.
+   *  Optional so fixtures and older cached payloads stay valid. */
+  delist_reason?: DelistReason | null;
+  /** When the place was de-listed. Null unless `delist_reason` is set. */
+  delisted_at?: string | null;
   phone: string | null;
   /** IANA timezone (from Google) — used to compute "today" in the
    *  place's own timezone for the weekly hours highlight. */

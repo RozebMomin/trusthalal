@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, require_roles
 from app.modules.notifications.events import notify_dispute_resolved
-from app.core.exceptions import BadRequestError, NotFoundError
+from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
 from app.core.storage import StorageClient, StorageError, get_storage_client
 from app.db.deps import get_db
 from app.modules.admin.disputes.schemas import (
@@ -31,6 +31,8 @@ from app.modules.admin.disputes.schemas import (
     DisputeRequestReconciliation,
     DisputeResolve,
 )
+from app.modules.admin.places.repo import admin_delist_place
+from app.modules.disputes.enums import DisputeStatus
 from app.modules.disputes.models import ConsumerDisputeAttachment
 from app.modules.disputes.repo import (
     admin_get_dispute,
@@ -122,6 +124,12 @@ def resolve_dispute_admin(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> ConsumerDisputeAdminRead:
+    if payload.delist is not None and payload.decision != DisputeStatus.RESOLVED_UPHELD:
+        raise ConflictError(
+            "DISPUTE_DELIST_REQUIRES_UPHELD",
+            "A place can only be de-listed when the dispute is upheld.",
+        )
+
     dispute = admin_resolve_dispute(
         db,
         dispute_id=dispute_id,
@@ -129,6 +137,17 @@ def resolve_dispute_admin(
         decision=payload.decision,
         admin_decision_note=payload.admin_decision_note,
     )
+    # Escalation: de-list the place in the same action when requested. Runs
+    # after the resolve commits — if it fails, the dispute is still resolved
+    # and the admin can de-list manually from the place page.
+    if payload.delist is not None:
+        admin_delist_place(
+            db,
+            place_id=dispute.place_id,
+            reason=payload.delist.reason,
+            note=payload.delist.note,
+            actor_user_id=user.id,
+        )
     notify_dispute_resolved(
         background,
         db,

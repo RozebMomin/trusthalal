@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.modules.places.enums import ExternalIdProvider
+from app.modules.places.enums import DelistReason, ExternalIdProvider
 
 
 # Upper bound on a single bulk preview/import batch. Deliberately small: the
@@ -43,6 +43,11 @@ class PlaceAdminRead(BaseModel):
     lng: float
     is_deleted: bool
     deleted_at: datetime | None = None
+    # De-list state. A soft-deleted place with a non-NULL ``delist_reason`` is
+    # a public tombstone (removed for cause), vs a plain junk delete (NULL).
+    # Lets the admin UI show "De-listed: <reason>" and offer Re-list.
+    delist_reason: DelistReason | None = None
+    delist_note: str | None = None
 
     # Canonical address fields — nullable until a provider ingest populates them.
     city: str | None = None
@@ -382,6 +387,38 @@ class PlaceRestoreRequest(BaseModel):
         ),
     )
 
+
+class PlaceDelistRequest(BaseModel):
+    """De-list a place for cause — leaves a public tombstone.
+
+    Distinct from soft-delete: a ``reason`` is *required* (it drives the
+    consumer-facing tombstone copy), and an optional free-text ``note`` adds
+    specifics. Reversible via the re-list endpoint.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: DelistReason = Field(
+        ...,
+        description=(
+            "Why the place is being removed. Drives the public tombstone "
+            "message (e.g. NOT_HALAL renders 'verified not to serve halal "
+            "food')."
+        ),
+    )
+    note: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Optional specifics, surfaced on the place event history.",
+    )
+
+
+class PlaceRelistRequest(BaseModel):
+    """Reverse a de-list. Optional note flows into the RELISTED event."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: str | None = Field(default=None, max_length=1000)
 
 
 class PlaceEventRead(BaseModel):

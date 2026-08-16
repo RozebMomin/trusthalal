@@ -36,7 +36,7 @@
  * on ``useParams``.
  */
 
-import { ChevronDown, ChevronLeft, ChevronUp, Clock, ExternalLink, Flag, Globe, MapPin, Phone } from "lucide-react";
+import { AlertOctagon, ChevronDown, ChevronLeft, ChevronUp, Clock, ExternalLink, Flag, Globe, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -54,12 +54,14 @@ import {
   PlaceNoTrustSummary,
   PlaceTrustSummary,
 } from "@/components/place-trust-summary";
+import { PlaceTrustHistory } from "@/components/place-trust-history";
 import { PreferenceMatchBanner } from "@/components/preference-match-banner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import {
   type ConsumerDisputeReporter,
+  type DelistReason,
   type DisputeStatus,
   type DisputedAttribute,
   type PlaceDetail,
@@ -234,7 +236,14 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
 
       {place.error && <PlaceError error={place.error as Error} />}
 
-      {place.data && (
+      {/* De-listed for cause → tombstone. Suppress the normal trust / claim /
+          review / order surfaces; the removal banner plus the trust history
+          (which explains the removal) is the whole page. */}
+      {place.data && place.data.delist_reason != null && (
+        <PlaceTombstone place={place.data} placeId={placeId} />
+      )}
+
+      {place.data && place.data.delist_reason == null && (
         <>
           <PlaceHero
             place={place.data}
@@ -310,6 +319,11 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
             </div>
           </div>
 
+          {/* Public trust-history timeline. Full-width below the two columns,
+              visible to everyone including signed-out visitors. Hides itself
+              when the place has no history yet. */}
+          <PlaceTrustHistory placeId={placeId} />
+
           <FileDisputeDialog
             placeId={placeId}
             placeName={place.data.name}
@@ -334,6 +348,92 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
 // ---------------------------------------------------------------------------
 // Sub-sections
 // ---------------------------------------------------------------------------
+
+/**
+ * Tombstone for a place removed *for cause*. Rendered instead of the normal
+ * page body when the read carries a non-null ``delist_reason``.
+ *
+ * We keep a plain name / address header (no hero photo — a de-listed place has
+ * none, and the halal pill would be misleading), then a strong "removed"
+ * banner whose reason line is driven by the delist reason, then the public
+ * trust history so a visitor can see *why* the place was removed. Everything
+ * else — the trust summary, the claim / report / directions / reviews / order
+ * surfaces — is deliberately absent: they'd invite action on a place that no
+ * longer exists on the platform.
+ */
+const DELIST_REASON_LINES: Record<DelistReason, string> = {
+  NOT_HALAL:
+    "This place was removed after it was verified not to serve halal food.",
+  PERMANENTLY_CLOSED: "This place has permanently closed.",
+  FRAUDULENT: "This listing was removed for a fraudulent halal claim.",
+  OTHER: "This place was removed from Trust Halal.",
+};
+
+function PlaceTombstone({
+  place,
+  placeId,
+}: {
+  place: PlaceDetail;
+  placeId: string;
+}) {
+  const reasonLine =
+    place.delist_reason != null
+      ? DELIST_REASON_LINES[place.delist_reason] ?? DELIST_REASON_LINES.OTHER
+      : DELIST_REASON_LINES.OTHER;
+
+  const addressParts = [
+    place.address,
+    [place.city, place.region].filter(Boolean).join(", "),
+  ].filter(Boolean);
+
+  const removedOn = place.delisted_at
+    ? new Date(place.delisted_at).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+
+  return (
+    <div className="space-y-5">
+      <header className="space-y-1">
+        <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">
+          {place.name}
+        </h1>
+        {addressParts.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {addressParts.join(", ")}
+          </p>
+        )}
+      </header>
+
+      <section
+        role="status"
+        aria-label="Removed from Trust Halal"
+        className="rounded-xl border-2 border-destructive/40 bg-destructive/5 p-5 sm:p-6"
+      >
+        <div className="flex items-start gap-3">
+          <AlertOctagon
+            className="mt-0.5 h-6 w-6 shrink-0 text-destructive"
+            aria-hidden
+          />
+          <div className="min-w-0 space-y-1">
+            <h2 className="text-lg font-bold text-destructive">
+              Removed from Trust Halal
+            </h2>
+            <p className="text-sm text-foreground">{reasonLine}</p>
+            {removedOn && (
+              <p className="text-xs text-muted-foreground">Removed {removedOn}</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Still shown — the timeline is what explains the removal. */}
+      <PlaceTrustHistory placeId={placeId} />
+    </div>
+  );
+}
 
 /**
  * Everything you'd actually do next, on one card: go there, call, open the

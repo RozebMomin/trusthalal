@@ -140,6 +140,15 @@ class Place(Base):
         index=True,
     )
 
+    # De-listing. A soft-deleted place with a non-NULL ``delist_reason`` is a
+    # reason-required, reversible *de-list* (verified not halal, closed, etc.)
+    # that shows a public tombstone at its URL — as opposed to a plain junk /
+    # duplicate delete (reason NULL), which 404s silently. ``delist_note`` is
+    # the admin's free-text specifics. Stored as VARCHAR (no DB CHECK) so the
+    # DelistReason enum can grow without a migration.
+    delist_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    delist_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Bumped automatically by SQLAlchemy on every UPDATE. We skip a matching
     # ``created_at`` because the CREATED audit row on ``place_events`` already
     # records ingest time with actor attribution — a column would duplicate

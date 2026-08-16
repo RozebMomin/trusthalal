@@ -20,6 +20,8 @@ from app.modules.halal_profiles.enums import (
 )
 from app.modules.halal_claims.enums import HalalClaimEventType
 from app.modules.halal_claims.models import HalalClaimEvent
+from app.modules.disputes.enums import DisputeStatus
+from app.modules.disputes.models import ConsumerDispute
 from app.modules.verifiers.models import VerifierProfile
 from app.modules.users.models import User
 from app.modules.places.enums import Cuisine
@@ -815,10 +817,41 @@ def get_place_by_id(
     photos_storage: StorageClient = Depends(get_photos_storage_client),
     viewer: CurrentUser | None = Depends(get_current_user_optional),
 ) -> PlaceDetail:
-    # Ensure place exists
-    place = get_place(db, place_id)
+    # Fetch including soft-deleted so we can distinguish a de-listed place
+    # (tombstone) from a plain junk delete (404).
+    place = get_place(db, place_id, include_deleted=True)
     if not place:
         raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
+    if place.is_deleted:
+        # De-listed for cause → return a tombstone (200) so the consumer sees
+        # a "removed" state + the trust history explaining why. A plain junk /
+        # duplicate delete (no reason) stays a silent 404.
+        if place.delist_reason is None:
+            raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
+        return PlaceDetail.model_validate(
+            {
+                "id": place.id,
+                "name": place.name,
+                "address": place.address,
+                "lat": place.lat,
+                "lng": place.lng,
+                "is_deleted": True,
+                "delist_reason": place.delist_reason,
+                "delisted_at": place.deleted_at,
+                "city": place.city,
+                "region": place.region,
+                "country_code": place.country_code,
+                "postal_code": place.postal_code,
+                "timezone": place.timezone,
+                "cuisine_types": list(place.cuisine_types or []),
+                "updated_at": place.updated_at,
+                "halal_profile": None,
+                "photos": [],
+                "hero_photo_url": None,
+                "review_count": 0,
+                "is_claimed": False,
+            }
+        )
 
     # Engagement capture for a future trending surface. Recorded here rather
     # than accepted from clients because a view counter a client can post to
@@ -953,6 +986,31 @@ _PUBLIC_PROFILE_EVENTS = frozenset(
         HalalProfileEventType.DISPUTE_RESOLVED,
         HalalProfileEventType.REVOKED,
         HalalProfileEventType.RESTORED,
+        HalalProfileEventType.DELISTED,
+        HalalProfileEventType.RELISTED,
+    }
+)
+
+# Dispute lifecycle events carry a public-safe structured summary (category +
+# outcome), looked up from the related dispute. The consumer's free text and
+# the admin's private note are never surfaced.
+_DISPUTE_EVENTS = frozenset(
+    {
+        HalalProfileEventType.DISPUTE_OPENED,
+        HalalProfileEventType.DISPUTE_RESOLVED,
+    }
+)
+_DISPUTE_OUTCOME = {
+    DisputeStatus.RESOLVED_UPHELD.value: "UPHELD",
+    DisputeStatus.RESOLVED_DISMISSED.value: "DISMISSED",
+    DisputeStatus.WITHDRAWN.value: "WITHDRAWN",
+}
+# De-list/re-list entries carry a public-safe description written at write time
+# (reason label only, no free-text note).
+_DELIST_EVENTS = frozenset(
+    {
+        HalalProfileEventType.DELISTED,
+        HalalProfileEventType.RELISTED,
     }
 )
 
@@ -973,8 +1031,11 @@ def get_place_halal_history(
     place_id: UUID,
     db: Session = Depends(get_db),
 ) -> list[HalalHistoryEventRead]:
-    place = get_place(db, place_id)
-    if place is None:
+    # Include de-listed places so the tombstone page can still show the history
+    # (which explains why the place was removed). A plain junk delete (no
+    # reason) 404s like a missing place.
+    place = get_place(db, place_id, include_deleted=True)
+    if place is None or (place.is_deleted and place.delist_reason is None):
         raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
 
     profile = get_public_halal_profile(db, place_id=place_id)
@@ -1013,6 +1074,26 @@ def get_place_halal_history(
         )
         actor_map = {r[0]: (r[1], r[2]) for r in rows}
 
+    # Dispute category/outcome for DISPUTE_* rows — looked up once, keyed by
+    # dispute id. Only the structured attribute + status; never the free text.
+    dispute_ids = {
+        e.related_dispute_id
+        for e in events
+        if e.event_type in _DISPUTE_EVENTS and e.related_dispute_id is not None
+    }
+    dispute_map: dict[UUID, tuple[str, str]] = {}
+    if dispute_ids:
+        rows = (
+            db.query(
+                ConsumerDispute.id,
+                ConsumerDispute.disputed_attribute,
+                ConsumerDispute.status,
+            )
+            .filter(ConsumerDispute.id.in_(dispute_ids))
+            .all()
+        )
+        dispute_map = {r[0]: (r[1], r[2]) for r in rows}
+
     timeline: list[HalalHistoryEventRead] = []
 
     for e in events:
@@ -1039,6 +1120,34 @@ def get_place_halal_history(
                     created_at=e.created_at,
                     actor_display_name=name,
                     actor_handle=handle,
+                )
+            )
+        elif et in _DISPUTE_EVENTS:
+            category, outcome = (None, None)
+            if e.related_dispute_id is not None:
+                info = dispute_map.get(e.related_dispute_id)
+                if info is not None:
+                    attribute, dispute_status = info
+                    category = attribute
+                    # Only a resolved/withdrawn dispute has an outcome; an
+                    # opened one is still in flight.
+                    if et == HalalProfileEventType.DISPUTE_RESOLVED:
+                        outcome = _DISPUTE_OUTCOME.get(dispute_status)
+            timeline.append(
+                HalalHistoryEventRead(
+                    event_type=str(et),
+                    created_at=e.created_at,
+                    dispute_category=category,
+                    dispute_outcome=outcome,
+                )
+            )
+        elif et in _DELIST_EVENTS:
+            # description was written public-safe (reason label only).
+            timeline.append(
+                HalalHistoryEventRead(
+                    event_type=str(et),
+                    created_at=e.created_at,
+                    description=e.description,
                 )
             )
         elif et in _PUBLIC_PROFILE_EVENTS:

@@ -12,6 +12,24 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.disputes.enums import DisputeStatus
+from app.modules.places.enums import DelistReason
+
+
+class DisputeResolveDelist(BaseModel):
+    """Optional de-list escalation bundled into a dispute resolution.
+
+    When present on an UPHELD resolution, the place is de-listed (public
+    tombstone) in the same action — the 'we verified it's not halal, take
+    it down' path. Only valid alongside ``RESOLVED_UPHELD``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: DelistReason = Field(
+        default=DelistReason.NOT_HALAL,
+        description="De-list reason; defaults to NOT_HALAL for this flow.",
+    )
+    note: Optional[str] = Field(default=None, max_length=1000)
 
 
 class DisputeResolve(BaseModel):
@@ -39,6 +57,14 @@ class DisputeResolve(BaseModel):
         description=(
             "Required when DISMISSED so the consumer understands the "
             "outcome; optional when UPHELD."
+        ),
+    )
+    delist: Optional[DisputeResolveDelist] = Field(
+        default=None,
+        description=(
+            "Optional. When set on an UPHELD resolution, also de-lists the "
+            "place (public tombstone) in the same action. Ignored/invalid on "
+            "a DISMISSED resolution."
         ),
     )
 

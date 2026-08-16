@@ -12,7 +12,7 @@ import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "@/components/Button";
 import { HeartButton } from "@/components/HeartButton";
 import { PhotoViewer } from "@/components/PhotoViewer";
-import { TrustProfileSheet } from "@/components/TrustProfileSheet";
+import { TrustProfileSheet, HalalHistoryTimeline } from "@/components/TrustProfileSheet";
 import { ErrorState, Loading } from "@/components/States";
 import type {
   HalalProfileEmbed,
@@ -115,7 +115,14 @@ export default function PlaceDetail() {
   const saved = Boolean(favorites.data?.some((f) => f.place.id === id));
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [trustOpen, setTrustOpen] = useState(false);
+  // When the profile sheet is opened from the "Trust history" row, jump it
+  // straight to the timeline rather than the top of the profile.
+  const [trustScrollTo, setTrustScrollTo] = useState<"history" | undefined>(undefined);
   const photoCount = place?.photos.length ?? 0;
+  // Non-null delist_reason means the place was removed for cause: a tombstone.
+  // The read carries no profile and no photos, so the normal body is replaced
+  // by a removal notice + the history that explains it.
+  const tombstoned = place != null && place.delist_reason != null;
 
   // Drives the condensed header (see where it's rendered). Native-driven, so
   // the fade tracks the finger instead of arriving a frame late on Android.
@@ -263,6 +270,10 @@ export default function PlaceDetail() {
                 ) : null}
               </View>
 
+              {tombstoned ? (
+                <TombstoneBody place={place} />
+              ) : (
+              <>
               <View style={{ flexDirection: "row", gap: space.sm, marginTop: 2 }}>
                 <View style={{ flex: 1 }}>
                   <Button
@@ -328,6 +339,14 @@ export default function PlaceDetail() {
                 />
               </View>
 
+              <TrustHistoryRow
+                onPress={() => {
+                  capture("trust_history_opened", { place_id: place.id, place_name: place.name });
+                  setTrustScrollTo("history");
+                  setTrustOpen(true);
+                }}
+              />
+
               <HoursCard place={place} />
 
               {/* Opinion after the verified facts, matching the web ordering. */}
@@ -386,6 +405,8 @@ export default function PlaceDetail() {
                 </Text>
                 .
               </Text>
+              </>
+              )}
             </View>
           </>
         )}
@@ -515,7 +536,14 @@ export default function PlaceDetail() {
       ) : null}
 
       {place && trustOpen ? (
-        <TrustProfileSheet place={place} onClose={() => setTrustOpen(false)} />
+        <TrustProfileSheet
+          place={place}
+          scrollTo={trustScrollTo}
+          onClose={() => {
+            setTrustOpen(false);
+            setTrustScrollTo(undefined);
+          }}
+        />
       ) : null}
     </View>
   );
@@ -1374,6 +1402,102 @@ function ServedProducts({
           {absent.length === 1 ? " isn't" : " aren't"} served here.
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+/** A calm entry point into the verification timeline, sitting under the trust
+ *  card. The timeline itself lives in the expanded profile sheet; this row is
+ *  what makes it findable rather than something you discover by tapping "See
+ *  the evidence". Tapping opens the sheet scrolled straight to the history. */
+function TrustHistoryRow({ onPress }: { onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Trust history — verifications, disputes and changes over time"
+      onPress={onPress}
+      style={{
+        backgroundColor: t.card,
+        borderRadius: radii.xl,
+        paddingHorizontal: space.lg,
+        paddingVertical: 14,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
+      }}
+    >
+      <Feather name="activity" size={18} color={t.accentDeep} />
+      <View style={{ flex: 1 }}>
+        <Text style={[ty.label, { color: t.ink, fontSize: 13 }]}>Trust history</Text>
+        <Text style={[ty.small, { color: t.sub, marginTop: 1 }]}>
+          Verifications, disputes and changes over time
+        </Text>
+      </View>
+      <Feather name="chevron-right" size={18} color={t.sub} />
+    </Pressable>
+  );
+}
+
+/** The reason line under the tombstone banner, keyed by delist_reason. Public
+ *  wording — enough for a diner to understand why the listing is gone without
+ *  exposing internal moderation detail. */
+const DELIST_REASON_LINE: Record<string, string> = {
+  NOT_HALAL: "This place was removed after it was verified not to serve halal food.",
+  PERMANENTLY_CLOSED: "This place has permanently closed.",
+  FRAUDULENT: "This listing was removed for a fraudulent halal claim.",
+  OTHER: "This place was removed from Trust Halal.",
+};
+
+/**
+ * The removed-for-cause state, shown in place of the trust card / claim /
+ * reviews / photos when `delist_reason` is set. A single red notice states the
+ * removal and its reason, and the verification history stays below it — the
+ * timeline is what explains how the listing got here, so it's the one surface
+ * a de-listed place keeps.
+ */
+function TombstoneBody({ place }: { place: PlaceDetailType }) {
+  const t = useTheme();
+  const reason =
+    (place.delist_reason ? DELIST_REASON_LINE[place.delist_reason] : null) ??
+    DELIST_REASON_LINE.OTHER;
+
+  return (
+    <View style={{ gap: space.lg, marginTop: 2 }}>
+      <View
+        style={{
+          backgroundColor: t.dangerSoft,
+          borderRadius: radii.xl,
+          padding: space.lg,
+          flexDirection: "row",
+          gap: 12,
+        }}
+      >
+        <Feather name="slash" size={20} color={t.danger} style={{ marginTop: 1 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={[ty.label, { color: t.danger, fontSize: 15 }]}>Removed from Trust Halal</Text>
+          <Text style={[ty.small, { color: t.danger, marginTop: 4, lineHeight: 18, fontSize: 13 }]}>
+            {reason}
+          </Text>
+        </View>
+      </View>
+
+      <View>
+        <Text
+          style={[
+            ty.seg,
+            { color: t.sub, fontSize: 15, letterSpacing: 0.4, marginBottom: 12, marginLeft: 2 },
+          ]}
+        >
+          Trust history
+        </Text>
+        <HalalHistoryTimeline placeId={place.id} />
+      </View>
     </View>
   );
 }

@@ -8,6 +8,7 @@ from app.core.exceptions import AppError
 from app.db.deps import get_db
 from app.modules.admin.places.repo import (
     admin_bulk_preview_places,
+    admin_delist_place,
     admin_get_place_by_id,
     admin_list_place_countries,
     admin_list_place_events,
@@ -15,6 +16,7 @@ from app.modules.admin.places.repo import (
     admin_list_place_owners,
     admin_list_places,
     admin_patch_place,
+    admin_relist_place,
     admin_restore_place,
     admin_revoke_place_owner,
     admin_soft_delete_place,
@@ -33,6 +35,7 @@ from app.modules.admin.places.schemas import (
     PlaceBulkPreviewResponse,
     PlaceBulkPreviewStatus,
     PlaceDeleteRequest,
+    PlaceDelistRequest,
     PlaceEventRead,
     PlaceExternalIdAdminRead,
     PlaceIngestRequest,
@@ -41,6 +44,7 @@ from app.modules.admin.places.schemas import (
     PlaceLinkExternalResponse,
     PlaceOwnerAdminRead,
     PlaceOwnerRevokeRequest,
+    PlaceRelistRequest,
     PlaceResyncResponse,
     PlaceRestoreRequest,
     PlaceUnlinkExternalRequest,
@@ -925,6 +929,69 @@ def restore_place(
         reason=payload.reason if payload else None,
     )
     return None
+
+
+@router.post(
+    "/{place_id}/delist",
+    response_model=PlaceAdminRead,
+    summary="De-list a place for cause (public tombstone)",
+    description=(
+        "Reason-required, reversible removal. Unlike DELETE (which 404s "
+        "silently), the public `/places/{id}` endpoint returns a tombstone "
+        "for a de-listed place, and the removal shows on the consumer trust "
+        "history. Use `/admin/places/{id}/relist` to undo."
+    ),
+    responses={
+        401: {"model": ErrorResponse, "description": "Missing or invalid auth."},
+        403: {"model": ErrorResponse, "description": "Caller is not an admin."},
+        404: {"model": ErrorResponse, "description": "No place with this id exists."},
+        422: {"model": ErrorResponse, "description": "Reason missing or invalid."},
+    },
+)
+def delist_place(
+    place_id: UUID,
+    payload: PlaceDelistRequest,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> PlaceAdminRead:
+    place = admin_delist_place(
+        db,
+        place_id=place_id,
+        reason=payload.reason,
+        note=payload.note,
+        actor_user_id=user.id,
+    )
+    return PlaceAdminRead.model_validate(place)
+
+
+@router.post(
+    "/{place_id}/relist",
+    response_model=PlaceAdminRead,
+    summary="Re-list a de-listed place",
+    description=(
+        "Reverses a de-list: restores the place and clears the de-list "
+        "reason/note. 409 if the place isn't currently de-listed for cause."
+    ),
+    responses={
+        401: {"model": ErrorResponse, "description": "Missing or invalid auth."},
+        403: {"model": ErrorResponse, "description": "Caller is not an admin."},
+        404: {"model": ErrorResponse, "description": "No place with this id exists."},
+        409: {"model": ErrorResponse, "description": "Place is not de-listed."},
+    },
+)
+def relist_place(
+    place_id: UUID,
+    payload: PlaceRelistRequest | None = Body(default=None),
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> PlaceAdminRead:
+    place = admin_relist_place(
+        db,
+        place_id=place_id,
+        note=payload.note if payload else None,
+        actor_user_id=user.id,
+    )
+    return PlaceAdminRead.model_validate(place)
 
 
 @router.patch(

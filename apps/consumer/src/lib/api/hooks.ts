@@ -119,6 +119,70 @@ export type SlaughterMethod = "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED";
 export type DisputeState = "NONE" | "DISPUTED" | "RECONCILING";
 
 /**
+ * Why a place was de-listed. A soft-deleted place carrying a non-null
+ * ``delist_reason`` is a public tombstone (removed *for cause*); a plain
+ * junk-delete has no reason and 404s instead. Mirrors ``DelistReason`` on
+ * the API.
+ */
+export type DelistReason =
+  | "NOT_HALAL"
+  | "PERMANENTLY_CLOSED"
+  | "FRAUDULENT"
+  | "OTHER";
+
+/**
+ * The kinds of events on a place's public trust timeline. Mirrors the
+ * ``event_type`` values on ``HalalHistoryEventRead`` server-side. Kept as a
+ * closed union for the label/icon maps, but the renderer degrades gracefully
+ * if the API ships a value this build doesn't know yet.
+ */
+export type HalalHistoryEventType =
+  | "PROFILE_CREATED"
+  | "PROFILE_UPDATED"
+  | "CLAIM_SUBMITTED"
+  | "CLAIM_APPROVED"
+  | "VERIFIER_VISIT"
+  | "EXPIRED"
+  | "REVOKED"
+  | "RESTORED"
+  | "DISPUTE_OPENED"
+  | "DISPUTE_RESOLVED"
+  | "DELISTED"
+  | "RELISTED";
+
+/** A dispute's disputed attribute, as surfaced on the public timeline. */
+export type HistoryDisputeCategory = DisputedAttribute;
+
+/** A resolved dispute's outcome, as surfaced on the public timeline. */
+export type HistoryDisputeOutcome = "UPHELD" | "DISMISSED" | "WITHDRAWN";
+
+/**
+ * One entry on a place's public trust-history timeline, returned by
+ * GET /places/{id}/halal-history (newest-first). Mirrors
+ * ``HalalHistoryEventRead`` server-side.
+ *
+ * ``event_type`` is typed loosely as ``string`` so an unrecognised server
+ * value can still render (the UI keys its label/icon maps off the known
+ * union and falls back otherwise).
+ *
+ *   * ``description`` — populated for DELISTED / RELISTED, a public-safe
+ *     sentence explaining the removal / re-listing.
+ *   * ``actor_display_name`` / ``actor_handle`` — populated for
+ *     VERIFIER_VISIT only.
+ *   * ``dispute_category`` — populated for DISPUTE_* events.
+ *   * ``dispute_outcome`` — populated for DISPUTE_RESOLVED only.
+ */
+export type HalalHistoryEvent = {
+  event_type: HalalHistoryEventType | string;
+  created_at: string;
+  description: string | null;
+  actor_display_name: string | null;
+  actor_handle: string | null;
+  dispute_category: HistoryDisputeCategory | string | null;
+  dispute_outcome: HistoryDisputeOutcome | string | null;
+};
+
+/**
  * Curated cuisine taxonomy. Mirrors the ``Cuisine`` enum on the API.
  * Surfaced on every place via ``cuisine_types`` (multi-valued) and
  * filterable via the multi-value ``cuisine`` query param on
@@ -666,6 +730,13 @@ export type PlaceDetail = {
   lat: number;
   lng: number;
   is_deleted: boolean;
+  /** Removal-for-cause discriminator. Non-null means this is a public
+   *  tombstone: the place was de-listed for the given reason, and
+   *  ``halal_profile`` is null + ``photos`` is empty. Null on a live place.
+   *  (A plain junk-delete 404s rather than returning a reason.) */
+  delist_reason: DelistReason | null;
+  /** When the place was de-listed (ISO). Non-null iff ``delist_reason`` is. */
+  delisted_at: string | null;
   city: string | null;
   region: string | null;
   country_code: string | null;
@@ -816,6 +887,8 @@ export const qk = {
   placesSearch: (params: SearchPlacesParams) =>
     ["places", "search", params] as const,
   placeDetail: (placeId: string) => ["places", "detail", placeId] as const,
+  halalHistory: (placeId: string) =>
+    ["places", "halal-history", placeId] as const,
   myDisputes: () => ["me", "disputes"] as const,
   myFavorites: () => ["me", "favorites"] as const,
   reverseGeocode: (lat: number, lng: number) =>
@@ -1508,6 +1581,30 @@ export function usePlaceDetail(placeId: string) {
     // beat the cache via TanStack's window-focus refetch.
     staleTime: 60_000,
     retry: false,
+  });
+}
+
+/**
+ * GET /places/{id}/halal-history, the public trust-history timeline.
+ *
+ * Newest-first list of milestones on the place's halal profile (created,
+ * verified, disputed, de-listed, …). Public: no auth required, so it renders
+ * for signed-out visitors too. Works for de-listed places as well, so a
+ * tombstone can show the history that explains the removal. Resolves to an
+ * empty array when the place has no halal profile yet.
+ *
+ * Disabled when ``placeId`` is empty so it's safe to call before the route
+ * param resolves.
+ */
+export function useHalalHistory(placeId: string) {
+  return useQuery<HalalHistoryEvent[]>({
+    queryKey: qk.halalHistory(placeId),
+    queryFn: () =>
+      apiFetch<HalalHistoryEvent[]>(
+        `/places/${encodeURIComponent(placeId)}/halal-history`,
+      ),
+    enabled: Boolean(placeId),
+    staleTime: 60_000,
   });
 }
 

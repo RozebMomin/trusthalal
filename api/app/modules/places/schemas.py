@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from app.modules.places.enums import (
     Cuisine,
+    DelistReason,
     PhotoAttribution,
     PlacePhotoSource,
 )
@@ -178,6 +179,13 @@ class PlaceDetail(BaseModel):
     lat: float
     lng: float
     is_deleted: bool  # consumer will never see deleted b/c 404, but ok to include or omit
+    # De-list tombstone. When a place was removed *for cause* (verified not
+    # halal, closed, etc.), the public read returns 200 with these set instead
+    # of a 404 — the consumer sees a "removed" tombstone rather than a dead
+    # link. ``delist_reason`` is null for a live place (and for a plain junk
+    # delete, which still 404s). ``delisted_at`` is the removal timestamp.
+    delist_reason: "DelistReason | None" = None
+    delisted_at: datetime | None = None
     city: str | None = None
     region: str | None = None
     country_code: str | None = None
@@ -361,6 +369,12 @@ class HalalHistoryEventRead(BaseModel):
     # which the consumer timeline shows without exposing a person.
     actor_display_name: str | None = None
     actor_handle: str | None = None
+    # Dispute entries carry a public-safe structured summary — the disputed
+    # attribute (category) and, for a resolved dispute, the outcome. The
+    # consumer's free-text and the admin's private note are deliberately never
+    # surfaced here; only the category + outcome.
+    dispute_category: str | None = None
+    dispute_outcome: str | None = None
 
 
 class PlacePhotoRead(BaseModel):
