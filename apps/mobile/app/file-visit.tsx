@@ -41,7 +41,7 @@ import { Card, Cell, Chip, IcBox, Seg, Steps, Tag } from "@/ui/kit";
  *  Photo evidence (the API supports it) joins as its own step once the
  *  camera picker ships. */
 
-const TOTAL = 5; // decision steps; step 5 is the success screen
+const TOTAL = 6; // decision steps; step 6 is the success screen
 const MAX_PHOTOS = 10; // matches the API's per-visit attachment cap
 const M_PER_MI = 1609.34;
 
@@ -1031,9 +1031,34 @@ export default function FileVisit() {
               </View>
             </Card>
 
-            <Seg size={mockupPx(10)}>Amenities</Seg>
-            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10), marginBottom: 2 }]}>
-              What families look for. Tap to cycle Yes / No / Unsure.
+            <Seg size={mockupPx(10)}>Notes</Seg>
+            <TextInput
+              style={[field, { minHeight: 110, textAlignVertical: "top" }]}
+              multiline
+              maxLength={4000}
+              placeholder="Kitchen manager showed the supplier invoice for the chicken — Crescent Foods…"
+              placeholderTextColor={t.sub}
+              value={notes}
+              onChangeText={setNotes}
+              onFocus={revealInput}
+            />
+
+            <Button title="Continue" onPress={next} />
+            <Text style={[ty.small, { color: t.sub, textAlign: "center", fontSize: mockupPx(9.5) }]}>
+              Draft auto-saves on device
+            </Text>
+          </>
+        ) : null}
+
+        {/* --- Step 3 · Amenities (optional) ------------------------------ */}
+        {step === 3 ? (
+          <>
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              Family{"\n"}amenities
+            </Text>
+            <Text style={[ty.body, { color: t.sub }]}>
+              Optional. The small things families and observant diners look for. Tap to cycle
+              Yes / No / Unsure, or skip if you didn't check.
             </Text>
             <Card>
               {AMENITIES.map((a, i) => {
@@ -1060,28 +1085,15 @@ export default function FileVisit() {
                 );
               })}
             </Card>
-
-            <Seg size={mockupPx(10)}>Notes</Seg>
-            <TextInput
-              style={[field, { minHeight: 110, textAlignVertical: "top" }]}
-              multiline
-              maxLength={4000}
-              placeholder="Kitchen manager showed the supplier invoice for the chicken — Crescent Foods…"
-              placeholderTextColor={t.sub}
-              value={notes}
-              onChangeText={setNotes}
-              onFocus={revealInput}
+            <Button
+              title={Object.keys(amenities).length ? "Continue" : "Skip"}
+              onPress={next}
             />
-
-            <Button title="Continue" onPress={next} />
-            <Text style={[ty.small, { color: t.sub, textAlign: "center", fontSize: mockupPx(9.5) }]}>
-              Draft auto-saves on device
-            </Text>
           </>
         ) : null}
 
-        {/* --- Step 3 · Disclosure ---------------------------------------- */}
-        {step === 3 ? (
+        {/* --- Step 4 · Disclosure ---------------------------------------- */}
+        {step === 4 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Who paid for{"\n"}the meal?
@@ -1135,8 +1147,8 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 4 · Review -------------------------------------------- */}
-        {step === 4 ? (
+        {/* --- Step 5 · Review -------------------------------------------- */}
+        {step === 5 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Review your{"\n"}report
@@ -1217,7 +1229,7 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 4 · Success ------------------------------------------- */}
+        {/* --- Step 6 · Success ------------------------------------------- */}
         {isSuccess ? (
           <View style={{ alignItems: "center", gap: space.md, paddingTop: 48 }}>
             <View style={{ width: 88, height: 88, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
