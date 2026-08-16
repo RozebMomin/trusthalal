@@ -193,6 +193,35 @@ def test_delist_writes_timeline_events(api, factories, db_session):
     assert "secret" not in (delisted[0]["description"] or "")
 
 
+def test_dispute_shows_in_history_on_unprofiled_place(api, factories, db_session):
+    """A dispute against an unclaimed place (no halal profile) must still
+    appear on the public trust history — sourced from the dispute row, not
+    profile events."""
+    admin = factories.admin()
+    consumer = factories.consumer()
+    place = factories.place()  # no claim -> no halal profile
+    db_session.commit()
+
+    filed = api.as_user(consumer).post(
+        f"/places/{place.id}/disputes",
+        json={"disputed_attribute": "PORK_SERVED", "description": "Pork on the grill."},
+    )
+    dispute_id = filed.json()["id"]
+    api.as_user(admin).post(
+        f"/admin/disputes/{dispute_id}/resolve",
+        json={"decision": "RESOLVED_UPHELD"},
+    )
+
+    hist = api.get(f"/places/{place.id}/halal-history")
+    assert hist.status_code == 200, hist.text
+    types = [e["event_type"] for e in hist.json()]
+    assert "DISPUTE_OPENED" in types
+    resolved = [e for e in hist.json() if e["event_type"] == "DISPUTE_RESOLVED"]
+    assert resolved, hist.text
+    assert resolved[0]["dispute_category"] == "PORK_SERVED"
+    assert resolved[0]["dispute_outcome"] == "UPHELD"
+
+
 def test_dispute_resolved_event_carries_category_and_outcome(
     api, factories, db_session
 ):

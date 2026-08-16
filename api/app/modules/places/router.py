@@ -979,25 +979,15 @@ def get_place_halal_profile(
 # public event_type equals the enum value). CREATED/UPDATED and
 # VERIFIER_VISIT_ACCEPTED are handled specially; everything not listed here or
 # there is internal noise and dropped.
+# Profile-lifecycle events surfaced as-is on the consumer timeline. Disputes
+# and de-lists are deliberately NOT here — they're sourced independently (from
+# the dispute rows and place-event log) so they show even on places with no
+# halal profile (e.g. an unclaimed place someone disputed).
 _PUBLIC_PROFILE_EVENTS = frozenset(
     {
         HalalProfileEventType.EXPIRED,
-        HalalProfileEventType.DISPUTE_OPENED,
-        HalalProfileEventType.DISPUTE_RESOLVED,
         HalalProfileEventType.REVOKED,
         HalalProfileEventType.RESTORED,
-        HalalProfileEventType.DELISTED,
-        HalalProfileEventType.RELISTED,
-    }
-)
-
-# Dispute lifecycle events carry a public-safe structured summary (category +
-# outcome), looked up from the related dispute. The consumer's free text and
-# the admin's private note are never surfaced.
-_DISPUTE_EVENTS = frozenset(
-    {
-        HalalProfileEventType.DISPUTE_OPENED,
-        HalalProfileEventType.DISPUTE_RESOLVED,
     }
 )
 _DISPUTE_OUTCOME = {
@@ -1005,14 +995,29 @@ _DISPUTE_OUTCOME = {
     DisputeStatus.RESOLVED_DISMISSED.value: "DISMISSED",
     DisputeStatus.WITHDRAWN.value: "WITHDRAWN",
 }
-# De-list/re-list entries carry a public-safe description written at write time
-# (reason label only, no free-text note).
-_DELIST_EVENTS = frozenset(
+# Statuses that represent a concluded dispute (carry an outcome + decided_at).
+_DISPUTE_TERMINAL = frozenset(
     {
-        HalalProfileEventType.DELISTED,
-        HalalProfileEventType.RELISTED,
+        DisputeStatus.RESOLVED_UPHELD.value,
+        DisputeStatus.RESOLVED_DISMISSED.value,
+        DisputeStatus.WITHDRAWN.value,
     }
 )
+
+
+def _delist_reason_label_from_message(message: str | None) -> str | None:
+    """Pull the reason label out of a DELISTED place-event message.
+
+    The message is written by ``admin_delist_place`` as
+    ``"Place de-listed. Reason: <label>"`` optionally followed by
+    ``" — <note>"``. The label is one of our controlled DelistReason labels
+    (never user free text), so it's safe to surface; the note after the dash
+    is stripped. Returns ``None`` if the message doesn't match the shape.
+    """
+    if not message or "Reason: " not in message:
+        return None
+    label = message.split("Reason: ", 1)[1].split(" — ", 1)[0].strip()
+    return label or None
 
 
 @router.get(
@@ -1038,142 +1043,161 @@ def get_place_halal_history(
     if place is None or (place.is_deleted and place.delist_reason is None):
         raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
 
-    profile = get_public_halal_profile(db, place_id=place_id)
-    if profile is None:
-        return []
-
-    # ``HalalProfile.events`` is ordered created_at DESC on the relationship.
-    events = list(profile.events)
-
-    # The claim(s) behind this profile: CREATED/UPDATED point at the approved
-    # claim that produced the state. We surface those claims' submitted/approved
-    # milestones instead of the profile CREATED/UPDATED mirror rows.
-    claim_ids = {
-        e.related_claim_id
-        for e in events
-        if e.event_type
-        in (HalalProfileEventType.CREATED, HalalProfileEventType.UPDATED)
-        and e.related_claim_id is not None
-    }
-
-    # Verifier actors (display name + public handle) for visit rows — the only
-    # events that carry a person on the consumer timeline.
-    visit_actor_ids = {
-        e.actor_user_id
-        for e in events
-        if e.event_type == HalalProfileEventType.VERIFIER_VISIT_ACCEPTED
-        and e.actor_user_id is not None
-    }
-    actor_map: dict[UUID, tuple[str | None, str | None]] = {}
-    if visit_actor_ids:
-        rows = (
-            db.query(User.id, User.display_name, VerifierProfile.public_handle)
-            .outerjoin(VerifierProfile, VerifierProfile.user_id == User.id)
-            .filter(User.id.in_(visit_actor_ids))
-            .all()
-        )
-        actor_map = {r[0]: (r[1], r[2]) for r in rows}
-
-    # Dispute category/outcome for DISPUTE_* rows — looked up once, keyed by
-    # dispute id. Only the structured attribute + status; never the free text.
-    dispute_ids = {
-        e.related_dispute_id
-        for e in events
-        if e.event_type in _DISPUTE_EVENTS and e.related_dispute_id is not None
-    }
-    dispute_map: dict[UUID, tuple[str, str]] = {}
-    if dispute_ids:
-        rows = (
-            db.query(
-                ConsumerDispute.id,
-                ConsumerDispute.disputed_attribute,
-                ConsumerDispute.status,
-            )
-            .filter(ConsumerDispute.id.in_(dispute_ids))
-            .all()
-        )
-        dispute_map = {r[0]: (r[1], r[2]) for r in rows}
-
     timeline: list[HalalHistoryEventRead] = []
 
-    for e in events:
-        et = e.event_type
-        if et in (HalalProfileEventType.CREATED, HalalProfileEventType.UPDATED):
-            # Claim-backed creations are represented by the claim milestones
-            # below; only surface a bare "profile created/updated" when there's
-            # no claim (e.g. an admin-ingested profile).
-            if e.related_claim_id is not None:
-                continue
-            timeline.append(
-                HalalHistoryEventRead(
-                    event_type="PROFILE_CREATED"
-                    if et == HalalProfileEventType.CREATED
-                    else "PROFILE_UPDATED",
-                    created_at=e.created_at,
-                )
-            )
-        elif et == HalalProfileEventType.VERIFIER_VISIT_ACCEPTED:
-            name, handle = actor_map.get(e.actor_user_id, (None, None))
-            timeline.append(
-                HalalHistoryEventRead(
-                    event_type="VERIFIER_VISIT",
-                    created_at=e.created_at,
-                    actor_display_name=name,
-                    actor_handle=handle,
-                )
-            )
-        elif et in _DISPUTE_EVENTS:
-            category, outcome = (None, None)
-            if e.related_dispute_id is not None:
-                info = dispute_map.get(e.related_dispute_id)
-                if info is not None:
-                    attribute, dispute_status = info
-                    category = attribute
-                    # Only a resolved/withdrawn dispute has an outcome; an
-                    # opened one is still in flight.
-                    if et == HalalProfileEventType.DISPUTE_RESOLVED:
-                        outcome = _DISPUTE_OUTCOME.get(dispute_status)
-            timeline.append(
-                HalalHistoryEventRead(
-                    event_type=str(et),
-                    created_at=e.created_at,
-                    dispute_category=category,
-                    dispute_outcome=outcome,
-                )
-            )
-        elif et in _DELIST_EVENTS:
-            # description was written public-safe (reason label only).
-            timeline.append(
-                HalalHistoryEventRead(
-                    event_type=str(et),
-                    created_at=e.created_at,
-                    description=e.description,
-                )
-            )
-        elif et in _PUBLIC_PROFILE_EVENTS:
-            timeline.append(
-                HalalHistoryEventRead(event_type=str(et), created_at=e.created_at)
-            )
-        # Everything else (internal noise) is intentionally dropped.
+    # ---- Halal-profile lifecycle (only when a profile exists) -------------
+    profile = get_public_halal_profile(db, place_id=place_id)
+    if profile is not None:
+        # ``HalalProfile.events`` is ordered created_at DESC on the relationship.
+        events = list(profile.events)
 
-    if claim_ids:
-        claim_events = (
-            db.query(HalalClaimEvent)
-            .filter(
-                HalalClaimEvent.claim_id.in_(claim_ids),
-                HalalClaimEvent.event_type.in_(
-                    [HalalClaimEventType.SUBMITTED, HalalClaimEventType.APPROVED]
-                ),
+        # The claim(s) behind this profile: CREATED/UPDATED point at the
+        # approved claim that produced the state. We surface those claims'
+        # submitted/approved milestones instead of the mirror rows.
+        claim_ids = {
+            e.related_claim_id
+            for e in events
+            if e.event_type
+            in (HalalProfileEventType.CREATED, HalalProfileEventType.UPDATED)
+            and e.related_claim_id is not None
+        }
+
+        # Verifier actors (display name + public handle) for visit rows — the
+        # only events that carry a person on the consumer timeline.
+        visit_actor_ids = {
+            e.actor_user_id
+            for e in events
+            if e.event_type == HalalProfileEventType.VERIFIER_VISIT_ACCEPTED
+            and e.actor_user_id is not None
+        }
+        actor_map: dict[UUID, tuple[str | None, str | None]] = {}
+        if visit_actor_ids:
+            rows = (
+                db.query(User.id, User.display_name, VerifierProfile.public_handle)
+                .outerjoin(VerifierProfile, VerifierProfile.user_id == User.id)
+                .filter(User.id.in_(visit_actor_ids))
+                .all()
             )
-            .all()
+            actor_map = {r[0]: (r[1], r[2]) for r in rows}
+
+        for e in events:
+            et = e.event_type
+            if et in (HalalProfileEventType.CREATED, HalalProfileEventType.UPDATED):
+                # Claim-backed creations are represented by the claim milestones
+                # below; only surface a bare "profile created/updated" when
+                # there's no claim (e.g. an admin-ingested profile).
+                if e.related_claim_id is not None:
+                    continue
+                timeline.append(
+                    HalalHistoryEventRead(
+                        event_type="PROFILE_CREATED"
+                        if et == HalalProfileEventType.CREATED
+                        else "PROFILE_UPDATED",
+                        created_at=e.created_at,
+                    )
+                )
+            elif et == HalalProfileEventType.VERIFIER_VISIT_ACCEPTED:
+                name, handle = actor_map.get(e.actor_user_id, (None, None))
+                timeline.append(
+                    HalalHistoryEventRead(
+                        event_type="VERIFIER_VISIT",
+                        created_at=e.created_at,
+                        actor_display_name=name,
+                        actor_handle=handle,
+                    )
+                )
+            elif et in _PUBLIC_PROFILE_EVENTS:
+                timeline.append(
+                    HalalHistoryEventRead(event_type=str(et), created_at=e.created_at)
+                )
+            # Disputes + de-lists are sourced below (profile-independent);
+            # everything else is internal noise, intentionally dropped.
+
+        if claim_ids:
+            claim_events = (
+                db.query(HalalClaimEvent)
+                .filter(
+                    HalalClaimEvent.claim_id.in_(claim_ids),
+                    HalalClaimEvent.event_type.in_(
+                        [HalalClaimEventType.SUBMITTED, HalalClaimEventType.APPROVED]
+                    ),
+                )
+                .all()
+            )
+            for ce in claim_events:
+                timeline.append(
+                    HalalHistoryEventRead(
+                        event_type="CLAIM_SUBMITTED"
+                        if ce.event_type == HalalClaimEventType.SUBMITTED
+                        else "CLAIM_APPROVED",
+                        created_at=ce.created_at,
+                    )
+                )
+
+    # ---- Disputes — sourced from the dispute rows, not profile events ------
+    # This is what makes disputes show on an *unclaimed* place (no profile).
+    # Only the structured attribute + outcome cross to the public; never the
+    # reporter's free text or the admin's private note.
+    disputes = (
+        db.query(
+            ConsumerDispute.disputed_attribute,
+            ConsumerDispute.status,
+            ConsumerDispute.submitted_at,
+            ConsumerDispute.decided_at,
         )
-        for ce in claim_events:
+        .filter(ConsumerDispute.place_id == place_id)
+        .all()
+    )
+    for attribute, dstatus, submitted_at, decided_at in disputes:
+        timeline.append(
+            HalalHistoryEventRead(
+                event_type="DISPUTE_OPENED",
+                created_at=submitted_at,
+                dispute_category=attribute,
+            )
+        )
+        if dstatus in _DISPUTE_TERMINAL and decided_at is not None:
             timeline.append(
                 HalalHistoryEventRead(
-                    event_type="CLAIM_SUBMITTED"
-                    if ce.event_type == HalalClaimEventType.SUBMITTED
-                    else "CLAIM_APPROVED",
-                    created_at=ce.created_at,
+                    event_type="DISPUTE_RESOLVED",
+                    created_at=decided_at,
+                    dispute_category=attribute,
+                    dispute_outcome=_DISPUTE_OUTCOME.get(dstatus),
+                )
+            )
+
+    # ---- De-list / re-list — sourced from the place-event log --------------
+    # Works with or without a profile. Reason label (ours, controlled) is
+    # surfaced; the free-text note is stripped so nothing internal leaks.
+    delist_rows = (
+        db.query(PlaceEvent.event_type, PlaceEvent.message, PlaceEvent.created_at)
+        .filter(
+            PlaceEvent.place_id == place_id,
+            PlaceEvent.event_type.in_(
+                [PlaceEventType.DELISTED.value, PlaceEventType.RELISTED.value]
+            ),
+        )
+        .all()
+    )
+    for etype, message, created_at in delist_rows:
+        if etype == PlaceEventType.DELISTED.value:
+            label = _delist_reason_label_from_message(message)
+            desc = (
+                f"Removed from Trust Halal — {label}."
+                if label
+                else "Removed from Trust Halal."
+            )
+            timeline.append(
+                HalalHistoryEventRead(
+                    event_type="DELISTED", created_at=created_at, description=desc
+                )
+            )
+        else:
+            timeline.append(
+                HalalHistoryEventRead(
+                    event_type="RELISTED",
+                    created_at=created_at,
+                    description="Re-listed on Trust Halal.",
                 )
             )
 
