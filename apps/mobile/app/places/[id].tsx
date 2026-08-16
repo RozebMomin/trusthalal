@@ -117,7 +117,6 @@ export default function PlaceDetail() {
   const [trustOpen, setTrustOpen] = useState(false);
   // When the profile sheet is opened from the "Trust history" row, jump it
   // straight to the timeline rather than the top of the profile.
-  const [trustScrollTo, setTrustScrollTo] = useState<"history" | undefined>(undefined);
   const photoCount = place?.photos.length ?? 0;
   // Non-null delist_reason means the place was removed for cause: a tombstone.
   // The read carries no profile and no photos, so the normal body is replaced
@@ -342,8 +341,10 @@ export default function PlaceDetail() {
               <TrustHistoryRow
                 onPress={() => {
                   capture("trust_history_opened", { place_id: place.id, place_name: place.name });
-                  setTrustScrollTo("history");
-                  setTrustOpen(true);
+                  router.push({
+                    pathname: "/place-history/[id]",
+                    params: { id: place.id, name: place.name },
+                  });
                 }}
               />
 
@@ -538,11 +539,7 @@ export default function PlaceDetail() {
       {place && trustOpen ? (
         <TrustProfileSheet
           place={place}
-          scrollTo={trustScrollTo}
-          onClose={() => {
-            setTrustOpen(false);
-            setTrustScrollTo(undefined);
-          }}
+          onClose={() => setTrustOpen(false)}
         />
       ) : null}
     </View>

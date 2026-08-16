@@ -111,29 +111,21 @@ function monthYear(iso: string | null | undefined): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
-/** Expanded trust profile — mockup 23. Full per-meat sourcing, kitchen,
- *  certificate (with View cert), and verification history. Opened as a
- *  full-screen modal from the place detail's "Details ›". */
+/** Expanded trust profile — mockup 23. Full per-meat sourcing, kitchen, and
+ *  certificate (with View cert). Opened as a full-screen modal from the place
+ *  detail's "Details ›". Verification history is its own screen now
+ *  (app/place-history/[id]), reached from the place's "Trust history" row. */
 export function TrustProfileSheet({
   place,
   onClose,
-  scrollTo,
 }: {
   place: PlaceDetail;
   onClose: () => void;
-  /** Open scrolled straight to a section. "history" jumps past the profile to
-   *  the verification timeline — used by the place screen's "Trust history"
-   *  entry point, whose whole promise is that row. */
-  scrollTo?: "history";
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const p = place.halal_profile;
   const [certOpen, setCertOpen] = useState(false);
-  // Y offset of the history section within the scroll content, captured on
-  // layout so `scrollTo="history"` can jump to it once the content is measured.
-  const scrollRef = useRef<ScrollView>(null);
-  const historyY = useRef(0);
 
   // Slide in from the right (a push, matching the "Details ›" arrow), and
   // slide back out before unmounting. Modal itself is instant + transparent;
@@ -206,7 +198,6 @@ export function TrustProfileSheet({
         </View>
 
         <ScrollView
-          ref={scrollRef}
           contentContainerStyle={{ paddingTop: space.md, paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.xl }}
         >
           {p ? (
@@ -295,20 +286,6 @@ export function TrustProfileSheet({
           ) : (
             <Text style={[ty.body, { color: t.sub }]}>No halal profile yet.</Text>
           )}
-
-          <View
-            onLayout={(e) => {
-              historyY.current = e.nativeEvent.layout.y;
-              if (scrollTo === "history") {
-                // Nudge past the header divider so the section title sits clear
-                // of the pinned header once we land on it.
-                scrollRef.current?.scrollTo({ y: Math.max(0, historyY.current - space.md), animated: true });
-              }
-            }}
-          >
-            <Text style={[ty.seg, { color: t.sub, fontSize: 15, letterSpacing: 0.4, marginBottom: 12, marginLeft: 2 }]}>Verification history</Text>
-            <HalalHistoryTimeline placeId={place.id} />
-          </View>
         </ScrollView>
       </Animated.View>
 
