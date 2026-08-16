@@ -783,7 +783,7 @@ export default function FileVisit() {
 
             <View style={{ height: 1, backgroundColor: t.line, marginTop: mockupPx(10), marginBottom: mockupPx(4) }} />
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
-              What you ordered
+              What did{"\n"}you order?
             </Text>
             <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5), marginTop: mockupPx(1) }]}>
               Optional — the dishes you had, so admin knows what the visit covered.
