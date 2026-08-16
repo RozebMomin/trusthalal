@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -286,6 +287,45 @@ export function TrustProfileSheet({
           ) : (
             <Text style={[ty.body, { color: t.sub }]}>No halal profile yet.</Text>
           )}
+
+          {/* Jump to the full timeline. Close the sheet first (it's a modal
+              over the stack), then push the history screen so it's what's
+              revealed underneath. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View trust history"
+            onPress={() => {
+              capture("trust_history_opened", {
+                place_id: place.id,
+                place_name: place.name,
+                from: "profile_sheet",
+              });
+              router.push({
+                pathname: "/place-history/[id]",
+                params: { id: place.id, name: place.name },
+              });
+              handleClose();
+            }}
+            style={{
+              marginTop: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: t.card,
+              borderRadius: radii.xl,
+              paddingHorizontal: 18,
+              paddingVertical: 16,
+              gap: 12,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+              <Feather name="activity" size={18} color={t.accentDeep} />
+              <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 16 }]}>
+                View trust history
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={t.sub} />
+          </Pressable>
         </ScrollView>
       </Animated.View>
 
