@@ -54,7 +54,10 @@ import {
   PlaceNoTrustSummary,
   PlaceTrustSummary,
 } from "@/components/place-trust-summary";
-import { PlaceTrustHistory } from "@/components/place-trust-history";
+import {
+  PlaceTrustHistory,
+  PlaceTrustHistoryButton,
+} from "@/components/place-trust-history";
 import { PreferenceMatchBanner } from "@/components/preference-match-banner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
@@ -287,6 +290,11 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
                 }
               />
 
+              {/* Trust history lives here in the left column with the rest of
+                  the "how do we know?" material — a compact button that opens
+                  the full timeline in a modal. Hides itself when empty. */}
+              <PlaceTrustHistoryButton placeId={placeId} />
+
               {/* Two dead full-width cards for signed-out visitors became one
                   quiet line. Reporting matters, but it isn't what someone came
                   here to do, and it shouldn't out-weigh the photos. */}
@@ -318,11 +326,6 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
               <NearbyPlaces place={place.data} />
             </div>
           </div>
-
-          {/* Public trust-history timeline. Full-width below the two columns,
-              visible to everyone including signed-out visitors. Hides itself
-              when the place has no history yet. */}
-          <PlaceTrustHistory placeId={placeId} />
 
           <FileDisputeDialog
             placeId={placeId}

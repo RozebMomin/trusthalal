@@ -28,6 +28,7 @@ import {
   BadgeCheck,
   CalendarClock,
   CheckCircle2,
+  ChevronRight,
   CircleDot,
   FilePlus2,
   History,
@@ -41,6 +42,13 @@ import {
 } from "lucide-react";
 import * as React from "react";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   type HalalHistoryEvent,
   type HistoryDisputeCategory,
@@ -110,11 +118,25 @@ const STRONG_EVENTS = new Set(["DELISTED", "REVOKED"]);
 // Section
 // ---------------------------------------------------------------------------
 
+const TIMELINE_BLURB = "Every milestone on this place’s halal profile, newest first.";
+
+/** The bare ordered list of history rows. Shared by the inline section (used
+ *  on the tombstone) and the modal (used on the normal page). */
+function HistoryList({ events }: { events: HalalHistoryEvent[] }) {
+  return (
+    <ol className="space-y-4">
+      {events.map((event, i) => (
+        <HistoryRow key={`${event.event_type}-${event.created_at}-${i}`} event={event} />
+      ))}
+    </ol>
+  );
+}
+
 /**
- * The whole section. Fetches its own data so a caller only needs the placeId.
- * Hidden entirely while loading / on error / when the timeline is empty — a
- * blank "Trust history" card with a spinner is worse than nothing on a page
- * that already answers the main question above it.
+ * The full inline section. Fetches its own data so a caller only needs the
+ * placeId. Hidden entirely while loading / on error / when the timeline is
+ * empty. Used on the tombstone page, where the history *is* the page and a
+ * modal would only get in the way.
  */
 export function PlaceTrustHistory({ placeId }: { placeId: string }) {
   const { data, isLoading, isError } = useHalalHistory(placeId);
@@ -132,16 +154,67 @@ export function PlaceTrustHistory({ placeId }: { placeId: string }) {
         <History className="h-4 w-4 shrink-0 text-primary" aria-hidden />
         Trust history
       </h2>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Every milestone on this place&rsquo;s halal profile, newest first.
-      </p>
+      <p className="mt-1 text-xs text-muted-foreground">{TIMELINE_BLURB}</p>
 
-      <ol className="mt-4 space-y-4">
-        {events.map((event, i) => (
-          <HistoryRow key={`${event.event_type}-${event.created_at}-${i}`} event={event} />
-        ))}
-      </ol>
+      <div className="mt-4">
+        <HistoryList events={events} />
+      </div>
     </section>
+  );
+}
+
+/**
+ * Sidebar entry point: a compact button that opens the full timeline in a
+ * modal, so the history sits with the rest of the "how do we know?" material
+ * in the left column instead of stranded at the bottom of the page. Renders
+ * nothing when the place has no history yet (no dead button).
+ */
+export function PlaceTrustHistoryButton({ placeId }: { placeId: string }) {
+  const { data, isLoading, isError } = useHalalHistory(placeId);
+  const [open, setOpen] = React.useState(false);
+
+  if (isLoading || isError) return null;
+  const events = data ?? [];
+  if (events.length === 0) return null;
+
+  const count = events.length;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-between gap-3 rounded-xl border bg-card p-4 text-left shadow-sm transition hover:bg-accent"
+      >
+        <span className="flex min-w-0 items-center gap-2.5">
+          <History className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold">Trust history</span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {count} {count === 1 ? "event" : "events"} &middot; verifications,
+              disputes &amp; changes
+            </span>
+          </span>
+        </span>
+        <ChevronRight
+          className="h-4 w-4 shrink-0 text-muted-foreground"
+          aria-hidden
+        />
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              Trust history
+            </DialogTitle>
+            <DialogDescription>{TIMELINE_BLURB}</DialogDescription>
+          </DialogHeader>
+          <HistoryList events={events} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
