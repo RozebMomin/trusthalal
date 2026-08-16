@@ -10,8 +10,10 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.modules.halal_claims.schemas import HalalQuestionnaireResponse
 from app.modules.halal_profiles.enums import MeatType
 from app.modules.verifiers.enums import (
+    AmenityStatus,
     CheckResult,
     MeatCheckEvidence,
+    MenuPartialScope,
     VerificationVisitStatus,
     VerifierApplicationStatus,
     VerifierMeatFinding,
@@ -245,6 +247,20 @@ class VerifierOtherMeatCheck(VerifierMeatCheck):
     label: str = Field(..., min_length=1, max_length=100)
 
 
+class MenuPartialDetail(BaseModel):
+    """Set when the 'menu fully halal' check is PARTIAL — what shape the
+    partial coverage takes, plus the verifier's specifics."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scope: MenuPartialScope
+    note: Optional[str] = Field(
+        default=None,
+        max_length=1000,
+        description="Free text: which meats/dishes are the halal ones.",
+    )
+
+
 class VisitObservations(BaseModel):
     """Lightweight structured observations a verifier logs on the spot.
 
@@ -286,6 +302,15 @@ class VisitObservations(BaseModel):
         max_length=10,
         description="Per-item findings for meats/dishes outside the four tracked.",
     )
+    # Detail behind a PARTIAL 'menu fully halal' answer: is the halal part a
+    # whole meat group or specific dishes, plus the specifics as free text.
+    # Null when the menu is fully halal (or the check wasn't answered).
+    menu_partial: Optional[MenuPartialDetail] = None
+    # Family/cleanliness amenities the verifier checked for, keyed by a stable
+    # code (PRAYER_SPACE / WUDU / BIDET / BABY_CHANGING). Empty when none were
+    # recorded; additive, so older app builds that omit it stay valid. Kept
+    # structured (not free text) because these become consumer filters later.
+    amenities: dict[str, AmenityStatus] = Field(default_factory=dict)
 
 
 class VerificationVisitCreate(BaseModel):

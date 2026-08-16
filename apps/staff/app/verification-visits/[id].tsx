@@ -43,11 +43,13 @@ const ALCOHOL: Record<string, string> = {
 const FINDING_LABEL: Record<string, string> = {
   HAND_CUT: "Hand-cut",
   MACHINE_CUT: "Machine-cut",
+  ZABIHAH: "Zabihah",
+  NOT_ZABIHAH: "Not zabihah",
   NOT_SERVED: "Not served",
   UNSURE: "Unsure",
 };
 function findingTone(f: string): "green" | "amber" | "neutral" {
-  if (f === "HAND_CUT") return "green";
+  if (f === "HAND_CUT" || f === "ZABIHAH") return "green";
   if (f === "UNSURE") return "amber";
   return "neutral";
 }
@@ -61,6 +63,26 @@ const MEAT_LABEL: Record<string, string> = {
   BEEF: "Beef",
   LAMB: "Lamb",
   GOAT: "Goat",
+};
+const AMENITY_LABEL: Record<string, string> = {
+  PRAYER_SPACE: "Prayer space",
+  WUDU: "Wudu area",
+  BIDET: "Bidet / shattaf",
+  BABY_CHANGING: "Baby changing",
+};
+const AMENITY_VALUE_LABEL: Record<string, string> = {
+  YES: "Yes",
+  NO: "No",
+  UNSURE: "Unsure",
+};
+function amenityTone(v: string): "green" | "amber" | "neutral" {
+  if (v === "YES") return "green";
+  if (v === "UNSURE") return "amber";
+  return "neutral";
+}
+const MENU_SCOPE_LABEL: Record<string, string> = {
+  MEAT_GROUP: "A meat group is halal",
+  SPECIFIC_ITEMS: "Specific dishes are halal",
 };
 
 type Action = "accept" | "reject" | null;
@@ -165,6 +187,80 @@ export default function VisitDetail() {
             </Card>
           </View>
         ) : null}
+
+        {(() => {
+          const obs = v.observations;
+          if (!obs) return null;
+          const checkEntries = Object.entries(obs.checks ?? {});
+          const ordered = obs.ordered_items ?? [];
+          const mp = obs.menu_partial;
+          if (checkEntries.length === 0 && ordered.length === 0 && !mp) return null;
+          return (
+            <View>
+              <SectionLabel>Observations</SectionLabel>
+              <Card padded={false} style={{ paddingHorizontal: space.lg }}>
+                {checkEntries.map(([k, val], i) => (
+                  <InfoLine
+                    key={k}
+                    label={k}
+                    value={String(val)}
+                    last={i === checkEntries.length - 1 && !mp && ordered.length === 0}
+                  />
+                ))}
+                {mp ? (
+                  <View
+                    style={{
+                      paddingVertical: 11,
+                      borderBottomWidth: ordered.length === 0 ? 0 : 1,
+                      borderBottomColor: t.line,
+                    }}
+                  >
+                    <Text style={{ ...ty.body, color: t.sub }}>Partial menu</Text>
+                    <Body style={{ marginTop: 3 }}>
+                      {MENU_SCOPE_LABEL[mp.scope] ?? mp.scope}
+                      {mp.note ? ` — ${mp.note}` : ""}
+                    </Body>
+                  </View>
+                ) : null}
+                {ordered.length ? (
+                  <View style={{ paddingVertical: 11 }}>
+                    <Text style={{ ...ty.body, color: t.sub }}>Ordered</Text>
+                    <Body style={{ marginTop: 3 }}>{ordered.join(", ")}</Body>
+                  </View>
+                ) : null}
+              </Card>
+            </View>
+          );
+        })()}
+
+        {(() => {
+          const amenityEntries = Object.entries(v.observations?.amenities ?? {});
+          if (amenityEntries.length === 0) return null;
+          return (
+            <View>
+              <SectionLabel>Amenities</SectionLabel>
+              <Card padded={false} style={{ paddingHorizontal: space.lg }}>
+                {amenityEntries.map(([k, val], i) => (
+                  <View
+                    key={k}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      paddingVertical: 12,
+                      borderBottomWidth: i === amenityEntries.length - 1 ? 0 : 1,
+                      borderBottomColor: t.line,
+                    }}
+                  >
+                    <Text style={{ ...ty.label, color: t.ink }}>{AMENITY_LABEL[k] ?? k}</Text>
+                    <Pill label={AMENITY_VALUE_LABEL[val] ?? val} tone={amenityTone(val)} />
+                  </View>
+                ))}
+              </Card>
+            </View>
+          );
+        })()}
 
         {(() => {
           const mc = v.observations?.meat_checks ?? {};

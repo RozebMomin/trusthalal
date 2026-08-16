@@ -81,17 +81,44 @@ class CheckResult(StrEnum):
 class VerifierMeatFinding(StrEnum):
     """What staff told the verifier about a single meat, on the spot.
 
-    Mirrors the profile slaughter vocabulary (HAND_CUT / MACHINE_CUT /
-    NOT_SERVED) so a verifier's per-meat finding can be diffed directly
-    against the owner's per-meat claim, plus ``UNSURE`` for when staff
-    gave no clear answer (which is itself a signal, distinct from a
-    blank).
+    The vocabulary is meat-appropriate, not one-size-fits-all:
+
+      * Chicken has the hand-cut vs machine-cut debate, so it uses
+        ``HAND_CUT`` / ``MACHINE_CUT``.
+      * Beef, lamb, goat have no mechanical analogue; the observable
+        question is simply whether it was hand-slaughtered by a Muslim,
+        so they use ``ZABIHAH`` / ``NOT_ZABIHAH``. (The beef
+        vertical-vs-horizontal debate is deliberately deferred.)
+
+    ``NOT_SERVED`` and ``UNSURE`` (staff gave no clear answer, itself a
+    signal) apply to every meat. The mobile app shows only the values
+    that make sense for each meat; the enum is the union.
     """
 
     HAND_CUT = "HAND_CUT"
     MACHINE_CUT = "MACHINE_CUT"
+    ZABIHAH = "ZABIHAH"
+    NOT_ZABIHAH = "NOT_ZABIHAH"
     NOT_SERVED = "NOT_SERVED"
     UNSURE = "UNSURE"
+
+
+class AmenityStatus(StrEnum):
+    """Presence of a family/cleanliness amenity a verifier checks for."""
+
+    YES = "YES"
+    NO = "NO"
+    UNSURE = "UNSURE"
+
+
+class MenuPartialScope(StrEnum):
+    """When a menu is only partially halal, what shape the 'partial' takes."""
+
+    MEAT_GROUP = "MEAT_GROUP"
+    """A whole meat group is halal (e.g. all chicken), the rest is not."""
+
+    SPECIFIC_ITEMS = "SPECIFIC_ITEMS"
+    """Only specific dishes are halal (e.g. the wings but not the burger)."""
 
 
 class MeatCheckEvidence(StrEnum):

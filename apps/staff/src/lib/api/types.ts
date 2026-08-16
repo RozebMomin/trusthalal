@@ -358,7 +358,13 @@ export type VerificationVisitAttachment = {
   original_filename: string;
 };
 
-export type VerifierMeatFinding = "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED" | "UNSURE";
+export type VerifierMeatFinding =
+  | "HAND_CUT"
+  | "MACHINE_CUT"
+  | "ZABIHAH"
+  | "NOT_ZABIHAH"
+  | "NOT_SERVED"
+  | "UNSURE";
 export type MeatCheckEvidence = "VERBAL" | "INVOICE" | "CERTIFICATE";
 
 export type VerifierMeatCheck = {
@@ -367,11 +373,17 @@ export type VerifierMeatCheck = {
   note?: string | null;
 };
 
+export type AmenityStatus = "YES" | "NO" | "UNSURE";
+export type MenuPartialScope = "MEAT_GROUP" | "SPECIFIC_ITEMS";
+export type MenuPartialDetail = { scope: MenuPartialScope; note?: string | null };
+
 export type VisitObservations = {
   ordered_items: string[];
   checks: Record<string, string>;
   meat_checks: Record<string, VerifierMeatCheck>;
   other_meat_checks: Array<VerifierMeatCheck & { label: string }>;
+  menu_partial?: MenuPartialDetail | null;
+  amenities?: Record<string, AmenityStatus>;
 };
 
 export type VerificationVisitRead = {

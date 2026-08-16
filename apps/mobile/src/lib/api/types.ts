@@ -295,7 +295,13 @@ export type CheckResult = "YES" | "NO" | "PARTIAL";
 
 /** Lightweight structured observations from the observe step — kept
  *  separate from the heavy owner-style questionnaire. */
-export type VerifierMeatFinding = "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED" | "UNSURE";
+export type VerifierMeatFinding =
+  | "HAND_CUT"
+  | "MACHINE_CUT"
+  | "ZABIHAH"
+  | "NOT_ZABIHAH"
+  | "NOT_SERVED"
+  | "UNSURE";
 export type MeatCheckEvidence = "VERBAL" | "INVOICE" | "CERTIFICATE";
 export type VerifierMeatCheck = {
   finding: VerifierMeatFinding;
@@ -303,12 +309,20 @@ export type VerifierMeatCheck = {
   note?: string | null;
 };
 
+export type AmenityStatus = "YES" | "NO" | "UNSURE";
+export type MenuPartialScope = "MEAT_GROUP" | "SPECIFIC_ITEMS";
+export type MenuPartialDetail = { scope: MenuPartialScope; note?: string | null };
+
 export type VisitObservations = {
   ordered_items: string[];
   checks: Record<string, CheckResult>;
   /** Per-meat findings, keyed by MeatType. Optional; older builds omit it. */
   meat_checks?: Record<string, VerifierMeatCheck>;
   other_meat_checks?: Array<VerifierMeatCheck & { label: string }>;
+  /** Detail behind a PARTIAL 'menu fully halal' answer. */
+  menu_partial?: MenuPartialDetail;
+  /** Family/cleanliness amenities keyed by a stable code. */
+  amenities?: Record<string, AmenityStatus>;
 };
 
 export type VerificationVisitAttachment = {

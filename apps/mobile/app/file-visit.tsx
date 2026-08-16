@@ -22,6 +22,7 @@ import {
   useSubmitVerificationVisit,
 } from "@/lib/api/hooks";
 import type {
+  AmenityStatus,
   PlaceSearchResult,
   VerifierMeatCheck,
   VisitDisclosure,
@@ -106,11 +107,6 @@ const CHECK_ITEMS = [
     pill: { YES: "Cert sighted", NO: "No cert seen", PARTIAL: "Cert unclear" },
   },
   {
-    label: "Menu is fully halal",
-    good: "YES",
-    pill: { YES: "Fully halal", NO: "Not fully halal", PARTIAL: "Partly halal" },
-  },
-  {
     label: "Alcohol on premises",
     good: "NO",
     pill: { YES: "Alcohol served", NO: "No alcohol", PARTIAL: "Some alcohol" },
@@ -128,31 +124,36 @@ const CHECK_ITEMS = [
 type CheckItem = (typeof CHECK_ITEMS)[number]["label"];
 const CHECK_CYCLE: (CheckVal | undefined)[] = [undefined, "YES", "NO", "PARTIAL"];
 
-// Item-wise findings: the four tracked meats, what staff said, and the evidence
-// behind it. Captured with the same tap-to-cycle Tag idiom as the Checks card.
-const MEATS = [
-  { v: "CHICKEN", label: "Chicken" },
-  { v: "BEEF", label: "Beef" },
-  { v: "LAMB", label: "Lamb" },
-  { v: "GOAT", label: "Goat" },
-] as const;
-type MeatKey = (typeof MEATS)[number]["v"];
-
-type Finding = "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED" | "UNSURE";
+// Item-wise findings, captured with the same tap-to-cycle Tag idiom as the
+// Checks card. The vocabulary is meat-appropriate: chicken has the hand-cut vs
+// machine-cut debate; beef/lamb/goat have no mechanical analogue, so they're
+// simply zabihah / not-zabihah.
+type Finding =
+  | "HAND_CUT"
+  | "MACHINE_CUT"
+  | "ZABIHAH"
+  | "NOT_ZABIHAH"
+  | "NOT_SERVED"
+  | "UNSURE";
 const FINDING_LABEL: Record<Finding, string> = {
   HAND_CUT: "Hand-cut",
   MACHINE_CUT: "Machine",
+  ZABIHAH: "Zabihah",
+  NOT_ZABIHAH: "Not zabihah",
   NOT_SERVED: "Not served",
   UNSURE: "Unsure",
 };
-// Tap cycles through these; undefined = cleared (matches the Checks card).
-const FINDING_CYCLE: (Finding | undefined)[] = [
-  undefined,
-  "HAND_CUT",
-  "MACHINE_CUT",
-  "NOT_SERVED",
-  "UNSURE",
-];
+const CHICKEN_FINDINGS: Finding[] = ["HAND_CUT", "MACHINE_CUT", "NOT_SERVED", "UNSURE"];
+const REDMEAT_FINDINGS: Finding[] = ["ZABIHAH", "NOT_ZABIHAH", "NOT_SERVED", "UNSURE"];
+const MEATS = [
+  { v: "CHICKEN", label: "Chicken", findings: CHICKEN_FINDINGS },
+  { v: "BEEF", label: "Beef", findings: REDMEAT_FINDINGS },
+  { v: "LAMB", label: "Lamb", findings: REDMEAT_FINDINGS },
+  { v: "GOAT", label: "Goat", findings: REDMEAT_FINDINGS },
+] as const;
+type MeatKey = (typeof MEATS)[number]["v"];
+const findingsFor = (m: MeatKey): Finding[] =>
+  MEATS.find((x) => x.v === m)?.findings ?? REDMEAT_FINDINGS;
 // Neutral for a recorded method (the label carries the fact); amber flags
 // "unsure" as needing follow-up.
 const findingTone = (f: Finding): "zinc" | "amber" => (f === "UNSURE" ? "amber" : "zinc");
@@ -170,6 +171,38 @@ const evidenceTone = (e: Evidence): "zinc" | "wash" | "solid" =>
 
 type MeatCheck = { finding: Finding; evidence: Evidence };
 type OtherCheck = { label: string; finding: Finding; evidence: Evidence };
+// "Other" items (duck, fish, a specific dish) use the red-meat vocabulary.
+const OTHER_FINDINGS: Finding[] = REDMEAT_FINDINGS;
+
+// Menu coverage: Yes (fully halal) or Partial. There is no "No" — a place
+// with no halal food has no reason to be on the platform; a false claim is a
+// data problem handled in notes, not a menu state.
+type MenuHalal = "YES" | "PARTIAL";
+type MenuScope = "MEAT_GROUP" | "SPECIFIC_ITEMS";
+const MENU_SCOPE_LABEL: Record<MenuScope, string> = {
+  MEAT_GROUP: "A meat group",
+  SPECIFIC_ITEMS: "Specific dishes",
+};
+
+// Family/cleanliness amenities muslim diners look for. Yes/No/Unsure, kept
+// structured so they can become consumer filters later.
+const AMENITIES = [
+  { v: "PRAYER_SPACE", label: "Prayer space", hint: "Musalla / prayer room" },
+  { v: "WUDU", label: "Wudu area", hint: "Ablution facilities" },
+  { v: "BIDET", label: "Bidet / shattaf", hint: "In the restrooms" },
+  { v: "BABY_CHANGING", label: "Baby changing", hint: "Changing table" },
+] as const;
+type AmenityKey = (typeof AMENITIES)[number]["v"];
+type AmenityVal = "YES" | "NO" | "UNSURE";
+const AMENITY_LABEL: Record<AmenityVal, string> = {
+  YES: "Yes",
+  NO: "No",
+  UNSURE: "Unsure",
+};
+const AMENITY_CYCLE: (AmenityVal | undefined)[] = [undefined, "YES", "NO", "UNSURE"];
+// Present = wash (positive), absent = neutral zinc (not a defect), unsure = amber.
+const amenityTone = (v: AmenityVal): "wash" | "zinc" | "amber" =>
+  v === "YES" ? "wash" : v === "UNSURE" ? "amber" : "zinc";
 
 function checkTone(v: CheckVal | undefined, good: CheckVal): "wash" | "danger" | "amber" | "zinc" {
   if (!v) return "zinc";
@@ -210,10 +243,14 @@ export default function FileVisit() {
   const [addingItem, setAddingItem] = useState(false);
   const [itemDraft, setItemDraft] = useState("");
   const [checks, setChecks] = useState<Partial<Record<CheckItem, CheckVal>>>({});
+  const [menuHalal, setMenuHalal] = useState<MenuHalal | null>(null);
+  const [menuScope, setMenuScope] = useState<MenuScope | null>(null);
+  const [menuNote, setMenuNote] = useState("");
   const [meatChecks, setMeatChecks] = useState<Partial<Record<MeatKey, MeatCheck>>>({});
   const [otherChecks, setOtherChecks] = useState<OtherCheck[]>([]);
   const [addingOther, setAddingOther] = useState(false);
   const [otherDraft, setOtherDraft] = useState("");
+  const [amenities, setAmenities] = useState<Partial<Record<AmenityKey, AmenityVal>>>({});
   const [photos, setPhotos] = useState<VisitPhoto[]>([]);
   // Stamp the visit at open time — shown on the report card and sent as visited_at.
   const [visitedAt] = useState(() => new Date());
@@ -269,8 +306,10 @@ export default function FileVisit() {
   // served → unsure → cleared); tap the sub-line to cycle the evidence.
   const cycleMeatFinding = (m: MeatKey) =>
     setMeatChecks((c) => {
-      const i = FINDING_CYCLE.indexOf(c[m]?.finding);
-      const next = FINDING_CYCLE[(i + 1) % FINDING_CYCLE.length];
+      // Cleared is the first stop, then this meat's own vocabulary.
+      const cycle: (Finding | undefined)[] = [undefined, ...findingsFor(m)];
+      const i = cycle.indexOf(c[m]?.finding);
+      const next = cycle[(i + 1) % cycle.length];
       if (!next) {
         const copy = { ...c };
         delete copy[m];
@@ -288,21 +327,20 @@ export default function FileVisit() {
 
   const addOther = () => {
     const v = otherDraft.trim();
-    if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "HAND_CUT", evidence: "VERBAL" }]);
+    if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "ZABIHAH", evidence: "VERBAL" }]);
     setOtherDraft("");
     setAddingOther(false);
   };
   const removeOther = (i: number) =>
     setOtherChecks((xs) => xs.filter((_, j) => j !== i));
-  // "Other" rows always carry a method (Remove deletes them), so their cycle
+  // "Other" rows always carry a finding (Remove deletes them), so their cycle
   // skips the cleared state.
-  const OTHER_FINDING_CYCLE: Finding[] = ["HAND_CUT", "MACHINE_CUT", "NOT_SERVED", "UNSURE"];
   const cycleOtherFinding = (i: number) =>
     setOtherChecks((xs) =>
       xs.map((o, j) => {
         if (j !== i) return o;
-        const k = OTHER_FINDING_CYCLE.indexOf(o.finding);
-        return { ...o, finding: OTHER_FINDING_CYCLE[(k + 1) % OTHER_FINDING_CYCLE.length] };
+        const k = OTHER_FINDINGS.indexOf(o.finding);
+        return { ...o, finding: OTHER_FINDINGS[(k + 1) % OTHER_FINDINGS.length] };
       }),
     );
   const cycleOtherEvidence = (i: number) =>
@@ -314,20 +352,60 @@ export default function FileVisit() {
       }),
     );
 
+  // Menu coverage is a single Yes/Partial pick; tapping the active one clears
+  // it. Leaving Partial drops the follow-up so we never ship a stale scope.
+  const pickMenu = (v: MenuHalal) =>
+    setMenuHalal((cur) => {
+      const next = cur === v ? null : v;
+      if (next !== "PARTIAL") {
+        setMenuScope(null);
+        setMenuNote("");
+      }
+      return next;
+    });
+  const cycleAmenity = (k: AmenityKey) =>
+    setAmenities((a) => {
+      const i = AMENITY_CYCLE.indexOf(a[k]);
+      const next = AMENITY_CYCLE[(i + 1) % AMENITY_CYCLE.length];
+      if (!next) {
+        const copy = { ...a };
+        delete copy[k];
+        return copy;
+      }
+      return { ...a, [k]: next };
+    });
+
   // Structured observations for the API — only send when non-empty.
   const buildObservations = (): VisitObservations | undefined => {
     const hasChecks = CHECK_ITEMS.some((c) => checks[c.label]);
     const meatEntries = Object.entries(meatChecks);
     const hasMeat = meatEntries.length > 0 || otherChecks.length > 0;
-    if (!ordered.length && !hasChecks && !hasMeat) return undefined;
+    const amenityEntries = Object.entries(amenities);
+    const hasAny =
+      ordered.length ||
+      hasChecks ||
+      hasMeat ||
+      menuHalal ||
+      amenityEntries.length;
+    if (!hasAny) return undefined;
+    // Menu coverage rides along in the free-form checks map under a stable key
+    // so the admin's Checks display picks it up without a bespoke field.
+    const checksOut: Record<string, CheckVal> = { ...checks };
+    if (menuHalal) checksOut["Menu is fully halal"] = menuHalal;
     const obs: VisitObservations = {
       ordered_items: ordered,
-      checks: { ...checks },
+      checks: checksOut,
     };
     if (meatEntries.length) {
       obs.meat_checks = meatChecks as Record<string, VerifierMeatCheck>;
     }
     if (otherChecks.length) obs.other_meat_checks = otherChecks;
+    if (menuHalal === "PARTIAL" && menuScope) {
+      obs.menu_partial = { scope: menuScope, note: menuNote.trim() || null };
+    }
+    if (amenityEntries.length) {
+      obs.amenities = Object.fromEntries(amenityEntries) as Record<string, AmenityStatus>;
+    }
     return obs;
   };
 
@@ -350,8 +428,12 @@ export default function FileVisit() {
         setSelected(d.selected ?? null);
         setOrdered(d.ordered ?? []);
         setChecks(d.checks ?? {});
+        setMenuHalal((d.menuHalal ?? null) as MenuHalal | null);
+        setMenuScope((d.menuScope ?? null) as MenuScope | null);
+        setMenuNote(d.menuNote ?? "");
         setMeatChecks((d.meatChecks ?? {}) as Partial<Record<MeatKey, MeatCheck>>);
         setOtherChecks((d.otherChecks ?? []) as OtherCheck[]);
+        setAmenities((d.amenities ?? {}) as Partial<Record<AmenityKey, AmenityVal>>);
         setPhotos(d.photos ?? []);
         setDisclosure(d.disclosure ?? "SELF_FUNDED");
         setDisclosureNote(d.disclosureNote ?? "");
@@ -369,15 +451,19 @@ export default function FileVisit() {
       selected,
       ordered,
       checks,
+      menuHalal,
+      menuScope,
+      menuNote,
       meatChecks,
       otherChecks,
+      amenities,
       photos,
       disclosure,
       disclosureNote,
       notes,
       reviewUrl,
     });
-  }, [step, selected, ordered, checks, meatChecks, otherChecks, photos, disclosure, disclosureNote, notes, reviewUrl]);
+  }, [step, selected, ordered, checks, menuHalal, menuScope, menuNote, meatChecks, otherChecks, amenities, photos, disclosure, disclosureNote, notes, reviewUrl]);
 
   const typed = query.trim();
   // Text query wins; otherwise fall back to nearby suggestions from the
@@ -750,6 +836,68 @@ export default function FileVisit() {
               ))}
             </Card>
 
+            <Seg size={mockupPx(10)}>Menu</Seg>
+            <Card>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 13,
+                }}
+              >
+                <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5), flex: 1 }]}>
+                  Is the menu fully halal?
+                </Text>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  <Chip label="Fully" on={menuHalal === "YES"} size={mockupPx(11)} onPress={() => pickMenu("YES")} />
+                  <Chip label="Partial" on={menuHalal === "PARTIAL"} size={mockupPx(11)} onPress={() => pickMenu("PARTIAL")} />
+                </View>
+              </View>
+              {menuHalal === "PARTIAL" ? (
+                <View
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingTop: 12,
+                    paddingBottom: 14,
+                    borderTopWidth: 1,
+                    borderTopColor: t.line,
+                    gap: 9,
+                  }}
+                >
+                  <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>
+                    What is the halal part?
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    {(["MEAT_GROUP", "SPECIFIC_ITEMS"] as MenuScope[]).map((s) => (
+                      <Chip
+                        key={s}
+                        label={MENU_SCOPE_LABEL[s]}
+                        on={menuScope === s}
+                        size={mockupPx(11)}
+                        onPress={() => setMenuScope(s)}
+                      />
+                    ))}
+                  </View>
+                  <TextInput
+                    style={[field, { paddingVertical: 8 }]}
+                    placeholder={
+                      menuScope === "SPECIFIC_ITEMS"
+                        ? "Which dishes? (e.g. wings, not the burger)"
+                        : "Which meats? (e.g. all chicken is halal)"
+                    }
+                    placeholderTextColor={t.sub}
+                    value={menuNote}
+                    onChangeText={setMenuNote}
+                    onFocus={revealInput}
+                    maxLength={1000}
+                  />
+                </View>
+              ) : null}
+            </Card>
+
             <Seg size={mockupPx(10)}>Per-item</Seg>
             <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10), marginBottom: 2 }]}>
               Tap a meat to log what staff said; tap again to change or clear.
@@ -881,6 +1029,36 @@ export default function FileVisit() {
                   <Chip label="+ Add other" ghost size={mockupPx(11)} onPress={() => setAddingOther(true)} />
                 )}
               </View>
+            </Card>
+
+            <Seg size={mockupPx(10)}>Amenities</Seg>
+            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10), marginBottom: 2 }]}>
+              What families look for. Tap to cycle Yes / No / Unsure.
+            </Text>
+            <Card>
+              {AMENITIES.map((a, i) => {
+                const av = amenities[a.v];
+                return (
+                  <Cell
+                    key={a.v}
+                    last={i === AMENITIES.length - 1}
+                    onPress={() => cycleAmenity(a.v)}
+                    left={
+                      <View>
+                        <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{a.label}</Text>
+                        <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(9.5) }]}>{a.hint}</Text>
+                      </View>
+                    }
+                    right={
+                      av ? (
+                        <Tag label={AMENITY_LABEL[av]} tone={amenityTone(av)} size={mockupPx(9.5)} />
+                      ) : (
+                        <Tag label="TAP" tone="dashed" size={mockupPx(9.5)} />
+                      )
+                    }
+                  />
+                );
+              })}
             </Card>
 
             <Seg size={mockupPx(10)}>Notes</Seg>
