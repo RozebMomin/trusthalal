@@ -72,12 +72,13 @@ const AMENITY_LABEL: Record<string, string> = {
 };
 const AMENITY_VALUE_LABEL: Record<string, string> = {
   YES: "Yes",
+  ON_REQUEST: "On request",
   NO: "No",
   UNSURE: "Unsure",
 };
 function amenityTone(v: string): "green" | "amber" | "neutral" {
   if (v === "YES") return "green";
-  if (v === "UNSURE") return "amber";
+  if (v === "ON_REQUEST" || v === "UNSURE") return "amber";
   return "neutral";
 }
 const MENU_SCOPE_LABEL: Record<string, string> = {

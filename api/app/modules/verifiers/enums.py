@@ -104,9 +104,15 @@ class VerifierMeatFinding(StrEnum):
 
 
 class AmenityStatus(StrEnum):
-    """Presence of a family/cleanliness amenity a verifier checks for."""
+    """Presence of a family/cleanliness amenity a verifier checks for.
+
+    ``ON_REQUEST`` covers amenities that aren't visible/public but staff will
+    provide when asked — common for a prayer space or a place to make wudu.
+    Only offered for those; bidet / baby-changing stay a plain YES/NO/UNSURE.
+    """
 
     YES = "YES"
+    ON_REQUEST = "ON_REQUEST"
     NO = "NO"
     UNSURE = "UNSURE"
 

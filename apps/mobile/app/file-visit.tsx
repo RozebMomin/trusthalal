@@ -184,25 +184,32 @@ const MENU_SCOPE_LABEL: Record<MenuScope, string> = {
   SPECIFIC_ITEMS: "Specific dishes",
 };
 
-// Family/cleanliness amenities muslim diners look for. Yes/No/Unsure, kept
-// structured so they can become consumer filters later.
+// Family/cleanliness amenities muslim diners look for. Kept structured so they
+// can become consumer filters later. Prayer space + wudu additionally offer
+// "On request" — they're often not public but staff will sort you out if you
+// ask; bidet / baby-changing are a plain Yes/No/Unsure.
+type AmenityVal = "YES" | "ON_REQUEST" | "NO" | "UNSURE";
+const AMENITY_VALS_REQUESTABLE: AmenityVal[] = ["YES", "ON_REQUEST", "NO", "UNSURE"];
+const AMENITY_VALS_BASIC: AmenityVal[] = ["YES", "NO", "UNSURE"];
 const AMENITIES = [
-  { v: "PRAYER_SPACE", label: "Prayer space", hint: "Musalla / prayer room" },
-  { v: "WUDU", label: "Wudu area", hint: "Ablution facilities" },
-  { v: "BIDET", label: "Bidet / shattaf", hint: "In the restrooms" },
-  { v: "BABY_CHANGING", label: "Baby changing", hint: "Changing table" },
+  { v: "PRAYER_SPACE", label: "Prayer space", hint: "Musalla / prayer room", vals: AMENITY_VALS_REQUESTABLE },
+  { v: "WUDU", label: "Wudu area", hint: "Ablution facilities", vals: AMENITY_VALS_REQUESTABLE },
+  { v: "BIDET", label: "Bidet / shattaf", hint: "In the restrooms", vals: AMENITY_VALS_BASIC },
+  { v: "BABY_CHANGING", label: "Baby changing", hint: "Changing table", vals: AMENITY_VALS_BASIC },
 ] as const;
 type AmenityKey = (typeof AMENITIES)[number]["v"];
-type AmenityVal = "YES" | "NO" | "UNSURE";
+const amenityValsFor = (k: AmenityKey): AmenityVal[] =>
+  AMENITIES.find((x) => x.v === k)?.vals ?? AMENITY_VALS_BASIC;
 const AMENITY_LABEL: Record<AmenityVal, string> = {
   YES: "Yes",
+  ON_REQUEST: "On request",
   NO: "No",
   UNSURE: "Unsure",
 };
-const AMENITY_CYCLE: (AmenityVal | undefined)[] = [undefined, "YES", "NO", "UNSURE"];
-// Present = wash (positive), absent = neutral zinc (not a defect), unsure = amber.
+// Present = wash (positive); on-request/unsure = amber (a caveat); absent =
+// neutral zinc (not a defect).
 const amenityTone = (v: AmenityVal): "wash" | "zinc" | "amber" =>
-  v === "YES" ? "wash" : v === "UNSURE" ? "amber" : "zinc";
+  v === "YES" ? "wash" : v === "NO" ? "zinc" : "amber";
 
 function checkTone(v: CheckVal | undefined, good: CheckVal): "wash" | "danger" | "amber" | "zinc" {
   if (!v) return "zinc";
@@ -365,8 +372,11 @@ export default function FileVisit() {
     });
   const cycleAmenity = (k: AmenityKey) =>
     setAmenities((a) => {
-      const i = AMENITY_CYCLE.indexOf(a[k]);
-      const next = AMENITY_CYCLE[(i + 1) % AMENITY_CYCLE.length];
+      // Cleared is the first stop, then this amenity's own value set (prayer
+      // space + wudu include "On request"; the others don't).
+      const cycle: (AmenityVal | undefined)[] = [undefined, ...amenityValsFor(k)];
+      const i = cycle.indexOf(a[k]);
+      const next = cycle[(i + 1) % cycle.length];
       if (!next) {
         const copy = { ...a };
         delete copy[k];
