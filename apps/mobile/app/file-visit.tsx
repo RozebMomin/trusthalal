@@ -1063,7 +1063,7 @@ export default function FileVisit() {
         {step === 3 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
-              Family{"\n"}amenities
+              Anything for{"\n"}families?
             </Text>
             <Text style={[ty.body, { color: t.sub }]}>
               Optional. The small things families and observant diners look for. Tap to cycle
