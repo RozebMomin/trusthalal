@@ -782,7 +782,7 @@ export default function FileVisit() {
             </Text>
 
             <View style={{ height: 1, backgroundColor: t.line, marginTop: mockupPx(10), marginBottom: mockupPx(4) }} />
-            <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(15), fontFamily: "Inter_800ExtraBold" }]}>
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               What you ordered
             </Text>
             <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5), marginTop: mockupPx(1) }]}>
