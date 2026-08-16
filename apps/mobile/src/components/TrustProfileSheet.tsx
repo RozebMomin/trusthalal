@@ -1,5 +1,4 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -127,6 +126,10 @@ export function TrustProfileSheet({
   const insets = useSafeAreaInsets();
   const p = place.halal_profile;
   const [certOpen, setCertOpen] = useState(false);
+  // History opens as a layer ON TOP of this sheet (both are modals), so
+  // backing out of history returns here — the evidence — not to place detail.
+  // That preserves the flow the user actually took (place → evidence → history).
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Slide in from the right (a push, matching the "Details ›" arrow), and
   // slide back out before unmounting. Modal itself is instant + transparent;
@@ -288,9 +291,9 @@ export function TrustProfileSheet({
             <Text style={[ty.body, { color: t.sub }]}>No halal profile yet.</Text>
           )}
 
-          {/* Jump to the full timeline. Close the sheet first (it's a modal
-              over the stack), then push the history screen so it's what's
-              revealed underneath. */}
+          {/* Jump to the full timeline. Opens as a layer on top of this sheet
+              (see historyOpen) so backing out returns here, not to place
+              detail — the flow the user took was place → evidence → history. */}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="View trust history"
@@ -300,11 +303,7 @@ export function TrustProfileSheet({
                 place_name: place.name,
                 from: "profile_sheet",
               });
-              router.push({
-                pathname: "/place-history/[id]",
-                params: { id: place.id, name: place.name },
-              });
-              handleClose();
+              setHistoryOpen(true);
             }}
             style={{
               marginTop: 8,
@@ -342,6 +341,81 @@ export function TrustProfileSheet({
           onClose={() => setCertOpen(false)}
         />
       ) : null}
+
+      {historyOpen ? (
+        <HistorySubSheet place={place} onClose={() => setHistoryOpen(false)} />
+      ) : null}
+    </Modal>
+  );
+}
+
+/** The trust-history timeline presented as a slide-in layer on top of the
+ *  profile sheet. It's its own modal (over the sheet's modal) so dismissing it
+ *  returns to the evidence, not to the place screen — matching the path the
+ *  user took to get here. Same chrome as the parent sheet for continuity. */
+function HistorySubSheet({ place, onClose }: { place: PlaceDetail; onClose: () => void }) {
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const tx = useRef(new Animated.Value(width)).current;
+  useEffect(() => {
+    Animated.timing(tx, {
+      toValue: 0,
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [tx]);
+  const handleClose = () => {
+    Animated.timing(tx, {
+      toValue: width,
+      duration: 220,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => onClose());
+  };
+
+  return (
+    <Modal visible transparent animationType="none" onRequestClose={handleClose} statusBarTranslucent>
+      <Animated.View
+        style={{
+          flex: 1,
+          backgroundColor: t.bg,
+          transform: [{ translateX: tx }],
+          shadowColor: "#000",
+          shadowOpacity: 0.18,
+          shadowRadius: 14,
+          shadowOffset: { width: -4, height: 0 },
+        }}
+      >
+        <View
+          style={{
+            paddingTop: insets.top + space.sm,
+            paddingBottom: 10,
+            paddingHorizontal: space.lg,
+            backgroundColor: t.bg,
+            borderBottomWidth: 1,
+            borderBottomColor: t.line,
+          }}
+        >
+          <Pressable onPress={handleClose} accessibilityLabel="Back to trust profile" style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Feather name="chevron-left" size={20} color={t.sub} />
+            <Text numberOfLines={1} style={[ty.label, { color: t.sub, fontSize: 14, flexShrink: 1 }]}>Trust profile</Text>
+          </Pressable>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={{ paddingTop: space.md, paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.xl }}
+        >
+          <Text style={[ty.title, { color: t.ink, fontSize: 30, lineHeight: 34, marginTop: 4, marginBottom: space.md }]}>
+            Trust history
+          </Text>
+          <Text style={[ty.body, { color: t.sub, fontSize: 14, marginBottom: space.xl }]}>
+            Verifications, disputes and changes over time.
+          </Text>
+          <HalalHistoryTimeline placeId={place.id} />
+        </ScrollView>
+      </Animated.View>
     </Modal>
   );
 }
