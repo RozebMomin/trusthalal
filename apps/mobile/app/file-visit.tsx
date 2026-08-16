@@ -780,21 +780,8 @@ export default function FileVisit() {
                 ? `${photos.length} photo${photos.length === 1 ? "" : "s"} attached · tap a photo to label it (Cert / Menu / Meal).`
                 : "Aim for the cert on the wall, the menu, and what you ordered."}
             </Text>
-            <Button title="Continue" onPress={next} />
-            <Text style={[ty.small, { color: t.sub, textAlign: "center", fontSize: mockupPx(9.5) }]}>
-              Photos stay on-device until you submit.
-            </Text>
-          </>
-        ) : null}
 
-        {/* --- Step 2 · Observe ------------------------------------------- */}
-        {step === 2 ? (
-          <>
-            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
-              What did you{"\n"}observe?
-            </Text>
-
-            <Seg size={mockupPx(10)}>You ordered</Seg>
+            <Seg size={mockupPx(10)}>What you ordered</Seg>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
               {ordered.map((item) => (
                 <Chip key={item} label={item} on size={mockupPx(11)} onPress={() => setOrdered((xs) => xs.filter((x) => x !== item))} />
@@ -815,7 +802,24 @@ export default function FileVisit() {
                 <Chip label="+ Add item" ghost size={mockupPx(11)} onPress={() => setAddingItem(true)} />
               )}
             </View>
-            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10) }]}>Tap a dish to remove it.</Text>
+            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10) }]}>
+              Optional. The dishes you had, so admin knows what the visit covered. Tap a dish to
+              remove it.
+            </Text>
+
+            <Button title="Continue" onPress={next} />
+            <Text style={[ty.small, { color: t.sub, textAlign: "center", fontSize: mockupPx(9.5) }]}>
+              Photos stay on-device until you submit.
+            </Text>
+          </>
+        ) : null}
+
+        {/* --- Step 2 · Observe ------------------------------------------- */}
+        {step === 2 ? (
+          <>
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              What did you{"\n"}observe?
+            </Text>
 
             <Seg size={mockupPx(10)}>Checks</Seg>
             <Card>
