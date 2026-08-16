@@ -781,8 +781,14 @@ export default function FileVisit() {
                 : "Aim for the cert on the wall, the menu, and what you ordered."}
             </Text>
 
-            <Seg size={mockupPx(10)}>What you ordered</Seg>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+            <View style={{ height: 1, backgroundColor: t.line, marginTop: mockupPx(10), marginBottom: mockupPx(4) }} />
+            <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(15), fontFamily: "Inter_800ExtraBold" }]}>
+              What you ordered
+            </Text>
+            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5), marginTop: mockupPx(1) }]}>
+              Optional — the dishes you had, so admin knows what the visit covered.
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center", marginTop: mockupPx(4) }}>
               {ordered.map((item) => (
                 <Chip key={item} label={item} on size={mockupPx(11)} onPress={() => setOrdered((xs) => xs.filter((x) => x !== item))} />
               ))}
@@ -802,10 +808,9 @@ export default function FileVisit() {
                 <Chip label="+ Add item" ghost size={mockupPx(11)} onPress={() => setAddingItem(true)} />
               )}
             </View>
-            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10) }]}>
-              Optional. The dishes you had, so admin knows what the visit covered. Tap a dish to
-              remove it.
-            </Text>
+            {ordered.length ? (
+              <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10) }]}>Tap a dish to remove it.</Text>
+            ) : null}
 
             <Button title="Continue" onPress={next} />
             <Text style={[ty.small, { color: t.sub, textAlign: "center", fontSize: mockupPx(9.5) }]}>
