@@ -570,16 +570,17 @@ export default function FileVisit() {
   } as const;
 
   // Outlined input that reads as a field when it sits on a card (where the
-  // filled `field` above would blend in). Matches the "how you know" box.
+  // filled `field` above would blend in). Box + text match the "how you know"
+  // row: same border, same ty.small / 10.5 type so the two read as a set.
   const outlinedField = {
     borderWidth: 1,
     borderColor: t.line,
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 10,
     color: t.ink,
-    ...ty.body,
-    fontSize: mockupPx(12.5),
+    ...ty.small,
+    fontSize: mockupPx(10.5),
   } as const;
 
   const next = () => setStep((s) => Math.min(s + 1, TOTAL));
