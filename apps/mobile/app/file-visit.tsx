@@ -569,6 +569,19 @@ export default function FileVisit() {
     fontSize: mockupPx(13.5),
   } as const;
 
+  // Outlined input that reads as a field when it sits on a card (where the
+  // filled `field` above would blend in). Matches the "how you know" box.
+  const outlinedField = {
+    borderWidth: 1,
+    borderColor: t.line,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    color: t.ink,
+    ...ty.body,
+    fontSize: mockupPx(12.5),
+  } as const;
+
   const next = () => setStep((s) => Math.min(s + 1, TOTAL));
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
@@ -1001,10 +1014,10 @@ export default function FileVisit() {
                       </Pressable>
                     ) : null}
                     {showEv && evidenceShowsSupplier(mc!.evidence) ? (
-                      <View style={{ marginHorizontal: 16, marginTop: -6, marginBottom: 12 }}>
+                      <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12 }}>
                         <TextInput
-                          style={[field, { paddingVertical: 8 }]}
-                          placeholder="Supplier on the invoice / cert (optional)"
+                          style={outlinedField}
+                          placeholder="Supplier name"
                           placeholderTextColor={t.sub}
                           value={mc!.supplier ?? ""}
                           onChangeText={(text) => setMeatSupplier(m.v, text)}
@@ -1069,10 +1082,10 @@ export default function FileVisit() {
                       </Pressable>
                     ) : null}
                     {showEv && evidenceShowsSupplier(o.evidence) ? (
-                      <View style={{ marginHorizontal: 16, marginTop: -6, marginBottom: 12 }}>
+                      <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12 }}>
                         <TextInput
-                          style={[field, { paddingVertical: 8 }]}
-                          placeholder="Supplier on the invoice / cert (optional)"
+                          style={outlinedField}
+                          placeholder="Supplier name"
                           placeholderTextColor={t.sub}
                           value={o.supplier ?? ""}
                           onChangeText={(text) => setOtherSupplier(i, text)}
