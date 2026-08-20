@@ -314,6 +314,28 @@ export function useHalalHistory(id: string, enabled: boolean) {
   });
 }
 
+export type SupplierSuggestion = {
+  id: string;
+  name: string;
+  city?: string | null;
+  region?: string | null;
+};
+
+/** Registry supplier search (any signed-in user). Powers the verifier flow's
+ *  supplier autocomplete: a typed name gets suggestions from the registry so a
+ *  tap corrects it to the canonical spelling. Free text still stands if there's
+ *  no match. */
+export function useSearchSuppliers(q: string, enabled: boolean) {
+  const term = q.trim();
+  return useQuery({
+    queryKey: ["suppliers", "search", term],
+    queryFn: () =>
+      apiFetch<SupplierSuggestion[]>(`/suppliers?q=${encodeURIComponent(term)}&limit=8`),
+    enabled: enabled && term.length >= 2,
+    staleTime: 60_000,
+  });
+}
+
 export function useReverseGeocode(lat?: number, lng?: number) {
   return useQuery({
     queryKey: ["geocode", "reverse", lat?.toFixed(3), lng?.toFixed(3)],

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   Pressable,
   ScrollView,
   Text,
@@ -19,6 +20,7 @@ import {
   uploadVisitAttachment,
   useCurrentUser,
   useSearchPlaces,
+  useSearchSuppliers,
   useSubmitVerificationVisit,
 } from "@/lib/api/hooks";
 import type {
@@ -364,6 +366,82 @@ export default function FileVisit() {
     );
   const setOtherSupplier = (i: number, text: string) =>
     setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, supplier: text } : o)));
+
+  // --- Supplier autocomplete against the registry ------------------------
+  // Only the focused supplier input queries + shows suggestions. Focus key is
+  // "meat:<KEY>" or "other:<index>". A tap fills the canonical registry name
+  // (fixing typos); free text still stands if nothing matches.
+  const [supplierFocus, setSupplierFocus] = useState<string | null>(null);
+  const activeSupplierText = (() => {
+    if (!supplierFocus) return "";
+    const [kind, key] = supplierFocus.split(":");
+    return kind === "meat"
+      ? meatChecks[key as MeatKey]?.supplier ?? ""
+      : otherChecks[Number(key)]?.supplier ?? "";
+  })();
+  const [supplierQuery, setSupplierQuery] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setSupplierQuery(activeSupplierText), 200);
+    return () => clearTimeout(id);
+  }, [activeSupplierText]);
+  const supplierSuggest = useSearchSuppliers(supplierQuery, Boolean(supplierFocus));
+  // Blur-then-tap: clear focus on a short delay so a suggestion's onPress lands
+  // before the list unmounts.
+  const blurSupplier = (key: string) =>
+    setTimeout(() => setSupplierFocus((f) => (f === key ? null : f)), 150);
+  const pickSupplier = (setter: (name: string) => void, name: string) => {
+    setter(name);
+    setSupplierFocus(null);
+    Keyboard.dismiss();
+  };
+  const renderSupplierSuggestions = (focusKey: string, onPick: (name: string) => void) => {
+    if (supplierFocus !== focusKey) return null;
+    const q = supplierQuery.trim();
+    if (q.length < 2) return null;
+    const items = (supplierSuggest.data ?? []).filter(
+      (s) => s.name.toLowerCase() !== q.toLowerCase(),
+    );
+    if (items.length === 0) return null;
+    return (
+      <View
+        style={{
+          marginHorizontal: 16,
+          marginTop: -6,
+          marginBottom: 12,
+          borderWidth: 1,
+          borderColor: t.line,
+          borderRadius: 10,
+          overflow: "hidden",
+        }}
+      >
+        {items.slice(0, 6).map((s, idx) => (
+          <Pressable
+            key={s.id}
+            onPress={() => onPick(s.name)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              borderTopWidth: idx === 0 ? 0 : 1,
+              borderTopColor: t.line,
+            }}
+          >
+            <MaterialCommunityIcons name="check-decagram-outline" size={mockupPx(14)} color={t.accentDeep} />
+            <Text style={[ty.small, { color: t.ink, fontSize: mockupPx(11), flex: 1 }]} numberOfLines={1}>
+              {s.name}
+            </Text>
+            {s.city ? (
+              <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(9.5) }]} numberOfLines={1}>
+                {s.city}
+              </Text>
+            ) : null}
+          </Pressable>
+        ))}
+      </View>
+    );
+  };
 
   // Menu coverage is a single Yes/Partial pick; tapping the active one clears
   // it. Leaving Partial drops the follow-up so we never ship a stale scope.
@@ -1015,18 +1093,27 @@ export default function FileVisit() {
                       </Pressable>
                     ) : null}
                     {showEv && evidenceShowsSupplier(mc!.evidence) ? (
-                      <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12 }}>
-                        <TextInput
-                          style={outlinedField}
-                          placeholder="Supplier name"
-                          placeholderTextColor={t.sub}
-                          value={mc!.supplier ?? ""}
-                          onChangeText={(text) => setMeatSupplier(m.v, text)}
-                          onFocus={revealInput}
-                          maxLength={200}
-                          autoCapitalize="words"
-                        />
-                      </View>
+                      <>
+                        <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12 }}>
+                          <TextInput
+                            style={outlinedField}
+                            placeholder="Supplier name"
+                            placeholderTextColor={t.sub}
+                            value={mc!.supplier ?? ""}
+                            onChangeText={(text) => setMeatSupplier(m.v, text)}
+                            onFocus={() => {
+                              setSupplierFocus(`meat:${m.v}`);
+                              revealInput();
+                            }}
+                            onBlur={() => blurSupplier(`meat:${m.v}`)}
+                            maxLength={200}
+                            autoCapitalize="words"
+                          />
+                        </View>
+                        {renderSupplierSuggestions(`meat:${m.v}`, (name) =>
+                          pickSupplier((n) => setMeatSupplier(m.v, n), name),
+                        )}
+                      </>
                     ) : null}
                   </View>
                 );
@@ -1083,18 +1170,27 @@ export default function FileVisit() {
                       </Pressable>
                     ) : null}
                     {showEv && evidenceShowsSupplier(o.evidence) ? (
-                      <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12 }}>
-                        <TextInput
-                          style={outlinedField}
-                          placeholder="Supplier name"
-                          placeholderTextColor={t.sub}
-                          value={o.supplier ?? ""}
-                          onChangeText={(text) => setOtherSupplier(i, text)}
-                          onFocus={revealInput}
-                          maxLength={200}
-                          autoCapitalize="words"
-                        />
-                      </View>
+                      <>
+                        <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12 }}>
+                          <TextInput
+                            style={outlinedField}
+                            placeholder="Supplier name"
+                            placeholderTextColor={t.sub}
+                            value={o.supplier ?? ""}
+                            onChangeText={(text) => setOtherSupplier(i, text)}
+                            onFocus={() => {
+                              setSupplierFocus(`other:${i}`);
+                              revealInput();
+                            }}
+                            onBlur={() => blurSupplier(`other:${i}`)}
+                            maxLength={200}
+                            autoCapitalize="words"
+                          />
+                        </View>
+                        {renderSupplierSuggestions(`other:${i}`, (name) =>
+                          pickSupplier((n) => setOtherSupplier(i, n), name),
+                        )}
+                      </>
                     ) : null}
                   </View>
                 );
