@@ -122,6 +122,7 @@ export function Chip({
   on,
   ghost,
   accent,
+  amber,
   icon,
   onPress,
   size,
@@ -131,14 +132,16 @@ export function Chip({
   ghost?: boolean;
   /** When selected, fill with the brand emerald instead of ink. */
   accent?: boolean;
+  /** When selected, fill with amber — for a caveat option (e.g. "Partial"). */
+  amber?: boolean;
   icon?: keyof typeof Feather.glyphMap;
   onPress?: () => void;
   /** Override the label font size (e.g. mockupPx-scaled). */
   size?: number;
 }) {
   const t = useTheme();
-  const onBg = accent ? t.accent : t.ink;
-  const onFg = accent ? t.onAccent : t.onInk;
+  const onBg = amber ? t.amber : accent ? t.accent : t.ink;
+  const onFg = amber ? "#fff" : accent ? t.onAccent : t.onInk;
   return (
     <Pressable
       accessibilityRole="button"

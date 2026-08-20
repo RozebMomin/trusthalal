@@ -991,7 +991,7 @@ export default function FileVisit() {
                 </Text>
                 <View style={{ flexDirection: "row", gap: 6 }}>
                   <Chip label="Fully" on={menuHalal === "YES"} accent size={mockupPx(11)} onPress={() => pickMenu("YES")} />
-                  <Chip label="Partial" on={menuHalal === "PARTIAL"} accent size={mockupPx(11)} onPress={() => pickMenu("PARTIAL")} />
+                  <Chip label="Partial" on={menuHalal === "PARTIAL"} amber size={mockupPx(11)} onPress={() => pickMenu("PARTIAL")} />
                 </View>
               </View>
               {menuHalal === "PARTIAL" ? (
