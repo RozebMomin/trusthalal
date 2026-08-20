@@ -121,6 +121,7 @@ export function Chip({
   label,
   on,
   ghost,
+  accent,
   icon,
   onPress,
   size,
@@ -128,12 +129,16 @@ export function Chip({
   label: string;
   on?: boolean;
   ghost?: boolean;
+  /** When selected, fill with the brand emerald instead of ink. */
+  accent?: boolean;
   icon?: keyof typeof Feather.glyphMap;
   onPress?: () => void;
   /** Override the label font size (e.g. mockupPx-scaled). */
   size?: number;
 }) {
   const t = useTheme();
+  const onBg = accent ? t.accent : t.ink;
+  const onFg = accent ? t.onAccent : t.onInk;
   return (
     <Pressable
       accessibilityRole="button"
@@ -142,7 +147,7 @@ export function Chip({
         flexDirection: "row",
         alignItems: "center",
         gap: 5,
-        backgroundColor: on ? t.ink : ghost ? "transparent" : t.card,
+        backgroundColor: on ? onBg : ghost ? "transparent" : t.card,
         borderWidth: ghost && !on ? 1 : 0,
         borderColor: t.line,
         borderRadius: 999,
@@ -155,8 +160,8 @@ export function Chip({
         shadowOffset: { width: 0, height: 1 },
       }}
     >
-      {icon ? <Feather name={icon} size={12} color={on ? t.onInk : t.ink} /> : null}
-      <Text style={{ color: on ? t.onInk : t.ink, fontFamily: "Inter_600SemiBold", fontSize: size ?? 11.5 }}>
+      {icon ? <Feather name={icon} size={12} color={on ? onFg : t.ink} /> : null}
+      <Text style={{ color: on ? onFg : t.ink, fontFamily: "Inter_600SemiBold", fontSize: size ?? 11.5 }}>
         {label}
       </Text>
     </Pressable>
