@@ -43,7 +43,7 @@ import { Card, Cell, Chip, IcBox, Seg, Steps, Tag } from "@/ui/kit";
  *  Photo evidence (the API supports it) joins as its own step once the
  *  camera picker ships. */
 
-const TOTAL = 6; // decision steps; step 6 is the success screen
+const TOTAL = 7; // decision steps; step 7 is the success screen
 const MAX_PHOTOS = 10; // matches the API's per-visit attachment cap
 const M_PER_MI = 1609.34;
 
@@ -1036,9 +1036,18 @@ export default function FileVisit() {
               ) : null}
             </Card>
 
-            <Seg size={mockupPx(10)}>Per-item</Seg>
-            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10), marginBottom: 2 }]}>
-              Tap a meat to log what staff said; tap again to change or clear.
+            <Button title="Continue" onPress={next} />
+          </>
+        ) : null}
+
+        {/* --- Step 3 · Per-item deep dive -------------------------------- */}
+        {step === 3 ? (
+          <>
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              Let&apos;s dive{"\n"}deeper.
+            </Text>
+            <Text style={[ty.body, { color: t.sub }]}>
+              What did staff say about each meat? Tap a meat to log the method and how you know.
             </Text>
             <Card>
               {MEATS.map((m, mi) => {
@@ -1234,8 +1243,8 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 3 · Amenities (optional) ------------------------------ */}
-        {step === 3 ? (
+        {/* --- Step 4 · Amenities (optional) ------------------------------ */}
+        {step === 4 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Anything for{"\n"}families?
@@ -1276,8 +1285,8 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 4 · Disclosure ---------------------------------------- */}
-        {step === 4 ? (
+        {/* --- Step 5 · Disclosure ---------------------------------------- */}
+        {step === 5 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Who paid for{"\n"}the meal?
@@ -1331,8 +1340,8 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 5 · Review -------------------------------------------- */}
-        {step === 5 ? (
+        {/* --- Step 6 · Review -------------------------------------------- */}
+        {step === 6 ? (
           <>
             <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
               Review your{"\n"}report
@@ -1413,7 +1422,7 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 6 · Success ------------------------------------------- */}
+        {/* --- Step 7 · Success ------------------------------------------- */}
         {isSuccess ? (
           <View style={{ alignItems: "center", gap: space.md, paddingTop: 48 }}>
             <View style={{ width: 88, height: 88, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
