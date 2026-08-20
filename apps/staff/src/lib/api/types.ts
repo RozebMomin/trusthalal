@@ -371,6 +371,7 @@ export type VerifierMeatCheck = {
   finding: VerifierMeatFinding;
   evidence: MeatCheckEvidence;
   note?: string | null;
+  supplier_name?: string | null;
 };
 
 export type AmenityStatus = "YES" | "ON_REQUEST" | "NO" | "UNSURE";

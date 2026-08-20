@@ -169,8 +169,10 @@ const EVIDENCE_CYCLE: Evidence[] = ["VERBAL", "INVOICE", "CERTIFICATE"];
 const evidenceTone = (e: Evidence): "zinc" | "wash" | "solid" =>
   e === "CERTIFICATE" ? "solid" : e === "INVOICE" ? "wash" : "zinc";
 
-type MeatCheck = { finding: Finding; evidence: Evidence };
-type OtherCheck = { label: string; finding: Finding; evidence: Evidence };
+type MeatCheck = { finding: Finding; evidence: Evidence; supplier?: string };
+type OtherCheck = { label: string; finding: Finding; evidence: Evidence; supplier?: string };
+// Supplier is only asked once the verifier has a document to read it off.
+const evidenceShowsSupplier = (e: Evidence) => e === "INVOICE" || e === "CERTIFICATE";
 // "Other" items (duck, fish, a specific dish) use the red-meat vocabulary.
 const OTHER_FINDINGS: Finding[] = REDMEAT_FINDINGS;
 
@@ -322,7 +324,7 @@ export default function FileVisit() {
         delete copy[m];
         return copy;
       }
-      return { ...c, [m]: { finding: next, evidence: c[m]?.evidence ?? "VERBAL" } };
+      return { ...c, [m]: { ...c[m], finding: next, evidence: c[m]?.evidence ?? "VERBAL" } };
     });
   const cycleMeatEvidence = (m: MeatKey) =>
     setMeatChecks((c) => {
@@ -331,6 +333,8 @@ export default function FileVisit() {
       const i = EVIDENCE_CYCLE.indexOf(cur.evidence);
       return { ...c, [m]: { ...cur, evidence: EVIDENCE_CYCLE[(i + 1) % EVIDENCE_CYCLE.length] } };
     });
+  const setMeatSupplier = (m: MeatKey, text: string) =>
+    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], supplier: text } } : c));
 
   const addOther = () => {
     const v = otherDraft.trim();
@@ -358,6 +362,8 @@ export default function FileVisit() {
         return { ...o, evidence: EVIDENCE_CYCLE[(k + 1) % EVIDENCE_CYCLE.length] };
       }),
     );
+  const setOtherSupplier = (i: number, text: string) =>
+    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, supplier: text } : o)));
 
   // Menu coverage is a single Yes/Partial pick; tapping the active one clears
   // it. Leaving Partial drops the follow-up so we never ship a stale scope.
@@ -406,10 +412,31 @@ export default function FileVisit() {
       ordered_items: ordered,
       checks: checksOut,
     };
+    // Map internal {finding, evidence, supplier} → API shape. Supplier only
+    // rides along when the verifier had a document to read it off (invoice /
+    // cert), so a stale name from a later switch to "verbal" isn't submitted.
     if (meatEntries.length) {
-      obs.meat_checks = meatChecks as Record<string, VerifierMeatCheck>;
+      obs.meat_checks = Object.fromEntries(
+        meatEntries.map(([k, mc]) => {
+          const out: VerifierMeatCheck = { finding: mc.finding, evidence: mc.evidence };
+          const sup = mc.supplier?.trim();
+          if (sup && evidenceShowsSupplier(mc.evidence)) out.supplier_name = sup;
+          return [k, out];
+        }),
+      ) as Record<string, VerifierMeatCheck>;
     }
-    if (otherChecks.length) obs.other_meat_checks = otherChecks;
+    if (otherChecks.length) {
+      obs.other_meat_checks = otherChecks.map((o) => {
+        const out: VerifierMeatCheck & { label: string } = {
+          label: o.label,
+          finding: o.finding,
+          evidence: o.evidence,
+        };
+        const sup = o.supplier?.trim();
+        if (sup && evidenceShowsSupplier(o.evidence)) out.supplier_name = sup;
+        return out;
+      });
+    }
     if (menuHalal === "PARTIAL" && menuScope) {
       obs.menu_partial = { scope: menuScope, note: menuNote.trim() || null };
     }
@@ -973,6 +1000,20 @@ export default function FileVisit() {
                         </View>
                       </Pressable>
                     ) : null}
+                    {showEv && evidenceShowsSupplier(mc!.evidence) ? (
+                      <View style={{ marginHorizontal: 16, marginTop: -6, marginBottom: 12 }}>
+                        <TextInput
+                          style={[field, { paddingVertical: 8 }]}
+                          placeholder="Supplier on the invoice / cert (optional)"
+                          placeholderTextColor={t.sub}
+                          value={mc!.supplier ?? ""}
+                          onChangeText={(text) => setMeatSupplier(m.v, text)}
+                          onFocus={revealInput}
+                          maxLength={200}
+                          autoCapitalize="words"
+                        />
+                      </View>
+                    ) : null}
                   </View>
                 );
               })}
@@ -1026,6 +1067,20 @@ export default function FileVisit() {
                           <MaterialCommunityIcons name="gesture-tap" size={mockupPx(15)} color={t.sub} />
                         </View>
                       </Pressable>
+                    ) : null}
+                    {showEv && evidenceShowsSupplier(o.evidence) ? (
+                      <View style={{ marginHorizontal: 16, marginTop: -6, marginBottom: 12 }}>
+                        <TextInput
+                          style={[field, { paddingVertical: 8 }]}
+                          placeholder="Supplier on the invoice / cert (optional)"
+                          placeholderTextColor={t.sub}
+                          value={o.supplier ?? ""}
+                          onChangeText={(text) => setOtherSupplier(i, text)}
+                          onFocus={revealInput}
+                          maxLength={200}
+                          autoCapitalize="words"
+                        />
+                      </View>
                     ) : null}
                   </View>
                 );

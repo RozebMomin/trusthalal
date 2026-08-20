@@ -26,8 +26,8 @@ export type VisitDraft = {
   menuNote?: string;
   // Per-meat findings from the observe step. Optional so drafts saved by a
   // build before this feature still hydrate cleanly.
-  meatChecks?: Record<string, { finding: string; evidence: string }>;
-  otherChecks?: { label: string; finding: string; evidence: string }[];
+  meatChecks?: Record<string, { finding: string; evidence: string; supplier?: string }>;
+  otherChecks?: { label: string; finding: string; evidence: string; supplier?: string }[];
   // Family/cleanliness amenities checked (code -> YES/NO/UNSURE).
   amenities?: Record<string, string>;
   photos: { uri: string; name: string; type: string; tag?: string }[];

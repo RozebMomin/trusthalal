@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +74,10 @@ function Field({
 export default function PlaceDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
+  // A verifier-captured supplier name to reconcile, passed from the visit page
+  // (?linkSupplier=...). Pre-searches the Add-link dialog when present.
+  const searchParams = useSearchParams();
+  const linkSupplier = searchParams?.get("linkSupplier") ?? undefined;
 
   const { data: place, isLoading, error } = useAdminPlaceDetail(id);
 
@@ -181,7 +185,7 @@ export default function PlaceDetailPage() {
           <ProviderLinksSection place={place} />
           <OwnershipSection place={place} />
           <HalalClaimsSection placeId={place.id} />
-          <SourcingLinksSection placeId={place.id} />
+          <SourcingLinksSection placeId={place.id} initialLinkSupplier={linkSupplier} />
           <DisputesSection placeId={place.id} />
           <EventsSection placeId={place.id} />
         </>

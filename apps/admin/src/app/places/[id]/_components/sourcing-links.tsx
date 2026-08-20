@@ -51,11 +51,28 @@ function title(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, " ");
 }
 
-export function SourcingLinksSection({ placeId }: { placeId: string }) {
+export function SourcingLinksSection({
+  placeId,
+  initialLinkSupplier,
+}: {
+  placeId: string;
+  /** A verifier-captured supplier name to reconcile — when present, the
+   *  Add-link dialog opens automatically, pre-searched for this name. */
+  initialLinkSupplier?: string;
+}) {
   const { toast } = useToast();
   const { data: links, isLoading } = usePlaceSupplierLinks(placeId);
   const endLink = useEndPlaceSupplierLink(placeId);
   const [addOpen, setAddOpen] = React.useState(false);
+
+  // Auto-open once when arriving with a ?linkSupplier= hint (from a visit).
+  const primedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (initialLinkSupplier && !primedRef.current) {
+      primedRef.current = true;
+      setAddOpen(true);
+    }
+  }, [initialLinkSupplier]);
 
   async function onEnd(linkId: string, label: string) {
     if (!window.confirm(`End the sourcing link to ${label}? It stops backing this listing.`)) return;
@@ -68,7 +85,7 @@ export function SourcingLinksSection({ placeId }: { placeId: string }) {
   }
 
   return (
-    <section className="rounded-md border p-4">
+    <section id="sourcing" className="rounded-md border p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold">Sourcing links</h2>
@@ -82,7 +99,12 @@ export function SourcingLinksSection({ placeId }: { placeId: string }) {
         </Button>
       </div>
 
-      <LinkSupplierDialog placeId={placeId} open={addOpen} onOpenChange={setAddOpen} />
+      <LinkSupplierDialog
+        placeId={placeId}
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        initialQuery={initialLinkSupplier}
+      />
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -145,10 +167,13 @@ function LinkSupplierDialog({
   placeId,
   open,
   onOpenChange,
+  initialQuery,
 }: {
   placeId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Seed the supplier search — e.g. a name a verifier captured on a visit. */
+  initialQuery?: string;
 }) {
   const { toast } = useToast();
   const create = useCreatePlaceSupplierLink(placeId);
@@ -163,9 +188,14 @@ function LinkSupplierDialog({
 
   React.useEffect(() => {
     if (open) {
-      setQ(""); setSupplierId(null); setProductId(null); setEvidence("OWNER_STATED");
+      // A verifier-captured supplier defaults the evidence to
+      // VERIFIER_CONFIRMED — that's exactly what this reconciliation is.
+      setQ(initialQuery ?? "");
+      setSupplierId(null);
+      setProductId(null);
+      setEvidence(initialQuery ? "VERIFIER_CONFIRMED" : "OWNER_STATED");
     }
-  }, [open]);
+  }, [open, initialQuery]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

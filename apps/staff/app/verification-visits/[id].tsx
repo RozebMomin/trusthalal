@@ -291,7 +291,10 @@ export default function VisitDetail() {
                     <View style={{ flex: 1 }}>
                       <Text style={{ ...ty.label, color: t.ink }}>{r.label}</Text>
                       {r.c.finding !== "NOT_SERVED" ? (
-                        <Muted style={{ marginTop: 2 }}>{EVIDENCE_LABEL[r.c.evidence] ?? r.c.evidence}</Muted>
+                        <Muted style={{ marginTop: 2 }}>
+                          {EVIDENCE_LABEL[r.c.evidence] ?? r.c.evidence}
+                          {r.c.supplier_name ? ` · ${r.c.supplier_name}` : ""}
+                        </Muted>
                       ) : null}
                     </View>
                     <Pill label={FINDING_LABEL[r.c.finding] ?? r.c.finding} tone={findingTone(r.c.finding)} />

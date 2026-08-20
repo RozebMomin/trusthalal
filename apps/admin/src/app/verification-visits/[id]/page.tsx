@@ -371,6 +371,12 @@ export default function VerificationVisitDetailPage() {
                       {EVIDENCE_LABELS[r.c.evidence] ?? r.c.evidence}
                     </span>
                   )}
+                  {r.c.supplier_name && (
+                    <SupplierReconcile
+                      placeId={visit.place_id}
+                      supplierName={r.c.supplier_name}
+                    />
+                  )}
                   {r.c.note && (
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {r.c.note}
@@ -505,6 +511,36 @@ function BackLink() {
     >
       ← All verification visits
     </Link>
+  );
+}
+
+/**
+ * A free-text supplier a verifier read off an invoice/cert during the visit,
+ * plus a jump to reconcile it against the supplier registry. The link opens
+ * the place's Sourcing links section with the Add-link dialog pre-searched for
+ * this name — the admin then picks the matching registry supplier + product
+ * line, or (no match) goes and creates it. This is the manual bridge until we
+ * swap the verifier flow to a registry picker.
+ */
+function SupplierReconcile({
+  placeId,
+  supplierName,
+}: {
+  placeId: string;
+  supplierName: string;
+}) {
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+      <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
+        Supplier: {supplierName}
+      </span>
+      <Link
+        href={`/places/${placeId}?linkSupplier=${encodeURIComponent(supplierName)}#sourcing`}
+        className="text-primary hover:underline"
+      >
+        Link to registry →
+      </Link>
+    </span>
   );
 }
 

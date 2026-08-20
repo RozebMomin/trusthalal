@@ -238,6 +238,12 @@ class VerifierMeatCheck(BaseModel):
     finding: VerifierMeatFinding
     evidence: MeatCheckEvidence = MeatCheckEvidence.VERBAL
     note: Optional[str] = Field(default=None, max_length=500)
+    # Free-text supplier the verifier saw named on an invoice / certificate /
+    # packaging (e.g. "Crescent Foods"). Captured as a plain string, not a
+    # registry FK — admin reconciles it to a supplier product line later. Only
+    # meaningful when ``evidence`` is INVOICE/CERTIFICATE (the app only asks
+    # then), but not enforced so a verbal "they told me the supplier" survives.
+    supplier_name: Optional[str] = Field(default=None, max_length=200)
 
 
 class VerifierOtherMeatCheck(VerifierMeatCheck):
