@@ -1922,9 +1922,32 @@ export type VerificationVisitStatus =
 
 export type CheckResult = "YES" | "NO" | "PARTIAL";
 
+export type VerifierMeatFinding =
+  | "HAND_CUT"
+  | "MACHINE_CUT"
+  | "ZABIHAH"
+  | "NOT_ZABIHAH"
+  | "NOT_SERVED"
+  | "UNSURE";
+export type MeatCheckEvidence = "VERBAL" | "INVOICE" | "CERTIFICATE";
+export type VerifierMeatCheck = {
+  finding: VerifierMeatFinding;
+  evidence: MeatCheckEvidence;
+  note?: string | null;
+};
+export type AmenityStatus = "YES" | "ON_REQUEST" | "NO" | "UNSURE";
+export type MenuPartialScope = "MEAT_GROUP" | "SPECIFIC_ITEMS";
+export type MenuPartialDetail = { scope: MenuPartialScope; note?: string | null };
+
 export type VisitObservations = {
   ordered_items: string[];
   checks: Record<string, CheckResult>;
+  // Per-meat findings — what staff said about each meat + the evidence level.
+  meat_checks?: Record<string, VerifierMeatCheck>;
+  other_meat_checks?: Array<VerifierMeatCheck & { label: string }>;
+  // Partial-menu follow-up + family/cleanliness amenities.
+  menu_partial?: MenuPartialDetail | null;
+  amenities?: Record<string, AmenityStatus>;
 };
 
 export type VisitPlaceSummary = {

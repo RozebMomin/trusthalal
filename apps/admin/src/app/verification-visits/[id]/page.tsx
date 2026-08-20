@@ -65,6 +65,57 @@ function checkClass(result: CheckResult): string {
   }
 }
 
+// Per-meat finding vocabulary is meat-appropriate: chicken uses hand/machine,
+// red meats use zabihah/not. NOT_SERVED + UNSURE apply to all.
+const FINDING_LABELS: Record<string, string> = {
+  HAND_CUT: "Hand-cut",
+  MACHINE_CUT: "Machine-cut",
+  ZABIHAH: "Zabihah",
+  NOT_ZABIHAH: "Not zabihah",
+  NOT_SERVED: "Not served",
+  UNSURE: "Unsure",
+};
+function findingClass(f: string): string {
+  if (f === "HAND_CUT" || f === "ZABIHAH")
+    return "text-emerald-600 dark:text-emerald-400";
+  if (f === "NOT_ZABIHAH") return "text-destructive";
+  if (f === "UNSURE") return "text-amber-600 dark:text-amber-400";
+  return "text-foreground";
+}
+const EVIDENCE_LABELS: Record<string, string> = {
+  VERBAL: "verbal",
+  INVOICE: "invoice seen",
+  CERTIFICATE: "certificate seen",
+};
+const MEAT_LABELS: Record<string, string> = {
+  CHICKEN: "Chicken",
+  BEEF: "Beef",
+  LAMB: "Lamb",
+  GOAT: "Goat",
+};
+const AMENITY_LABELS: Record<string, string> = {
+  PRAYER_SPACE: "Prayer space",
+  WUDU: "Wudu area",
+  BIDET: "Bidet / shattaf",
+  BABY_CHANGING: "Baby changing",
+};
+const AMENITY_VALUE_LABELS: Record<string, string> = {
+  YES: "Yes",
+  ON_REQUEST: "On request",
+  NO: "No",
+  UNSURE: "Unsure",
+};
+function amenityClass(v: string): string {
+  if (v === "YES") return "text-emerald-600 dark:text-emerald-400";
+  if (v === "ON_REQUEST" || v === "UNSURE")
+    return "text-amber-600 dark:text-amber-400";
+  return "text-muted-foreground";
+}
+const MENU_SCOPE_LABELS: Record<string, string> = {
+  MEAT_GROUP: "A meat group is halal",
+  SPECIFIC_ITEMS: "Specific dishes are halal",
+};
+
 function formatTimestamp(iso: string | null) {
   if (!iso) return null;
   try {
@@ -154,6 +205,18 @@ export default function VerificationVisitDetailPage() {
   );
   const checkEntries = Object.entries(visit.observations?.checks ?? {});
   const orderedItems = visit.observations?.ordered_items ?? [];
+  const menuPartial = visit.observations?.menu_partial ?? null;
+  const meatRows = [
+    ...Object.entries(visit.observations?.meat_checks ?? {}).map(
+      ([meat, c]) => ({ key: meat, label: MEAT_LABELS[meat] ?? meat, c }),
+    ),
+    ...(visit.observations?.other_meat_checks ?? []).map((o, i) => ({
+      key: `other-${i}`,
+      label: o.label,
+      c: o,
+    })),
+  ];
+  const amenityEntries = Object.entries(visit.observations?.amenities ?? {});
 
   return (
     <div className="space-y-6">
@@ -273,7 +336,72 @@ export default function VerificationVisitDetailPage() {
             </p>
           )}
         </div>
+
+        {menuPartial && (
+          <div className="mt-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Partial menu
+            </p>
+            <p className="mt-1 text-sm">
+              <span className="font-medium">
+                {MENU_SCOPE_LABELS[menuPartial.scope] ?? menuPartial.scope}
+              </span>
+              {menuPartial.note ? (
+                <span className="text-muted-foreground"> — {menuPartial.note}</span>
+              ) : null}
+            </p>
+          </div>
+        )}
       </section>
+
+      {/* Per-item findings — what staff said about each meat + evidence */}
+      {meatRows.length > 0 && (
+        <section className="rounded-md border bg-card p-4">
+          <h3 className="text-sm font-semibold">Per-item findings</h3>
+          <ul className="mt-3 space-y-2">
+            {meatRows.map((r) => (
+              <li
+                key={r.key}
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 last:border-0 last:pb-0"
+              >
+                <div className="min-w-0">
+                  <span className="text-sm font-medium">{r.label}</span>
+                  {r.c.finding !== "NOT_SERVED" && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {EVIDENCE_LABELS[r.c.evidence] ?? r.c.evidence}
+                    </span>
+                  )}
+                  {r.c.note && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {r.c.note}
+                    </p>
+                  )}
+                </div>
+                <span className={`text-sm font-medium ${findingClass(r.c.finding)}`}>
+                  {FINDING_LABELS[r.c.finding] ?? r.c.finding}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Family / cleanliness amenities */}
+      {amenityEntries.length > 0 && (
+        <section className="rounded-md border bg-card p-4">
+          <h3 className="text-sm font-semibold">Amenities</h3>
+          <ul className="mt-3 space-y-1 text-sm">
+            {amenityEntries.map(([code, value]) => (
+              <li key={code} className="flex flex-wrap justify-between gap-2">
+                <span>{AMENITY_LABELS[code] ?? code}</span>
+                <span className={`font-medium ${amenityClass(value)}`}>
+                  {AMENITY_VALUE_LABELS[value] ?? value}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Notes for admin */}
       {visit.notes_for_admin && (
