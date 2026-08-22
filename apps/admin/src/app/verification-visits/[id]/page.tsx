@@ -114,6 +114,7 @@ function amenityClass(v: string): string {
 const MENU_SCOPE_LABELS: Record<string, string> = {
   MEAT_GROUP: "A meat group is halal",
   SPECIFIC_ITEMS: "Specific dishes are halal",
+  ON_REQUEST: "Halal on request",
 };
 
 function formatTimestamp(iso: string | null) {

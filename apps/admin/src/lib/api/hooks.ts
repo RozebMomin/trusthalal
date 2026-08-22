@@ -1937,7 +1937,7 @@ export type VerifierMeatCheck = {
   supplier_name?: string | null;
 };
 export type AmenityStatus = "YES" | "ON_REQUEST" | "NO" | "UNSURE";
-export type MenuPartialScope = "MEAT_GROUP" | "SPECIFIC_ITEMS";
+export type MenuPartialScope = "MEAT_GROUP" | "SPECIFIC_ITEMS" | "ON_REQUEST";
 export type MenuPartialDetail = { scope: MenuPartialScope; note?: string | null };
 
 export type VisitObservations = {

@@ -84,6 +84,7 @@ function amenityTone(v: string): "green" | "amber" | "neutral" {
 const MENU_SCOPE_LABEL: Record<string, string> = {
   MEAT_GROUP: "A meat group is halal",
   SPECIFIC_ITEMS: "Specific dishes are halal",
+  ON_REQUEST: "Halal on request",
 };
 
 type Action = "accept" | "reject" | null;

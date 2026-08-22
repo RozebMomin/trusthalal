@@ -126,6 +126,10 @@ class MenuPartialScope(StrEnum):
     SPECIFIC_ITEMS = "SPECIFIC_ITEMS"
     """Only specific dishes are halal (e.g. the wings but not the burger)."""
 
+    ON_REQUEST = "ON_REQUEST"
+    """The default menu isn't halal, but the kitchen will prepare halal on
+    request (maps to the HALAL_UPON_REQUEST menu posture)."""
+
 
 class MeatCheckEvidence(StrEnum):
     """How well the verifier corroborated a per-meat finding.

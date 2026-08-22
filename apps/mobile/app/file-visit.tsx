@@ -182,10 +182,12 @@ const OTHER_FINDINGS: Finding[] = REDMEAT_FINDINGS;
 // with no halal food has no reason to be on the platform; a false claim is a
 // data problem handled in notes, not a menu state.
 type MenuHalal = "YES" | "PARTIAL";
-type MenuScope = "MEAT_GROUP" | "SPECIFIC_ITEMS";
+type MenuScope = "MEAT_GROUP" | "SPECIFIC_ITEMS" | "ON_REQUEST";
+const MENU_SCOPES: MenuScope[] = ["MEAT_GROUP", "SPECIFIC_ITEMS", "ON_REQUEST"];
 const MENU_SCOPE_LABEL: Record<MenuScope, string> = {
   MEAT_GROUP: "A meat group",
   SPECIFIC_ITEMS: "Specific dishes",
+  ON_REQUEST: "On request",
 };
 
 // Family/cleanliness amenities muslim diners look for. Kept structured so they
@@ -1008,8 +1010,8 @@ export default function FileVisit() {
                   <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>
                     What is the halal part?
                   </Text>
-                  <View style={{ flexDirection: "row", gap: 6 }}>
-                    {(["MEAT_GROUP", "SPECIFIC_ITEMS"] as MenuScope[]).map((s) => (
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                    {MENU_SCOPES.map((s) => (
                       <Chip
                         key={s}
                         label={MENU_SCOPE_LABEL[s]}
@@ -1024,7 +1026,9 @@ export default function FileVisit() {
                     placeholder={
                       menuScope === "SPECIFIC_ITEMS"
                         ? "Which dishes? (e.g. wings, not the burger)"
-                        : "Which meats? (e.g. all chicken is halal)"
+                        : menuScope === "ON_REQUEST"
+                          ? "What's made halal on request? (e.g. chicken dishes)"
+                          : "Which meats? (e.g. all chicken is halal)"
                     }
                     placeholderTextColor={t.sub}
                     value={menuNote}
