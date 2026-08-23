@@ -354,6 +354,13 @@ class HalalProfileEmbed(BaseModel):
     # "reported by the community" — consistently across every client. Computed
     # in _embed_with_products; defaults False for surfaces that don't set it.
     owner_attested: bool = False
+    # Family/cleanliness amenities rolled up from the latest accepted verifier
+    # visit. Each is an AmenityStatus (YES / ON_REQUEST / NO / UNSURE) or null
+    # when never assessed. Drives the family-priority sort + amenity badges.
+    prayer_space: str | None = None
+    wudu: str | None = None
+    bidet: str | None = None
+    baby_changing: str | None = None
     updated_at: datetime
 
 

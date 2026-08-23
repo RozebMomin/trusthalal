@@ -584,7 +584,7 @@ def test_admin_accept_bootstrap_maps_observations(api, factories, db_session):
                     "GOAT": {"finding": "UNSURE", "evidence": "CERTIFICATE"},
                 },
                 "other_meat_checks": [],
-                "amenities": {},
+                "amenities": {"PRAYER_SPACE": "YES", "WUDU": "ON_REQUEST", "BIDET": "NO"},
             },
         },
     )
@@ -599,6 +599,11 @@ def test_admin_accept_bootstrap_maps_observations(api, factories, db_session):
         select(HalalProfile).where(HalalProfile.place_id == place.id)
     ).scalar_one()
     assert profile.menu_posture == "HALAL_UPON_REQUEST"
+    # Amenities rolled up onto the profile.
+    assert profile.prayer_space == "YES"
+    assert profile.wudu == "ON_REQUEST"
+    assert profile.bidet == "NO"
+    assert profile.baby_changing is None  # unrecorded stays null
     assert profile.alcohol_policy == "FULL_BAR"
     assert profile.has_certification is True
     assert profile.chicken_slaughter == "HAND_CUT"

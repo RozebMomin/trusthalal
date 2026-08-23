@@ -251,6 +251,25 @@ _MEAT_COLUMNS = (
     ("GOAT", "goat_slaughter"),
 )
 
+# Amenity observation code → profile column.
+_AMENITY_COLUMNS = (
+    ("PRAYER_SPACE", "prayer_space"),
+    ("WUDU", "wudu"),
+    ("BIDET", "bidet"),
+    ("BABY_CHANGING", "baby_changing"),
+)
+
+
+def _apply_amenities(profile: HalalProfile, obs: dict) -> None:
+    """Roll the visit's amenity observations up onto the profile. Only sets the
+    ones the visit actually recorded (latest-wins; a visit that skipped an
+    amenity doesn't wipe a prior reading)."""
+    amenities = obs.get("amenities") or {}
+    for code, col in _AMENITY_COLUMNS:
+        val = amenities.get(code)
+        if val:
+            setattr(profile, col, val)
+
 
 # Each "_opt" helper returns None when the visit didn't record that field, so
 # a refresh can update *only* what was observed and leave the rest intact
@@ -327,6 +346,7 @@ def _bootstrap_profile_from_visit(
         has_certification=bool(_cert_opt(checks)),
         last_verified_at=visit.visited_at,
     )
+    _apply_amenities(profile, obs)
     db.add(profile)
     db.flush()  # assign profile.id for the event below
     db.add(
@@ -364,6 +384,7 @@ def _refresh_profile_from_visit(profile: HalalProfile, visit: VerificationVisit)
         v = _meat_opt(meat_checks, key)
         if v is not None:
             setattr(profile, attr, v)
+    _apply_amenities(profile, obs)
 
 
 def _resolve_verifier_suppliers(

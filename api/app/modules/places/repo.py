@@ -308,6 +308,34 @@ def _apply_cuisine_filter(
     return stmt.where(Place.cuisine_types.op("&&")(values))
 
 
+# Family-amenity soft boost. Each requested amenity present (YES / ON_REQUEST)
+# on a place's profile pulls it this many metres "closer" in the geo sort and
+# ranks it ahead in the text sort — a nudge, not a filter (non-matching places
+# still appear, just lower). Columns are whitelisted, never interpolated from
+# user input, so the f-string SQL is injection-safe.
+_AMENITY_SQL_COL = {
+    "PRAYER_SPACE": "prayer_space",
+    "WUDU": "wudu",
+    "BIDET": "bidet",
+    "BABY_CHANGING": "baby_changing",
+}
+_AMENITY_BONUS_METERS = 8000
+
+
+def _amenity_score_sql(codes: Sequence[str]) -> str | None:
+    """A SQL sum-of-CASE expression scoring how many requested amenities a
+    place's profile has (YES / ON_REQUEST). Returns None when nothing valid was
+    requested. NULL columns (unprofiled / unassessed) score 0."""
+    cols = [_AMENITY_SQL_COL[c] for c in codes if c in _AMENITY_SQL_COL]
+    if not cols:
+        return None
+    parts = [
+        f"(CASE WHEN app.halal_profiles.{col} IN ('YES', 'ON_REQUEST') THEN 1 ELSE 0 END)"
+        for col in cols
+    ]
+    return " + ".join(parts)
+
+
 def search_by_text(
     db: Session,
     *,
@@ -319,6 +347,7 @@ def search_by_text(
     lat: float | None = None,
     lng: float | None = None,
     radius_m: int | None = None,
+    boost_amenities: Sequence[str] = (),
 ) -> list[tuple[Place, HalalProfile | None]]:
     """ILIKE substring search on name + address + city for the public
     catalog.
@@ -390,7 +419,14 @@ def search_by_text(
             & (HalalProfile.revoked_at.is_(None)),
         )
     stmt = _apply_cuisine_filter(stmt, cuisines)
-    stmt = stmt.order_by(Place.name.asc()).limit(limit).offset(offset)
+    # Family-amenity soft boost: matching places rank first, then name. Text
+    # search has no distance to weigh, so the boost is a leading sort key.
+    score_sql = _amenity_score_sql(boost_amenities)
+    if score_sql:
+        stmt = stmt.order_by(text(f"({score_sql}) DESC"), Place.name.asc())
+    else:
+        stmt = stmt.order_by(Place.name.asc())
+    stmt = stmt.limit(limit).offset(offset)
     return [(p, hp) for p, hp in db.execute(stmt).all()]
 
 
@@ -454,6 +490,7 @@ def search_nearby(
     offset: int,
     halal_filters: HalalSearchFilters | None = None,
     cuisines: Sequence[Cuisine] = (),
+    boost_amenities: Sequence[str] = (),
 ) -> list[tuple[Place, HalalProfile | None]]:
     """Geo-radius search via PostGIS ST_DWithin, with optional halal
     filters layered on the same INNER JOIN pattern as text search.
@@ -499,19 +536,29 @@ def search_nearby(
     # ST_Distance rather than the `<->` KNN operator: the candidate set is
     # already bounded by ST_DWithin above, so there's no index-scan win to
     # chase, and this is unambiguous about units (meters, on geography).
-    stmt = stmt.order_by(
-        text(
-            "ST_Distance("
-            "app.places.geom::geography, "
-            "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography"
-            ")"
-        ),
-        Place.id.asc(),
+    # Family-amenity soft boost: subtract a per-matched-amenity bonus from the
+    # distance so matching places float up WITHOUT jumping a much-closer
+    # non-match — a nudge, not a hard group. Distance still governs.
+    score_sql = _amenity_score_sql(boost_amenities)
+    _distance = (
+        "ST_Distance("
+        "app.places.geom::geography, "
+        "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography"
+        ")"
     )
+    if score_sql:
+        stmt = stmt.order_by(
+            text(f"{_distance} - ({score_sql}) * :amenity_bonus"),
+            Place.id.asc(),
+        )
+    else:
+        stmt = stmt.order_by(text(_distance), Place.id.asc())
     # Re-bind after adding a second text() clause that references the same
     # names — the earlier .params() call only bound the parameters that
     # existed on the statement at that point.
     stmt = stmt.params(lat=lat, lng=lng, radius_m=radius_m)
+    if score_sql:
+        stmt = stmt.params(amenity_bonus=_AMENITY_BONUS_METERS)
     stmt = stmt.limit(limit).offset(offset)
     return [(p, hp) for p, hp in db.execute(stmt).all()]
 

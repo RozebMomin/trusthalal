@@ -1306,6 +1306,15 @@ def search_places(
             "to broaden the match. Empty / missing = no cuisine filter."
         ),
     ),
+    boost_amenities: list[str] | None = Query(
+        default=None,
+        description=(
+            "Family-amenity PRIORITY (not a filter). Pass PRAYER_SPACE / WUDU "
+            "/ BIDET / BABY_CHANGING (multiple ok). Places whose profile has "
+            "the requested amenities are ranked higher, but non-matching "
+            "places still appear — a soft boost, never exclusionary."
+        ),
+    ),
     request: Request = None,  # type: ignore[assignment]
     db: Session = Depends(get_db),
     photos_storage: StorageClient = Depends(get_photos_storage_client),
@@ -1349,6 +1358,7 @@ def search_places(
     )
 
     cuisines = tuple(cuisine or ())
+    amenity_boost = tuple(boost_amenities or ())
 
     # "Open now" is computed in Python from stored hours (there's no clean
     # SQL expression for a JSONB weekly schedule across midnight + timezone).
@@ -1373,6 +1383,7 @@ def search_places(
             lat=lat if has_geo else None,
             lng=lng if has_geo else None,
             radius_m=radius if has_geo else None,
+            boost_amenities=amenity_boost,
         )
     elif has_geo:
         rows = search_nearby(
@@ -1384,6 +1395,7 @@ def search_places(
             offset=scan_offset,
             halal_filters=halal_filters,
             cuisines=cuisines,
+            boost_amenities=amenity_boost,
         )
     else:
         raise BadRequestError(
