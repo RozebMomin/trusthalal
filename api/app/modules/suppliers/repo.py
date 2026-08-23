@@ -151,3 +151,92 @@ def resolve_place_method(
         fallback_method=fallback_method,
         fallback_as_of=fallback_as_of,
     )
+
+
+# ---------------------------------------------------------------------------
+# Free-text → registry matching + profile-column fill
+#
+# Used to turn a verifier's free-text supplier ("Wayne Farms") into a real
+# sourcing link, and to fill a place's per-meat profile column from the linked
+# line — so a meat leaves the NOT_DISCLOSED bucket when its supplier is known.
+# ---------------------------------------------------------------------------
+
+# Profile per-meat column names keyed by MeatType value.
+_MEAT_PROFILE_COLUMN = {
+    "CHICKEN": "chicken_slaughter",
+    "BEEF": "beef_slaughter",
+    "LAMB": "lamb_slaughter",
+    "GOAT": "goat_slaughter",
+}
+# Column values a supplier link may fill — a gap, not an already-stated method.
+_RESOLVABLE_COLUMN_VALUES = frozenset({"NOT_DISCLOSED", "NOT_SERVED"})
+
+
+def _supplier_match_keys(s: Supplier) -> set[str]:
+    keys = {s.name.strip().lower(), s.slug.strip().lower()}
+    for alias in s.aliases or []:
+        norm = (alias or "").strip().lower()
+        if norm:
+            keys.add(norm)
+    return keys
+
+
+def match_supplier_product(
+    db: Session, *, name: str, meat_type: str
+) -> Optional[SupplierProduct]:
+    """Strict match of a free-text supplier name to a registry product line.
+
+    Returns a SupplierProduct only when unambiguous: exactly one non-revoked
+    supplier matches the name / slug / alias (case-insensitive *exact*, not
+    substring), and that supplier has exactly one product line for
+    ``meat_type``. Anything ambiguous returns None — an unresolved meat beats a
+    wrong link.
+    """
+    normalized = (name or "").strip().lower()
+    if not normalized:
+        return None
+    suppliers = (
+        db.execute(select(Supplier).where(Supplier.revoked_at.is_(None)))
+        .scalars()
+        .all()
+    )
+    matched = [s for s in suppliers if normalized in _supplier_match_keys(s)]
+    if len(matched) != 1:
+        return None
+    products = (
+        db.execute(
+            select(SupplierProduct).where(
+                SupplierProduct.supplier_id == matched[0].id,
+                SupplierProduct.meat_type == str(meat_type),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if len(products) != 1:
+        return None
+    return products[0]
+
+
+def fill_profile_method_from_supplier(
+    db: Session, *, place_id: uuid.UUID, meat_type: str, method: str
+) -> bool:
+    """Fill the profile's per-meat column from a linked supplier line's method,
+    but only when the column is a *gap* (NOT_DISCLOSED / NOT_SERVED) — never
+    overriding an already-stated hand/machine value. Returns True on change."""
+    col = _MEAT_PROFILE_COLUMN.get(str(meat_type))
+    if col is None:
+        return False
+    profile = db.execute(
+        select(HalalProfile).where(
+            HalalProfile.place_id == place_id,
+            HalalProfile.revoked_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if profile is None:
+        return False
+    current = getattr(profile, col)
+    if current in _RESOLVABLE_COLUMN_VALUES and method != current:
+        setattr(profile, col, method)
+        return True
+    return False

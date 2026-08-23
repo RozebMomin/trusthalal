@@ -728,6 +728,76 @@ def test_accept_publishes_verifier_photos(api, factories, db_session):
             fastapi_app.dependency_overrides.pop(dep, None)
 
 
+def test_accept_auto_links_verifier_supplier(api, factories, db_session):
+    """A verifier UNSURE about method but naming a registry supplier resolves
+    the meat: a VERIFIER_VISIT sourcing link is created and the profile column
+    is filled from the matched product line — out of NOT_DISCLOSED."""
+    from app.modules.suppliers.models import (
+        PlaceSupplierLink,
+        Supplier,
+        SupplierProduct,
+    )
+
+    admin = factories.admin()
+    verifier = _make_active_verifier(factories, db_session)
+    place = factories.place()
+    sup = Supplier(
+        name="Wayne Farms",
+        slug="wayne-farms",
+        verification_tier="TRUST_HALAL_VERIFIED",
+    )
+    db_session.add(sup)
+    db_session.flush()
+    db_session.add(
+        SupplierProduct(
+            supplier_id=sup.id,
+            meat_type="CHICKEN",
+            product_name="Chicken",
+            slaughter_method="HAND_CUT",
+            line_tier="TRUST_HALAL_VERIFIED",
+        )
+    )
+    db_session.commit()
+
+    vid = api.as_user(verifier).post(
+        "/me/verification-visits",
+        json={
+            **VALID_VISIT_PAYLOAD,
+            "place_id": str(place.id),
+            "observations": {
+                "ordered_items": [],
+                "checks": {},
+                "other_meat_checks": [],
+                "amenities": {},
+                "meat_checks": {
+                    "CHICKEN": {
+                        "finding": "UNSURE",
+                        "evidence": "CERTIFICATE",
+                        "supplier_name": "Wayne Farms",
+                    }
+                },
+            },
+        },
+    ).json()["id"]
+    resp = api.as_user(admin).post(
+        f"/admin/verification-visits/{vid}/decide", json={"decision": "ACCEPTED"}
+    )
+    assert resp.status_code == 200, resp.text
+    db_session.expire_all()
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    assert profile.chicken_slaughter == "HAND_CUT"  # filled from Wayne Farms
+
+    link = db_session.execute(
+        select(PlaceSupplierLink).where(PlaceSupplierLink.place_id == place.id)
+    ).scalar_one_or_none()
+    assert link is not None
+    assert link.source == "VERIFIER_VISIT"
+    assert link.evidence_tier == "VERIFIER_CONFIRMED"
+
+
 def test_admin_accept_when_already_top_tier_just_refreshes(
     api, factories, db_session
 ):

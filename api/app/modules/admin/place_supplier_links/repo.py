@@ -20,6 +20,7 @@ from app.modules.suppliers.models import (
     Supplier,
     SupplierProduct,
 )
+from app.modules.suppliers.repo import fill_profile_method_from_supplier
 
 Row = tuple[PlaceSupplierLink, SupplierProduct, Supplier]
 
@@ -116,6 +117,16 @@ def admin_create_place_link(
         note=payload.note,
     )
     db.add(link)
+    # Fill the profile's per-meat column from the linked line when it's a gap
+    # (NOT_DISCLOSED / NOT_SERVED) — so linking a supplier here resolves the
+    # meat the same way the verifier auto-match does. A stated hand/machine
+    # value is left untouched.
+    fill_profile_method_from_supplier(
+        db,
+        place_id=place_id,
+        meat_type=str(product.meat_type),
+        method=str(product.slaughter_method),
+    )
     db.commit()
     db.refresh(link)
     return _to_read(link, product, supplier)

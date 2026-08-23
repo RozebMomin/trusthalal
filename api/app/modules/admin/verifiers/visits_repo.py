@@ -56,6 +56,12 @@ from app.modules.places.enums import (
 from app.modules.places.models import PlacePhoto
 from app.modules.places.photos.repo import has_active_hero_for_place
 from app.modules.places.repo import log_place_event
+from app.modules.suppliers.enums import LinkSource, SourcingEvidence
+from app.modules.suppliers.models import PlaceSupplierLink
+from app.modules.suppliers.repo import (
+    fill_profile_method_from_supplier,
+    match_supplier_product,
+)
 from app.modules.verifiers.enums import VerificationVisitStatus
 from app.modules.verifiers.models import VerificationVisit
 from app.modules.verifiers.schemas import VerificationVisitDecision
@@ -360,6 +366,59 @@ def _refresh_profile_from_visit(profile: HalalProfile, visit: VerificationVisit)
             setattr(profile, attr, v)
 
 
+def _resolve_verifier_suppliers(
+    db: Session, *, visit: VerificationVisit, profile: HalalProfile
+) -> None:
+    """Turn a verifier's free-text supplier into real provenance.
+
+    For each meat the verifier marked UNSURE but named a supplier for, if that
+    name matches the registry unambiguously, create a VERIFIER_CONFIRMED
+    sourcing link and fill the profile column from the supplier line's method —
+    pulling the meat out of NOT_DISCLOSED. Only UNSURE meats: an explicit
+    hand/machine finding stands (the verifier's eyes-on call wins over a
+    registry lookup), and no link is created there so read-time composition
+    can't override it either.
+    """
+    obs = visit.observations or {}
+    meat_checks = obs.get("meat_checks") or {}
+    for meat_key, _attr in _MEAT_COLUMNS:
+        mc = meat_checks.get(meat_key)
+        if not isinstance(mc, dict) or mc.get("finding") != "UNSURE":
+            continue
+        supplier_name = mc.get("supplier_name")
+        if not supplier_name:
+            continue
+        product = match_supplier_product(db, name=supplier_name, meat_type=meat_key)
+        if product is None:
+            continue
+        # Idempotent: don't stack a second live link to the same product line.
+        existing = db.execute(
+            select(PlaceSupplierLink).where(
+                PlaceSupplierLink.place_id == visit.place_id,
+                PlaceSupplierLink.supplier_product_id == product.id,
+                PlaceSupplierLink.ended_at.is_(None),
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            db.add(
+                PlaceSupplierLink(
+                    place_id=visit.place_id,
+                    supplier_product_id=product.id,
+                    meat_type=str(meat_key),
+                    evidence_tier=SourcingEvidence.VERIFIER_CONFIRMED.value,
+                    source=LinkSource.VERIFIER_VISIT.value,
+                    source_visit_id=visit.id,
+                    note=f"Auto-linked from verifier visit (supplier: {supplier_name}).",
+                )
+            )
+        fill_profile_method_from_supplier(
+            db,
+            place_id=visit.place_id,
+            meat_type=meat_key,
+            method=str(product.slaughter_method),
+        )
+
+
 # Photo-tag captions the verifier flow writes (see mobile PHOTO_TAGS).
 _GALLERY_TAGS = {"menu", "meal"}
 _CERT_TAG = "cert"
@@ -500,6 +559,11 @@ def _apply_acceptance(
         # alcohol, cert — so re-verifying actually improves the profile instead
         # of only bumping the timestamp. Owner-claim profiles are left as-is.
         _refresh_profile_from_visit(profile, visit)
+
+    # Verifier-established places: resolve any UNSURE meat whose named supplier
+    # is in the registry into a real sourcing link + a filled method column.
+    if profile.source_claim_id is None:
+        _resolve_verifier_suppliers(db, visit=visit, profile=profile)
 
     previous_tier = profile.validation_tier
 
