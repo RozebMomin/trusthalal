@@ -37,7 +37,10 @@ from sqlalchemy.orm import Session
 from app.core.analytics import track
 from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.halal_profiles.enums import (
+    AlcoholPolicy,
     HalalProfileEventType,
+    MenuPosture,
+    SlaughterMethod,
     ValidationTier,
 )
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
@@ -193,6 +196,97 @@ def admin_decide_visit(
     return visit
 
 
+# Verifier finding → profile slaughter column. The verifier records the
+# observable method (hand vs machine) so it maps 1:1 to the neutral profile
+# vocabulary. ZABIHAH/NOT_ZABIHAH are legacy values from older visits, folded
+# onto the observable equivalents. UNSURE has no profile analogue, so it lands
+# on NOT_SERVED (the "no confirmed halal method" column value).
+_FINDING_TO_SLAUGHTER = {
+    "HAND_CUT": SlaughterMethod.HAND_CUT,
+    "MACHINE_CUT": SlaughterMethod.MACHINE_CUT,
+    "ZABIHAH": SlaughterMethod.HAND_CUT,
+    "NOT_ZABIHAH": SlaughterMethod.MACHINE_CUT,
+    "NOT_SERVED": SlaughterMethod.NOT_SERVED,
+    "UNSURE": SlaughterMethod.NOT_SERVED,
+}
+# The label the verifier flow writes the "menu fully halal" answer under.
+_MENU_CHECK_KEY = "Menu is fully halal"
+_CERT_CHECK_KEY = "Halal cert visible on premises"
+_ALCOHOL_CHECK_KEY = "Alcohol on premises"
+
+
+def _menu_posture_from_obs(checks: dict, menu_partial: dict | None) -> MenuPosture:
+    ans = checks.get(_MENU_CHECK_KEY)
+    if ans == "YES":
+        return MenuPosture.FULLY_HALAL
+    if ans == "PARTIAL":
+        scope = (menu_partial or {}).get("scope")
+        if scope == "ON_REQUEST":
+            return MenuPosture.HALAL_UPON_REQUEST
+        return MenuPosture.HALAL_OPTIONS_ADVERTISED
+    # Unanswered: a verifier bothered to visit, so "halal options" is the
+    # conservative default rather than fully-halal.
+    return MenuPosture.HALAL_OPTIONS_ADVERTISED
+
+
+def _alcohol_from_obs(checks: dict) -> AlcoholPolicy:
+    ans = checks.get(_ALCOHOL_CHECK_KEY)
+    if ans == "YES":
+        return AlcoholPolicy.FULL_BAR
+    if ans == "PARTIAL":
+        return AlcoholPolicy.BEER_AND_WINE_ONLY
+    return AlcoholPolicy.NONE  # NO or unanswered
+
+
+def _bootstrap_profile_from_visit(
+    db: Session,
+    *,
+    visit: VerificationVisit,
+    decided_by_user_id: UUID,
+) -> HalalProfile:
+    """Create a halal profile for a place that had none, from the visit's
+    observations. Community-verification path: a verifier confirming a place
+    in person is enough to establish its profile (there may be no owner). No
+    ``source_claim_id`` — the absence of a claim is what marks it
+    verifier-established; the trust history's VERIFIER_VISIT row carries the
+    who/when.
+    """
+    obs = visit.observations or {}
+    checks = obs.get("checks") or {}
+    meat_checks = obs.get("meat_checks") or {}
+
+    def meat(key: str) -> str:
+        mc = meat_checks.get(key)
+        finding = mc.get("finding") if isinstance(mc, dict) else None
+        return _FINDING_TO_SLAUGHTER.get(finding, SlaughterMethod.NOT_SERVED).value
+
+    profile = HalalProfile(
+        place_id=visit.place_id,
+        source_claim_id=None,
+        validation_tier=ValidationTier.TRUST_HALAL_VERIFIED.value,
+        menu_posture=_menu_posture_from_obs(checks, obs.get("menu_partial")).value,
+        alcohol_policy=_alcohol_from_obs(checks).value,
+        chicken_slaughter=meat("CHICKEN"),
+        beef_slaughter=meat("BEEF"),
+        lamb_slaughter=meat("LAMB"),
+        goat_slaughter=meat("GOAT"),
+        has_certification=checks.get(_CERT_CHECK_KEY) == "YES",
+        last_verified_at=visit.visited_at,
+    )
+    db.add(profile)
+    db.flush()  # assign profile.id for the event below
+    db.add(
+        HalalProfileEvent(
+            profile_id=profile.id,
+            event_type=HalalProfileEventType.CREATED.value,
+            actor_user_id=decided_by_user_id,
+            related_claim_id=None,
+            description="Profile established from an accepted verifier visit.",
+        )
+    )
+    return profile
+
+
 def _apply_acceptance(
     db: Session,
     *,
@@ -200,12 +294,12 @@ def _apply_acceptance(
     decided_by_user_id: UUID,
     now: datetime,
 ) -> None:
-    """Promote the place's profile + write the audit events.
+    """Promote (or establish) the place's profile + write the audit events.
 
-    Pre-condition: a non-revoked HalalProfile exists for the place.
-    Otherwise a 409 (VERIFICATION_VISIT_NO_PROFILE) tells the admin
-    to reject the visit instead — verifier visits don't bootstrap
-    new profiles.
+    If the place already has a non-revoked profile, the visit elevates it to
+    TRUST_HALAL_VERIFIED and refreshes last_verified_at. If it has none, the
+    visit *establishes* one from its observations — community verification
+    doesn't wait on an owner claim.
     """
     profile = db.execute(
         select(HalalProfile).where(
@@ -214,16 +308,12 @@ def _apply_acceptance(
         )
     ).scalar_one_or_none()
 
+    bootstrapped = False
     if profile is None:
-        raise ConflictError(
-            "VERIFICATION_VISIT_NO_PROFILE",
-            (
-                "This place has no active halal profile to elevate. "
-                "Verifier visits don't bootstrap profiles — wait for "
-                "the owner's halal claim to be approved first, or "
-                "reject the visit if the verifier is off-base."
-            ),
+        profile = _bootstrap_profile_from_visit(
+            db, visit=visit, decided_by_user_id=decided_by_user_id
         )
+        bootstrapped = True
 
     previous_tier = profile.validation_tier
 
@@ -231,7 +321,13 @@ def _apply_acceptance(
     # current data even if the tier was already at the top.
     profile.last_verified_at = visit.visited_at
 
-    if profile.validation_tier != ValidationTier.TRUST_HALAL_VERIFIED.value:
+    if bootstrapped:
+        description = (
+            f"Verifier visit accepted (visit_id={visit.id}); profile "
+            f"established at {ValidationTier.TRUST_HALAL_VERIFIED.value} from "
+            "the visit."
+        )
+    elif profile.validation_tier != ValidationTier.TRUST_HALAL_VERIFIED.value:
         profile.validation_tier = ValidationTier.TRUST_HALAL_VERIFIED.value
         description = (
             f"Verifier visit accepted (visit_id={visit.id}); tier "

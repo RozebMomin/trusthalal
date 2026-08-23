@@ -127,9 +127,12 @@ type CheckItem = (typeof CHECK_ITEMS)[number]["label"];
 const CHECK_CYCLE: (CheckVal | undefined)[] = [undefined, "YES", "NO", "PARTIAL"];
 
 // Item-wise findings, captured with the same tap-to-cycle Tag idiom as the
-// Checks card. The vocabulary is meat-appropriate: chicken has the hand-cut vs
-// machine-cut debate; beef/lamb/goat have no mechanical analogue, so they're
-// simply zabihah / not-zabihah.
+// Checks card. We record the OBSERVABLE method — hand-cut vs machine-cut — for
+// every meat and let the consumer decide whether that meets their own zabihah
+// standard, rather than asserting "zabihah / not" ourselves. This also matches
+// the halal profile's neutral slaughter vocabulary one-to-one.
+// (ZABIHAH / NOT_ZABIHAH remain in the type only so older captured visits that
+// used them still render; the flow no longer offers them.)
 type Finding =
   | "HAND_CUT"
   | "MACHINE_CUT"
@@ -145,17 +148,16 @@ const FINDING_LABEL: Record<Finding, string> = {
   NOT_SERVED: "Not served",
   UNSURE: "Unsure",
 };
-const CHICKEN_FINDINGS: Finding[] = ["HAND_CUT", "MACHINE_CUT", "NOT_SERVED", "UNSURE"];
-const REDMEAT_FINDINGS: Finding[] = ["ZABIHAH", "NOT_ZABIHAH", "NOT_SERVED", "UNSURE"];
+const SLAUGHTER_FINDINGS: Finding[] = ["HAND_CUT", "MACHINE_CUT", "NOT_SERVED", "UNSURE"];
 const MEATS = [
-  { v: "CHICKEN", label: "Chicken", findings: CHICKEN_FINDINGS },
-  { v: "BEEF", label: "Beef", findings: REDMEAT_FINDINGS },
-  { v: "LAMB", label: "Lamb", findings: REDMEAT_FINDINGS },
-  { v: "GOAT", label: "Goat", findings: REDMEAT_FINDINGS },
+  { v: "CHICKEN", label: "Chicken", findings: SLAUGHTER_FINDINGS },
+  { v: "BEEF", label: "Beef", findings: SLAUGHTER_FINDINGS },
+  { v: "LAMB", label: "Lamb", findings: SLAUGHTER_FINDINGS },
+  { v: "GOAT", label: "Goat", findings: SLAUGHTER_FINDINGS },
 ] as const;
 type MeatKey = (typeof MEATS)[number]["v"];
 const findingsFor = (m: MeatKey): Finding[] =>
-  MEATS.find((x) => x.v === m)?.findings ?? REDMEAT_FINDINGS;
+  MEATS.find((x) => x.v === m)?.findings ?? SLAUGHTER_FINDINGS;
 // Neutral for a recorded method (the label carries the fact); amber flags
 // "unsure" as needing follow-up.
 const findingTone = (f: Finding): "zinc" | "amber" => (f === "UNSURE" ? "amber" : "zinc");
@@ -175,8 +177,8 @@ type MeatCheck = { finding: Finding; evidence: Evidence; supplier?: string };
 type OtherCheck = { label: string; finding: Finding; evidence: Evidence; supplier?: string };
 // Supplier is only asked once the verifier has a document to read it off.
 const evidenceShowsSupplier = (e: Evidence) => e === "INVOICE" || e === "CERTIFICATE";
-// "Other" items (duck, fish, a specific dish) use the red-meat vocabulary.
-const OTHER_FINDINGS: Finding[] = REDMEAT_FINDINGS;
+// "Other" items (duck, fish, a specific dish) use the same observable vocab.
+const OTHER_FINDINGS: Finding[] = SLAUGHTER_FINDINGS;
 
 // Menu coverage: Yes (fully halal) or Partial. There is no "No" — a place
 // with no halal food has no reason to be on the platform; a false claim is a
@@ -342,7 +344,7 @@ export default function FileVisit() {
 
   const addOther = () => {
     const v = otherDraft.trim();
-    if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "ZABIHAH", evidence: "VERBAL" }]);
+    if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "HAND_CUT", evidence: "VERBAL" }]);
     setOtherDraft("");
     setAddingOther(false);
   };

@@ -517,7 +517,9 @@ def test_admin_accept_promotes_tier_and_writes_events(
     assert any(e.event_type == "VERIFIER_VISIT_ACCEPTED" for e in place_events)
 
 
-def test_admin_accept_409s_when_no_profile(api, factories, db_session):
+def test_admin_accept_bootstraps_profile_when_none(api, factories, db_session):
+    """Community verification: accepting a visit on a place with no profile
+    establishes one at TRUST_HALAL_VERIFIED (no owner claim required)."""
     admin = factories.admin()
     verifier = _make_active_verifier(factories, db_session)
     place = factories.place()  # no halal profile
@@ -531,10 +533,70 @@ def test_admin_accept_409s_when_no_profile(api, factories, db_session):
         f"/admin/verification-visits/{visit_id}/decide",
         json={"decision": "ACCEPTED"},
     )
-    assert resp.status_code == 409
-    assert (
-        resp.json()["error"]["code"] == "VERIFICATION_VISIT_NO_PROFILE"
+    assert resp.status_code == 200, resp.text
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one_or_none()
+    assert profile is not None
+    assert profile.validation_tier == ValidationTier.TRUST_HALAL_VERIFIED.value
+    # Verifier-established: no owner claim behind it.
+    assert profile.source_claim_id is None
+
+    # Both a CREATED and a VERIFIER_VISIT_ACCEPTED event landed.
+    types = db_session.execute(
+        select(HalalProfileEvent.event_type).where(
+            HalalProfileEvent.profile_id == profile.id
+        )
+    ).scalars().all()
+    assert HalalProfileEventType.CREATED.value in types
+    assert HalalProfileEventType.VERIFIER_VISIT_ACCEPTED.value in types
+
+
+def test_admin_accept_bootstrap_maps_observations(api, factories, db_session):
+    """The established profile reflects the verifier's observations: menu
+    posture, per-meat method, alcohol, cert."""
+    admin = factories.admin()
+    verifier = _make_active_verifier(factories, db_session)
+    place = factories.place()
+    create = api.as_user(verifier).post(
+        "/me/verification-visits",
+        json={
+            **VALID_VISIT_PAYLOAD,
+            "place_id": str(place.id),
+            "observations": {
+                "ordered_items": [],
+                "checks": {
+                    "Menu is fully halal": "PARTIAL",
+                    "Alcohol on premises": "YES",
+                    "Halal cert visible on premises": "YES",
+                },
+                "menu_partial": {"scope": "ON_REQUEST", "note": "chicken on request"},
+                "meat_checks": {
+                    "CHICKEN": {"finding": "HAND_CUT", "evidence": "INVOICE"},
+                    "BEEF": {"finding": "MACHINE_CUT", "evidence": "VERBAL"},
+                },
+                "other_meat_checks": [],
+                "amenities": {},
+            },
+        },
     )
+    visit_id = create.json()["id"]
+    resp = api.as_user(admin).post(
+        f"/admin/verification-visits/{visit_id}/decide",
+        json={"decision": "ACCEPTED"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    assert profile.menu_posture == "HALAL_UPON_REQUEST"
+    assert profile.alcohol_policy == "FULL_BAR"
+    assert profile.has_certification is True
+    assert profile.chicken_slaughter == "HAND_CUT"
+    assert profile.beef_slaughter == "MACHINE_CUT"
+    assert profile.lamb_slaughter == "NOT_SERVED"  # unrecorded → not served
 
 
 def test_admin_accept_when_already_top_tier_just_refreshes(
