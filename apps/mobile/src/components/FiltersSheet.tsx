@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "./Button";
@@ -90,6 +90,10 @@ export function FiltersSheet({
   resultCount?: number;
 }) {
   const t = useTheme();
+  const { height } = useWindowDimensions();
+  // Give the scroller most of the screen so the sheet reads as near-full-height
+  // — the old fixed 520 hid the newer sections with no hint they were there.
+  const scrollMax = Math.round(height * 0.72);
   return (
     <Sheet visible={visible} onClose={onClose}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: space.md }}>
@@ -98,7 +102,11 @@ export function FiltersSheet({
             <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold" }]}>Reset</Text>
           </Pressable>
         </View>
-        <ScrollView style={{ maxHeight: 520 }}>
+        <ScrollView
+          style={{ maxHeight: scrollMax }}
+          showsVerticalScrollIndicator
+          contentContainerStyle={{ paddingBottom: space.md }}
+        >
           <Text style={[ty.seg, { color: t.sub, marginBottom: 8 }]}>Availability</Text>
           <Pressable
             onPress={() => onChange({ ...filters, open_now: filters.open_now ? undefined : true })}
@@ -246,10 +254,14 @@ export function FiltersSheet({
             </View>
           </View>
 
-          <View style={{ marginTop: space.xl }}>
-            <Button title={resultCount !== undefined ? `Show ${resultCount} places` : "Done"} onPress={onClose} />
-          </View>
         </ScrollView>
+
+        {/* Pinned footer — always visible below the scroller, so the CTA is
+            never hidden and the sheet's bottom edge is unmistakable (the
+            content above it scrolls). */}
+        <View style={{ paddingTop: space.md, marginTop: 2, borderTopWidth: 1, borderTopColor: t.line }}>
+          <Button title={resultCount !== undefined ? `Show ${resultCount} places` : "Done"} onPress={onClose} />
+        </View>
     </Sheet>
   );
 }
