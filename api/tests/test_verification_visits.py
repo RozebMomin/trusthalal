@@ -599,6 +599,51 @@ def test_admin_accept_bootstrap_maps_observations(api, factories, db_session):
     assert profile.lamb_slaughter == "NOT_SERVED"  # unrecorded → not served
 
 
+def test_accept_refreshes_verifier_established_profile(api, factories, db_session):
+    """A second accepted visit updates a verifier-established profile's per-meat
+    data (only what the new visit recorded) — not just the timestamp."""
+    admin = factories.admin()
+    verifier = _make_active_verifier(factories, db_session)
+    place = factories.place()
+
+    # Visit 1: no meat findings → thin profile, chicken defaults to NOT_SERVED.
+    v1 = api.as_user(verifier).post(
+        "/me/verification-visits",
+        json={**VALID_VISIT_PAYLOAD, "place_id": str(place.id)},
+    ).json()["id"]
+    api.as_user(admin).post(
+        f"/admin/verification-visits/{v1}/decide", json={"decision": "ACCEPTED"}
+    )
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    assert profile.chicken_slaughter == "NOT_SERVED"
+
+    # Visit 2: records chicken hand-cut → refresh updates it.
+    v2 = api.as_user(verifier).post(
+        "/me/verification-visits",
+        json={
+            **VALID_VISIT_PAYLOAD,
+            "place_id": str(place.id),
+            "observations": {
+                "ordered_items": [],
+                "checks": {},
+                "meat_checks": {"CHICKEN": {"finding": "HAND_CUT", "evidence": "VERBAL"}},
+                "other_meat_checks": [],
+                "amenities": {},
+            },
+        },
+    ).json()["id"]
+    api.as_user(admin).post(
+        f"/admin/verification-visits/{v2}/decide", json={"decision": "ACCEPTED"}
+    )
+    db_session.expire_all()
+    profile = db_session.execute(
+        select(HalalProfile).where(HalalProfile.place_id == place.id)
+    ).scalar_one()
+    assert profile.chicken_slaughter == "HAND_CUT"
+
+
 def test_admin_accept_when_already_top_tier_just_refreshes(
     api, factories, db_session
 ):

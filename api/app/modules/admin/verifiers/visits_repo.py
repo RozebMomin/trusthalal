@@ -215,7 +215,19 @@ _CERT_CHECK_KEY = "Halal cert visible on premises"
 _ALCOHOL_CHECK_KEY = "Alcohol on premises"
 
 
-def _menu_posture_from_obs(checks: dict, menu_partial: dict | None) -> MenuPosture:
+# Meat key → profile column, for the four tracked meats.
+_MEAT_COLUMNS = (
+    ("CHICKEN", "chicken_slaughter"),
+    ("BEEF", "beef_slaughter"),
+    ("LAMB", "lamb_slaughter"),
+    ("GOAT", "goat_slaughter"),
+)
+
+
+# Each "_opt" helper returns None when the visit didn't record that field, so
+# a refresh can update *only* what was observed and leave the rest intact
+# (a visit that only touched chicken must not wipe a previously-recorded beef).
+def _menu_posture_opt(checks: dict, menu_partial: dict | None) -> MenuPosture | None:
     ans = checks.get(_MENU_CHECK_KEY)
     if ans == "YES":
         return MenuPosture.FULLY_HALAL
@@ -224,18 +236,33 @@ def _menu_posture_from_obs(checks: dict, menu_partial: dict | None) -> MenuPostu
         if scope == "ON_REQUEST":
             return MenuPosture.HALAL_UPON_REQUEST
         return MenuPosture.HALAL_OPTIONS_ADVERTISED
-    # Unanswered: a verifier bothered to visit, so "halal options" is the
-    # conservative default rather than fully-halal.
-    return MenuPosture.HALAL_OPTIONS_ADVERTISED
+    return None
 
 
-def _alcohol_from_obs(checks: dict) -> AlcoholPolicy:
+def _alcohol_opt(checks: dict) -> AlcoholPolicy | None:
     ans = checks.get(_ALCOHOL_CHECK_KEY)
     if ans == "YES":
         return AlcoholPolicy.FULL_BAR
     if ans == "PARTIAL":
         return AlcoholPolicy.BEER_AND_WINE_ONLY
-    return AlcoholPolicy.NONE  # NO or unanswered
+    if ans == "NO":
+        return AlcoholPolicy.NONE
+    return None
+
+
+def _cert_opt(checks: dict) -> bool | None:
+    ans = checks.get(_CERT_CHECK_KEY)
+    return None if ans is None else ans == "YES"
+
+
+def _meat_opt(meat_checks: dict, key: str) -> str | None:
+    mc = meat_checks.get(key)
+    if not isinstance(mc, dict):
+        return None
+    finding = mc.get("finding")
+    if finding is None:
+        return None
+    return _FINDING_TO_SLAUGHTER.get(finding, SlaughterMethod.NOT_SERVED).value
 
 
 def _bootstrap_profile_from_visit(
@@ -249,28 +276,27 @@ def _bootstrap_profile_from_visit(
     in person is enough to establish its profile (there may be no owner). No
     ``source_claim_id`` — the absence of a claim is what marks it
     verifier-established; the trust history's VERIFIER_VISIT row carries the
-    who/when.
+    who/when. Unrecorded fields fall back to sensible defaults.
     """
     obs = visit.observations or {}
     checks = obs.get("checks") or {}
     meat_checks = obs.get("meat_checks") or {}
 
-    def meat(key: str) -> str:
-        mc = meat_checks.get(key)
-        finding = mc.get("finding") if isinstance(mc, dict) else None
-        return _FINDING_TO_SLAUGHTER.get(finding, SlaughterMethod.NOT_SERVED).value
-
     profile = HalalProfile(
         place_id=visit.place_id,
         source_claim_id=None,
         validation_tier=ValidationTier.TRUST_HALAL_VERIFIED.value,
-        menu_posture=_menu_posture_from_obs(checks, obs.get("menu_partial")).value,
-        alcohol_policy=_alcohol_from_obs(checks).value,
-        chicken_slaughter=meat("CHICKEN"),
-        beef_slaughter=meat("BEEF"),
-        lamb_slaughter=meat("LAMB"),
-        goat_slaughter=meat("GOAT"),
-        has_certification=checks.get(_CERT_CHECK_KEY) == "YES",
+        menu_posture=(
+            _menu_posture_opt(checks, obs.get("menu_partial"))
+            or MenuPosture.HALAL_OPTIONS_ADVERTISED
+        ).value,
+        alcohol_policy=(_alcohol_opt(checks) or AlcoholPolicy.NONE).value,
+        chicken_slaughter=_meat_opt(meat_checks, "CHICKEN")
+        or SlaughterMethod.NOT_SERVED.value,
+        beef_slaughter=_meat_opt(meat_checks, "BEEF") or SlaughterMethod.NOT_SERVED.value,
+        lamb_slaughter=_meat_opt(meat_checks, "LAMB") or SlaughterMethod.NOT_SERVED.value,
+        goat_slaughter=_meat_opt(meat_checks, "GOAT") or SlaughterMethod.NOT_SERVED.value,
+        has_certification=bool(_cert_opt(checks)),
         last_verified_at=visit.visited_at,
     )
     db.add(profile)
@@ -285,6 +311,31 @@ def _bootstrap_profile_from_visit(
         )
     )
     return profile
+
+
+def _refresh_profile_from_visit(profile: HalalProfile, visit: VerificationVisit) -> None:
+    """Re-apply a verifier's fresh observations onto an existing
+    *verifier-established* profile — only the fields the visit actually
+    recorded, so a partial visit can't wipe earlier findings. Owner-claim
+    profiles are never touched here (a visit confirms the owner's data, it
+    doesn't overwrite it)."""
+    obs = visit.observations or {}
+    checks = obs.get("checks") or {}
+    meat_checks = obs.get("meat_checks") or {}
+
+    mp = _menu_posture_opt(checks, obs.get("menu_partial"))
+    if mp is not None:
+        profile.menu_posture = mp.value
+    al = _alcohol_opt(checks)
+    if al is not None:
+        profile.alcohol_policy = al.value
+    cert = _cert_opt(checks)
+    if cert is not None:
+        profile.has_certification = cert
+    for key, attr in _MEAT_COLUMNS:
+        v = _meat_opt(meat_checks, key)
+        if v is not None:
+            setattr(profile, attr, v)
 
 
 def _apply_acceptance(
@@ -314,6 +365,12 @@ def _apply_acceptance(
             db, visit=visit, decided_by_user_id=decided_by_user_id
         )
         bootstrapped = True
+    elif profile.source_claim_id is None:
+        # Verifier-established profile (no owner claim behind it): let this
+        # fresh visit update the observed data — per-meat method, menu posture,
+        # alcohol, cert — so re-verifying actually improves the profile instead
+        # of only bumping the timestamp. Owner-claim profiles are left as-is.
+        _refresh_profile_from_visit(profile, visit)
 
     previous_tier = profile.validation_tier
 
