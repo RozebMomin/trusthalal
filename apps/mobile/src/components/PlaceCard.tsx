@@ -1,8 +1,9 @@
 import { ImageBackground, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { primaryHalalSignal } from "@/lib/halal-display";
-import { amenityBadgesFor } from "@/lib/amenities";
+import { amenityBadgesFor, type AmenityBadge } from "@/lib/amenities";
 import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -79,7 +80,7 @@ export function PlaceCard({
                 : null}
               {[dist, meta].filter(Boolean).join(" · ")}
             </Text>
-            {amenities.length ? <AmenityBadges labels={amenities} /> : null}
+            {amenities.length ? <AmenityBadges badges={amenities} /> : null}
           </View>
           <TierTag signal={signal} />
         </View>
@@ -161,7 +162,7 @@ export function PlaceCard({
               {meta}
             </Text>
           ) : null}
-          {amenities.length ? <AmenityBadges labels={amenities} onPhoto /> : null}
+          {amenities.length ? <AmenityBadges badges={amenities} onPhoto /> : null}
         </View>
       </ImageBackground>
     </Pressable>
@@ -171,24 +172,29 @@ export function PlaceCard({
 /** Subtle family-amenity pills. `onPhoto` switches to glass styling for the
  *  hero-card overlay; otherwise a quiet zinc wash matching the kit's Tag.
  *  Capped so a place offering everything doesn't wrap into three rows. */
-function AmenityBadges({ labels, onPhoto = false }: { labels: string[]; onPhoto?: boolean }) {
+function AmenityBadges({ badges, onPhoto = false }: { badges: AmenityBadge[]; onPhoto?: boolean }) {
   const t = useTheme();
-  const shown = labels.slice(0, 3);
-  const extra = labels.length - shown.length;
+  const shown = badges.slice(0, 3);
+  const extra = badges.length - shown.length;
+  const fg = onPhoto ? "#0B0B0E" : t.zinc;
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 5 }}>
-      {shown.map((label) => (
+      {shown.map((b) => (
         <View
-          key={label}
+          key={b.label}
           style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 3,
             backgroundColor: onPhoto ? "rgba(255,255,255,0.92)" : t.zincSoft,
             borderRadius: 6,
             paddingHorizontal: 6,
             paddingVertical: 2,
           }}
         >
-          <Text style={{ color: onPhoto ? "#0B0B0E" : t.zinc, fontFamily: "Inter_600SemiBold", fontSize: 9.5 }}>
-            {label}
+          <MaterialCommunityIcons name={b.icon} size={11} color={fg} />
+          <Text style={{ color: fg, fontFamily: "Inter_600SemiBold", fontSize: 9.5 }}>
+            {b.label}
           </Text>
         </View>
       ))}

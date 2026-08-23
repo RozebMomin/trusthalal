@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -894,23 +894,27 @@ function TrustCard({
  *  amenityBadgesFor helper. Renders nothing when there's no positive signal. */
 function AmenityRow({ profile }: { profile: HalalProfileEmbed }) {
   const t = useTheme();
-  const labels = amenityBadgesFor(profile);
-  if (labels.length === 0) return null;
+  const badges = amenityBadgesFor(profile);
+  if (badges.length === 0) return null;
   return (
     <View style={{ gap: 6 }}>
       <Text style={[ty.small, { color: t.sub, fontSize: 11 }]}>For families</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-        {labels.map((label) => (
+        {badges.map((b) => (
           <View
-            key={label}
+            key={b.label}
             style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 5,
               backgroundColor: t.zincSoft,
               borderRadius: radii.md,
               paddingHorizontal: 9,
               paddingVertical: 5,
             }}
           >
-            <Text style={{ color: t.zinc, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{label}</Text>
+            <MaterialCommunityIcons name={b.icon} size={13} color={t.zinc} />
+            <Text style={{ color: t.zinc, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{b.label}</Text>
           </View>
         ))}
       </View>
