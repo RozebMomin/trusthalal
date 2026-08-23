@@ -27,6 +27,9 @@ trivially atomic.
 """
 from __future__ import annotations
 
+import logging
+import os
+import uuid
 from datetime import datetime, timezone
 from typing import Sequence
 from uuid import UUID
@@ -36,6 +39,7 @@ from sqlalchemy.orm import Session
 
 from app.core.analytics import track
 from app.core.exceptions import ConflictError, NotFoundError
+from app.core.storage import StorageClient
 from app.modules.halal_profiles.enums import (
     AlcoholPolicy,
     HalalProfileEventType,
@@ -44,11 +48,19 @@ from app.modules.halal_profiles.enums import (
     ValidationTier,
 )
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
-from app.modules.places.enums import PlaceEventType
+from app.modules.places.enums import (
+    HERO_ELIGIBLE_SOURCES,
+    PlaceEventType,
+    PlacePhotoSource,
+)
+from app.modules.places.models import PlacePhoto
+from app.modules.places.photos.repo import has_active_hero_for_place
 from app.modules.places.repo import log_place_event
 from app.modules.verifiers.enums import VerificationVisitStatus
 from app.modules.verifiers.models import VerificationVisit
 from app.modules.verifiers.schemas import VerificationVisitDecision
+
+logger = logging.getLogger(__name__)
 
 
 # Statuses an admin can act on. Once ACCEPTED / REJECTED / WITHDRAWN,
@@ -134,11 +146,17 @@ def admin_decide_visit(
     visit_id: UUID,
     payload: VerificationVisitDecision,
     decided_by_user_id: UUID,
+    evidence_storage: StorageClient | None = None,
+    photos_storage: StorageClient | None = None,
+    certs_storage: StorageClient | None = None,
 ) -> VerificationVisit:
     """Apply an admin decision (ACCEPTED or REJECTED).
 
     All effects run inside one transaction so the visit, profile,
-    profile-event, and place-events flip atomically.
+    profile-event, and place-events flip atomically. On acceptance, the
+    optional storage clients let the verifier's tagged photos publish
+    (Menu/Meal → gallery, Cert → profile cert); when unset the publish is
+    skipped (best-effort).
     """
     decision = payload.decision
 
@@ -177,6 +195,9 @@ def admin_decide_visit(
             visit=visit,
             decided_by_user_id=decided_by_user_id,
             now=now,
+            evidence_storage=evidence_storage,
+            photos_storage=photos_storage,
+            certs_storage=certs_storage,
         )
     else:
         _apply_rejection(
@@ -338,12 +359,119 @@ def _refresh_profile_from_visit(profile: HalalProfile, visit: VerificationVisit)
             setattr(profile, attr, v)
 
 
+# Photo-tag captions the verifier flow writes (see mobile PHOTO_TAGS).
+_GALLERY_TAGS = {"menu", "meal"}
+_CERT_TAG = "cert"
+
+
+def _ext_from(filename: str, content_type: str) -> str:
+    ext = os.path.splitext(filename or "")[1].lstrip(".").lower()
+    if ext:
+        return ext
+    return {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/heic": "heic",
+        "image/heif": "heif",
+        "application/pdf": "pdf",
+    }.get((content_type or "").lower(), "jpg")
+
+
+def _publish_visit_photos(
+    db: Session,
+    *,
+    visit: VerificationVisit,
+    profile: HalalProfile,
+    evidence_storage: StorageClient | None,
+    photos_storage: StorageClient | None,
+    certs_storage: StorageClient | None,
+) -> None:
+    """On acceptance, copy the verifier's tagged photos out of the private
+    evidence bucket:
+
+      * Menu / Meal → public place-photos gallery (a VERIFIER PlacePhoto).
+      * Cert → the profile's certificate document (public certs bucket).
+
+    Best-effort throughout: a storage hiccup on one file is logged and
+    skipped, never failing the acceptance. Needs ``evidence_storage`` to read
+    the source; each destination is independently optional.
+    """
+    if evidence_storage is None:
+        return
+
+    attachments = list(visit.attachments)
+    if not attachments:
+        return
+
+    place_id = visit.place_id
+    hero_taken = has_active_hero_for_place(db, place_id=place_id)
+    latest_cert = None  # keep only the newest cert if several were attached
+
+    for att in attachments:
+        tag = (att.caption or "").strip().lower()
+
+        if tag in _GALLERY_TAGS and photos_storage is not None:
+            try:
+                body = evidence_storage.download_bytes(att.storage_path)
+                photo_id = uuid.uuid4()
+                ext = _ext_from(att.original_filename, att.content_type)
+                dest = f"{place_id}/{photo_id}.{ext}"
+                photos_storage.upload_bytes(dest, body, content_type=att.content_type)
+                make_hero = not hero_taken
+                db.add(
+                    PlacePhoto(
+                        id=photo_id,
+                        place_id=place_id,
+                        uploaded_by_user_id=visit.verifier_user_id,
+                        source=PlacePhotoSource.VERIFIER.value,
+                        storage_path=dest,
+                        content_type=att.content_type,
+                        size_bytes=len(body),
+                        is_hero=make_hero and PlacePhotoSource.VERIFIER in HERO_ELIGIBLE_SOURCES,
+                    )
+                )
+                if make_hero:
+                    hero_taken = True
+            except Exception:  # noqa: BLE001 — best-effort publish
+                logger.warning(
+                    "verifier photo publish failed; skipping",
+                    extra={"visit_id": str(visit.id), "attachment_id": str(att.id)},
+                    exc_info=True,
+                )
+
+        elif tag == _CERT_TAG:
+            latest_cert = att  # newest wins (attachments are visit-ordered)
+
+    if latest_cert is not None and certs_storage is not None:
+        try:
+            body = evidence_storage.download_bytes(latest_cert.storage_path)
+            ext = _ext_from(latest_cert.original_filename, latest_cert.content_type)
+            dest = f"{profile.id}.{ext}"
+            try:
+                certs_storage.upload_bytes(dest, body, content_type=latest_cert.content_type)
+            except Exception:  # noqa: BLE001 — path may already exist; replace
+                certs_storage.delete_object(dest)
+                certs_storage.upload_bytes(dest, body, content_type=latest_cert.content_type)
+            profile.certificate_url = certs_storage.public_url(dest)
+            profile.certificate_content_type = latest_cert.content_type
+            profile.has_certification = True
+        except Exception:  # noqa: BLE001 — best-effort publish
+            logger.warning(
+                "verifier cert publish failed; skipping",
+                extra={"visit_id": str(visit.id)},
+                exc_info=True,
+            )
+
+
 def _apply_acceptance(
     db: Session,
     *,
     visit: VerificationVisit,
     decided_by_user_id: UUID,
     now: datetime,
+    evidence_storage: StorageClient | None = None,
+    photos_storage: StorageClient | None = None,
+    certs_storage: StorageClient | None = None,
 ) -> None:
     """Promote (or establish) the place's profile + write the audit events.
 
@@ -418,6 +546,17 @@ def _apply_acceptance(
         "verifier_visit_filed",
         distinct_id=visit.verifier_user_id,
         properties={"place_id": str(visit.place_id), "visit_id": str(visit.id)},
+    )
+
+    # Publish the verifier's tagged photos: Menu/Meal → public gallery, Cert →
+    # profile certificate. Best-effort — never fails the acceptance.
+    _publish_visit_photos(
+        db,
+        visit=visit,
+        profile=profile,
+        evidence_storage=evidence_storage,
+        photos_storage=photos_storage,
+        certs_storage=certs_storage,
     )
 
 

@@ -136,19 +136,27 @@ class PlacePhotoSource(StrEnum):
     # OWNER or CONSUMER, so this value originates solely from the
     # backfill tool.
     GOOGLE = "GOOGLE"
+    # Copied server-side from an ACCEPTED verifier visit's Menu / Meal
+    # attachments. Not user-uploadable via the photos route — it originates
+    # solely from the visit-acceptance publish step. Hero-eligible: a
+    # verifier's on-site photo is a trustworthy cover, more so than a random
+    # diner's, and often the only real photo an unclaimed place has.
+    VERIFIER = "VERIFIER"
 
 
 #: Sources that may serve as a place's cover image.
 #:
 #: OWNER because it's the restaurant's own shopfront. GOOGLE because those
 #: are the listing's photos and they're the only cover an unclaimed place
-#: has. CONSUMER never — a diner's plate photo attached to a two-star review
-#: must not be able to become the image every search result shows, and the
-#: owner shouldn't be able to promote one either (the pre-existing manual
-#: PATCH path allowed exactly that).
+#: has. VERIFIER because a Trust Halal verifier took it on-site. CONSUMER
+#: never — a diner's plate photo attached to a two-star review must not be
+#: able to become the image every search result shows, and the owner
+#: shouldn't be able to promote one either (the pre-existing manual PATCH
+#: path allowed exactly that).
 HERO_ELIGIBLE_SOURCES: tuple[str, ...] = (
     PlacePhotoSource.OWNER,
     PlacePhotoSource.GOOGLE,
+    PlacePhotoSource.VERIFIER,
 )
 
 

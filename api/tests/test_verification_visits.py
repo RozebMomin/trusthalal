@@ -30,7 +30,7 @@ from app.modules.halal_profiles.enums import (
     ValidationTier,
 )
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
-from app.modules.places.models import PlaceEvent
+from app.modules.places.models import PlaceEvent, PlacePhoto
 from app.modules.users.enums import UserRole
 from app.modules.users.models import User
 from app.modules.verifiers.enums import (
@@ -56,12 +56,18 @@ class _FakeStorageClient:
     def upload_bytes(self, path: str, data: bytes, *, content_type: str) -> None:
         self.uploaded[path] = (data, content_type)
 
+    def download_bytes(self, path: str) -> bytes:
+        return self.uploaded[path][0]
+
+    def public_url(self, path: str) -> str:
+        return f"https://fake-public.local/{self.bucket}/{path}"
+
     def signed_url(self, path: str, *, expires_in_seconds: int) -> str:
         self.signed_urls.append((path, expires_in_seconds))
         return f"https://fake-storage.local/{self.bucket}/{path}?token=stub"
 
     def delete_object(self, path: str) -> None:  # pragma: no cover
-        pass
+        self.uploaded.pop(path, None)
 
 
 @pytest.fixture
@@ -642,6 +648,81 @@ def test_accept_refreshes_verifier_established_profile(api, factories, db_sessio
         select(HalalProfile).where(HalalProfile.place_id == place.id)
     ).scalar_one()
     assert profile.chicken_slaughter == "HAND_CUT"
+
+
+def test_accept_publishes_verifier_photos(api, factories, db_session):
+    """On acceptance, Meal/Menu photos become public VERIFIER place photos and
+    the Cert photo populates the profile's certificate document."""
+    from app.main import app as fastapi_app
+    from app.core.storage import (
+        get_certificates_storage_client_optional,
+        get_photos_storage_client_optional,
+        get_storage_client_optional,
+    )
+
+    evidence = _FakeStorageClient()
+    photos_store = _FakeStorageClient()
+    photos_store.bucket = "place-photos-test"
+    certs_store = _FakeStorageClient()
+    certs_store.bucket = "certs-test"
+    fastapi_app.dependency_overrides[get_storage_client] = lambda: evidence
+    fastapi_app.dependency_overrides[get_storage_client_optional] = lambda: evidence
+    fastapi_app.dependency_overrides[get_photos_storage_client_optional] = (
+        lambda: photos_store
+    )
+    fastapi_app.dependency_overrides[get_certificates_storage_client_optional] = (
+        lambda: certs_store
+    )
+    try:
+        admin = factories.admin()
+        verifier = _make_active_verifier(factories, db_session)
+        place = factories.place()
+        db_session.commit()
+
+        vid = api.as_user(verifier).post(
+            "/me/verification-visits",
+            json={**VALID_VISIT_PAYLOAD, "place_id": str(place.id)},
+        ).json()["id"]
+        img = b"\xff\xd8\xff" + b"x" * 100
+        api.as_user(verifier).post(
+            f"/me/verification-visits/{vid}/attachments",
+            files={"file": ("meal.jpg", BytesIO(img), "image/jpeg")},
+            data={"caption": "Meal"},
+        )
+        api.as_user(verifier).post(
+            f"/me/verification-visits/{vid}/attachments",
+            files={"file": ("cert.jpg", BytesIO(img), "image/jpeg")},
+            data={"caption": "Cert"},
+        )
+
+        resp = api.as_user(admin).post(
+            f"/admin/verification-visits/{vid}/decide", json={"decision": "ACCEPTED"}
+        )
+        assert resp.status_code == 200, resp.text
+        db_session.expire_all()
+
+        # Meal photo → public gallery as a VERIFIER photo (hero, place had none).
+        rows = db_session.execute(
+            select(PlacePhoto).where(PlacePhoto.place_id == place.id)
+        ).scalars().all()
+        verifier_photos = [p for p in rows if p.source == "VERIFIER"]
+        assert len(verifier_photos) == 1
+        assert verifier_photos[0].is_hero is True
+
+        # Cert photo → profile certificate document.
+        profile = db_session.execute(
+            select(HalalProfile).where(HalalProfile.place_id == place.id)
+        ).scalar_one()
+        assert profile.certificate_url is not None
+        assert profile.has_certification is True
+    finally:
+        for dep in (
+            get_storage_client,
+            get_storage_client_optional,
+            get_photos_storage_client_optional,
+            get_certificates_storage_client_optional,
+        ):
+            fastapi_app.dependency_overrides.pop(dep, None)
 
 
 def test_admin_accept_when_already_top_tier_just_refreshes(

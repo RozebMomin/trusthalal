@@ -26,7 +26,14 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, require_roles
 from app.core.exceptions import BadRequestError
-from app.core.storage import StorageClient, StorageError, get_storage_client
+from app.core.storage import (
+    StorageClient,
+    StorageError,
+    get_certificates_storage_client_optional,
+    get_photos_storage_client_optional,
+    get_storage_client,
+    get_storage_client_optional,
+)
 from app.db.deps import get_db
 from app.modules.notifications.events import (
     notify_place_verified_savers,
@@ -273,6 +280,11 @@ def admin_decide_verification_visit(
     background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+    evidence_storage: StorageClient | None = Depends(get_storage_client_optional),
+    photos_storage: StorageClient | None = Depends(get_photos_storage_client_optional),
+    certs_storage: StorageClient | None = Depends(
+        get_certificates_storage_client_optional
+    ),
 ) -> VerificationVisitRead:
     # Capture the place's verified state before the decision so the saver
     # fan-out only fires on a genuine transition into verified.
@@ -288,6 +300,9 @@ def admin_decide_verification_visit(
         visit_id=visit_id,
         payload=payload,
         decided_by_user_id=user.id,
+        evidence_storage=evidence_storage,
+        photos_storage=photos_storage,
+        certs_storage=certs_storage,
     )
     accepted = "ACCEPT" in str(payload.decision).upper()
     notify_verifier_visit_decided(

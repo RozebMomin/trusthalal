@@ -464,3 +464,17 @@ def get_certificates_storage_client_optional() -> StorageClient | None:
         return get_certificates_storage_client()
     except StorageError:
         return None
+
+
+def get_photos_storage_client_optional() -> StorageClient | None:
+    """Soft variant of ``get_photos_storage_client``.
+
+    Returns ``None`` when the place-photos bucket isn't configured.
+    Used where publishing a photo is best-effort polish (e.g. copying
+    a verifier's accepted visit photos into the public gallery) and a
+    missing config shouldn't fail the whole request.
+    """
+    try:
+        return get_photos_storage_client()
+    except StorageError:
+        return None
