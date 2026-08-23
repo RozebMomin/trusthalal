@@ -65,6 +65,7 @@ import type {
   SlaughterMethod,
   ValidationTier,
 } from "@/lib/api/hooks";
+import { amenityBadgesFor } from "@/lib/amenities";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -227,6 +228,8 @@ export function PlaceTrustSummary({
         )}
 
         {profile.caveats && <Caveats text={profile.caveats} />}
+
+        <AmenityBadges profile={profile} />
 
         <ProvenanceFooter profile={profile} />
       </div>
@@ -1008,6 +1011,35 @@ function Row({
         {label}
       </dt>
       <dd className="text-sm">{children}</dd>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Family-amenity badges. Convenience signals (prayer space, wudu, bidet,
+// baby changing) a place positively offers, subtle secondary chips so
+// they don't compete with the halal verdict above. Same YES / ON_REQUEST
+// rule and labels as the search-result card. Renders nothing when there's
+// no positive amenity signal.
+// ---------------------------------------------------------------------------
+function AmenityBadges({ profile }: { profile: HalalProfileEmbed }) {
+  const badges = amenityBadgesFor(profile);
+  if (badges.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Amenities
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {badges.map((label) => (
+          <span
+            key={label}
+            className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-0.5 text-xs font-medium text-foreground/80"
+          >
+            {label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

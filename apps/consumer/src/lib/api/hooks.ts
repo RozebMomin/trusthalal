@@ -120,6 +120,21 @@ export type SlaughterMethod =
   | "NOT_SERVED"
   | "NOT_DISCLOSED";
 
+/**
+ * Availability of a family / prayer amenity on a halal profile. Mirrors
+ * the server-side amenity enum. ``YES`` / ``ON_REQUEST`` earn a badge in
+ * the UI; ``NO`` / ``UNSURE`` (and ``null``, i.e. never captured) don't.
+ */
+export type AmenityAvailability = "YES" | "ON_REQUEST" | "NO" | "UNSURE";
+
+/**
+ * The amenities the search endpoint can PRIORITY-BOOST (multi-value
+ * ``boost_amenities`` param). Not a filter, places lacking these still
+ * appear, they just rank lower. Distinct from the per-profile amenity
+ * fields below (which are the availability values used for badges).
+ */
+export type BoostAmenity = "PRAYER_SPACE" | "WUDU" | "BIDET" | "BABY_CHANGING";
+
 export type DisputeState = "NONE" | "DISPUTED" | "RECONCILING";
 
 /**
@@ -272,6 +287,13 @@ export type HalalProfileEmbed = {
   beef_slaughter: SlaughterMethod;
   lamb_slaughter: SlaughterMethod;
   goat_slaughter: SlaughterMethod;
+  /** Family / prayer amenities, ``YES`` | ``ON_REQUEST`` | ``NO`` |
+   *  ``UNSURE`` or null when never captured. Drive the amenity badges on
+   *  the result card + place detail (badge only for YES / ON_REQUEST). */
+  prayer_space: AmenityAvailability | null;
+  wudu: AmenityAvailability | null;
+  bidet: AmenityAvailability | null;
+  baby_changing: AmenityAvailability | null;
   seafood_only: boolean;
   has_certification: boolean;
   certifying_body_name: string | null;
@@ -860,6 +882,22 @@ export type SearchPlacesParams = {
   /** Multi-value cuisine filter. Server returns places matching ANY
    *  of the cuisines (overlap). Empty / missing = no cuisine filter. */
   cuisines?: Cuisine[];
+  /**
+   * Per-meat slaughter-method filters, each MULTI-VALUE (repeated key).
+   * Selecting methods for a meat RESTRICTS results to places serving
+   * that meat with one of those methods. Empty / missing = no filter on
+   * that meat. Only HAND_CUT / MACHINE_CUT are user-selectable.
+   */
+  chicken_slaughter?: SlaughterMethod[];
+  beef_slaughter?: SlaughterMethod[];
+  lamb_slaughter?: SlaughterMethod[];
+  goat_slaughter?: SlaughterMethod[];
+  /**
+   * Family-amenity PRIORITY BOOST (multi-value). NOT a filter, places
+   * without these amenities still appear, they just rank lower. Values
+   * are ``BoostAmenity`` (PRAYER_SPACE / WUDU / BIDET / BABY_CHANGING).
+   */
+  boost_amenities?: string[];
   /** Keep only places we can confirm are NOT closed right now (server-
    *  computed against each place's hours + timezone). Unknown-hours
    *  places still come back, badged "No hours" client-side. */
@@ -1478,6 +1516,17 @@ export function useSearchPlaces(params: SearchPlacesParams) {
           // (``?cuisine=PAKISTANI&cuisine=INDIAN``) by the array-aware
           // buildUrl in client.ts. Empty array drops the param.
           cuisine: params.cuisines,
+          // Per-meat slaughter-method filters, same repeated-key encoding
+          // as cuisine (``?chicken_slaughter=HAND_CUT&chicken_slaughter=...``).
+          // Empty / missing arrays drop the param, so an unset meat never
+          // narrows the search.
+          chicken_slaughter: params.chicken_slaughter,
+          beef_slaughter: params.beef_slaughter,
+          lamb_slaughter: params.lamb_slaughter,
+          goat_slaughter: params.goat_slaughter,
+          // Family-amenity priority boost, multi-value, repeated key. A
+          // ranking hint, not a filter, so it never removes results.
+          boost_amenities: params.boost_amenities,
         },
       }),
     enabled,

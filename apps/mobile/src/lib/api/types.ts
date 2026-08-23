@@ -53,6 +53,14 @@ export type HalalProfileEmbed = {
   beef_slaughter: SlaughterMethod | null;
   lamb_slaughter: SlaughterMethod | null;
   goat_slaughter: SlaughterMethod | null;
+  /** Family / prayer amenities, each `"YES" | "ON_REQUEST" | "NO" | "UNSURE"`
+   *  or null (never captured). A badge shows only for YES / ON_REQUEST — see
+   *  lib/amenities.ts, which both the search card and the detail screen read
+   *  so the two surfaces always agree on labels and the show/hide rule. */
+  prayer_space?: string | null;
+  wudu?: string | null;
+  bidet?: string | null;
+  baby_changing?: string | null;
   has_pork: boolean;
   alcohol_policy: AlcoholPolicy | null;
   alcohol_in_cooking: boolean;
@@ -252,6 +260,17 @@ export type SearchPlacesParams = {
   no_pork?: boolean;
   no_alcohol_served?: boolean;
   cuisines?: string[];
+  /** Per-meat slaughter filters (RESTRICTIVE). Multi-value: repeating a param
+   *  keeps places serving that meat by any of the listed methods. Only the two
+   *  user-selectable values (HAND_CUT / MACHINE_CUT) are ever sent. */
+  chicken_slaughter?: SlaughterMethod[];
+  beef_slaughter?: SlaughterMethod[];
+  lamb_slaughter?: SlaughterMethod[];
+  goat_slaughter?: SlaughterMethod[];
+  /** Family-amenity PRIORITY BOOST (never restrictive). Matching places rank
+   *  higher; non-matches still appear. Values: PRAYER_SPACE | WUDU | BIDET |
+   *  BABY_CHANGING. Deliberately excluded from the active-filter count. */
+  boost_amenities?: string[];
   /** Keep only places we can confirm are open right now (server-computed
    *  against each place's stored hours + timezone). */
   open_now?: boolean;

@@ -32,9 +32,59 @@ import type {
   Cuisine,
   MenuPosture,
   SearchPlacesParams,
+  SlaughterMethod,
   ValidationTier,
 } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Slaughter-method taxonomy. Per-meat, multi-select. Only the two
+// user-selectable methods (hand vs machine) are togglable, the wire
+// enum also carries NOT_SERVED / NOT_DISCLOSED but those aren't filters
+// a diner picks.
+// ---------------------------------------------------------------------------
+
+/** The four per-meat slaughter fields on SearchPlacesParams. */
+type SlaughterField =
+  | "chicken_slaughter"
+  | "beef_slaughter"
+  | "lamb_slaughter"
+  | "goat_slaughter";
+
+const SLAUGHTER_FIELDS: ReadonlyArray<SlaughterField> = [
+  "chicken_slaughter",
+  "beef_slaughter",
+  "lamb_slaughter",
+  "goat_slaughter",
+];
+
+const SLAUGHTER_MEATS: ReadonlyArray<{ field: SlaughterField; label: string }> = [
+  { field: "chicken_slaughter", label: "Chicken" },
+  { field: "beef_slaughter", label: "Beef" },
+  { field: "lamb_slaughter", label: "Lamb" },
+  { field: "goat_slaughter", label: "Goat" },
+];
+
+const SLAUGHTER_CHOICES: ReadonlyArray<{
+  value: Extract<SlaughterMethod, "HAND_CUT" | "MACHINE_CUT">;
+  label: string;
+}> = [
+  { value: "HAND_CUT", label: "Hand-cut" },
+  { value: "MACHINE_CUT", label: "Machine-cut" },
+];
+
+// ---------------------------------------------------------------------------
+// Family-amenity priority boosts. NOT restrictive, these re-rank rather
+// than filter, so they're deliberately kept out of the active-filter
+// count and styled as a distinct "prioritize" section.
+// ---------------------------------------------------------------------------
+
+const AMENITY_BOOSTS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "PRAYER_SPACE", label: "Prayer space" },
+  { value: "WUDU", label: "Wudu area" },
+  { value: "BIDET", label: "Bidet" },
+  { value: "BABY_CHANGING", label: "Baby changing" },
+];
 
 // ---------------------------------------------------------------------------
 // Filter taxonomy, copy + ordering for each filter group.
@@ -215,6 +265,15 @@ export function countActiveFilters(filters: SearchPlacesParams): number {
   if (filters.cuisines && filters.cuisines.length > 0) {
     count += filters.cuisines.length;
   }
+  // Per-meat slaughter methods are restrictive filters, count each
+  // selected method (e.g. Chicken hand-cut + Beef machine-cut = 2).
+  for (const field of SLAUGHTER_FIELDS) {
+    const selected = filters[field];
+    if (selected && selected.length > 0) count += selected.length;
+  }
+  // boost_amenities is deliberately NOT counted, it re-ranks rather than
+  // filters, so it never narrows the result set and shouldn't inflate the
+  // "N filters active" badge that implies things are being removed.
   return count;
 }
 
@@ -270,11 +329,22 @@ export function clearFilterField(
     case "no_alcohol_served":
       delete next.no_alcohol_served;
       break;
+    case "chicken_slaughter":
+      delete next.chicken_slaughter;
+      break;
+    case "beef_slaughter":
+      delete next.beef_slaughter;
+      break;
+    case "lamb_slaughter":
+      delete next.lamb_slaughter;
+      break;
+    case "goat_slaughter":
+      delete next.goat_slaughter;
+      break;
     default:
-      // Slaughter-method filters come from saved preferences and have no
-      // control in this sheet yet, so there's nothing to clear here. Falls
-      // through to "no change" rather than silently dropping something the
-      // user can't see or restore.
+      // Unknown field name (e.g. a server relaxation key this build
+      // doesn't recognise yet), leave the filters untouched rather than
+      // silently dropping something we can't map.
       break;
   }
   return next;
@@ -531,6 +601,49 @@ export function FiltersSheet({
                   Supplier-verified
                 </FilterPill>
               </FilterSection>
+
+              <FilterSection
+                title="Slaughter method"
+                hint="Filter by how each meat is slaughtered. Picking a method only keeps places that serve that meat that way."
+              >
+                <div className="w-full space-y-2.5">
+                  {SLAUGHTER_MEATS.map(({ field, label }) => {
+                    const selected = filters[field] ?? [];
+                    return (
+                      <div
+                        key={field}
+                        className="flex flex-wrap items-center gap-1.5"
+                      >
+                        <span className="w-16 shrink-0 text-xs font-medium text-foreground">
+                          {label}
+                        </span>
+                        {SLAUGHTER_CHOICES.map((choice) => {
+                          const isOn = selected.includes(choice.value);
+                          return (
+                            <FilterPill
+                              key={choice.value}
+                              active={isOn}
+                              onClick={() => {
+                                const next = isOn
+                                  ? selected.filter((v) => v !== choice.value)
+                                  : [...selected, choice.value];
+                                update({
+                                  [field]:
+                                    next.length === 0 ? undefined : next,
+                                } as Partial<SearchPlacesParams>);
+                              }}
+                            >
+                              {choice.label}
+                            </FilterPill>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              <PriorityBoostSection filters={filters} update={update} />
             </div>
           </div>
 
@@ -583,6 +696,66 @@ function FilterSection({
         )}
       </div>
       <div className="flex flex-wrap gap-1.5">{children}</div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PriorityBoostSection, the family-amenity "prioritize" controls.
+//
+// Deliberately visually distinct from the filter sections above: these
+// toggles RE-RANK results, they never remove a place. The tinted card,
+// sparkle-free copy, and separate non-restrictive treatment (not counted
+// as active filters) are what keep the "boost, not filter" contract
+// legible to the user, matching the API's boost_amenities semantics.
+// ---------------------------------------------------------------------------
+
+function PriorityBoostSection({
+  filters,
+  update,
+}: {
+  filters: SearchPlacesParams;
+  update: (patch: Partial<SearchPlacesParams>) => void;
+}) {
+  const selected = filters.boost_amenities ?? [];
+  return (
+    <section className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3.5">
+      <div className="space-y-0.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-primary">
+          Prioritize for families
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Bubbles these up first, doesn&rsquo;t hide other places.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {AMENITY_BOOSTS.map((amenity) => {
+          const isOn = selected.includes(amenity.value);
+          return (
+            <button
+              key={amenity.value}
+              type="button"
+              onClick={() => {
+                const next = isOn
+                  ? selected.filter((v) => v !== amenity.value)
+                  : [...selected, amenity.value];
+                update({
+                  boost_amenities: next.length === 0 ? undefined : next,
+                });
+              }}
+              aria-pressed={isOn}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                isOn
+                  ? "border-primary bg-primary/15 text-primary"
+                  : "border-primary/30 bg-background text-foreground hover:border-primary/50 hover:bg-primary/10",
+              )}
+            >
+              {amenity.label}
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }

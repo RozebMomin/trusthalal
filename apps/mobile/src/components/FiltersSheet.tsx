@@ -3,7 +3,7 @@ import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "./Button";
 import { Sheet } from "@/ui/kit";
-import type { SearchPlacesParams, ValidationTier } from "@/lib/api/types";
+import type { SearchPlacesParams, SlaughterMethod, ValidationTier } from "@/lib/api/types";
 
 const TIERS: Array<{ v: ValidationTier | undefined; label: string }> = [
   { v: undefined, label: "Any claim" },
@@ -17,6 +17,41 @@ const POSTURES = [
   { v: "HALAL_UPON_REQUEST", label: "On request" },
 ] as const;
 
+/** The four per-meat slaughter fields carried on Filters. Restrictive,
+ *  multi-select per meat. Only the two user-selectable methods are togglable —
+ *  the wire enum also carries NOT_SERVED / NOT_DISCLOSED, which aren't filters
+ *  a diner picks. */
+type SlaughterField =
+  | "chicken_slaughter"
+  | "beef_slaughter"
+  | "lamb_slaughter"
+  | "goat_slaughter";
+
+const SLAUGHTER_MEATS: ReadonlyArray<{ field: SlaughterField; label: string }> = [
+  { field: "chicken_slaughter", label: "Chicken" },
+  { field: "beef_slaughter", label: "Beef" },
+  { field: "lamb_slaughter", label: "Lamb" },
+  { field: "goat_slaughter", label: "Goat" },
+];
+
+const SLAUGHTER_CHOICES: ReadonlyArray<{
+  value: Extract<SlaughterMethod, "HAND_CUT" | "MACHINE_CUT">;
+  label: string;
+}> = [
+  { value: "HAND_CUT", label: "Hand-cut" },
+  { value: "MACHINE_CUT", label: "Machine-cut" },
+];
+
+/** Family-amenity priority boosts. NOT restrictive — these re-rank rather than
+ *  filter, so they're deliberately kept out of countFilters and given a
+ *  distinct "prioritize" section. */
+const AMENITY_BOOSTS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "PRAYER_SPACE", label: "Prayer space" },
+  { value: "WUDU", label: "Wudu area" },
+  { value: "BIDET", label: "Bidet" },
+  { value: "BABY_CHANGING", label: "Baby changing" },
+];
+
 export type Filters = Pick<
   SearchPlacesParams,
   | "min_validation_tier"
@@ -25,10 +60,20 @@ export type Filters = Pick<
   | "no_alcohol_served"
   | "has_certification"
   | "open_now"
+  | "chicken_slaughter"
+  | "beef_slaughter"
+  | "lamb_slaughter"
+  | "goat_slaughter"
+  | "boost_amenities"
 >;
 
 export function countFilters(f: Filters) {
-  return [f.min_validation_tier, f.min_menu_posture, f.no_pork, f.no_alcohol_served, f.has_certification, f.open_now].filter(Boolean).length;
+  let n = [f.min_validation_tier, f.min_menu_posture, f.no_pork, f.no_alcohol_served, f.has_certification, f.open_now].filter(Boolean).length;
+  // Each selected slaughter method is its own restrictive constraint.
+  for (const { field } of SLAUGHTER_MEATS) n += f[field]?.length ?? 0;
+  // boost_amenities is intentionally NOT counted — it re-ranks, never removes,
+  // so it must not inflate a badge that reads as "things are being filtered out".
+  return n;
 }
 
 export function FiltersSheet({
@@ -131,6 +176,76 @@ export function FiltersSheet({
             <Chip on={!!filters.has_certification} label="Certificate on file" onPress={() => onChange({ ...filters, has_certification: filters.has_certification ? undefined : true })} />
           </View>
 
+          <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 4 }]}>Slaughter method</Text>
+          <Text style={[ty.small, { color: t.sub, marginBottom: 10 }]}>
+            Picking a method keeps only places that serve that meat that way.
+          </Text>
+          <View style={{ gap: 10 }}>
+            {SLAUGHTER_MEATS.map(({ field, label }) => {
+              const selected = filters[field] ?? [];
+              return (
+                <View key={field} style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                  <Text style={{ width: 58, color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{label}</Text>
+                  {SLAUGHTER_CHOICES.map((choice) => {
+                    const on = selected.includes(choice.value);
+                    return (
+                      <Chip
+                        key={choice.value}
+                        on={on}
+                        label={choice.label}
+                        onPress={() => {
+                          const next = on
+                            ? selected.filter((v) => v !== choice.value)
+                            : [...selected, choice.value];
+                          onChange({ ...filters, [field]: next.length ? next : undefined });
+                        }}
+                      />
+                    );
+                  })}
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Distinct "prioritize" section — these RE-RANK, they never remove a
+              place, so they get a tinted card, their own copy, and (via
+              countFilters) stay out of the active-filter count. */}
+          <View
+            style={{
+              marginTop: space.lg,
+              backgroundColor: t.accentSoft,
+              borderRadius: radii.md,
+              borderWidth: 1,
+              borderColor: t.accent,
+              padding: 14,
+            }}
+          >
+            <Text style={[ty.seg, { color: t.accentDeep, marginBottom: 4 }]}>Prioritize for families</Text>
+            <Text style={[ty.small, { color: t.sub, marginBottom: 10 }]}>
+              Bubbles these up first — doesn&apos;t hide other places.
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+              {AMENITY_BOOSTS.map((amenity) => {
+                const selected = filters.boost_amenities ?? [];
+                const on = selected.includes(amenity.value);
+                return (
+                  <Chip
+                    key={amenity.value}
+                    on={on}
+                    accent
+                    label={amenity.label}
+                    onPress={() => {
+                      const next = on
+                        ? selected.filter((v) => v !== amenity.value)
+                        : [...selected, amenity.value];
+                      onChange({ ...filters, boost_amenities: next.length ? next : undefined });
+                    }}
+                  />
+                );
+              })}
+            </View>
+          </View>
+
           <View style={{ marginTop: space.xl }}>
             <Button title={resultCount !== undefined ? `Show ${resultCount} places` : "Done"} onPress={onClose} />
           </View>
@@ -139,21 +254,37 @@ export function FiltersSheet({
   );
 }
 
-function Chip({ on, label, onPress }: { on: boolean; label: string; onPress: () => void }) {
+function Chip({
+  on,
+  label,
+  onPress,
+  accent,
+}: {
+  on: boolean;
+  label: string;
+  onPress: () => void;
+  /** When selected, fill with the brand emerald instead of ink — used by the
+   *  non-restrictive "prioritize" boosts so they read apart from filters. */
+  accent?: boolean;
+}) {
   const t = useTheme();
+  const onBg = accent ? t.accent : t.ink;
+  const onFg = accent ? t.onAccent : t.onInk;
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: on }}
       onPress={onPress}
       style={{
-        backgroundColor: on ? t.ink : "transparent",
+        backgroundColor: on ? onBg : "transparent",
         borderWidth: 1,
-        borderColor: on ? t.ink : t.line,
+        borderColor: on ? onBg : t.line,
         borderRadius: 999,
         paddingHorizontal: 13,
         paddingVertical: 8,
       }}
     >
-      <Text style={{ color: on ? t.onInk : t.ink, fontFamily: "Inter_600SemiBold", fontSize: 11 }}>{label}</Text>
+      <Text style={{ color: on ? onFg : t.ink, fontFamily: "Inter_600SemiBold", fontSize: 11 }}>{label}</Text>
     </Pressable>
   );
 }

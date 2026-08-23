@@ -58,6 +58,7 @@ import {
   type MenuPosture,
   type PlaceSearchResult,
   type SearchPlacesParams,
+  type SlaughterMethod,
   type ValidationTier,
   type SearchDiagnostics,
   useCurrentUser,
@@ -915,6 +916,25 @@ function ErrorState({ error }: { error: Error }) {
 // URL <-> SearchPlacesParams round-trip
 // ---------------------------------------------------------------------------
 
+// The four per-meat slaughter fields, kept as a tuple so parse /
+// stringify iterate the same set. Values are the SearchPlacesParams keys.
+const SLAUGHTER_FIELDS = [
+  "chicken_slaughter",
+  "beef_slaughter",
+  "lamb_slaughter",
+  "goat_slaughter",
+] as const;
+
+// Accepted values for the non-restrictive boost_amenities param. Anything
+// outside this set is dropped on parse so a stale link can't pin an
+// unknown boost value.
+const VALID_BOOST_AMENITIES: ReadonlySet<string> = new Set([
+  "PRAYER_SPACE",
+  "WUDU",
+  "BIDET",
+  "BABY_CHANGING",
+]);
+
 function parseSearchParams(p: URLSearchParams | null): SearchPlacesParams {
   if (!p) return {};
   const out: SearchPlacesParams = {};
@@ -940,6 +960,24 @@ function parseSearchParams(p: URLSearchParams | null): SearchPlacesParams {
     );
     if (filtered.length > 0) out.cuisines = filtered;
   }
+  // Per-meat slaughter filters, repeated keys. Only the two user-
+  // selectable methods survive parse; anything else (a stale link with
+  // NOT_SERVED, say) is dropped so we never send the API a value the UI
+  // can't represent.
+  for (const field of SLAUGHTER_FIELDS) {
+    const raw = p
+      .getAll(field)
+      .filter((v): v is SlaughterMethod =>
+        v === "HAND_CUT" || v === "MACHINE_CUT",
+      );
+    if (raw.length > 0) out[field] = raw;
+  }
+  // Family-amenity priority boost, repeated keys. Non-restrictive, so a
+  // stale/unknown value is simply dropped rather than 422ing the request.
+  const boosts = p
+    .getAll("boost_amenities")
+    .filter((v) => VALID_BOOST_AMENITIES.has(v));
+  if (boosts.length > 0) out.boost_amenities = boosts;
   // Geo trio: only commit if all three round-trip cleanly. Partial
   // coords would 400 on the API and a stale lat without lng makes
   // for a confusing back-button restoration.
@@ -972,6 +1010,17 @@ function stringifySearchParams(params: SearchPlacesParams): string {
   // drops the param entirely so an empty filter doesn't bloat the URL.
   if (params.cuisines && params.cuisines.length > 0) {
     for (const c of params.cuisines) u.append("cuisine", c);
+  }
+  // Per-meat slaughter filters + amenity boosts, same repeated-key
+  // encoding as cuisines. Empty / missing arrays drop the param.
+  for (const field of SLAUGHTER_FIELDS) {
+    const selected = params[field];
+    if (selected && selected.length > 0) {
+      for (const method of selected) u.append(field, method);
+    }
+  }
+  if (params.boost_amenities && params.boost_amenities.length > 0) {
+    for (const a of params.boost_amenities) u.append("boost_amenities", a);
   }
   // Geo trio, same all-or-nothing posture as the parser. Truncate
   // lat/lng to 5 decimals (~1.1m precision, far below the 1-mile

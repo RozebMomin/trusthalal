@@ -2,6 +2,7 @@ import { ImageBackground, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { primaryHalalSignal } from "@/lib/halal-display";
+import { amenityBadgesFor } from "@/lib/amenities";
 import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
@@ -33,6 +34,7 @@ export function PlaceCard({
 }) {
   const t = useTheme();
   const signal = primaryHalalSignal(place.halal_profile);
+  const amenities = amenityBadgesFor(place.halal_profile);
   const dist = miles(distanceMeters);
   const openState =
     place.open_now === true
@@ -77,6 +79,7 @@ export function PlaceCard({
                 : null}
               {[dist, meta].filter(Boolean).join(" · ")}
             </Text>
+            {amenities.length ? <AmenityBadges labels={amenities} /> : null}
           </View>
           <TierTag signal={signal} />
         </View>
@@ -158,9 +161,52 @@ export function PlaceCard({
               {meta}
             </Text>
           ) : null}
+          {amenities.length ? <AmenityBadges labels={amenities} onPhoto /> : null}
         </View>
       </ImageBackground>
     </Pressable>
+  );
+}
+
+/** Subtle family-amenity pills. `onPhoto` switches to glass styling for the
+ *  hero-card overlay; otherwise a quiet zinc wash matching the kit's Tag.
+ *  Capped so a place offering everything doesn't wrap into three rows. */
+function AmenityBadges({ labels, onPhoto = false }: { labels: string[]; onPhoto?: boolean }) {
+  const t = useTheme();
+  const shown = labels.slice(0, 3);
+  const extra = labels.length - shown.length;
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 5 }}>
+      {shown.map((label) => (
+        <View
+          key={label}
+          style={{
+            backgroundColor: onPhoto ? "rgba(255,255,255,0.92)" : t.zincSoft,
+            borderRadius: 6,
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+          }}
+        >
+          <Text style={{ color: onPhoto ? "#0B0B0E" : t.zinc, fontFamily: "Inter_600SemiBold", fontSize: 9.5 }}>
+            {label}
+          </Text>
+        </View>
+      ))}
+      {extra > 0 ? (
+        <View
+          style={{
+            backgroundColor: onPhoto ? "rgba(255,255,255,0.92)" : t.zincSoft,
+            borderRadius: 6,
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+          }}
+        >
+          <Text style={{ color: onPhoto ? "#0B0B0E" : t.zinc, fontFamily: "Inter_600SemiBold", fontSize: 9.5 }}>
+            +{extra}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 

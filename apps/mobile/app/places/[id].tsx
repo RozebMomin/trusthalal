@@ -22,6 +22,7 @@ import type {
 } from "@/lib/api/types";
 import { capture } from "@/lib/analytics";
 import { reportPlaceSignal } from "@/lib/api/signals";
+import { amenityBadgesFor } from "@/lib/amenities";
 
 const TEST_FORCE_PORK = false;
 
@@ -880,7 +881,38 @@ function TrustCard({
           </View>
         ) : null}
 
+        <AmenityRow profile={profile} />
+
         <ProvenanceFooter profile={profile} onDetails={onDetails} />
+      </View>
+    </View>
+  );
+}
+
+/** Family / prayer amenities the place positively offers (YES or ON_REQUEST).
+ *  Subtle zinc pills, same labels + rule as the search card via the shared
+ *  amenityBadgesFor helper. Renders nothing when there's no positive signal. */
+function AmenityRow({ profile }: { profile: HalalProfileEmbed }) {
+  const t = useTheme();
+  const labels = amenityBadgesFor(profile);
+  if (labels.length === 0) return null;
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={[ty.small, { color: t.sub, fontSize: 11 }]}>For families</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {labels.map((label) => (
+          <View
+            key={label}
+            style={{
+              backgroundColor: t.zincSoft,
+              borderRadius: radii.md,
+              paddingHorizontal: 9,
+              paddingVertical: 5,
+            }}
+          >
+            <Text style={{ color: t.zinc, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{label}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );

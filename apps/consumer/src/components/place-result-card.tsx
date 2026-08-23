@@ -33,6 +33,7 @@ import * as React from "react";
 
 import { FavoriteToggle } from "@/components/favorite-toggle";
 import type { Cuisine, PlaceSearchResult } from "@/lib/api/hooks";
+import { amenityBadgesFor } from "@/lib/amenities";
 import { formatDistanceMiles } from "@/lib/geo";
 import {
   PRIMARY_TONE_CLASSES,
@@ -191,6 +192,8 @@ export function PlaceResultCard({
             />
 
             {facts.length > 0 && <FactsStrip facts={facts} />}
+
+            <AmenityBadges profile={place.halal_profile} />
 
             {addressLine && (
               <p className="mt-auto truncate text-xs text-muted-foreground">
@@ -361,6 +364,34 @@ function MetadataStrip({
           +{cuisineOverflow}
         </span>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Family-amenity badges. Secondary to the halal facts, these are
+// convenience signals (prayer space, wudu, bidet, baby changing) that a
+// place positively offers. Muted outline chips so they read as "nice to
+// have" context rather than trust evidence. Renders nothing when the
+// place has no positive amenity signal.
+// ---------------------------------------------------------------------------
+function AmenityBadges({
+  profile,
+}: {
+  profile: PlaceSearchResult["halal_profile"];
+}) {
+  const badges = amenityBadgesFor(profile);
+  if (badges.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {badges.map((label) => (
+        <span
+          key={label}
+          className="inline-flex items-center rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+        >
+          {label}
+        </span>
+      ))}
     </div>
   );
 }

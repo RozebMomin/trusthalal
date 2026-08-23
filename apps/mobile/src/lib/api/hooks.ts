@@ -243,6 +243,13 @@ function searchParamsToQuery(p: SearchPlacesParams): string {
   if (p.no_alcohol_served) u.set("no_alcohol_served", "true");
   if (p.open_now) u.set("open_now", "true");
   for (const c of p.cuisines ?? []) u.append("cuisine", c);
+  // Per-meat slaughter filters (restrictive) + amenity boosts (re-rank) —
+  // all multi-value, serialized as repeated keys the same way cuisine is.
+  for (const m of p.chicken_slaughter ?? []) u.append("chicken_slaughter", m);
+  for (const m of p.beef_slaughter ?? []) u.append("beef_slaughter", m);
+  for (const m of p.lamb_slaughter ?? []) u.append("lamb_slaughter", m);
+  for (const m of p.goat_slaughter ?? []) u.append("goat_slaughter", m);
+  for (const a of p.boost_amenities ?? []) u.append("boost_amenities", a);
   return u.toString();
 }
 
