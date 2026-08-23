@@ -457,8 +457,10 @@ export function Sheet({
           position: "absolute",
           left: 0,
           right: 0,
-          // Sits on the keyboard when one is up, otherwise on the screen edge.
-          bottom: kbHeight,
+          // Sits on the keyboard when one is up (tucked a hair behind it so its
+          // rounded top corners fill with the sheet colour, not the backdrop),
+          // otherwise on the screen edge.
+          bottom: kbHeight > 0 ? kbHeight - 16 : 0,
           maxHeight: "88%",
           transform: [
             { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) },
@@ -473,7 +475,8 @@ export function Sheet({
             paddingHorizontal: space.lg,
             // Clear the device's bottom safe area (Android on-screen nav / iOS
             // home indicator) — but not when the keyboard already occupies it.
-            paddingBottom: kbHeight > 0 ? 8 : insets.bottom + 8,
+            // The +16 keeps content clear of the keyboard despite the tuck.
+            paddingBottom: kbHeight > 0 ? 16 + 8 : insets.bottom + 8,
           }}
         >
           <View style={{ alignSelf: "center", width: 36, height: 4, borderRadius: 4, backgroundColor: t.line, marginVertical: 12 }} />
