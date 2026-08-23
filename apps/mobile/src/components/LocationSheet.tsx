@@ -59,7 +59,7 @@ function useForwardGeocode(q: string) {
   return useQuery({
     queryKey: ["places", "forward-geocode", trimmed.toLowerCase()],
     queryFn: () =>
-      apiFetch<{ results: GeocodeMatch[] } | GeocodeMatch[]>(
+      apiFetch<{ matches: GeocodeMatch[] } | GeocodeMatch[]>(
         `/places/google/forward-geocode?q=${encodeURIComponent(trimmed)}`,
       ),
     enabled: trimmed.length >= 3,
@@ -86,7 +86,7 @@ export function LocationSheet({
   const [q, setQ] = useState("");
   const geo = useForwardGeocode(q);
   const recents = useQuery({ queryKey: ["recent-locations"], queryFn: loadRecents, enabled: visible });
-  const matches: GeocodeMatch[] = Array.isArray(geo.data) ? geo.data : (geo.data?.results ?? []);
+  const matches: GeocodeMatch[] = Array.isArray(geo.data) ? geo.data : (geo.data?.matches ?? []);
 
   const pick = (loc: PickedLocation) => {
     setQ("");

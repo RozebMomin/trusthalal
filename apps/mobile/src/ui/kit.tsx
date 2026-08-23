@@ -403,7 +403,7 @@ export function toneFor(t: Palette) {
 // black slab riding up and down with the sheet.
 // ---------------------------------------------------------------------------
 import { useEffect, useRef, useState } from "react";
-import { Animated, Modal } from "react-native";
+import { Animated, Keyboard, Modal, Platform } from "react-native";
 
 export function Sheet({
   visible,
@@ -418,6 +418,22 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
+  // Lift the panel above the on-screen keyboard so a focused input in the sheet
+  // (e.g. the location search) isn't covered.
+  const [kbHeight, setKbHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const show = Keyboard.addListener(showEvt, (e) =>
+      setKbHeight(e.endCoordinates?.height ?? 0),
+    );
+    const hide = Keyboard.addListener(hideEvt, () => setKbHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -441,7 +457,8 @@ export function Sheet({
           position: "absolute",
           left: 0,
           right: 0,
-          bottom: 0,
+          // Sits on the keyboard when one is up, otherwise on the screen edge.
+          bottom: kbHeight,
           maxHeight: "88%",
           transform: [
             { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) },
@@ -454,9 +471,9 @@ export function Sheet({
             borderTopLeftRadius: 28,
             borderTopRightRadius: 28,
             paddingHorizontal: space.lg,
-            // Just enough to clear the device's bottom safe area (Android
-            // on-screen nav / iOS home indicator) — a snug gap, not a void.
-            paddingBottom: insets.bottom + 8,
+            // Clear the device's bottom safe area (Android on-screen nav / iOS
+            // home indicator) — but not when the keyboard already occupies it.
+            paddingBottom: kbHeight > 0 ? 8 : insets.bottom + 8,
           }}
         >
           <View style={{ alignSelf: "center", width: 36, height: 4, borderRadius: 4, backgroundColor: t.line, marginVertical: 12 }} />
