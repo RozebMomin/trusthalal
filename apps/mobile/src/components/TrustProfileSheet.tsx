@@ -246,26 +246,38 @@ export function TrustProfileSheet({
 
               {supplierBacked.length > 0 ? (
                 <Section title="Supplier sourcing">
-                  {supplierBacked.map((x, i) => (
-                    <SheetRow
-                      key={x.meat_type}
-                      label={x.meat_type.charAt(0) + x.meat_type.slice(1).toLowerCase()}
-                      last={i === supplierBacked.length - 1}
-                      right={
-                        <Value
-                          text={`${x.supplier_name ?? "Supplier"} · ${
-                            x.confidence === "VERIFIED"
-                              ? "verified"
-                              : x.confidence === "DOCUMENTED"
-                                ? "documented"
-                                : p?.owner_attested
-                                  ? "as stated by owner"
-                                  : "reported by community"
-                          }`}
-                        />
-                      }
-                    />
-                  ))}
+                  {supplierBacked.map((x, i) => {
+                    const attribution =
+                      x.confidence === "VERIFIED"
+                        ? "verified"
+                        : x.confidence === "DOCUMENTED"
+                          ? "documented"
+                          : p?.owner_attested
+                            ? "as stated by owner"
+                            : "reported by community";
+                    return (
+                      <SheetRow
+                        key={x.meat_type}
+                        label={x.meat_type.charAt(0) + x.meat_type.slice(1).toLowerCase()}
+                        last={i === supplierBacked.length - 1}
+                        right={
+                          // Stack the supplier name over the attribution so a
+                          // long "· reported by community" can't run off-screen.
+                          <View style={{ flex: 1, alignItems: "flex-end" }}>
+                            <Text
+                              style={[ty.body, { color: t.ink, fontFamily: "Inter_700Bold", fontSize: 17, textAlign: "right" }]}
+                              numberOfLines={2}
+                            >
+                              {x.supplier_name ?? "Supplier"}
+                            </Text>
+                            <Text style={[ty.small, { color: t.sub, fontSize: 12.5, marginTop: 2, textAlign: "right" }]}>
+                              {attribution}
+                            </Text>
+                          </View>
+                        }
+                      />
+                    );
+                  })}
                 </Section>
               ) : null}
 
