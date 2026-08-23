@@ -133,9 +133,18 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
         ("LAMB", "lamb_slaughter"),
         ("GOAT", "goat_slaughter"),
     ):
-        if str(getattr(profile, column)) == "NOT_SERVED":
-            continue
         r = resolve_place_method(db, place_id=profile.place_id, meat_type=meat)
+        method = str(r.method)
+        # A meat is genuinely not served only when NOTHING resolves it — no live
+        # supplier link AND a NOT_SERVED self-attested column. A live link means
+        # the place sources the meat, so surface it even if the stored column is
+        # stale (a common state before the column-fill logic runs).
+        if method == "NOT_SERVED":
+            continue
+        # The composed method is the truth we show. Override the embed's per-meat
+        # column with it so the primary display reflects a link-backed method
+        # without the stored column having to be in sync.
+        setattr(embed, column, method)
         provenance.append(
             SlaughterProvenanceRead(
                 meat_type=meat,
