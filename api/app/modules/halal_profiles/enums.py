@@ -88,6 +88,13 @@ class SlaughterMethod(StrEnum):
     """Restaurant doesn't serve this protein at all. Useful so the
     questionnaire doesn't force a meaningless answer."""
 
+    NOT_DISCLOSED = "NOT_DISCLOSED"
+    """The protein IS served, but the slaughter method isn't confirmed —
+    e.g. a verifier saw it on the menu / a supplier cert but couldn't
+    establish hand-cut vs machine-cut without asking staff. Distinct from
+    NOT_SERVED (served-but-unverified, not absent). Aligns with the supplier
+    provenance vocabulary, which already carries NOT_DISCLOSED."""
+
 
 class MeatType(StrEnum):
     """Meat categories the questionnaire tracks per-product.

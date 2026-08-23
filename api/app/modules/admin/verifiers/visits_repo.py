@@ -220,15 +220,16 @@ def admin_decide_visit(
 # Verifier finding → profile slaughter column. The verifier records the
 # observable method (hand vs machine) so it maps 1:1 to the neutral profile
 # vocabulary. ZABIHAH/NOT_ZABIHAH are legacy values from older visits, folded
-# onto the observable equivalents. UNSURE has no profile analogue, so it lands
-# on NOT_SERVED (the "no confirmed halal method" column value).
+# onto the observable equivalents. UNSURE means the protein IS served but the
+# method couldn't be confirmed on the spot → NOT_DISCLOSED (NOT the same as
+# NOT_SERVED, which means the place doesn't carry it at all).
 _FINDING_TO_SLAUGHTER = {
     "HAND_CUT": SlaughterMethod.HAND_CUT,
     "MACHINE_CUT": SlaughterMethod.MACHINE_CUT,
     "ZABIHAH": SlaughterMethod.HAND_CUT,
     "NOT_ZABIHAH": SlaughterMethod.MACHINE_CUT,
     "NOT_SERVED": SlaughterMethod.NOT_SERVED,
-    "UNSURE": SlaughterMethod.NOT_SERVED,
+    "UNSURE": SlaughterMethod.NOT_DISCLOSED,
 }
 # The label the verifier flow writes the "menu fully halal" answer under.
 _MENU_CHECK_KEY = "Menu is fully halal"

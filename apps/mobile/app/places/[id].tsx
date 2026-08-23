@@ -763,6 +763,7 @@ const SLAUGHTER_LABELS: Record<string, string> = {
   HAND_CUT: "Hand-slaughtered",
   MACHINE_CUT: "Machine-slaughtered",
   NOT_SERVED: "Not served",
+  NOT_DISCLOSED: "Method not confirmed",
 };
 
 /**

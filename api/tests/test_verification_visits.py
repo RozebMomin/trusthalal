@@ -581,6 +581,7 @@ def test_admin_accept_bootstrap_maps_observations(api, factories, db_session):
                 "meat_checks": {
                     "CHICKEN": {"finding": "HAND_CUT", "evidence": "INVOICE"},
                     "BEEF": {"finding": "MACHINE_CUT", "evidence": "VERBAL"},
+                    "GOAT": {"finding": "UNSURE", "evidence": "CERTIFICATE"},
                 },
                 "other_meat_checks": [],
                 "amenities": {},
@@ -603,6 +604,8 @@ def test_admin_accept_bootstrap_maps_observations(api, factories, db_session):
     assert profile.chicken_slaughter == "HAND_CUT"
     assert profile.beef_slaughter == "MACHINE_CUT"
     assert profile.lamb_slaughter == "NOT_SERVED"  # unrecorded → not served
+    # "Unsure" means served-but-method-unconfirmed, NOT absent.
+    assert profile.goat_slaughter == "NOT_DISCLOSED"
 
 
 def test_accept_refreshes_verifier_established_profile(api, factories, db_session):

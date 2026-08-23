@@ -103,6 +103,9 @@ function methodLabel(m: string | null | undefined): string | null {
   if (!m || m === "NOT_SERVED") return null;
   if (m === "HAND_CUT") return "Hand-slaughtered";
   if (m === "MACHINE_CUT") return "Machine-slaughtered";
+  // Served, but the method wasn't confirmed on the visit — surfaced so the
+  // consumer knows it's on the menu and can ask staff for the specifics.
+  if (m === "NOT_DISCLOSED") return "Method not confirmed";
   return m.charAt(0) + m.slice(1).toLowerCase().replaceAll("_", " ");
 }
 
@@ -153,12 +156,16 @@ export function TrustProfileSheet({
     }).start(() => onClose());
   };
 
-  const meats = [
-    ["Chicken", methodLabel(p?.chicken_slaughter)],
-    ["Beef", methodLabel(p?.beef_slaughter)],
-    ["Lamb", methodLabel(p?.lamb_slaughter)],
-    ["Goat", methodLabel(p?.goat_slaughter)],
-  ].filter(([, m]) => m) as Array<[string, string]>;
+  // Carry the raw method through so the pill can tone an unconfirmed meat
+  // differently from a confirmed one. NOT_SERVED meats are dropped.
+  const meats = (
+    [
+      ["Chicken", p?.chicken_slaughter],
+      ["Beef", p?.beef_slaughter],
+      ["Lamb", p?.lamb_slaughter],
+      ["Goat", p?.goat_slaughter],
+    ] as Array<[string, string | null | undefined]>
+  ).filter(([, m]) => m && m !== "NOT_SERVED") as Array<[string, string]>;
 
   // Meats traced to a registry supplier via a sourcing link. Additive to the
   // per-meat rows above — shows who and how well-evidenced, never re-ranking
@@ -218,12 +225,17 @@ export function TrustProfileSheet({
             <>
               {meats.length > 0 || servesPork ? (
                 <Section title="Sourcing · per meat">
-                  {meats.map(([meat, m], i) => (
+                  {meats.map(([meat, raw], i) => (
                     <SheetRow
                       key={meat}
                       label={meat}
                       last={!servesPork && i === meats.length - 1}
-                      right={<Pill label={m.toUpperCase()} />}
+                      right={
+                        <Pill
+                          label={(methodLabel(raw) ?? raw).toUpperCase()}
+                          tone={raw === "NOT_DISCLOSED" ? "zinc" : "accent"}
+                        />
+                      }
                     />
                   ))}
                   {servesPork ? (

@@ -14,7 +14,12 @@ export type MenuPosture =
   | "HALAL_OPTIONS_ADVERTISED"
   | "HALAL_UPON_REQUEST"
   | "MIXED_SHARED_KITCHEN";
-export type SlaughterMethod = "HAND_CUT" | "MACHINE_CUT" | "UNKNOWN" | "NOT_SERVED";
+export type SlaughterMethod =
+  | "HAND_CUT"
+  | "MACHINE_CUT"
+  | "UNKNOWN"
+  | "NOT_SERVED"
+  | "NOT_DISCLOSED";
 export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
 export type DisputeState = "NONE" | "DISPUTED" | "RECONCILING";
 

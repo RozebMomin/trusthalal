@@ -142,16 +142,19 @@ const SLAUGHTER_LABELS: Record<SlaughterMethod, string> = {
   HAND_CUT: "Hand-slaughtered",
   MACHINE_CUT: "Machine-slaughtered",
   NOT_SERVED: "Not served",
+  NOT_DISCLOSED: "Method not confirmed",
 };
 
 // Fully neutral: hand-slaughtered and machine-slaughtered get identical
 // treatment, the label states the fact, the chip doesn't rank one above the
 // other (per the redefinition doc: "present both as neutral facts"). Only
-// "not served" is visually muted.
+// "not served" is visually muted. "Method not confirmed" gets a soft amber
+// so it reads as a caveat (served, but unverified) rather than a positive.
 const SLAUGHTER_TONE: Record<SlaughterMethod, string> = {
   HAND_CUT: "border-border bg-muted/30 text-foreground",
   MACHINE_CUT: "border-border bg-muted/30 text-foreground",
   NOT_SERVED: "border-slate-200 bg-muted/40 text-muted-foreground",
+  NOT_DISCLOSED: "border-amber-200 bg-amber-50 text-amber-800",
 };
 
 // ---------------------------------------------------------------------------
