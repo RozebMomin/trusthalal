@@ -258,7 +258,9 @@ export function TrustProfileSheet({
                               ? "verified"
                               : x.confidence === "DOCUMENTED"
                                 ? "documented"
-                                : "as stated by owner"
+                                : p?.owner_attested
+                                  ? "as stated by owner"
+                                  : "reported by community"
                           }`}
                         />
                       }

@@ -77,6 +77,9 @@ export type HalalProfileEmbed = {
    *  registry + sourcing links (falls back to the owner's self-attested value).
    *  Null on surfaces that don't compute it. */
   supplier_provenance?: SupplierProvenance[] | null;
+  /** True when the profile's self-attested data came from an owner claim;
+   *  false when a verifier / the community established it (no owner). */
+  owner_attested?: boolean;
 };
 
 /** One served meat's composed method + confidence. Render the caveat from

@@ -313,8 +313,10 @@ function provenanceMeatLabel(meat: string): string {
 
 function ConfidenceChip({
   confidence,
+  ownerAttested,
 }: {
   confidence: "SELF_STATED" | "DOCUMENTED" | "VERIFIED";
+  ownerAttested: boolean;
 }) {
   const map = {
     VERIFIED: {
@@ -326,7 +328,10 @@ function ConfidenceChip({
       cls: "border-sky-500/40 text-sky-700 dark:text-sky-400",
     },
     SELF_STATED: {
-      label: "as stated by the owner",
+      // Weakest tier: attribute it to whoever the source actually is. An
+      // owner-claimed place is the owner's word; an unclaimed one was
+      // established by a verifier / the community.
+      label: ownerAttested ? "as stated by the owner" : "reported by the community",
       cls: "border-border text-muted-foreground",
     },
   } as const;
@@ -356,7 +361,10 @@ function SupplierBackedSourcing({ profile }: { profile: HalalProfileEmbed }) {
             {p.supplier_name && (
               <span className="text-muted-foreground">· {p.supplier_name}</span>
             )}
-            <ConfidenceChip confidence={p.confidence} />
+            <ConfidenceChip
+              confidence={p.confidence}
+              ownerAttested={profile.owner_attested ?? false}
+            />
             {p.as_of && (
               <span className="text-xs text-muted-foreground">
                 · as of{" "}

@@ -348,6 +348,12 @@ class HalalProfileEmbed(BaseModel):
     # Three-state like meat_products: None means this surface didn't compute it
     # (search cards don't); [] means the profile serves no per-meat protein.
     supplier_provenance: list[SlaughterProvenanceRead] | None = None
+    # Whether this profile's self-attested data came from an owner claim
+    # (source_claim_id set) vs. was established by a verifier / the community
+    # (no owner). Drives attribution wording — "as stated by the owner" vs
+    # "reported by the community" — consistently across every client. Computed
+    # in _embed_with_products; defaults False for surfaces that don't set it.
+    owner_attested: bool = False
     updated_at: datetime
 
 

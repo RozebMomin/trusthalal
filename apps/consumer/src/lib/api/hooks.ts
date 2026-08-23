@@ -306,6 +306,10 @@ export type HalalProfileEmbed = {
    *  `null` on surfaces that don't compute it (search cards). Hand-added
    *  pending codegen. */
   supplier_provenance?: SupplierProvenance[] | null;
+  /** True when this profile's self-attested data came from an owner claim;
+   *  false when a verifier / the community established it (no owner). Drives
+   *  attribution wording on the confidence caveat. */
+  owner_attested?: boolean;
 };
 
 /** One served meat's composed method + confidence (see server

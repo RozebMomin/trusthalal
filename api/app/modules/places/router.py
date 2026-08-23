@@ -106,6 +106,11 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
     if profile is None:
         return None
     embed = HalalProfileEmbed.model_validate(profile, from_attributes=True)
+    # Attribution: a profile with no source_claim_id was established by a
+    # verifier / the community, not attested by an owner. Clients use this to
+    # word the confidence caveat correctly ("as stated by the owner" vs
+    # "reported by the community").
+    embed.owner_attested = profile.source_claim_id is not None
     # Converted rather than assigned straight across. `public_meat_products`
     # returns halal_profiles.schemas.MeatProductRead; this field is typed with
     # the duplicated copy in places.schemas (see its docstring for why the
@@ -134,17 +139,19 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
         ("GOAT", "goat_slaughter"),
     ):
         r = resolve_place_method(db, place_id=profile.place_id, meat_type=meat)
-        method = str(r.method)
-        # A meat is genuinely not served only when NOTHING resolves it — no live
-        # supplier link AND a NOT_SERVED self-attested column. A live link means
-        # the place sources the meat, so surface it even if the stored column is
-        # stale (a common state before the column-fill logic runs).
-        if method == "NOT_SERVED":
+        column_val = str(getattr(profile, column))
+        # A meat is genuinely not served only when NOTHING resolves it: no live
+        # supplier link AND a NOT_SERVED stored column. (The composed method is
+        # never literally "NOT_SERVED" — the supplier vocab has no such value, so
+        # a not-served column falls back to NOT_DISCLOSED; we must gate on the
+        # stored column + link presence, not the composed method.)
+        if r.source != "supplier" and column_val == "NOT_SERVED":
             continue
-        # The composed method is the truth we show. Override the embed's per-meat
-        # column with it so the primary display reflects a link-backed method
-        # without the stored column having to be in sync.
-        setattr(embed, column, method)
+        # A live link's composed method is authoritative — override the embed's
+        # per-meat column so the display reflects it without the stored column
+        # having to be in sync. Self-attested meats keep their stored column.
+        if r.source == "supplier":
+            setattr(embed, column, str(r.method))
         provenance.append(
             SlaughterProvenanceRead(
                 meat_type=meat,
