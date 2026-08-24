@@ -65,6 +65,7 @@ import type {
   MenuPosture,
   SlaughterMethod,
   ValidationTier,
+  ZabihahStatus,
 } from "@/lib/api/hooks";
 import { amenityBadgesFor } from "@/lib/amenities";
 import { cn } from "@/lib/utils";
@@ -152,6 +153,23 @@ const SLAUGHTER_LABELS: Record<SlaughterMethod, string> = {
 // other (per the redefinition doc: "present both as neutral facts"). Only
 // "not served" is visually muted. "Method not confirmed" gets a soft amber
 // so it reads as a caveat (served, but unverified) rather than a positive.
+// Red-meat axis. Hand/machine doesn't apply to beef/lamb/goat; the restaurant
+// declares zabihah status (optionally naming a certifying body). "Zabihah
+// status unconfirmed" gets the same soft amber caveat as chicken's "Method not
+// confirmed".
+const ZABIHAH_LABELS: Record<ZabihahStatus, string> = {
+  ZABIHAH: "Zabihah",
+  NOT_ZABIHAH: "Not zabihah",
+  UNSURE: "Zabihah status unconfirmed",
+  NOT_SERVED: "Not served",
+};
+const ZABIHAH_TONE: Record<ZabihahStatus, string> = {
+  ZABIHAH: "border-border bg-muted/30 text-foreground",
+  NOT_ZABIHAH: "border-slate-200 bg-muted/40 text-muted-foreground",
+  UNSURE: "border-amber-200 bg-amber-50 text-amber-800",
+  NOT_SERVED: "border-slate-200 bg-muted/40 text-muted-foreground",
+};
+
 const SLAUGHTER_TONE: Record<SlaughterMethod, string> = {
   HAND_CUT: "border-border bg-muted/30 text-foreground",
   MACHINE_CUT: "border-border bg-muted/30 text-foreground",
@@ -384,15 +402,34 @@ function SupplierBackedSourcing({ profile }: { profile: HalalProfileEmbed }) {
 }
 
 function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
-  const rows: Array<{ label: string; method: SlaughterMethod }> = [
-    { label: "Chicken", method: profile.chicken_slaughter },
-    { label: "Beef", method: profile.beef_slaughter },
-    { label: "Lamb", method: profile.lamb_slaughter },
-    { label: "Goat", method: profile.goat_slaughter },
+  // Chicken uses the hand/machine axis; beef/lamb/goat use the zabihah axis.
+  const rows: Array<{ label: string; text: string; tone: string; served: boolean; zabihah: boolean }> = [
+    {
+      label: "Chicken",
+      text: SLAUGHTER_LABELS[profile.chicken_slaughter] ?? profile.chicken_slaughter,
+      tone: SLAUGHTER_TONE[profile.chicken_slaughter],
+      served: profile.chicken_slaughter !== "NOT_SERVED",
+      zabihah: false,
+    },
+    ...(["beef", "lamb", "goat"] as const).map((m) => {
+      const status = profile[`${m}_zabihah`];
+      return {
+        label: m.charAt(0).toUpperCase() + m.slice(1),
+        text: ZABIHAH_LABELS[status] ?? status,
+        tone: ZABIHAH_TONE[status],
+        served: status !== "NOT_SERVED",
+        zabihah: status === "ZABIHAH",
+      };
+    }),
   ];
 
-  const served = rows.filter((r) => r.method !== "NOT_SERVED");
-  const absent = rows.filter((r) => r.method === "NOT_SERVED");
+  const served = rows.filter((r) => r.served);
+  const absent = rows.filter((r) => !r.served);
+  // Attributed certifying body for zabihah red meat (relayed, not verified).
+  const zabihahBody =
+    rows.some((r) => r.zabihah) && profile.certifying_body_name
+      ? profile.certifying_body_name
+      : null;
 
   // Prefer the per-product list when the restaurant supplied one. The rollup
   // above is least-conservative-wins, so a kitchen with zabihah breast and
@@ -423,16 +460,19 @@ function ServedMeats({ profile }: { profile: HalalProfileEmbed }) {
             key={row.label}
             className={cn(
               "inline-flex items-baseline gap-1.5 rounded-md border px-2.5 py-1 text-sm",
-              SLAUGHTER_TONE[row.method],
+              row.tone,
             )}
           >
             <span className="opacity-75">{row.label}</span>
-            <span className="font-semibold">
-              {SLAUGHTER_LABELS[row.method] ?? row.method}
-            </span>
+            <span className="font-semibold">{row.text}</span>
           </li>
         ))}
       </ul>
+      {zabihahBody && (
+        <p className="text-xs text-muted-foreground">
+          Zabihah meat certified by {zabihahBody}, as stated by the restaurant.
+        </p>
+      )}
       {absent.length > 0 && (
         <p className="text-xs text-muted-foreground">
           {absent.map((r) => r.label.toLowerCase()).join(", ")}
@@ -470,7 +510,7 @@ function ServedProducts({
   absent,
 }: {
   products: MeatProduct[];
-  absent: Array<{ label: string; method: SlaughterMethod }>;
+  absent: Array<{ label: string }>;
 }) {
   return (
     <div className="space-y-2">
@@ -736,51 +776,32 @@ function meatSummary(profile: HalalProfileEmbed): MeatSummary {
     };
   }
 
-  const rows = [
-    { label: "chicken", method: profile.chicken_slaughter },
-    { label: "beef", method: profile.beef_slaughter },
-    { label: "lamb", method: profile.lamb_slaughter },
-    { label: "goat", method: profile.goat_slaughter },
-  ];
-  const served = rows.filter((r) => r.method !== "NOT_SERVED");
+  // Chicken uses the hand/machine axis; beef/lamb/goat use the zabihah axis.
+  // Two axes don't fold into one tidy summary, so when red meat is served we
+  // don't try — we render the section open (ServedMeats shows each correctly).
+  const chicken = profile.chicken_slaughter;
+  const chickenServed = chicken !== "NOT_SERVED";
+  const redServed = (["beef", "lamb", "goat"] as const).some(
+    (m) => profile[`${m}_zabihah`] !== "NOT_SERVED",
+  );
 
-  if (served.length === 0) {
+  if (!chickenServed && !redServed) {
     return {
       text: "No chicken, beef, lamb or goat served",
       machine: false,
       collapsible: false,
     };
   }
-  if (!served.every((r) => known(r.method))) {
+  if (redServed) {
     return { text: "Meat sourcing", machine: true, collapsible: false };
   }
-
-  const hand = served
-    .filter((r) => r.method === "HAND_CUT")
-    .map((r) => r.label);
-  const machine = served
-    .filter((r) => r.method === "MACHINE_CUT")
-    .map((r) => r.label);
-
-  if (machine.length === 0) {
-    return {
-      text: `${sentenceCase(hand.join(", "))} · all hand-cut`,
-      machine: false,
-      collapsible: true,
-    };
+  // Chicken-only: summarise its method.
+  if (!known(chicken)) {
+    return { text: "Meat sourcing", machine: true, collapsible: false };
   }
-  if (hand.length === 0) {
-    return {
-      text: `${sentenceCase(machine.join(", "))} · all machine-cut`,
-      machine: true,
-      collapsible: true,
-    };
-  }
-  return {
-    text: `${sentenceCase(hand.join(", "))} hand-cut · ${machine.join(", ")} machine-cut`,
-    machine: true,
-    collapsible: true,
-  };
+  return chicken === "HAND_CUT"
+    ? { text: "Chicken · hand-cut", machine: false, collapsible: true }
+    : { text: "Chicken · machine-cut", machine: true, collapsible: true };
 }
 
 /**

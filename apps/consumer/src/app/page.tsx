@@ -59,6 +59,7 @@ import {
   type PlaceSearchResult,
   type SearchPlacesParams,
   type SlaughterMethod,
+  type ZabihahStatus,
   type ValidationTier,
   type SearchDiagnostics,
   useCurrentUser,
@@ -219,12 +220,12 @@ function HomePageInner() {
         filtersFromUrl.chicken_slaughter ??
         prefs?.chicken_slaughter ??
         undefined,
-      beef_slaughter:
-        filtersFromUrl.beef_slaughter ?? prefs?.beef_slaughter ?? undefined,
-      lamb_slaughter:
-        filtersFromUrl.lamb_slaughter ?? prefs?.lamb_slaughter ?? undefined,
-      goat_slaughter:
-        filtersFromUrl.goat_slaughter ?? prefs?.goat_slaughter ?? undefined,
+      beef_zabihah:
+        filtersFromUrl.beef_zabihah ?? prefs?.beef_zabihah ?? undefined,
+      lamb_zabihah:
+        filtersFromUrl.lamb_zabihah ?? prefs?.lamb_zabihah ?? undefined,
+      goat_zabihah:
+        filtersFromUrl.goat_zabihah ?? prefs?.goat_zabihah ?? undefined,
     };
   }, [filtersFromUrl, prefsQuery.data]);
 
@@ -246,12 +247,12 @@ function HomePageInner() {
         prefs.has_certification === true) ||
       (filtersFromUrl.chicken_slaughter === undefined &&
         (prefs.chicken_slaughter?.length ?? 0) > 0) ||
-      (filtersFromUrl.beef_slaughter === undefined &&
-        (prefs.beef_slaughter?.length ?? 0) > 0) ||
-      (filtersFromUrl.lamb_slaughter === undefined &&
-        (prefs.lamb_slaughter?.length ?? 0) > 0) ||
-      (filtersFromUrl.goat_slaughter === undefined &&
-        (prefs.goat_slaughter?.length ?? 0) > 0)
+      (filtersFromUrl.beef_zabihah === undefined &&
+        (prefs.beef_zabihah?.length ?? 0) > 0) ||
+      (filtersFromUrl.lamb_zabihah === undefined &&
+        (prefs.lamb_zabihah?.length ?? 0) > 0) ||
+      (filtersFromUrl.goat_zabihah === undefined &&
+        (prefs.goat_zabihah?.length ?? 0) > 0)
     );
   }, [filtersFromUrl, prefsQuery.data]);
 
@@ -969,14 +970,20 @@ function ErrorState({ error }: { error: Error }) {
 // URL <-> SearchPlacesParams round-trip
 // ---------------------------------------------------------------------------
 
-// The four per-meat slaughter fields, kept as a tuple so parse /
-// stringify iterate the same set. Values are the SearchPlacesParams keys.
-const SLAUGHTER_FIELDS = [
-  "chicken_slaughter",
-  "beef_slaughter",
-  "lamb_slaughter",
-  "goat_slaughter",
+// Per-meat filter fields. Chicken is on the hand/machine axis; beef/lamb/goat
+// are on the zabihah axis. Kept as tuples so parse / stringify iterate the same
+// sets. Values are the SearchPlacesParams keys.
+const ZABIHAH_MEAT_FIELDS = [
+  "beef_zabihah",
+  "lamb_zabihah",
+  "goat_zabihah",
 ] as const;
+const VALID_SLAUGHTER: ReadonlySet<string> = new Set(["HAND_CUT", "MACHINE_CUT"]);
+const VALID_ZABIHAH: ReadonlySet<string> = new Set([
+  "ZABIHAH",
+  "NOT_ZABIHAH",
+  "UNSURE",
+]);
 
 // Accepted values for the non-restrictive boost_amenities param. Anything
 // outside this set is dropped on parse so a stale link can't pin an
@@ -1013,16 +1020,16 @@ function parseSearchParams(p: URLSearchParams | null): SearchPlacesParams {
     );
     if (filtered.length > 0) out.cuisines = filtered;
   }
-  // Per-meat slaughter filters, repeated keys. Only the two user-
-  // selectable methods survive parse; anything else (a stale link with
-  // NOT_SERVED, say) is dropped so we never send the API a value the UI
-  // can't represent.
-  for (const field of SLAUGHTER_FIELDS) {
+  // Chicken slaughter filter (hand/machine), repeated keys.
+  const chickenRaw = p
+    .getAll("chicken_slaughter")
+    .filter((v): v is SlaughterMethod => VALID_SLAUGHTER.has(v));
+  if (chickenRaw.length > 0) out.chicken_slaughter = chickenRaw;
+  // Red-meat zabihah filters, repeated keys. Unknown / stale values dropped.
+  for (const field of ZABIHAH_MEAT_FIELDS) {
     const raw = p
       .getAll(field)
-      .filter((v): v is SlaughterMethod =>
-        v === "HAND_CUT" || v === "MACHINE_CUT",
-      );
+      .filter((v): v is ZabihahStatus => VALID_ZABIHAH.has(v));
     if (raw.length > 0) out[field] = raw;
   }
   // Family-amenity priority boost, repeated keys. Non-restrictive, so a
@@ -1066,7 +1073,7 @@ function stringifySearchParams(params: SearchPlacesParams): string {
   }
   // Per-meat slaughter filters + amenity boosts, same repeated-key
   // encoding as cuisines. Empty / missing arrays drop the param.
-  for (const field of SLAUGHTER_FIELDS) {
+  for (const field of ["chicken_slaughter", ...ZABIHAH_MEAT_FIELDS] as const) {
     const selected = params[field];
     if (selected && selected.length > 0) {
       for (const method of selected) u.append(field, method);

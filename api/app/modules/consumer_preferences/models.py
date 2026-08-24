@@ -60,9 +60,11 @@ class ConsumerPreferences(Base):
     chicken_slaughter: Mapped[Optional[list]] = mapped_column(
         JSONB, nullable=True
     )
-    beef_slaughter: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    lamb_slaughter: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    goat_slaughter: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    # Red meat uses the zabihah axis (["ZABIHAH", "UNSURE"]); chicken keeps
+    # hand/machine above.
+    beef_zabihah: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    lamb_zabihah: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    goat_zabihah: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

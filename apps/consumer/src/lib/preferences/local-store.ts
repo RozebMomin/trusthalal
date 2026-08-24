@@ -48,9 +48,9 @@ export function readLocal(): ConsumerPreferences {
       no_alcohol_served: parsed.no_alcohol_served ?? null,
       has_certification: parsed.has_certification ?? null,
       chicken_slaughter: parsed.chicken_slaughter ?? null,
-      beef_slaughter: parsed.beef_slaughter ?? null,
-      lamb_slaughter: parsed.lamb_slaughter ?? null,
-      goat_slaughter: parsed.goat_slaughter ?? null,
+      beef_zabihah: parsed.beef_zabihah ?? null,
+      lamb_zabihah: parsed.lamb_zabihah ?? null,
+      goat_zabihah: parsed.goat_zabihah ?? null,
       // updated_at is "saved" only when at least one field is non-null;
       // the prefs page uses this to differentiate "fresh visit" from
       // "you cleared everything."
@@ -97,9 +97,9 @@ export function hasAnyFilter(prefs: ConsumerPreferences): boolean {
     prefs.no_alcohol_served !== null ||
     prefs.has_certification !== null ||
     (prefs.chicken_slaughter?.length ?? 0) > 0 ||
-    (prefs.beef_slaughter?.length ?? 0) > 0 ||
-    (prefs.lamb_slaughter?.length ?? 0) > 0 ||
-    (prefs.goat_slaughter?.length ?? 0) > 0
+    (prefs.beef_zabihah?.length ?? 0) > 0 ||
+    (prefs.lamb_zabihah?.length ?? 0) > 0 ||
+    (prefs.goat_zabihah?.length ?? 0) > 0
   );
 }
 
@@ -110,8 +110,8 @@ const EMPTY: ConsumerPreferences = {
   no_alcohol_served: null,
   has_certification: null,
   chicken_slaughter: null,
-  beef_slaughter: null,
-  lamb_slaughter: null,
-  goat_slaughter: null,
+  beef_zabihah: null,
+  lamb_zabihah: null,
+  goat_zabihah: null,
   updated_at: null,
 };

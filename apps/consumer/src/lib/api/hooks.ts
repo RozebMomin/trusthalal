@@ -121,6 +121,18 @@ export type SlaughterMethod =
   | "NOT_DISCLOSED";
 
 /**
+ * The red-meat axis (beef / lamb / goat). Hand-vs-machine is a poultry
+ * question; for red meat the restaurant declares whether the product is
+ * zabihah (optionally naming a certifying body), which we relay as an
+ * attributed claim. Chicken keeps ``SlaughterMethod``.
+ */
+export type ZabihahStatus =
+  | "ZABIHAH"
+  | "NOT_ZABIHAH"
+  | "UNSURE"
+  | "NOT_SERVED";
+
+/**
  * Availability of a family / prayer amenity on a halal profile. Mirrors
  * the server-side amenity enum. ``YES`` / ``ON_REQUEST`` earn a badge in
  * the UI; ``NO`` / ``UNSURE`` (and ``null``, i.e. never captured) don't.
@@ -284,9 +296,14 @@ export type HalalProfileEmbed = {
   alcohol_policy: AlcoholPolicy;
   alcohol_in_cooking: boolean;
   chicken_slaughter: SlaughterMethod;
+  // Retained legacy red-meat slaughter fields (unused for display now).
   beef_slaughter: SlaughterMethod;
   lamb_slaughter: SlaughterMethod;
   goat_slaughter: SlaughterMethod;
+  // Red-meat zabihah axis — what the UI renders for beef/lamb/goat.
+  beef_zabihah: ZabihahStatus;
+  lamb_zabihah: ZabihahStatus;
+  goat_zabihah: ZabihahStatus;
   /** Family / prayer amenities, ``YES`` | ``ON_REQUEST`` | ``NO`` |
    *  ``UNSURE`` or null when never captured. Drive the amenity badges on
    *  the result card + place detail (badge only for YES / ON_REQUEST). */
@@ -889,9 +906,14 @@ export type SearchPlacesParams = {
    * that meat. Only HAND_CUT / MACHINE_CUT are user-selectable.
    */
   chicken_slaughter?: SlaughterMethod[];
-  beef_slaughter?: SlaughterMethod[];
-  lamb_slaughter?: SlaughterMethod[];
-  goat_slaughter?: SlaughterMethod[];
+  /**
+   * Red-meat zabihah filter, each MULTI-VALUE. Selecting ZABIHAH restricts to
+   * places whose beef/lamb/goat is zabihah; the "include Unsure" option adds
+   * UNSURE to the array. Empty / missing = no filter on that meat.
+   */
+  beef_zabihah?: ZabihahStatus[];
+  lamb_zabihah?: ZabihahStatus[];
+  goat_zabihah?: ZabihahStatus[];
   /**
    * Family-amenity PRIORITY BOOST (multi-value). NOT a filter, places
    * without these amenities still appear, they just rank lower. Values
@@ -1521,9 +1543,9 @@ export function useSearchPlaces(params: SearchPlacesParams) {
           // Empty / missing arrays drop the param, so an unset meat never
           // narrows the search.
           chicken_slaughter: params.chicken_slaughter,
-          beef_slaughter: params.beef_slaughter,
-          lamb_slaughter: params.lamb_slaughter,
-          goat_slaughter: params.goat_slaughter,
+          beef_zabihah: params.beef_zabihah,
+          lamb_zabihah: params.lamb_zabihah,
+          goat_zabihah: params.goat_zabihah,
           // Family-amenity priority boost, multi-value, repeated key. A
           // ranking hint, not a filter, so it never removes results.
           boost_amenities: params.boost_amenities,

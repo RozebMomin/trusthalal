@@ -37,9 +37,9 @@ def test_get_preferences_returns_empty_when_none_saved(api, factories, db_sessio
         "no_alcohol_served": None,
         "has_certification": None,
         "chicken_slaughter": None,
-        "beef_slaughter": None,
-        "lamb_slaughter": None,
-        "goat_slaughter": None,
+        "beef_zabihah": None,
+        "lamb_zabihah": None,
+        "goat_zabihah": None,
         "updated_at": None,
     }
 
@@ -126,9 +126,9 @@ def test_put_preferences_second_save_replaces_full_row(
         "no_alcohol_served": True,
         "has_certification": None,
         "chicken_slaughter": None,
-        "beef_slaughter": None,
-        "lamb_slaughter": None,
-        "goat_slaughter": None,
+        "beef_zabihah": None,
+        "lamb_zabihah": None,
+        "goat_zabihah": None,
         "updated_at": body["updated_at"],
     }
 
@@ -229,23 +229,23 @@ def test_put_preferences_rejects_unknown_field(api, factories):
 # ---------------------------------------------------------------------------
 
 
-def test_put_slaughter_prefs_round_trips(api, factories, db_session):
+def test_put_meat_prefs_round_trips(api, factories, db_session):
     consumer = factories.consumer()
 
     resp = api.as_user(consumer).put(
         "/me/preferences",
         json={
             "chicken_slaughter": ["HAND_CUT", "MACHINE_CUT"],
-            "beef_slaughter": ["HAND_CUT"],
+            "beef_zabihah": ["ZABIHAH", "UNSURE"],
         },
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["chicken_slaughter"] == ["HAND_CUT", "MACHINE_CUT"]
-    assert body["beef_slaughter"] == ["HAND_CUT"]
+    assert body["beef_zabihah"] == ["ZABIHAH", "UNSURE"]
     # Untouched meats stay null (full-replace).
-    assert body["lamb_slaughter"] is None
-    assert body["goat_slaughter"] is None
+    assert body["lamb_zabihah"] is None
+    assert body["goat_zabihah"] is None
 
     # Stored as a JSONB array of plain strings.
     row = db_session.execute(
@@ -254,33 +254,47 @@ def test_put_slaughter_prefs_round_trips(api, factories, db_session):
         )
     ).scalar_one()
     assert row.chicken_slaughter == ["HAND_CUT", "MACHINE_CUT"]
+    assert row.beef_zabihah == ["ZABIHAH", "UNSURE"]
 
 
-def test_put_slaughter_prefs_reject_non_selectable_method(api, factories):
+def test_put_meat_prefs_reject_non_selectable_values(api, factories):
     consumer = factories.consumer()
-    # NOT_SERVED / NOT_DISCLOSED describe a place, not a filter target.
-    resp = api.as_user(consumer).put(
-        "/me/preferences",
-        json={"chicken_slaughter": ["NOT_SERVED"]},
+    # Chicken: NOT_SERVED isn't a filter target.
+    assert (
+        api.as_user(consumer)
+        .put("/me/preferences", json={"chicken_slaughter": ["NOT_SERVED"]})
+        .status_code
+        == 422
     )
-    assert resp.status_code == 422
+    # Red meat: only ZABIHAH / UNSURE are selectable.
+    assert (
+        api.as_user(consumer)
+        .put("/me/preferences", json={"beef_zabihah": ["NOT_ZABIHAH"]})
+        .status_code
+        == 422
+    )
+    # A chicken (hand/machine) value on a red-meat field is rejected too.
+    assert (
+        api.as_user(consumer)
+        .put("/me/preferences", json={"beef_zabihah": ["HAND_CUT"]})
+        .status_code
+        == 422
+    )
 
 
-def test_put_slaughter_prefs_dedupe_and_empty_collapses_to_null(
-    api, factories
-):
+def test_put_meat_prefs_dedupe_and_empty_collapses_to_null(api, factories):
     consumer = factories.consumer()
     resp = api.as_user(consumer).put(
         "/me/preferences",
         json={
             "chicken_slaughter": ["HAND_CUT", "HAND_CUT"],
-            "beef_slaughter": [],
+            "beef_zabihah": [],
         },
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["chicken_slaughter"] == ["HAND_CUT"]
-    assert body["beef_slaughter"] is None
+    assert body["beef_zabihah"] is None
 
 
 # ---------------------------------------------------------------------------

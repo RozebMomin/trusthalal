@@ -34,6 +34,7 @@ import type {
   MenuPosture,
   SlaughterMethod,
   ValidationTier,
+  ZabihahStatus,
 } from "./hooks";
 import {
   clearLocal,
@@ -63,9 +64,9 @@ export type ConsumerPreferences = {
   // preference for that meat. Mirrors the per-meat multi-select in the search
   // filter sheet.
   chicken_slaughter: SlaughterMethod[] | null;
-  beef_slaughter: SlaughterMethod[] | null;
-  lamb_slaughter: SlaughterMethod[] | null;
-  goat_slaughter: SlaughterMethod[] | null;
+  beef_zabihah: ZabihahStatus[] | null;
+  lamb_zabihah: ZabihahStatus[] | null;
+  goat_zabihah: ZabihahStatus[] | null;
   updated_at: string | null;
 };
 
@@ -187,9 +188,9 @@ export async function syncLocalToServerOnLogin(): Promise<{
       no_alcohol_served: local.no_alcohol_served,
       has_certification: local.has_certification,
       chicken_slaughter: local.chicken_slaughter,
-      beef_slaughter: local.beef_slaughter,
-      lamb_slaughter: local.lamb_slaughter,
-      goat_slaughter: local.goat_slaughter,
+      beef_zabihah: local.beef_zabihah,
+      lamb_zabihah: local.lamb_zabihah,
+      goat_zabihah: local.goat_zabihah,
     };
     await apiFetch<ConsumerPreferences>("/me/preferences", {
       method: "PUT",
@@ -219,8 +220,8 @@ export const EMPTY_PREFERENCES: ConsumerPreferences = {
   no_alcohol_served: null,
   has_certification: null,
   chicken_slaughter: null,
-  beef_slaughter: null,
-  lamb_slaughter: null,
-  goat_slaughter: null,
+  beef_zabihah: null,
+  lamb_zabihah: null,
+  goat_zabihah: null,
   updated_at: null,
 };

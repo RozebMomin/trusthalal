@@ -22,18 +22,15 @@ from app.modules.consumer_preferences.models import ConsumerPreferences
 from app.modules.consumer_preferences.schemas import (
     ConsumerPreferencesUpdate,
 )
-from app.modules.halal_profiles.enums import SlaughterMethod
 
 
-def _slaughter_values(
-    methods: list[SlaughterMethod] | None,
-) -> list[str] | None:
+def _enum_values(values) -> list[str] | None:
     """Enum members → list of plain strings for the JSONB column. None stays
     None (no preference); an empty list also collapses to None so "cleared all
-    methods for this meat" reads the same as "never set"."""
-    if not methods:
+    values for this meat" reads the same as "never set"."""
+    if not values:
         return None
-    return [m.value for m in methods]
+    return [v.value for v in values]
 
 
 def get_or_default(
@@ -83,10 +80,10 @@ def upsert(
         # JSONB arrays of method strings. Coerce enum members to their .value
         # so the stored JSON is plain strings ("HAND_CUT"), matching what the
         # search query params expect. None (no preference) stays None.
-        "chicken_slaughter": _slaughter_values(payload.chicken_slaughter),
-        "beef_slaughter": _slaughter_values(payload.beef_slaughter),
-        "lamb_slaughter": _slaughter_values(payload.lamb_slaughter),
-        "goat_slaughter": _slaughter_values(payload.goat_slaughter),
+        "chicken_slaughter": _enum_values(payload.chicken_slaughter),
+        "beef_zabihah": _enum_values(payload.beef_zabihah),
+        "lamb_zabihah": _enum_values(payload.lamb_zabihah),
+        "goat_zabihah": _enum_values(payload.goat_zabihah),
     }
 
     if existing is None:

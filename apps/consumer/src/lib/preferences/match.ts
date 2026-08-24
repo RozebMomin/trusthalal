@@ -28,23 +28,30 @@ import type { ConsumerPreferences } from "@/lib/api/preferences";
 // The per-meat slaughter preference axes, paired with the profile field that
 // carries the place's method and a display noun. Iterated so one block covers
 // all four meats.
+// Chicken matches on the hand/machine axis; beef/lamb/goat on the zabihah axis.
+// The prefKey doubles as the profile field name (they match), so one block
+// covers all four meats.
 const SLAUGHTER_MEATS: ReadonlyArray<{
-  prefKey: "chicken_slaughter" | "beef_slaughter" | "lamb_slaughter" | "goat_slaughter";
+  prefKey: "chicken_slaughter" | "beef_zabihah" | "lamb_zabihah" | "goat_zabihah";
   noun: string;
 }> = [
   { prefKey: "chicken_slaughter", noun: "chicken" },
-  { prefKey: "beef_slaughter", noun: "beef" },
-  { prefKey: "lamb_slaughter", noun: "lamb" },
-  { prefKey: "goat_slaughter", noun: "goat" },
+  { prefKey: "beef_zabihah", noun: "beef" },
+  { prefKey: "lamb_zabihah", noun: "lamb" },
+  { prefKey: "goat_zabihah", noun: "goat" },
 ];
 
+// Covers both vocabularies (chicken hand/machine, red-meat zabihah).
 const SLAUGHTER_METHOD_LABELS: Record<string, string> = {
   HAND_CUT: "hand-cut",
   MACHINE_CUT: "machine-cut",
+  ZABIHAH: "zabihah",
+  NOT_ZABIHAH: "not zabihah",
+  UNSURE: "unsure",
 };
 
-/** "hand-cut or machine-cut" — the accepted methods, human-joined. */
-function slaughterMethodsPhrase(methods: SlaughterMethod[]): string {
+/** "hand-cut or machine-cut" / "zabihah or unsure" — accepted values joined. */
+function slaughterMethodsPhrase(methods: readonly string[]): string {
   const words = methods.map((m) => SLAUGHTER_METHOD_LABELS[m] ?? m.toLowerCase());
   if (words.length <= 1) return words[0] ?? "";
   return `${words.slice(0, -1).join(", ")} or ${words[words.length - 1]}`;
@@ -170,7 +177,7 @@ export function matchProfileToPreferences(
       });
     }
     for (const meat of SLAUGHTER_MEATS) {
-      const methods = prefs[meat.prefKey];
+      const methods = prefs[meat.prefKey] as readonly string[] | null;
       if (methods && methods.length > 0) {
         reasons.push({
           key: meat.prefKey,
@@ -261,9 +268,9 @@ export function matchProfileToPreferences(
   // the accepted set, so they read as a mismatch (the place doesn't serve that
   // meat the way the diner wants).
   for (const meat of SLAUGHTER_MEATS) {
-    const methods = prefs[meat.prefKey];
+    const methods = prefs[meat.prefKey] as readonly string[] | null;
     if (!methods || methods.length === 0) continue;
-    const placeMethod = profile[meat.prefKey] as SlaughterMethod | null;
+    const placeMethod = profile[meat.prefKey] as string | null;
     const ok = placeMethod !== null && methods.includes(placeMethod);
     const wanted = slaughterMethodsPhrase(methods);
     (ok ? matched : mismatched).push({

@@ -87,25 +87,33 @@ const MENU_POSTURE_OPTIONS: ReadonlyArray<{
   { value: "MIXED_SHARED_KITCHEN", label: "Any halal options" },
 ];
 
-// Per-meat slaughter defaults — the saved counterpart of the search sheet's
-// per-meat multi-select. Only the two methods a diner picks are offered
-// (NOT_SERVED / NOT_DISCLOSED describe a place, not a filter target).
-const SLAUGHTER_MEATS: ReadonlyArray<{
-  field: "chicken_slaughter" | "beef_slaughter" | "lamb_slaughter" | "goat_slaughter";
-  label: string;
-}> = [
-  { field: "chicken_slaughter", label: "Chicken" },
-  { field: "beef_slaughter", label: "Beef" },
-  { field: "lamb_slaughter", label: "Lamb" },
-  { field: "goat_slaughter", label: "Goat" },
-];
+// Per-meat search defaults — the saved counterpart of the search sheet's
+// per-meat multi-select. Chicken uses hand/machine; beef/lamb/goat use a
+// zabihah toggle plus an "include unsure" option.
+type MeatDefaultField =
+  | "chicken_slaughter"
+  | "beef_zabihah"
+  | "lamb_zabihah"
+  | "goat_zabihah";
 
-const SLAUGHTER_CHOICES: ReadonlyArray<{
-  value: Extract<SlaughterMethod, "HAND_CUT" | "MACHINE_CUT">;
-  label: string;
-}> = [
+const CHICKEN_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
   { value: "HAND_CUT", label: "Hand-cut" },
   { value: "MACHINE_CUT", label: "Machine-cut" },
+];
+const ZABIHAH_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "ZABIHAH", label: "Zabihah" },
+  { value: "UNSURE", label: "Include unsure" },
+];
+
+const MEAT_DEFAULTS: ReadonlyArray<{
+  field: MeatDefaultField;
+  label: string;
+  choices: ReadonlyArray<{ value: string; label: string }>;
+}> = [
+  { field: "chicken_slaughter", label: "Chicken", choices: CHICKEN_CHOICES },
+  { field: "beef_zabihah", label: "Beef", choices: ZABIHAH_CHOICES },
+  { field: "lamb_zabihah", label: "Lamb", choices: ZABIHAH_CHOICES },
+  { field: "goat_zabihah", label: "Goat", choices: ZABIHAH_CHOICES },
 ];
 
 export default function PreferencesPage() {
@@ -152,17 +160,14 @@ export default function PreferencesPage() {
     setErrorMsg(null);
   }
 
-  // Toggle one method on/off for a meat. Collapses to null when the last
-  // method is removed so "no methods picked" reads the same as "no preference".
-  function toggleSlaughter(
-    field: (typeof SLAUGHTER_MEATS)[number]["field"],
-    method: SlaughterMethod,
-  ) {
+  // Toggle one value on/off for a meat. Collapses to null when the last value
+  // is removed so "nothing picked" reads the same as "no preference".
+  function toggleMeatValue(field: MeatDefaultField, value: string) {
     setDraft((prev) => {
-      const current = prev[field] ?? [];
-      const next = current.includes(method)
-        ? current.filter((m) => m !== method)
-        : [...current, method];
+      const current = (prev[field] as string[] | null) ?? [];
+      const next = current.includes(value)
+        ? current.filter((m) => m !== value)
+        : [...current, value];
       return { ...prev, [field]: next.length > 0 ? next : null };
     });
     setSaved(false);
@@ -180,9 +185,9 @@ export default function PreferencesPage() {
         no_alcohol_served: draft.no_alcohol_served,
         has_certification: draft.has_certification,
         chicken_slaughter: draft.chicken_slaughter,
-        beef_slaughter: draft.beef_slaughter,
-        lamb_slaughter: draft.lamb_slaughter,
-        goat_slaughter: draft.goat_slaughter,
+        beef_zabihah: draft.beef_zabihah,
+        lamb_zabihah: draft.lamb_zabihah,
+        goat_zabihah: draft.goat_zabihah,
       });
       setSaved(true);
     } catch (err) {
@@ -204,9 +209,9 @@ export default function PreferencesPage() {
         no_alcohol_served: null,
         has_certification: null,
         chicken_slaughter: null,
-        beef_slaughter: null,
-        lamb_slaughter: null,
-        goat_slaughter: null,
+        beef_zabihah: null,
+        lamb_zabihah: null,
+        goat_zabihah: null,
       });
       setDraft(EMPTY_PREFERENCES);
       setSaved(true);
@@ -380,15 +385,17 @@ export default function PreferencesPage() {
 
       <section className="space-y-4 rounded-lg border bg-card p-5">
         <div className="space-y-1">
-          <h2 className="text-sm font-semibold">Slaughter method</h2>
+          <h2 className="text-sm font-semibold">Meat</h2>
           <p className="text-xs text-muted-foreground">
-            Pick per meat. A place is only shown if it serves that meat the way
-            you selected. Leave a meat untouched for no preference.
+            Chicken filters by hand vs machine slaughter. Beef, lamb and goat
+            filter by zabihah status — add &ldquo;Include unsure&rdquo; to also
+            show places that haven&rsquo;t confirmed it. Leave a meat untouched
+            for no preference.
           </p>
         </div>
         <div className="space-y-2">
-          {SLAUGHTER_MEATS.map((meat) => {
-            const selected = draft[meat.field] ?? [];
+          {MEAT_DEFAULTS.map((meat) => {
+            const selected = (draft[meat.field] as string[] | null) ?? [];
             return (
               <div
                 key={meat.field}
@@ -397,12 +404,12 @@ export default function PreferencesPage() {
                 <span className="w-16 shrink-0 text-sm font-medium">
                   {meat.label}
                 </span>
-                {SLAUGHTER_CHOICES.map((choice) => (
+                {meat.choices.map((choice) => (
                   <PrefToggle
                     key={choice.value}
                     label={choice.label}
                     active={selected.includes(choice.value)}
-                    onClick={() => toggleSlaughter(meat.field, choice.value)}
+                    onClick={() => toggleMeatValue(meat.field, choice.value)}
                   />
                 ))}
               </div>

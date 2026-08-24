@@ -32,7 +32,6 @@ import type {
   Cuisine,
   MenuPosture,
   SearchPlacesParams,
-  SlaughterMethod,
   ValidationTier,
 } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
@@ -44,33 +43,41 @@ import { cn } from "@/lib/utils";
 // a diner picks.
 // ---------------------------------------------------------------------------
 
-/** The four per-meat slaughter fields on SearchPlacesParams. */
-type SlaughterField =
+/** Per-meat filter fields on SearchPlacesParams. Chicken is on the hand/machine
+ *  axis; beef/lamb/goat are on the zabihah axis. */
+type MeatFilterField =
   | "chicken_slaughter"
-  | "beef_slaughter"
-  | "lamb_slaughter"
-  | "goat_slaughter";
+  | "beef_zabihah"
+  | "lamb_zabihah"
+  | "goat_zabihah";
 
-const SLAUGHTER_FIELDS: ReadonlyArray<SlaughterField> = [
+const MEAT_FILTER_FIELDS: ReadonlyArray<MeatFilterField> = [
   "chicken_slaughter",
-  "beef_slaughter",
-  "lamb_slaughter",
-  "goat_slaughter",
+  "beef_zabihah",
+  "lamb_zabihah",
+  "goat_zabihah",
 ];
 
-const SLAUGHTER_MEATS: ReadonlyArray<{ field: SlaughterField; label: string }> = [
-  { field: "chicken_slaughter", label: "Chicken" },
-  { field: "beef_slaughter", label: "Beef" },
-  { field: "lamb_slaughter", label: "Lamb" },
-  { field: "goat_slaughter", label: "Goat" },
-];
-
-const SLAUGHTER_CHOICES: ReadonlyArray<{
-  value: Extract<SlaughterMethod, "HAND_CUT" | "MACHINE_CUT">;
-  label: string;
-}> = [
+// Chicken keeps hand/machine (the poultry debate); red meat uses a zabihah
+// toggle plus an "include unsure" option (adding UNSURE broadens the filter).
+const CHICKEN_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
   { value: "HAND_CUT", label: "Hand-cut" },
   { value: "MACHINE_CUT", label: "Machine-cut" },
+];
+const ZABIHAH_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "ZABIHAH", label: "Zabihah" },
+  { value: "UNSURE", label: "Include unsure" },
+];
+
+const MEAT_FILTERS: ReadonlyArray<{
+  field: MeatFilterField;
+  label: string;
+  choices: ReadonlyArray<{ value: string; label: string }>;
+}> = [
+  { field: "chicken_slaughter", label: "Chicken", choices: CHICKEN_CHOICES },
+  { field: "beef_zabihah", label: "Beef", choices: ZABIHAH_CHOICES },
+  { field: "lamb_zabihah", label: "Lamb", choices: ZABIHAH_CHOICES },
+  { field: "goat_zabihah", label: "Goat", choices: ZABIHAH_CHOICES },
 ];
 
 // ---------------------------------------------------------------------------
@@ -267,7 +274,7 @@ export function countActiveFilters(filters: SearchPlacesParams): number {
   }
   // Per-meat slaughter methods are restrictive filters, count each
   // selected method (e.g. Chicken hand-cut + Beef machine-cut = 2).
-  for (const field of SLAUGHTER_FIELDS) {
+  for (const field of MEAT_FILTER_FIELDS) {
     const selected = filters[field];
     if (selected && selected.length > 0) count += selected.length;
   }
@@ -299,9 +306,9 @@ export const FILTER_LABELS: Readonly<Record<string, string>> = {
   no_pork: "no pork on the menu",
   no_alcohol_served: "no alcohol served",
   chicken_slaughter: "that chicken slaughter method",
-  beef_slaughter: "that beef slaughter method",
-  lamb_slaughter: "that lamb slaughter method",
-  goat_slaughter: "that goat slaughter method",
+  beef_zabihah: "that beef zabihah status",
+  lamb_zabihah: "that lamb zabihah status",
+  goat_zabihah: "that goat zabihah status",
 };
 
 /** Clear one filter by its server field name, leaving the rest alone. */
@@ -332,14 +339,14 @@ export function clearFilterField(
     case "chicken_slaughter":
       delete next.chicken_slaughter;
       break;
-    case "beef_slaughter":
-      delete next.beef_slaughter;
+    case "beef_zabihah":
+      delete next.beef_zabihah;
       break;
-    case "lamb_slaughter":
-      delete next.lamb_slaughter;
+    case "lamb_zabihah":
+      delete next.lamb_zabihah;
       break;
-    case "goat_slaughter":
-      delete next.goat_slaughter;
+    case "goat_zabihah":
+      delete next.goat_zabihah;
       break;
     default:
       // Unknown field name (e.g. a server relaxation key this build
@@ -603,12 +610,12 @@ export function FiltersSheet({
               </FilterSection>
 
               <FilterSection
-                title="Slaughter method"
-                hint="Filter by how each meat is slaughtered. Picking a method only keeps places that serve that meat that way."
+                title="Meat"
+                hint="Chicken filters by hand vs machine slaughter. Beef, lamb and goat filter by zabihah status — turn on 'Include unsure' to also show places that haven't confirmed it."
               >
                 <div className="w-full space-y-2.5">
-                  {SLAUGHTER_MEATS.map(({ field, label }) => {
-                    const selected = filters[field] ?? [];
+                  {MEAT_FILTERS.map(({ field, label, choices }) => {
+                    const selected = (filters[field] as string[] | undefined) ?? [];
                     return (
                       <div
                         key={field}
@@ -617,7 +624,7 @@ export function FiltersSheet({
                         <span className="w-16 shrink-0 text-xs font-medium text-foreground">
                           {label}
                         </span>
-                        {SLAUGHTER_CHOICES.map((choice) => {
+                        {choices.map((choice) => {
                           const isOn = selected.includes(choice.value);
                           return (
                             <FilterPill

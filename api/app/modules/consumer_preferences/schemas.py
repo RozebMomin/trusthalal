@@ -19,15 +19,29 @@ from app.modules.halal_profiles.enums import (
     MenuPosture,
     SlaughterMethod,
     ValidationTier,
+    ZabihahStatus,
 )
 
-# The only two methods a diner picks as a preference. NOT_SERVED / NOT_DISCLOSED
-# describe a place, not something a searcher filters *for*, so they're rejected
-# on write to keep saved prefs clean (and symmetric with the filter sheet's two
-# choices).
+# Chicken (hand/machine): only the two methods a diner picks. NOT_SERVED /
+# NOT_DISCLOSED describe a place, not a filter target, so they're rejected.
 _SELECTABLE_SLAUGHTER = frozenset(
     {SlaughterMethod.HAND_CUT, SlaughterMethod.MACHINE_CUT}
 )
+# Red meat (zabihah): a diner filters for zabihah and can opt to include
+# unsure. NOT_ZABIHAH and NOT_SERVED aren't things you filter *for*.
+_SELECTABLE_ZABIHAH = frozenset({ZabihahStatus.ZABIHAH, ZabihahStatus.UNSURE})
+
+
+def _dedupe(value):
+    if value is None:
+        return None
+    seen: set = set()
+    out: list = []
+    for m in value:
+        if m not in seen:
+            seen.add(m)
+            out.append(m)
+    return out or None
 
 
 def _validate_slaughter(
@@ -35,20 +49,19 @@ def _validate_slaughter(
 ) -> Optional[list[SlaughterMethod]]:
     if value is None:
         return None
-    bad = [m for m in value if m not in _SELECTABLE_SLAUGHTER]
-    if bad:
-        raise ValueError(
-            "slaughter preferences must be HAND_CUT or MACHINE_CUT"
-        )
-    # De-dupe while preserving order — the UI shouldn't send dupes, but a
-    # stored ["HAND_CUT","HAND_CUT"] would be silly.
-    seen: set[SlaughterMethod] = set()
-    out: list[SlaughterMethod] = []
-    for m in value:
-        if m not in seen:
-            seen.add(m)
-            out.append(m)
-    return out or None
+    if any(m not in _SELECTABLE_SLAUGHTER for m in value):
+        raise ValueError("chicken preferences must be HAND_CUT or MACHINE_CUT")
+    return _dedupe(value)
+
+
+def _validate_zabihah(
+    value: Optional[list[ZabihahStatus]],
+) -> Optional[list[ZabihahStatus]]:
+    if value is None:
+        return None
+    if any(m not in _SELECTABLE_ZABIHAH for m in value):
+        raise ValueError("zabihah preferences must be ZABIHAH or UNSURE")
+    return _dedupe(value)
 
 
 class ConsumerPreferencesRead(BaseModel):
@@ -67,13 +80,12 @@ class ConsumerPreferencesRead(BaseModel):
     no_pork: Optional[bool] = None
     no_alcohol_served: Optional[bool] = None
     has_certification: Optional[bool] = None
-    # Per-meat slaughter-method defaults (each a list of HAND_CUT / MACHINE_CUT,
-    # or null for "no preference"). Mirror the search sheet's per-meat
-    # multi-select.
+    # Chicken keeps hand/machine; red meat uses the zabihah axis. Mirror the
+    # search sheet's per-meat multi-select.
     chicken_slaughter: Optional[list[SlaughterMethod]] = None
-    beef_slaughter: Optional[list[SlaughterMethod]] = None
-    lamb_slaughter: Optional[list[SlaughterMethod]] = None
-    goat_slaughter: Optional[list[SlaughterMethod]] = None
+    beef_zabihah: Optional[list[ZabihahStatus]] = None
+    lamb_zabihah: Optional[list[ZabihahStatus]] = None
+    goat_zabihah: Optional[list[ZabihahStatus]] = None
     # Set when at least one PUT has landed; null when the row doesn't
     # exist yet. Lets the UI tell "you haven't customized anything
     # yet" from "you turned everything off."
@@ -103,18 +115,20 @@ class ConsumerPreferencesUpdate(BaseModel):
     no_alcohol_served: Optional[bool] = None
     has_certification: Optional[bool] = None
     chicken_slaughter: Optional[list[SlaughterMethod]] = None
-    beef_slaughter: Optional[list[SlaughterMethod]] = None
-    lamb_slaughter: Optional[list[SlaughterMethod]] = None
-    goat_slaughter: Optional[list[SlaughterMethod]] = None
+    beef_zabihah: Optional[list[ZabihahStatus]] = None
+    lamb_zabihah: Optional[list[ZabihahStatus]] = None
+    goat_zabihah: Optional[list[ZabihahStatus]] = None
 
-    @field_validator(
-        "chicken_slaughter",
-        "beef_slaughter",
-        "lamb_slaughter",
-        "goat_slaughter",
-    )
+    @field_validator("chicken_slaughter")
     @classmethod
-    def _only_selectable_methods(
+    def _valid_chicken(
         cls, value: Optional[list[SlaughterMethod]]
     ) -> Optional[list[SlaughterMethod]]:
         return _validate_slaughter(value)
+
+    @field_validator("beef_zabihah", "lamb_zabihah", "goat_zabihah")
+    @classmethod
+    def _valid_zabihah(
+        cls, value: Optional[list[ZabihahStatus]]
+    ) -> Optional[list[ZabihahStatus]]:
+        return _validate_zabihah(value)
