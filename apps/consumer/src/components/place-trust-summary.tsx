@@ -381,6 +381,11 @@ function SupplierBackedSourcing({ profile }: { profile: HalalProfileEmbed }) {
             {p.supplier_name && (
               <span className="text-muted-foreground">· {p.supplier_name}</span>
             )}
+            {p.certifying_body_name && (
+              <span className="text-muted-foreground">
+                · certified by {p.certifying_body_name}
+              </span>
+            )}
             <ConfidenceChip
               confidence={p.confidence}
               ownerAttested={profile.owner_attested ?? false}

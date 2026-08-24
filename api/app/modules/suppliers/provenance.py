@@ -109,6 +109,9 @@ class LinkCandidate:
     evidence_tier: str
     supplier_id: Optional[uuid.UUID] = None
     supplier_name: Optional[str] = None
+    # Certifying body the linked product line is attributed to — canonical
+    # certifier name when a certifier_id is set, else the free-text value.
+    certifying_body_name: Optional[str] = None
     product_last_verified_at: Optional[datetime] = None
     link_last_confirmed_at: Optional[datetime] = None
 
@@ -122,6 +125,7 @@ class MethodResolution:
     as_of: Optional[datetime]
     supplier_id: Optional[uuid.UUID]
     supplier_name: Optional[str]
+    certifying_body_name: Optional[str]
     source: str  # "supplier" | "self_attested"
 
 
@@ -176,6 +180,7 @@ def resolve_method(
             as_of=_min_dt(best.product_last_verified_at, best.link_last_confirmed_at),
             supplier_id=best.supplier_id,
             supplier_name=best.supplier_name,
+            certifying_body_name=best.certifying_body_name,
             source="supplier",
         )
 
@@ -185,5 +190,6 @@ def resolve_method(
         as_of=fallback_as_of,
         supplier_id=None,
         supplier_name=None,
+        certifying_body_name=None,
         source="self_attested",
     )

@@ -172,6 +172,7 @@ export default function SupplierDetailPage() {
                 <TableHead>Meat</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Method</TableHead>
+                <TableHead>Certifier</TableHead>
                 <TableHead>Line tier</TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -180,7 +181,7 @@ export default function SupplierDetailPage() {
             <TableBody>
               {supplier.products.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
                     No product lines yet. Add one, that&apos;s where the slaughter
                     method is recorded.
                   </TableCell>
@@ -197,6 +198,13 @@ export default function SupplierDetailPage() {
                         <ZabihahBadge status={p.zabihah_status ?? "UNSURE"} />
                       ) : (
                         <MethodBadge method={p.slaughter_method} />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {p.certifying_body_name ? (
+                        p.certifying_body_name
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
                     <TableCell>

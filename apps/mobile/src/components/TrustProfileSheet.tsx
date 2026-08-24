@@ -275,6 +275,14 @@ export function TrustProfileSheet({
                             >
                               {x.supplier_name ?? "Supplier"}
                             </Text>
+                            {x.certifying_body_name ? (
+                              <Text
+                                style={[ty.small, { color: t.sub, fontSize: 12.5, marginTop: 1, textAlign: "right" }]}
+                                numberOfLines={2}
+                              >
+                                Certified by {x.certifying_body_name}
+                              </Text>
+                            ) : null}
                             <Text style={[ty.small, { color: t.sub, fontSize: 12.5, marginTop: 2, textAlign: "right" }]}>
                               {attribution}
                             </Text>

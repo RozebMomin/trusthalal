@@ -161,6 +161,7 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
                 source=r.source,
                 supplier_id=r.supplier_id,
                 supplier_name=r.supplier_name,
+                certifying_body_name=r.certifying_body_name,
                 as_of=r.as_of,
             )
         )

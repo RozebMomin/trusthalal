@@ -291,6 +291,10 @@ class SlaughterProvenanceRead(BaseModel):
     source: str  # "supplier" | "self_attested"
     supplier_id: UUID | None = None
     supplier_name: str | None = None
+    # Certifying body the supplier line is attributed to (canonical name when a
+    # certifier is linked, else the free-text value). Relayed as the supplier's
+    # stated certifier — not a Trust Halal verification.
+    certifying_body_name: str | None = None
     as_of: datetime | None = None
 
 

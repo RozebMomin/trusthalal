@@ -16,6 +16,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.modules.certifiers.models import Certifier
 from app.modules.halal_profiles.models import HalalProfile
 from app.modules.suppliers.models import (
     PlaceSupplierLink,
@@ -111,12 +112,15 @@ def resolve_place_method(
     now = now or datetime.now(timezone.utc)
 
     rows = db.execute(
-        select(PlaceSupplierLink, SupplierProduct, Supplier)
+        select(PlaceSupplierLink, SupplierProduct, Supplier, Certifier)
         .join(
             SupplierProduct,
             SupplierProduct.id == PlaceSupplierLink.supplier_product_id,
         )
         .join(Supplier, Supplier.id == SupplierProduct.supplier_id)
+        # Canonical certifier for the line, when one is linked. Outer so lines
+        # with only a free-text certifier still return.
+        .outerjoin(Certifier, Certifier.id == SupplierProduct.certifier_id)
         .where(
             PlaceSupplierLink.place_id == place_id,
             PlaceSupplierLink.meat_type == str(meat_type),
@@ -137,10 +141,12 @@ def resolve_place_method(
             evidence_tier=str(link.evidence_tier),
             supplier_id=sup.id,
             supplier_name=sup.name,
+            # Prefer the canonical certifier name; fall back to the free text.
+            certifying_body_name=(cert.name if cert is not None else prod.certifying_body_name),
             product_last_verified_at=prod.last_verified_at,
             link_last_confirmed_at=link.last_confirmed_at,
         )
-        for (link, prod, sup) in rows
+        for (link, prod, sup, cert) in rows
     ]
 
     fallback_method, fallback_as_of = _profile_fallback(

@@ -362,6 +362,8 @@ export type SupplierProvenance = {
   source: "supplier" | "self_attested";
   supplier_id: string | null;
   supplier_name: string | null;
+  /** The supplier line's stated certifying body, relayed (not our finding). */
+  certifying_body_name: string | null;
   as_of: string | null;
 };
 
