@@ -72,3 +72,8 @@ from app.modules.suppliers.models import (  # noqa: F401
     SupplierEvent,
     SupplierProduct,
 )
+from app.modules.certifiers.models import (  # noqa: F401
+    Certifier,
+    CertifierAdverseEvent,
+    CertifierAlias,
+)
