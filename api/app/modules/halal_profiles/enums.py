@@ -96,6 +96,30 @@ class SlaughterMethod(StrEnum):
     provenance vocabulary, which already carries NOT_DISCLOSED."""
 
 
+class ZabihahStatus(StrEnum):
+    """The red-meat axis (beef / lamb / goat).
+
+    Hand-vs-machine is a poultry question — essentially all red meat is hand-cut
+    — and cut geometry is a research dead-end, so red meat doesn't use
+    ``SlaughterMethod``. Instead the restaurant declares whether the product is
+    zabihah (optionally naming a certifying body), which we relay as an
+    *attributed* claim rather than something we verified. Mirrors
+    ``suppliers.enums.ZabihahStatus`` so both surfaces speak one vocabulary.
+    """
+
+    ZABIHAH = "ZABIHAH"
+    """Declared zabihah (hand-slaughtered by a Muslim)."""
+
+    NOT_ZABIHAH = "NOT_ZABIHAH"
+    """Declared not zabihah."""
+
+    UNSURE = "UNSURE"
+    """Served, but zabihah status not established. The default when served."""
+
+    NOT_SERVED = "NOT_SERVED"
+    """Restaurant doesn't serve this protein at all."""
+
+
 class MeatType(StrEnum):
     """Meat categories the questionnaire tracks per-product.
 

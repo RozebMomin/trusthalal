@@ -46,6 +46,7 @@ from app.modules.halal_profiles.enums import (
     MenuPosture,
     SlaughterMethod,
     ValidationTier,
+    ZabihahStatus,
 )
 
 
@@ -171,6 +172,28 @@ class HalalProfile(Base):
         nullable=False,
         server_default=text(f"'{SlaughterMethod.NOT_SERVED.value}'"),
     )
+
+    # --- red-meat zabihah axis (beef / lamb / goat) ---------------------
+    # Red meat uses an attribution axis (zabihah / not / unsure), not
+    # hand/machine — see ZabihahStatus. These supersede the *_slaughter
+    # columns above for beef/lamb/goat, which are retained (unread) so the
+    # switch is non-destructive; a later cleanup migration can drop them.
+    beef_zabihah: Mapped[str] = mapped_column(
+        sa.Enum(ZabihahStatus, name="halal_zabihah_status", native_enum=False, length=30, create_constraint=True),
+        nullable=False,
+        server_default=text(f"'{ZabihahStatus.NOT_SERVED.value}'"),
+    )
+    lamb_zabihah: Mapped[str] = mapped_column(
+        sa.Enum(ZabihahStatus, name="halal_zabihah_status", native_enum=False, length=30, create_constraint=False),
+        nullable=False,
+        server_default=text(f"'{ZabihahStatus.NOT_SERVED.value}'"),
+    )
+    goat_zabihah: Mapped[str] = mapped_column(
+        sa.Enum(ZabihahStatus, name="halal_zabihah_status", native_enum=False, length=30, create_constraint=False),
+        nullable=False,
+        server_default=text(f"'{ZabihahStatus.NOT_SERVED.value}'"),
+    )
+
     seafood_only: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )

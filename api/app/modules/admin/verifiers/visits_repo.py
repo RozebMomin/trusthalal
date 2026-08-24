@@ -46,6 +46,7 @@ from app.modules.halal_profiles.enums import (
     MenuPosture,
     SlaughterMethod,
     ValidationTier,
+    ZabihahStatus,
 )
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
 from app.modules.places.enums import (
@@ -229,6 +230,9 @@ def admin_decide_visit(
 # onto the observable equivalents. UNSURE means the protein IS served but the
 # method couldn't be confirmed on the spot → NOT_DISCLOSED (NOT the same as
 # NOT_SERVED, which means the place doesn't carry it at all).
+# Poultry (chicken/turkey/duck): the hand/machine axis. ZABIHAH/NOT_ZABIHAH
+# would only arrive here for a poultry line from a stale client; fold them onto
+# the observable equivalent. UNSURE (served, method unconfirmed) → NOT_DISCLOSED.
 _FINDING_TO_SLAUGHTER = {
     "HAND_CUT": SlaughterMethod.HAND_CUT,
     "MACHINE_CUT": SlaughterMethod.MACHINE_CUT,
@@ -237,18 +241,32 @@ _FINDING_TO_SLAUGHTER = {
     "NOT_SERVED": SlaughterMethod.NOT_SERVED,
     "UNSURE": SlaughterMethod.NOT_DISCLOSED,
 }
+
+# Red meat (beef/lamb/goat): the zabihah attribution axis. Handles both the new
+# capture vocab (ZABIHAH/NOT_ZABIHAH) and the transitional hand/machine one a
+# not-yet-updated client still sends — any prior positive method reads as
+# ZABIHAH (locked backfill rule), so a red-meat finding never loses its signal.
+_FINDING_TO_ZABIHAH = {
+    "ZABIHAH": ZabihahStatus.ZABIHAH,
+    "HAND_CUT": ZabihahStatus.ZABIHAH,
+    "MACHINE_CUT": ZabihahStatus.ZABIHAH,
+    "NOT_ZABIHAH": ZabihahStatus.NOT_ZABIHAH,
+    "NOT_SERVED": ZabihahStatus.NOT_SERVED,
+    "UNSURE": ZabihahStatus.UNSURE,
+}
 # The label the verifier flow writes the "menu fully halal" answer under.
 _MENU_CHECK_KEY = "Menu is fully halal"
 _CERT_CHECK_KEY = "Halal cert visible on premises"
 _ALCOHOL_CHECK_KEY = "Alcohol on premises"
 
 
-# Meat key → profile column, for the four tracked meats.
-_MEAT_COLUMNS = (
-    ("CHICKEN", "chicken_slaughter"),
-    ("BEEF", "beef_slaughter"),
-    ("LAMB", "lamb_slaughter"),
-    ("GOAT", "goat_slaughter"),
+# Poultry meats → their slaughter column; red meats → their zabihah column.
+# Which axis a meat uses is fixed by species (see the two mapping tables above).
+_POULTRY_COLUMNS = (("CHICKEN", "chicken_slaughter"),)
+_REDMEAT_COLUMNS = (
+    ("BEEF", "beef_zabihah"),
+    ("LAMB", "lamb_zabihah"),
+    ("GOAT", "goat_zabihah"),
 )
 
 # Amenity observation code → profile column.
@@ -302,14 +320,27 @@ def _cert_opt(checks: dict) -> bool | None:
     return None if ans is None else ans == "YES"
 
 
-def _meat_opt(meat_checks: dict, key: str) -> str | None:
+def _finding_of(meat_checks: dict, key: str) -> str | None:
     mc = meat_checks.get(key)
     if not isinstance(mc, dict):
         return None
-    finding = mc.get("finding")
+    return mc.get("finding")
+
+
+def _meat_slaughter_opt(meat_checks: dict, key: str) -> str | None:
+    """Poultry: finding → SlaughterMethod value, or None if unrecorded."""
+    finding = _finding_of(meat_checks, key)
     if finding is None:
         return None
     return _FINDING_TO_SLAUGHTER.get(finding, SlaughterMethod.NOT_SERVED).value
+
+
+def _meat_zabihah_opt(meat_checks: dict, key: str) -> str | None:
+    """Red meat: finding → ZabihahStatus value, or None if unrecorded."""
+    finding = _finding_of(meat_checks, key)
+    if finding is None:
+        return None
+    return _FINDING_TO_ZABIHAH.get(finding, ZabihahStatus.UNSURE).value
 
 
 def _bootstrap_profile_from_visit(
@@ -338,11 +369,13 @@ def _bootstrap_profile_from_visit(
             or MenuPosture.HALAL_OPTIONS_ADVERTISED
         ).value,
         alcohol_policy=(_alcohol_opt(checks) or AlcoholPolicy.NONE).value,
-        chicken_slaughter=_meat_opt(meat_checks, "CHICKEN")
+        chicken_slaughter=_meat_slaughter_opt(meat_checks, "CHICKEN")
         or SlaughterMethod.NOT_SERVED.value,
-        beef_slaughter=_meat_opt(meat_checks, "BEEF") or SlaughterMethod.NOT_SERVED.value,
-        lamb_slaughter=_meat_opt(meat_checks, "LAMB") or SlaughterMethod.NOT_SERVED.value,
-        goat_slaughter=_meat_opt(meat_checks, "GOAT") or SlaughterMethod.NOT_SERVED.value,
+        # Red meat lands on the zabihah axis; the retained *_slaughter columns
+        # keep their NOT_SERVED server-default (unread).
+        beef_zabihah=_meat_zabihah_opt(meat_checks, "BEEF") or ZabihahStatus.NOT_SERVED.value,
+        lamb_zabihah=_meat_zabihah_opt(meat_checks, "LAMB") or ZabihahStatus.NOT_SERVED.value,
+        goat_zabihah=_meat_zabihah_opt(meat_checks, "GOAT") or ZabihahStatus.NOT_SERVED.value,
         has_certification=bool(_cert_opt(checks)),
         last_verified_at=visit.visited_at,
     )
@@ -380,8 +413,12 @@ def _refresh_profile_from_visit(profile: HalalProfile, visit: VerificationVisit)
     cert = _cert_opt(checks)
     if cert is not None:
         profile.has_certification = cert
-    for key, attr in _MEAT_COLUMNS:
-        v = _meat_opt(meat_checks, key)
+    for key, attr in _POULTRY_COLUMNS:
+        v = _meat_slaughter_opt(meat_checks, key)
+        if v is not None:
+            setattr(profile, attr, v)
+    for key, attr in _REDMEAT_COLUMNS:
+        v = _meat_zabihah_opt(meat_checks, key)
         if v is not None:
             setattr(profile, attr, v)
     _apply_amenities(profile, obs)
