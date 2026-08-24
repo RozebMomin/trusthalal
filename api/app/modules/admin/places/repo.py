@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from geoalchemy2.elements import WKTElement
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError
@@ -16,6 +16,11 @@ from app.modules.organizations.models import (
 )
 from app.modules.halal_profiles.enums import HalalProfileEventType
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
+from app.modules.halal_claims.models import HalalClaim
+from app.modules.suppliers.models import PlaceSupplierLink
+from app.modules.verifiers.models import VerificationVisit
+from app.modules.disputes.models import ConsumerDispute
+from app.modules.places.signals import PlaceSignalRow
 from app.modules.places.enums import DelistReason, ExternalIdProvider, PlaceEventType
 from app.modules.places.models import Place, PlaceEvent, PlaceExternalId
 from app.modules.places.repo import (
@@ -36,6 +41,68 @@ from app.modules.places.repo import (
 # ``places``. Default sort is ``updated_at`` DESC — "most-recently
 # touched first," which matches what an admin actually wants in a browse.
 _ORDER_BY_VALUES = ("updated_at", "name", "city", "country")
+
+
+def admin_reset_trust_profile(
+    db: Session, *, place_id: UUID, actor_user_id: UUID | None
+) -> dict[str, int]:
+    """Reset a place's TRUST PROFILE to a freshly-added state, keeping identity
+    and ownership.
+
+    Deletes, for this place: the halal profile (+ its event timeline via
+    cascade), halal claims (+ attachments/events), supplier sourcing links,
+    verification visits (+ attachments), consumer disputes (+ attachments),
+    reported signals, and the "editing churn" place-events (EDITED / DELETED /
+    RESTORED). Also clears any de-list / soft-delete so a place tombstoned
+    during testing comes back to life.
+
+    KEEPS: the place row + Google mapping, ownership (``place_owners``),
+    reviews, photos, favorites, and the CREATED / OWNERSHIP_* place-events (so
+    ownership history stays intact — "reset the profile, not the owner").
+
+    Intended for cleaning up a heavily-tested place. Admin-only, destructive,
+    irreversible. Returns per-table deletion counts.
+    """
+    place = db.get(Place, place_id)
+    if place is None:
+        raise NotFoundError("PLACE_NOT_FOUND", "Place not found.")
+
+    counts: dict[str, int] = {}
+    # Order is not FK-critical (children cascade from these parents, and the few
+    # cross-refs are ON DELETE SET NULL), but we go inner→outer for clarity.
+    for label, model in (
+        ("supplier_links", PlaceSupplierLink),
+        ("disputes", ConsumerDispute),
+        ("verification_visits", VerificationVisit),
+        ("claims", HalalClaim),
+        ("profiles", HalalProfile),
+        ("signals", PlaceSignalRow),
+    ):
+        res = db.execute(delete(model).where(model.place_id == place_id))
+        counts[label] = res.rowcount or 0
+
+    # Remove editing/de-list churn from the timeline, keep CREATED + OWNERSHIP_*.
+    churn = (
+        PlaceEventType.EDITED.value,
+        PlaceEventType.DELETED.value,
+        PlaceEventType.RESTORED.value,
+    )
+    res = db.execute(
+        delete(PlaceEvent).where(
+            PlaceEvent.place_id == place_id, PlaceEvent.event_type.in_(churn)
+        )
+    )
+    counts["events"] = res.rowcount or 0
+
+    # Un-delist / un-delete so a place tombstoned during testing is live again.
+    place.is_deleted = False
+    place.deleted_at = None
+    place.deleted_by_user_id = None
+    place.delist_reason = None
+    place.delisted_at = None
+
+    db.commit()
+    return counts
 
 
 def admin_bulk_preview_places(

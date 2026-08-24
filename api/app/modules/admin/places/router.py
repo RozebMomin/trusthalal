@@ -17,6 +17,7 @@ from app.modules.admin.places.repo import (
     admin_list_places,
     admin_patch_place,
     admin_relist_place,
+    admin_reset_trust_profile,
     admin_restore_place,
     admin_revoke_place_owner,
     admin_soft_delete_place,
@@ -638,6 +639,34 @@ def resync_place_admin(
     return PlaceResyncResponse(
         place=PlaceAdminRead.model_validate(result.place),
         fields_updated=result.fields_updated,
+    )
+
+
+@router.post(
+    "/{place_id}/reset-trust-profile",
+    status_code=status.HTTP_200_OK,
+    summary="Reset a place's trust profile to a freshly-added state",
+    description=(
+        "DESTRUCTIVE + IRREVERSIBLE. Deletes the halal profile, claims, "
+        "supplier links, verification visits, disputes, reported signals, and "
+        "editing/de-list timeline churn for this place, and un-delists it. "
+        "KEEPS the place, its Google link, OWNERSHIP, reviews, and photos. "
+        "Intended for cleaning up a heavily-tested listing. Returns per-table "
+        "deletion counts."
+    ),
+    responses={
+        401: {"model": ErrorResponse, "description": "Missing/invalid X-User-Id."},
+        403: {"model": ErrorResponse, "description": "Not an admin."},
+        404: {"model": ErrorResponse, "description": "Place not found."},
+    },
+)
+def reset_place_trust_profile_admin(
+    place_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> dict[str, int]:
+    return admin_reset_trust_profile(
+        db, place_id=place_id, actor_user_id=user.id
     )
 
 
