@@ -33,6 +33,32 @@ class SlaughterMethod(StrEnum):
     """Method not stated / unknown. The default, and not a demerit."""
 
 
+class ZabihahStatus(StrEnum):
+    """The red-meat axis (beef / lamb / goat). Hand-vs-machine is a poultry
+    question — essentially all red meat is hand-cut — and cut geometry is a
+    research dead-end, so for red meat we don't adjudicate the slaughter
+    mechanism. Instead the restaurant/supplier declares whether the product is
+    zabihah and names the certifying body they attribute it to; we relay that as
+    an attributed claim (we don't verify the packer).
+
+    Poultry lines keep ``SlaughterMethod`` (hand/machine); red-meat lines use
+    this. Which one is meaningful is decided by ``meat_type``.
+    """
+
+    ZABIHAH = "ZABIHAH"
+    """Declared zabihah (hand-slaughtered by a Muslim), optionally with a named
+    certifying body. Attributed to the restaurant/supplier, not verified by us."""
+
+    NOT_ZABIHAH = "NOT_ZABIHAH"
+    """Declared not zabihah."""
+
+    UNSURE = "UNSURE"
+    """No clear answer. The default, and not a demerit."""
+
+    NOT_SERVED = "NOT_SERVED"
+    """This meat isn't served."""
+
+
 class Stunning(StrEnum):
     """Optional companion attribute (redefinition doc §10.2). Nullable until we
     capture it; many strict users care about stun vs non-stun."""

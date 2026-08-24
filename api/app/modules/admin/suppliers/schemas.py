@@ -15,6 +15,7 @@ from app.modules.suppliers.enums import (
     Stunning,
     SupplierEventType,
     SupplierTier,
+    ZabihahStatus,
 )
 
 
@@ -26,9 +27,12 @@ class SupplierProductAdminRead(BaseModel):
     meat_type: MeatType
     product_name: str
     slaughter_method: SlaughterMethod
+    # Red-meat axis; NULL on poultry lines. Which is meaningful follows meat_type.
+    zabihah_status: ZabihahStatus | None = None
     line_tier: SupplierTier
     stunning: Stunning | None = None
     certifying_body_name: str | None = None
+    certifier_id: UUID | None = None
     certificate_number: str | None = None
     certificate_url: str | None = None
     certificate_expires_at: datetime | None = None
@@ -84,9 +88,11 @@ class SupplierProductCreate(BaseModel):
     meat_type: MeatType
     product_name: str = Field(..., min_length=1, max_length=255)
     slaughter_method: SlaughterMethod = SlaughterMethod.NOT_DISCLOSED
+    zabihah_status: ZabihahStatus | None = None
     line_tier: SupplierTier = SupplierTier.LISTED
     stunning: Stunning | None = None
     certifying_body_name: str | None = Field(default=None, max_length=255)
+    certifier_id: UUID | None = None
     certificate_number: str | None = Field(default=None, max_length=255)
     certificate_url: str | None = None
     certificate_expires_at: datetime | None = None
@@ -102,9 +108,11 @@ class SupplierProductPatch(BaseModel):
 
     product_name: str | None = Field(default=None, min_length=1, max_length=255)
     slaughter_method: SlaughterMethod | None = None
+    zabihah_status: ZabihahStatus | None = None
     line_tier: SupplierTier | None = None
     stunning: Stunning | None = None
     certifying_body_name: str | None = Field(default=None, max_length=255)
+    certifier_id: UUID | None = None
     certificate_number: str | None = Field(default=None, max_length=255)
     certificate_url: str | None = None
     certificate_expires_at: datetime | None = None

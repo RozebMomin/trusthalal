@@ -39,6 +39,7 @@ from app.modules.suppliers.enums import (
     SupplierAttachmentType,
     SupplierEventType,
     SupplierTier,
+    ZabihahStatus,
 )
 
 
@@ -140,6 +141,8 @@ class SupplierProduct(Base):
     )
     product_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    # Poultry axis (chicken / turkey / duck). Red-meat lines leave this at
+    # NOT_DISCLOSED and use ``zabihah_status`` instead.
     slaughter_method: Mapped[str] = mapped_column(
         sa.Enum(
             SlaughterMethod,
@@ -149,6 +152,27 @@ class SupplierProduct(Base):
         ),
         nullable=False,
         server_default=text(f"'{SlaughterMethod.NOT_DISCLOSED.value}'"),
+    )
+    # Red-meat axis (beef / lamb / goat). NULL on poultry lines — which axis is
+    # meaningful is decided by ``meat_type``. Attributed to the restaurant/
+    # supplier; the named body resolves to ``certifier_id``.
+    zabihah_status: Mapped[Optional[str]] = mapped_column(
+        sa.Enum(
+            ZabihahStatus,
+            name="supplier_zabihah_status",
+            native_enum=False,
+            length=30,
+        ),
+        nullable=True,
+    )
+    # Canonical certifying body the line is attributed to (resolves the
+    # free-text ``certifying_body_name`` to a registry row). SET NULL so
+    # deleting a certifier doesn't cascade-delete product lines.
+    certifier_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.certifiers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     line_tier: Mapped[str] = mapped_column(
         sa.Enum(SupplierTier, name="supplier_line_tier", native_enum=False, length=50),
