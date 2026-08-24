@@ -1,6 +1,71 @@
 # Slaughter-Provenance & Certifier Model — Build Plan (v2, decisions locked)
 
-**Prepared for:** Mohamad · **Status:** decisions locked, ready to build on your go · **Date:** 2026-08-24
+**Prepared for:** Mohamad · **Status:** decisions locked · **Date:** 2026-08-24
+
+---
+
+## IMPLEMENTATION STATUS (updated as I build)
+
+**Environment limit:** this workspace has no Python deps installed, so I can
+`py_compile` backend files and `tsc` the frontends, but I **cannot run the pytest
+suite or apply Alembic migrations** here. Everything below is py_compile-clean and
+follows existing house patterns, but the migrations + tests need a run in your
+env before deploy.
+
+### Done & committed (all additive / non-breaking — nothing reads the new red-meat
+axis yet, so deploying these alone changes no consumer display):
+- **Phase 1 — certifier registry** (`5ca5464`… actually commit `24fffe5`): new
+  `app/modules/certifiers/` (models + enums), migration `ff60718293a4` creating
+  `certifiers` / `certifier_aliases` / `certifier_adverse_events` + **seed of the
+  9 bodies, their aliases, and the ISA conviction adverse event**; admin API
+  (`/admin/certifiers` list/get/create/patch/aliases/adverse-events/**resolve**);
+  tests in `tests/test_certifiers.py`.
+- **Phase 2 — supplier attribution** (`2ba842b`): `ZabihahStatus` enum;
+  `zabihah_status` + `certifier_id` on `supplier_products`; migration
+  `a17182930405` that **resolves existing free-text certifier names → certifier_id
+  via aliases** and **backfills red-meat lines** (Hand/Machine → ZABIHAH, else
+  UNSURE); admin product schemas/repo updated.
+- **Phase 3a — profile columns + verifier bridge** (`5ca5464`): `ZabihahStatus`
+  on `halal_profiles`; `beef_zabihah` / `lamb_zabihah` / `goat_zabihah` columns
+  (old `*_slaughter` retained, unread) + migration `b28293040516` backfilling
+  them; **fixed the lossy `_FINDING_TO_SLAUGHTER` bridge** — red meat now maps
+  1:1 to the zabihah axis (bootstrap + refresh write the zabihah columns).
+
+### Remaining (must land atomically across API read-path + both frontends — this
+is the consumer-visible half; a partial deploy would break red-meat display):
+1. **API read-path:** add `beef_zabihah`/`lamb_zabihah`/`goat_zabihah` to
+   `HalalProfileEmbed` (`places/schemas.py`); populate from the profile columns
+   in `_embed_with_products` + the search mapper. (Optional 3b: extend
+   `resolve_place_method` so a red-meat *supplier link* composes zabihah +
+   certifier — currently red-meat zabihah comes from the profile column only.)
+2. **Owner-claim write path:** wherever claim approval writes
+   `beef/lamb/goat_slaughter`, also write the zabihah columns for red meat
+   (mirror of the verifier bridge). *(Check `halal_profiles/service.py` +
+   `halal_claims` processing.)*
+3. **Search filters:** red-meat query params `beef/lamb/goat_slaughter` →
+   `*_zabihah` (+ the "include Unsure" option); `_apply_halal_filters` in
+   `places/repo.py`.
+4. **consumer_preferences:** migrate `beef/lamb/goat_slaughter` columns → zabihah;
+   schema/repo/validator; both prefs UIs.
+5. **Consumer web + mobile:** red-meat filter → zabihah (toggle + include-unsure),
+   red-meat badge → attributed "Zabihah — certified by [body], as stated by the
+   restaurant", prefs UI, types.
+6. **Cleanup (later):** drop the retained `*_slaughter` red-meat columns/fields.
+
+Then **Phase 4** (admin UI: certifier picker + zabihah field + adverse events +
+`/suppliers/<slug>` fix; verifier capture: restore red-meat zabihah in mobile +
+staff visit UIs + cert-body field) and **Phase 5** (final verify: tests + tsc).
+
+**Why I paused here:** the committed foundation is a clean, non-breaking unit. The
+remainder is tightly coupled and consumer-facing, and I can't run the test suite
+or migrations in this environment — so it's safer to land it with tests/tsc in
+your env (and ideally a quick review of this status) than to push a large
+big-bang blind. Say "keep going" and I'll continue straight through the read-path
++ frontends.
+
+---
+
+_(original plan continues below)_
 
 v1 digested the research. v2 reflects the decisions you made — which **cut the
 scope by more than half**. We are no longer trying to independently verify
