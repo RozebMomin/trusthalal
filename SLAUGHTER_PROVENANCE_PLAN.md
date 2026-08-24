@@ -12,12 +12,22 @@ suite or apply Alembic migrations** here. Everything below is py_compile-clean a
 follows existing house patterns, but the migrations + tests need a run in your
 env before deploy.
 
-### >>> CURRENT STATE: entire BACKEND done & committed; FRONTEND (both consumer
-### apps) + admin/verifier-capture UIs remain. Backend is coherent on its own —
-### it writes AND reads the zabihah axis for red meat; the API is deploy-safe.
-### The frontends still send/read the old `*_slaughter` fields for red meat, so
-### until they're updated the red-meat filter is an inert no-op and cards still
-### show the old label. Land the frontend before deploying so display matches.
+### >>> CURRENT STATE: FEATURE COMPLETE across backend + all frontends (consumer
+### web, mobile, admin) + verifier capture. All four apps typecheck clean, the
+### full API compiles, the migration chain is linear (single head
+### c39304051627). Tests written but must be run in your env (no deps here).
+###
+### DEPLOY ORDER: run the 5 migrations (ff60718293a4 → a17182930405 →
+### b28293040516 → c39304051627, off ee5f60718293), then deploy API + consumer +
+### admin together and rebuild mobile. The pieces are self-consistent as a set.
+###
+### KNOWN FOLLOW-UPS (non-blocking, documented at bottom):
+###  - Admin: certifier *picker* (dropdown → certifier_id) — today the line still
+###    takes a free-text certifier; the backend resolves it via aliases. Also the
+###    certifier adverse-event display + /suppliers/<slug> resolve fix.
+###  - Red-meat *supplier-link* zabihah composition (resolve_place_method still
+###    reads the retained beef_slaughter for supplier_provenance on red meat).
+###  - Cleanup migration to drop the retained beef/lamb/goat_slaughter columns.
 
 ### Done & committed:
 - **Phase 1 — certifier registry** (`5ca5464`… actually commit `24fffe5`): new
