@@ -67,6 +67,29 @@ const BOOST_CODE_TO_FIELD: Readonly<
   BABY_CHANGING: "baby_changing",
 };
 
+/** Boost-amenity wire code → its lowercase noun for inline sentences
+ *  (e.g. "Places with baby changing shown first"). */
+const BOOST_CODE_TO_NOUN: Readonly<Record<string, string>> = {
+  PRAYER_SPACE: "prayer space",
+  WUDU: "wudu area",
+  BIDET: "bidet",
+  BABY_CHANGING: "baby changing",
+};
+
+/** Human, comma-joined ("a, b and c") noun phrase for the active boost codes,
+ *  in the canonical order. Empty string when nothing valid is passed. */
+export function boostAmenityPhrase(
+  codes: readonly string[] | null | undefined,
+): string {
+  if (!codes?.length) return "";
+  const nouns = Object.keys(BOOST_CODE_TO_NOUN)
+    .filter((code) => codes.includes(code))
+    .map((code) => BOOST_CODE_TO_NOUN[code]);
+  if (nouns.length === 0) return "";
+  if (nouns.length === 1) return nouns[0];
+  return `${nouns.slice(0, -1).join(", ")} and ${nouns[nouns.length - 1]}`;
+}
+
 /**
  * True when a place positively offers at least one of the requested boost
  * amenities (YES / ON_REQUEST). Used as a primary client-side sort key so the

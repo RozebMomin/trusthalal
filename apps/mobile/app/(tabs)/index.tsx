@@ -17,7 +17,7 @@ import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { PlaceCard } from "@/components/PlaceCard";
-import { matchesBoostAmenities } from "@/lib/amenities";
+import { boostAmenityPhrase, matchesBoostAmenities } from "@/lib/amenities";
 import { countFilters, FiltersSheet, type Filters } from "@/components/FiltersSheet";
 import { LocationSheet, type PickedLocation } from "@/components/LocationSheet";
 import { capture } from "@/lib/analytics";
@@ -200,6 +200,16 @@ export default function Explore() {
         return (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0);
       });
   }, [search.data, coords, filters.boost_amenities]);
+
+  // Context line for the "prioritize for families" boost — it re-ranks rather
+  // than filters, so without a line the reordering looks arbitrary. Empty
+  // phrase = boost inactive → no banner.
+  const boostPhrase = boostAmenityPhrase(filters.boost_amenities);
+  const boostMatchCount = boostPhrase
+    ? results.filter((r) =>
+        matchesBoostAmenities(r.place.halal_profile, filters.boost_amenities),
+      ).length
+    : 0;
 
   // Only asked once the search already came back empty — several COUNT
   // queries, and no reason to pay for them on a search that worked.
@@ -507,6 +517,17 @@ export default function Explore() {
           data={results}
           keyExtractor={(item) => item.place.id}
           contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 110 }}
+          ListHeaderComponent={
+            boostPhrase ? (
+              <BoostBanner
+                text={
+                  boostMatchCount > 0
+                    ? `Places with ${boostPhrase} shown first`
+                    : `No places here list ${boostPhrase} yet — showing all`
+                }
+              />
+            ) : null
+          }
           renderItem={({ item }) => (
             <PlaceCard
               place={item.place}
@@ -537,6 +558,34 @@ export default function Explore() {
         onChange={changeFilters}
         resultCount={hasActiveSearch ? results.length : undefined}
       />
+    </View>
+  );
+}
+
+/** Small tinted line above the results explaining the family-amenity boost is
+ *  active, so the reordering doesn't look arbitrary. Matches the "prioritize
+ *  for families" section's accent styling. */
+function BoostBanner({ text }: { text: string }) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 7,
+        backgroundColor: t.accentSoft,
+        borderWidth: 1,
+        borderColor: t.accent,
+        borderRadius: radii.md,
+        paddingHorizontal: 12,
+        paddingVertical: 9,
+        marginBottom: space.md,
+      }}
+    >
+      <Feather name="users" size={13} color={t.accentDeep} />
+      <Text style={{ flex: 1, color: t.accentDeep, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+        {text}
+      </Text>
     </View>
   );
 }

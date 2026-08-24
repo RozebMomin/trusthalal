@@ -46,7 +46,7 @@ import {
 } from "@/components/filters-sheet";
 import { PlaceResultCard } from "@/components/place-result-card";
 import { SiteHero } from "@/components/site-hero";
-import { Clock, Search, X } from "lucide-react";
+import { Clock, Search, Users, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -124,7 +124,7 @@ const VALID_CUISINES: ReadonlySet<string> = new Set<Cuisine>([
 import { capturePostHog } from "@/lib/analytics";
 import { useMyPreferences } from "@/lib/api/preferences";
 import { haversineDistanceMeters } from "@/lib/geo";
-import { matchesBoostAmenities } from "@/lib/amenities";
+import { boostAmenityPhrase, matchesBoostAmenities } from "@/lib/amenities";
 import {
   compareByGoogleRating,
   compareByTrustHalalRating,
@@ -509,6 +509,17 @@ function HomePageInner() {
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const activeFilterCount = countActiveFilters(effectiveFilters);
 
+  // Context line for the non-restrictive "prioritize for families" boost — the
+  // one active-filter effect the ActiveFiltersBar deliberately doesn't count
+  // (it re-ranks, never removes), so without this line the reordering looks
+  // arbitrary. Empty phrase = boost inactive → no line.
+  const boostPhrase = boostAmenityPhrase(effectiveFilters.boost_amenities);
+  const boostMatchCount = boostPhrase
+    ? decoratedResults.filter((r) =>
+        matchesBoostAmenities(r.place.halal_profile, effectiveFilters.boost_amenities),
+      ).length
+    : 0;
+
   // Search-active surface needs the FiltersSheet always-mounted so
   // its open/close animations work when the user reaches the active
   // state and taps Filters. The discovery-home surface owns its own
@@ -662,6 +673,16 @@ function HomePageInner() {
         search.data &&
         search.data.length > 0 && (
           <div className="space-y-3">
+            {boostPhrase && (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {boostMatchCount > 0
+                    ? `Places with ${boostPhrase} shown first`
+                    : `No places here list ${boostPhrase} yet — showing all`}
+                </span>
+              </div>
+            )}
             {/* Sort control only renders when near-me is active,
                 without a geo center there's no meaningful "closest
                 first" to sort by. The control sits above the list
