@@ -69,7 +69,7 @@ export function ResetProfileDialog({
           <DialogTitle>Reset trust profile</DialogTitle>
           <DialogDescription>
             Permanently deletes the halal profile, claims, supplier links,
-            verification visits, disputes and trust-history churn for{" "}
+            verification visits, disputes and the entire event audit trail for{" "}
             <span className="font-medium text-foreground">{placeName}</span>, and
             un-delists it. Ownership, reviews and photos are kept. This cannot be
             undone.

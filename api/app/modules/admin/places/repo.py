@@ -52,13 +52,14 @@ def admin_reset_trust_profile(
     Deletes, for this place: the halal profile (+ its event timeline via
     cascade), halal claims (+ attachments/events), supplier sourcing links,
     verification visits (+ attachments), consumer disputes (+ attachments),
-    reported signals, and the "editing churn" place-events (EDITED / DELETED /
-    RESTORED). Also clears any de-list / soft-delete so a place tombstoned
-    during testing comes back to life.
+    reported signals, and the ENTIRE ``place_events`` audit log (the admin
+    "Events" trail — ownership lives in ``place_owners``, not these log rows, so
+    clearing them doesn't affect ownership). Also clears any de-list /
+    soft-delete so a place tombstoned during testing comes back to life.
 
     KEEPS: the place row + Google mapping, ownership (``place_owners``),
-    reviews, photos, favorites, and the CREATED / OWNERSHIP_* place-events (so
-    ownership history stays intact — "reset the profile, not the owner").
+    reviews, photos, and favorites — so the listing reads as freshly added but
+    still owned by you, with a clean audit trail.
 
     Intended for cleaning up a heavily-tested place. Admin-only, destructive,
     irreversible. Returns per-table deletion counts.
@@ -81,17 +82,9 @@ def admin_reset_trust_profile(
         res = db.execute(delete(model).where(model.place_id == place_id))
         counts[label] = res.rowcount or 0
 
-    # Remove editing/de-list churn from the timeline, keep CREATED + OWNERSHIP_*.
-    churn = (
-        PlaceEventType.EDITED.value,
-        PlaceEventType.DELETED.value,
-        PlaceEventType.RESTORED.value,
-    )
-    res = db.execute(
-        delete(PlaceEvent).where(
-            PlaceEvent.place_id == place_id, PlaceEvent.event_type.in_(churn)
-        )
-    )
+    # Clear the whole audit log for the place — ownership is in place_owners,
+    # not these rows, so this is safe and gives a genuinely fresh trail.
+    res = db.execute(delete(PlaceEvent).where(PlaceEvent.place_id == place_id))
     counts["events"] = res.rowcount or 0
 
     # Un-delist / un-delete so a place tombstoned during testing is live again.
