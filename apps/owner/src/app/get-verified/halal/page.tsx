@@ -168,10 +168,10 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
       alcohol_policy: alcohol,
       alcohol_in_cooking: false,
       seafood_only: false,
-      // Supplier is required per row (validated in onSubmit); only rows that
-      // actually carry one are posted.
+      // Product + supplier are required per row (validated in onSubmit); only
+      // complete rows are posted.
       meat_products: products.filter(
-        (p) => p.supplier_name && p.supplier_name.trim(),
+        (p) => p.product_name.trim() && p.supplier_name && p.supplier_name.trim(),
       ),
       has_certification: certFiles.length > 0,
       certifying_body_name: null,
@@ -185,12 +185,16 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
     setErrorMsg(null);
     setProgress(null);
 
-    // Supplier is mandatory on every meat row for an owner submission — they
-    // know where their meat comes from; a diner wouldn't. Block + reopen the
-    // section if any row is missing it.
-    if (products.some((p) => !(p.supplier_name && p.supplier_name.trim()))) {
+    // A product name + supplier are mandatory on every row for an owner
+    // submission: "beef" twice with two suppliers is ambiguous, so each line
+    // must name its product (ground beef, brisket…) and where it comes from.
+    const incomplete = products.some(
+      (p) =>
+        !p.product_name.trim() || !(p.supplier_name && p.supplier_name.trim()),
+    );
+    if (incomplete) {
       setSourcingOpen(true);
-      setErrorMsg("Add the supplier for each meat you listed.");
+      setErrorMsg("Give each meat a product name and a supplier.");
       return;
     }
 
@@ -521,13 +525,10 @@ function methodOptions(
         { value: "NOT_DISCLOSED", label: "Not sure" },
       ];
 }
-const meatLabel = (m: MeatType) =>
-  WIZARD_MEATS.find((x) => x.value === m)?.label ?? m;
-
 function blankSourcing(): MeatProductSourcing {
   return {
     meat_type: "CHICKEN",
-    product_name: "Chicken",
+    product_name: "",
     slaughter_method: "HAND_CUT",
     supplier_name: null,
     supplier_city: null,
@@ -556,11 +557,8 @@ function MeatSourcingEditor({
     const opts = methodOptions(meat);
     const cur = products[i].slaughter_method;
     const method = opts.some((o) => o.value === cur) ? cur : opts[0].value;
-    patch(i, {
-      meat_type: meat,
-      product_name: meatLabel(meat),
-      slaughter_method: method,
-    });
+    // Don't touch product_name — it's the owner's own product label.
+    patch(i, { meat_type: meat, slaughter_method: method });
   }
 
   return (
@@ -597,6 +595,16 @@ function MeatSourcingEditor({
               ))}
             </select>
           </div>
+          <input
+            className={inputCls}
+            type="text"
+            required
+            disabled={disabled}
+            placeholder="Product (e.g. ground beef, brisket, wings)"
+            aria-label="Product"
+            value={p.product_name}
+            onChange={(e) => patch(i, { product_name: e.target.value })}
+          />
           <SupplierField
             value={p}
             onChange={(pp) => patch(i, pp)}
