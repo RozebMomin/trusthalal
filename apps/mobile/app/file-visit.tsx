@@ -127,12 +127,12 @@ type CheckItem = (typeof CHECK_ITEMS)[number]["label"];
 const CHECK_CYCLE: (CheckVal | undefined)[] = [undefined, "YES", "NO", "PARTIAL"];
 
 // Item-wise findings, captured with the same tap-to-cycle Tag idiom as the
-// Checks card. We record the OBSERVABLE method — hand-cut vs machine-cut — for
-// every meat and let the consumer decide whether that meets their own zabihah
-// standard, rather than asserting "zabihah / not" ourselves. This also matches
-// the halal profile's neutral slaughter vocabulary one-to-one.
-// (ZABIHAH / NOT_ZABIHAH remain in the type only so older captured visits that
-// used them still render; the flow no longer offers them.)
+// Checks card. The vocabulary is species-appropriate: chicken has the hand-cut
+// vs machine-cut debate, so it records the OBSERVABLE method and lets the
+// consumer decide their own zabihah standard. Beef/lamb/goat have no mechanical
+// analogue — the observable question is whether staff say it's hand-slaughtered
+// by a Muslim — so they use ZABIHAH / NOT_ZABIHAH. Both map onto the halal
+// profile's per-meat axes one-to-one.
 type Finding =
   | "HAND_CUT"
   | "MACHINE_CUT"
@@ -149,11 +149,12 @@ const FINDING_LABEL: Record<Finding, string> = {
   UNSURE: "Unsure",
 };
 const SLAUGHTER_FINDINGS: Finding[] = ["HAND_CUT", "MACHINE_CUT", "NOT_SERVED", "UNSURE"];
+const ZABIHAH_FINDINGS: Finding[] = ["ZABIHAH", "NOT_ZABIHAH", "NOT_SERVED", "UNSURE"];
 const MEATS = [
   { v: "CHICKEN", label: "Chicken", findings: SLAUGHTER_FINDINGS },
-  { v: "BEEF", label: "Beef", findings: SLAUGHTER_FINDINGS },
-  { v: "LAMB", label: "Lamb", findings: SLAUGHTER_FINDINGS },
-  { v: "GOAT", label: "Goat", findings: SLAUGHTER_FINDINGS },
+  { v: "BEEF", label: "Beef", findings: ZABIHAH_FINDINGS },
+  { v: "LAMB", label: "Lamb", findings: ZABIHAH_FINDINGS },
+  { v: "GOAT", label: "Goat", findings: ZABIHAH_FINDINGS },
 ] as const;
 type MeatKey = (typeof MEATS)[number]["v"];
 const findingsFor = (m: MeatKey): Finding[] =>

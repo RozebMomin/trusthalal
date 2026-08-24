@@ -1,5 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import type { SlaughterMethodValue, SupplierTier } from "@/lib/api/hooks";
+import type {
+  SlaughterMethodValue,
+  SupplierTier,
+  ZabihahStatusValue,
+} from "@/lib/api/hooks";
 
 const TIER: Record<SupplierTier, { label: string; cls: string }> = {
   LISTED: { label: "Listed", cls: "border-border text-muted-foreground" },
@@ -43,4 +47,24 @@ export function MethodBadge({ method }: { method: SlaughterMethodValue }) {
     );
   }
   return <Badge variant="secondary">{METHOD[method]}</Badge>;
+}
+
+const ZABIHAH: Record<ZabihahStatusValue, string> = {
+  ZABIHAH: "Zabihah",
+  NOT_ZABIHAH: "Not zabihah",
+  UNSURE: "Unsure",
+  NOT_SERVED: "Not served",
+};
+
+/** Red-meat zabihah status. Neutral, same as MethodBadge — we relay the
+ *  attributed claim, we don't rank it. "Unsure" / "Not served" are muted. */
+export function ZabihahBadge({ status }: { status: ZabihahStatusValue }) {
+  if (status === "UNSURE" || status === "NOT_SERVED") {
+    return (
+      <Badge variant="outline" className="border-border text-muted-foreground">
+        {ZABIHAH[status]}
+      </Badge>
+    );
+  }
+  return <Badge variant="secondary">{ZABIHAH[status]}</Badge>;
 }

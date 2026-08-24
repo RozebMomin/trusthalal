@@ -2443,6 +2443,11 @@ export type SupplierTier =
   | "CERTIFICATE_ON_FILE"
   | "TRUST_HALAL_VERIFIED";
 export type SlaughterMethodValue = "HAND_CUT" | "MACHINE_CUT" | "NOT_DISCLOSED";
+export type ZabihahStatusValue =
+  | "ZABIHAH"
+  | "NOT_ZABIHAH"
+  | "UNSURE"
+  | "NOT_SERVED";
 export type StunningValue = "STUNNED" | "NON_STUNNED" | "NOT_DISCLOSED";
 export type MeatTypeValue =
   | "CHICKEN"
@@ -2466,9 +2471,11 @@ export type SupplierProductAdminRead = {
   meat_type: MeatTypeValue;
   product_name: string;
   slaughter_method: SlaughterMethodValue;
+  zabihah_status?: ZabihahStatusValue | null;
   line_tier: SupplierTier;
   stunning?: StunningValue | null;
   certifying_body_name?: string | null;
+  certifier_id?: string | null;
   certificate_number?: string | null;
   certificate_url?: string | null;
   certificate_expires_at?: string | null;
@@ -2515,9 +2522,11 @@ export type SupplierProductCreate = {
   meat_type: MeatTypeValue;
   product_name: string;
   slaughter_method?: SlaughterMethodValue;
+  zabihah_status?: ZabihahStatusValue | null;
   line_tier?: SupplierTier;
   stunning?: StunningValue | null;
   certifying_body_name?: string | null;
+  certifier_id?: string | null;
   certificate_number?: string | null;
   certificate_url?: string | null;
   certificate_expires_at?: string | null;

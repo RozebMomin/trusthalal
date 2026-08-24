@@ -28,6 +28,7 @@ import {
   type StunningValue,
   type SupplierProductAdminRead,
   type SupplierTier,
+  type ZabihahStatusValue,
   useAddSupplierProduct,
   usePatchSupplierProduct,
 } from "@/lib/api/hooks";
@@ -44,6 +45,15 @@ const MEATS: MeatTypeValue[] = [
   "OTHER",
 ];
 const METHODS: SlaughterMethodValue[] = ["HAND_CUT", "MACHINE_CUT", "NOT_DISCLOSED"];
+// Red meat (beef/lamb/goat) uses the zabihah axis, not hand/machine.
+const RED_MEAT = new Set<MeatTypeValue>(["BEEF", "LAMB", "GOAT"]);
+const ZABIHAH: ZabihahStatusValue[] = ["ZABIHAH", "NOT_ZABIHAH", "UNSURE", "NOT_SERVED"];
+const ZABIHAH_LABEL: Record<ZabihahStatusValue, string> = {
+  ZABIHAH: "Zabihah",
+  NOT_ZABIHAH: "Not zabihah",
+  UNSURE: "Unsure",
+  NOT_SERVED: "Not served",
+};
 const TIERS: SupplierTier[] = [
   "LISTED",
   "CERTIFICATE_ON_FILE",
@@ -79,6 +89,7 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
   const [meat, setMeat] = React.useState<MeatTypeValue>("CHICKEN");
   const [name, setName] = React.useState("");
   const [method, setMethod] = React.useState<SlaughterMethodValue>("NOT_DISCLOSED");
+  const [zabihah, setZabihah] = React.useState<ZabihahStatusValue>("UNSURE");
   const [tier, setTier] = React.useState<SupplierTier>("LISTED");
   const [stunning, setStunning] = React.useState<string>(NO_STUN);
   const [cert, setCert] = React.useState("");
@@ -90,6 +101,7 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
     setMeat(product?.meat_type ?? "CHICKEN");
     setName(product?.product_name ?? "");
     setMethod(product?.slaughter_method ?? "NOT_DISCLOSED");
+    setZabihah(product?.zabihah_status ?? "UNSURE");
     setTier(product?.line_tier ?? "LISTED");
     setStunning(product?.stunning ?? NO_STUN);
     setCert(product?.certifying_body_name ?? "");
@@ -102,9 +114,12 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy || !name.trim()) return;
+    const isRed = RED_MEAT.has(meat);
     const common = {
       product_name: name.trim(),
       slaughter_method: method,
+      // Red meat carries the zabihah axis; poultry leaves it null.
+      zabihah_status: isRed ? zabihah : null,
       line_tier: tier,
       stunning: stunning === NO_STUN ? null : (stunning as StunningValue),
       certifying_body_name: cert.trim() || null,
@@ -131,8 +146,8 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
           <DialogHeader>
             <DialogTitle>{editing ? "Edit product line" : "Add product line"}</DialogTitle>
             <DialogDescription>
-              Slaughter method is captured per line, a supplier&apos;s chicken and
-              beef can differ.
+              Captured per line. Chicken uses hand vs machine slaughter; beef,
+              lamb and goat use zabihah status.
             </DialogDescription>
           </DialogHeader>
 
@@ -170,21 +185,39 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Method</Label>
-                <Select value={method} onValueChange={(v) => setMethod(v as SlaughterMethodValue)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {METHODS.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {METHOD_LABEL[m]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {RED_MEAT.has(meat) ? (
+                <div className="space-y-1.5">
+                  <Label>Zabihah</Label>
+                  <Select value={zabihah} onValueChange={(v) => setZabihah(v as ZabihahStatusValue)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ZABIHAH.map((z) => (
+                        <SelectItem key={z} value={z}>
+                          {ZABIHAH_LABEL[z]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label>Method</Label>
+                  <Select value={method} onValueChange={(v) => setMethod(v as SlaughterMethodValue)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {METHODS.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {METHOD_LABEL[m]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>Line evidence tier</Label>
                 <Select value={tier} onValueChange={(v) => setTier(v as SupplierTier)}>

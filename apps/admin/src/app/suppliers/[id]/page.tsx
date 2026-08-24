@@ -25,7 +25,7 @@ import {
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
 
-import { MethodBadge, TierBadge } from "../_components/badges";
+import { MethodBadge, TierBadge, ZabihahBadge } from "../_components/badges";
 import { ProductLineDialog } from "../_components/product-line-dialog";
 import { EditSupplierDialog } from "./_components/edit-supplier-dialog";
 
@@ -191,7 +191,13 @@ export default function SupplierDetailPage() {
                     <TableCell>{title(p.meat_type)}</TableCell>
                     <TableCell className="text-sm">{p.product_name}</TableCell>
                     <TableCell>
-                      <MethodBadge method={p.slaughter_method} />
+                      {p.meat_type === "BEEF" ||
+                      p.meat_type === "LAMB" ||
+                      p.meat_type === "GOAT" ? (
+                        <ZabihahBadge status={p.zabihah_status ?? "UNSURE"} />
+                      ) : (
+                        <MethodBadge method={p.slaughter_method} />
+                      )}
                     </TableCell>
                     <TableCell>
                       <TierBadge tier={p.line_tier} />
