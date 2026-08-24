@@ -882,7 +882,11 @@ export type MenuPosture =
 
 export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
 
-export type SlaughterMethod = "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED";
+export type SlaughterMethod =
+  | "HAND_CUT"
+  | "MACHINE_CUT"
+  | "NOT_SERVED"
+  | "NOT_DISCLOSED";
 
 /** Closed enum the new per-product meat list keys on. */
 export type MeatType =

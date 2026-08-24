@@ -32,8 +32,11 @@ import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type AlcoholPolicy,
   type HalalQuestionnaireDraft,
+  type MeatProductSourcing,
+  type MeatType,
   type MenuPosture,
   type OwnedPlaceRead,
+  type SlaughterMethod,
   useCreateMyHalalClaim,
   useMyOwnedPlaces,
   usePatchMyHalalClaim,
@@ -126,6 +129,8 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
 
   const [menu, setMenu] = React.useState<MenuPosture>("FULLY_HALAL");
   const [alcohol, setAlcohol] = React.useState<AlcoholPolicy>("NONE");
+  const [products, setProducts] = React.useState<MeatProductSourcing[]>([]);
+  const [sourcingOpen, setSourcingOpen] = React.useState(false);
   const [certFiles, setCertFiles] = React.useState<File[]>([]);
   const [fileError, setFileError] = React.useState<string | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<React.ReactNode | null>(null);
@@ -162,7 +167,11 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
       alcohol_policy: alcohol,
       alcohol_in_cooking: false,
       seafood_only: false,
-      meat_products: [],
+      // Only rows the owner actually named a supplier or picked a method for
+      // are meaningful; a bare row is dropped rather than posted as noise.
+      meat_products: products.filter(
+        (p) => (p.supplier_name && p.supplier_name.trim()) || p.slaughter_method,
+      ),
       has_certification: certFiles.length > 0,
       certifying_body_name: null,
       caveats: null,
@@ -352,13 +361,15 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
           </div>
 
           {/* Primary: where the meat comes from. This is the trust signal
-              diners care about most, so it leads. Deep entry still lives in the
-              dedicated claim flow — this is the prominent way in. */}
-          <Link
-            href="/my-halal-claims/new"
-            className="block rounded-lg border-2 border-primary/30 bg-primary/5 p-4 transition hover:border-primary/50 hover:bg-primary/10"
-          >
-            <div className="flex items-start justify-between gap-3">
+              diners care about most, so it leads — and it stays IN the wizard
+              (expands inline, no redirect). */}
+          <div className="rounded-lg border-2 border-primary/30 bg-primary/5">
+            <button
+              type="button"
+              onClick={() => setSourcingOpen((o) => !o)}
+              disabled={busy}
+              className="flex w-full items-start justify-between gap-3 p-4 text-left disabled:opacity-50"
+            >
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">
                   Where does your meat come from?
@@ -370,10 +381,23 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
                 </p>
               </div>
               <span className="shrink-0 text-sm font-medium text-primary">
-                Add sourcing →
+                {sourcingOpen
+                  ? "Hide"
+                  : products.length > 0
+                    ? `${products.length} added`
+                    : "Add sourcing"}
               </span>
-            </div>
-          </Link>
+            </button>
+            {sourcingOpen && (
+              <div className="border-t border-primary/20 p-4">
+                <MeatSourcingEditor
+                  products={products}
+                  onChange={setProducts}
+                  disabled={busy}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Secondary + small: restaurant-level certification only. Clarified
               so owners don't confuse it with per-item/supplier certificates. */}
@@ -454,5 +478,142 @@ function OptionCard({
         {selected && <Check className="h-3 w-3" strokeWidth={3} aria-hidden />}
       </span>
     </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inline per-meat sourcing — the wizard "essentials" version. Species-aware:
+// poultry uses hand/machine; red meat asks zabihah (mapped to the wire's
+// slaughter_method — the server rolls HAND_CUT → ZABIHAH, NOT_DISCLOSED →
+// UNSURE for beef/lamb/goat). Kept lightweight; the full editor at
+// /my-halal-claims/[id] still covers product names, cities, cert numbers, etc.
+// ---------------------------------------------------------------------------
+const WIZARD_MEATS: Array<{ value: MeatType; label: string }> = [
+  { value: "CHICKEN", label: "Chicken" },
+  { value: "BEEF", label: "Beef" },
+  { value: "LAMB", label: "Lamb" },
+  { value: "GOAT", label: "Goat" },
+  { value: "TURKEY", label: "Turkey" },
+  { value: "DUCK", label: "Duck" },
+];
+const POULTRY = new Set<MeatType>(["CHICKEN", "TURKEY", "DUCK"]);
+
+function methodOptions(
+  meat: MeatType,
+): Array<{ value: SlaughterMethod; label: string }> {
+  return POULTRY.has(meat)
+    ? [
+        { value: "HAND_CUT", label: "Hand-cut" },
+        { value: "MACHINE_CUT", label: "Machine-cut" },
+      ]
+    : [
+        { value: "HAND_CUT", label: "Zabihah" },
+        { value: "NOT_DISCLOSED", label: "Not sure" },
+      ];
+}
+const meatLabel = (m: MeatType) =>
+  WIZARD_MEATS.find((x) => x.value === m)?.label ?? m;
+
+function blankSourcing(): MeatProductSourcing {
+  return {
+    meat_type: "CHICKEN",
+    product_name: "Chicken",
+    slaughter_method: "HAND_CUT",
+    supplier_name: null,
+    supplier_city: null,
+    supplier_state: null,
+    certifying_authority: null,
+    certificate_number: null,
+  };
+}
+
+function MeatSourcingEditor({
+  products,
+  onChange,
+  disabled,
+}: {
+  products: MeatProductSourcing[];
+  onChange: (next: MeatProductSourcing[]) => void;
+  disabled?: boolean;
+}) {
+  const inputCls =
+    "flex h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+
+  function patch(i: number, p: Partial<MeatProductSourcing>) {
+    onChange(products.map((row, idx) => (idx === i ? { ...row, ...p } : row)));
+  }
+  function setMeat(i: number, meat: MeatType) {
+    const opts = methodOptions(meat);
+    const cur = products[i].slaughter_method;
+    const method = opts.some((o) => o.value === cur) ? cur : opts[0].value;
+    patch(i, {
+      meat_type: meat,
+      product_name: meatLabel(meat),
+      slaughter_method: method,
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      {products.map((p, i) => (
+        <div key={i} className="space-y-2 rounded-md border bg-background p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              className={inputCls}
+              value={p.meat_type}
+              disabled={disabled}
+              onChange={(e) => setMeat(i, e.target.value as MeatType)}
+              aria-label="Meat"
+            >
+              {WIZARD_MEATS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={inputCls}
+              value={p.slaughter_method}
+              disabled={disabled}
+              onChange={(e) =>
+                patch(i, { slaughter_method: e.target.value as SlaughterMethod })
+              }
+              aria-label="Method"
+            >
+              {methodOptions(p.meat_type).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <input
+            className={inputCls}
+            type="text"
+            disabled={disabled}
+            placeholder="Supplier name (optional)"
+            value={p.supplier_name ?? ""}
+            onChange={(e) => patch(i, { supplier_name: e.target.value || null })}
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(products.filter((_, idx) => idx !== i))}
+            className="text-xs text-muted-foreground transition hover:text-destructive"
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        onClick={() => onChange([...products, blankSourcing()])}
+      >
+        + Add a meat
+      </Button>
+    </div>
   );
 }
