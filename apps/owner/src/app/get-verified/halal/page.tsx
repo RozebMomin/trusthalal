@@ -62,6 +62,11 @@ const MENU_OPTIONS: Array<{ value: MenuPosture; label: string; help: string }> =
     label: "Halal options",
     help: "Halal items are marked alongside others.",
   },
+  {
+    value: "HALAL_UPON_REQUEST",
+    label: "On request",
+    help: "The default menu isn't halal, but the kitchen prepares halal when asked.",
+  },
 ];
 
 const ALCOHOL_OPTIONS: Array<{ value: AlcoholPolicy; label: string }> = [
@@ -346,12 +351,41 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
             </div>
           </div>
 
-          <div className="space-y-2">
+          {/* Primary: where the meat comes from. This is the trust signal
+              diners care about most, so it leads. Deep entry still lives in the
+              dedicated claim flow — this is the prominent way in. */}
+          <Link
+            href="/my-halal-claims/new"
+            className="block rounded-lg border-2 border-primary/30 bg-primary/5 p-4 transition hover:border-primary/50 hover:bg-primary/10"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">
+                  Where does your meat come from?
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Add per-meat sourcing — chicken, beef, lamb, goat — with your
+                  supplier and whether it&apos;s zabihah or hand-cut. This is
+                  what diners trust most.
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-medium text-primary">
+                Add sourcing →
+              </span>
+            </div>
+          </Link>
+
+          {/* Secondary + small: restaurant-level certification only. Clarified
+              so owners don't confuse it with per-item/supplier certificates. */}
+          <div className="space-y-2 rounded-md border border-dashed p-3">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Halal certificate
+              Restaurant certification (optional)
             </p>
             <p className="text-xs text-muted-foreground">
-              Optional, but a certificate upgrades your trust tier.
+              Only if your restaurant <em>itself</em> holds a halal certificate —
+              e.g. the whole kitchen is certified by a body. Most halal
+              restaurants don&apos;t; your meat sourcing above is what matters
+              most.
             </p>
             <FileDrop
               files={certFiles}
@@ -361,20 +395,10 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
               error={fileError}
               maxFiles={1}
               multiple={false}
-              prompt="Drop your certificate here, or "
+              prompt="Drop your restaurant's certificate here, or "
               hint="PDF or photo · optional"
             />
           </div>
-
-          <p className="text-xs text-muted-foreground">
-            Want to add per-meat sourcing (chicken, beef, lamb…)?{" "}
-            <Link
-              href="/my-halal-claims/new"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Add sourcing detail →
-            </Link>
-          </p>
 
           {progress && (
             <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
