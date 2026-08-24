@@ -36,6 +36,7 @@ import { HalalClaimStatusBadge } from "@/components/halal-claim-status-badge";
 import { CreateRequestDialog } from "../../ownership-requests/_components/create-request-dialog";
 import { SourcingLinksSection } from "./_components/sourcing-links";
 import { DelistPlaceDialog } from "../_components/delist-place-dialog";
+import { ResetProfileDialog } from "./_components/reset-profile-dialog";
 import { DeletePlaceDialog } from "../_components/delete-place-dialog";
 import { PlaceEventBadge } from "../_components/event-badge";
 import { LinkGoogleDialog } from "../_components/link-google-dialog";
@@ -87,6 +88,7 @@ export default function PlaceDetailPage() {
   const [delistOpen, setDelistOpen] = React.useState(false);
   const [relistOpen, setRelistOpen] = React.useState(false);
   const [linkOpen, setLinkOpen] = React.useState(false);
+  const [resetOpen, setResetOpen] = React.useState(false);
 
   return (
     <div className="space-y-6">
@@ -163,6 +165,7 @@ export default function PlaceDetailPage() {
             onDelist={() => setDelistOpen(true)}
             onRelist={() => setRelistOpen(true)}
             onLinkGoogle={() => setLinkOpen(true)}
+            onResetProfile={() => setResetOpen(true)}
           />
         )}
       </header>
@@ -213,6 +216,12 @@ export default function PlaceDetailPage() {
             open={delistOpen}
             onOpenChange={setDelistOpen}
           />
+          <ResetProfileDialog
+            placeId={place.id}
+            placeName={place.name}
+            open={resetOpen}
+            onOpenChange={setResetOpen}
+          />
           <RelistPlaceDialog
             place={place}
             open={relistOpen}
@@ -237,6 +246,7 @@ function PlaceActions({
   onDelist,
   onRelist,
   onLinkGoogle,
+  onResetProfile,
 }: {
   place: PlaceAdminRead;
   onEdit: () => void;
@@ -245,6 +255,7 @@ function PlaceActions({
   onDelist: () => void;
   onRelist: () => void;
   onLinkGoogle: () => void;
+  onResetProfile: () => void;
 }) {
   // "Link to Google" is a retroactive operation for places that were
   // added manually before the ingest flow existed. We hide the button
@@ -289,6 +300,11 @@ function PlaceActions({
           Delete
         </Button>
       )}
+      {/* Reset trust profile to a freshly-added state (keeps ownership,
+          reviews, photos). For cleaning up a heavily-tested listing. */}
+      <Button size="sm" variant="outline" onClick={onResetProfile}>
+        Reset profile
+      </Button>
     </div>
   );
 }

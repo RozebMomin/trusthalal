@@ -622,6 +622,27 @@ export function useRelistPlace() {
 }
 
 /**
+ * Reset a place's TRUST PROFILE to a freshly-added state — destructive and
+ * irreversible. Wipes the halal profile, claims, supplier links, verification
+ * visits, disputes, reported signals, and timeline churn, and un-delists the
+ * place. KEEPS ownership, reviews, and photos. Returns per-table deletion
+ * counts. For cleaning up a heavily-tested listing.
+ */
+export function useResetTrustProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string }) =>
+      apiFetch<Record<string, number>>(
+        `/admin/places/${args.id}/reset-trust-profile`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      void invalidatePlaces(qc);
+    },
+  });
+}
+
+/**
  * Create-or-find a Place from a Google Place ID.
  *
  * The admin panel gets ``google_place_id`` from a browser-side Places
