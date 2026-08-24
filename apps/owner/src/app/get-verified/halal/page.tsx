@@ -41,6 +41,7 @@ import {
   useMyOwnedPlaces,
   usePatchMyHalalClaim,
   useSubmitMyHalalClaim,
+  useSupplierSearch,
   useUploadMyHalalClaimAttachment,
 } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
@@ -167,10 +168,10 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
       alcohol_policy: alcohol,
       alcohol_in_cooking: false,
       seafood_only: false,
-      // Only rows the owner actually named a supplier or picked a method for
-      // are meaningful; a bare row is dropped rather than posted as noise.
+      // Supplier is required per row (validated in onSubmit); only rows that
+      // actually carry one are posted.
       meat_products: products.filter(
-        (p) => (p.supplier_name && p.supplier_name.trim()) || p.slaughter_method,
+        (p) => p.supplier_name && p.supplier_name.trim(),
       ),
       has_certification: certFiles.length > 0,
       certifying_body_name: null,
@@ -183,6 +184,15 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
     if (busy) return;
     setErrorMsg(null);
     setProgress(null);
+
+    // Supplier is mandatory on every meat row for an owner submission — they
+    // know where their meat comes from; a diner wouldn't. Block + reopen the
+    // section if any row is missing it.
+    if (products.some((p) => !(p.supplier_name && p.supplier_name.trim()))) {
+      setSourcingOpen(true);
+      setErrorMsg("Add the supplier for each meat you listed.");
+      return;
+    }
 
     const questionnaire = buildQuestionnaire();
 
@@ -587,13 +597,10 @@ function MeatSourcingEditor({
               ))}
             </select>
           </div>
-          <input
-            className={inputCls}
-            type="text"
+          <SupplierField
+            value={p}
+            onChange={(pp) => patch(i, pp)}
             disabled={disabled}
-            placeholder="Supplier name (optional)"
-            value={p.supplier_name ?? ""}
-            onChange={(e) => patch(i, { supplier_name: e.target.value || null })}
           />
           <button
             type="button"
@@ -614,6 +621,98 @@ function MeatSourcingEditor({
       >
         + Add a meat
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Required supplier field with registry autocomplete. Typing searches the
+ * supplier registry (same source as the full editor); picking a match fills the
+ * name and links the registry product line for this meat (``supplier_product_id``)
+ * so an OWNER_STATED sourcing link is created. Owners can still type a supplier
+ * that isn't in the registry (e.g. a local butcher) — it's kept as free text.
+ */
+function SupplierField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: MeatProductSourcing;
+  onChange: (patch: Partial<MeatProductSourcing>) => void;
+  disabled?: boolean;
+}) {
+  const [focused, setFocused] = React.useState(false);
+  const name = value.supplier_name ?? "";
+  const linked = value.supplier_product_id != null;
+  const { data, isFetching } = useSupplierSearch(name, value.meat_type);
+  const suppliers = data ?? [];
+  const showList = focused && !linked && name.trim().length >= 2;
+  const inputCls =
+    "flex h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+
+  return (
+    <div className="relative">
+      <input
+        className={inputCls}
+        type="text"
+        required
+        disabled={disabled}
+        placeholder="Supplier name (required)"
+        aria-label="Supplier name"
+        value={name}
+        onChange={(e) =>
+          onChange({
+            supplier_name: e.target.value || null,
+            supplier_product_id: null,
+          })
+        }
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      />
+      {linked && (
+        <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400">
+          ✓ Matched a registry supplier
+        </p>
+      )}
+      {showList && (
+        <div className="absolute z-20 mt-1 max-h-44 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
+          {isFetching && suppliers.length === 0 ? (
+            <p className="p-2 text-xs text-muted-foreground">
+              Searching the registry…
+            </p>
+          ) : suppliers.length === 0 ? (
+            <p className="p-2 text-xs text-muted-foreground">
+              No registry match — that&apos;s fine, we&apos;ll use what you typed.
+            </p>
+          ) : (
+            suppliers.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                // preventDefault keeps the input focused so the click lands
+                // before the blur closes the list.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  const product =
+                    s.products.find((pr) => pr.meat_type === value.meat_type) ??
+                    s.products[0];
+                  onChange({
+                    supplier_name: s.name,
+                    supplier_product_id: product?.id ?? null,
+                  });
+                  setFocused(false);
+                }}
+                className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+              >
+                <span className="font-medium">{s.name}</span>
+                {s.city ? (
+                  <span className="text-xs text-muted-foreground"> · {s.city}</span>
+                ) : null}
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
