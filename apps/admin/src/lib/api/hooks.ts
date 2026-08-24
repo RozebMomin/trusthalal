@@ -1086,6 +1086,9 @@ export type MeatProductSourcing = {
   supplier_state?: string | null;
   certifying_authority?: string | null;
   certificate_number?: string | null;
+  // Set when the owner picked a registry line; drives the "already linked"
+  // vs "link to registry" reconciliation affordance in the claim view.
+  supplier_product_id?: string | null;
 };
 
 /**

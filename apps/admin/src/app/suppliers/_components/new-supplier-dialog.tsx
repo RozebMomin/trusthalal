@@ -45,9 +45,14 @@ function slugify(name: string): string {
     .replace(/-{2,}/g, "-");
 }
 
-type Props = { open: boolean; onOpenChange: (open: boolean) => void };
+type Props = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Pre-fill the name (e.g. reconciling a claim's stated supplier). */
+  initialName?: string;
+};
 
-export function NewSupplierDialog({ open, onOpenChange }: Props) {
+export function NewSupplierDialog({ open, onOpenChange, initialName }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const create = useCreateSupplier();
@@ -65,10 +70,10 @@ export function NewSupplierDialog({ open, onOpenChange }: Props) {
 
   React.useEffect(() => {
     if (open) {
-      setName(""); setSlug(""); setSlugEdited(false); setCity(""); setRegion("");
+      setName(initialName ?? ""); setSlug(""); setSlugEdited(false); setCity(""); setRegion("");
       setCountry(""); setTier("LISTED"); setCertifier(""); setWebsite(""); setNotes("");
     }
-  }, [open]);
+  }, [open, initialName]);
 
   const effectiveSlug = slugEdited ? slug : slugify(name);
 

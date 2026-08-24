@@ -216,7 +216,10 @@ export default function HalalClaimDetailPage() {
       )}
 
       {/* Questionnaire */}
-      <QuestionnaireView questionnaire={claim.structured_response} />
+      <QuestionnaireView
+        questionnaire={claim.structured_response}
+        placeId={claim.place_id}
+      />
 
       {/* Attachments */}
       <AttachmentsSection

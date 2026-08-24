@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,17 @@ export default function SuppliersPage() {
   const [includeRevoked, setIncludeRevoked] = React.useState(false);
   const [newOpen, setNewOpen] = React.useState(false);
 
+  // Arriving with ?new=<name> (e.g. from a claim's "link to registry" when the
+  // stated supplier isn't in the registry) opens the create dialog pre-filled.
+  const searchParams = useSearchParams();
+  const prefillName = searchParams.get("new") ?? undefined;
+  React.useEffect(() => {
+    if (prefillName) {
+      setNewOpen(true);
+      setRawQuery(prefillName);
+    }
+  }, [prefillName]);
+
   const q = useDebounced(rawQuery.trim(), 250);
 
   const { data, isLoading, error } = useAdminSuppliers({
@@ -74,7 +86,11 @@ export default function SuppliersPage() {
         </Button>
       </header>
 
-      <NewSupplierDialog open={newOpen} onOpenChange={setNewOpen} />
+      <NewSupplierDialog
+        open={newOpen}
+        onOpenChange={setNewOpen}
+        initialName={prefillName}
+      />
 
       <div className="flex flex-wrap items-center gap-3 border-b pb-3">
         <div className="min-w-[240px] flex-1">

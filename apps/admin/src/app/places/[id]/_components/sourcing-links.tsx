@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 
 import { MethodBadge, TierBadge } from "@/app/suppliers/_components/badges";
@@ -238,7 +239,15 @@ function LinkSupplierDialog({
               {!supplierId && q && (
                 <div className="max-h-40 overflow-y-auto rounded-md border">
                   {(suppliers ?? []).length === 0 ? (
-                    <p className="p-2 text-xs text-muted-foreground">No matches.</p>
+                    <div className="p-2 text-xs text-muted-foreground">
+                      No matches in the registry.{" "}
+                      <Link
+                        href={`/suppliers?new=${encodeURIComponent(q)}`}
+                        className="font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        Create &ldquo;{q}&rdquo; as a new supplier →
+                      </Link>
+                    </div>
                   ) : (
                     (suppliers ?? []).map((s) => (
                       <button

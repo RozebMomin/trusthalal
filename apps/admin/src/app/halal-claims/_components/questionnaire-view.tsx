@@ -16,6 +16,7 @@
  * Layout is a flat definition list, admin scans for problems, and
  * a list of label/value rows is the fastest format to eyeball.
  */
+import Link from "next/link";
 import * as React from "react";
 
 import type {
@@ -85,8 +86,11 @@ function Row({
 
 function MeatProductsRow({
   products,
+  placeId,
 }: {
   products: MeatProductSourcing[] | null | undefined;
+  /** Enables the per-product "link to registry" reconciliation jump. */
+  placeId?: string | null;
 }) {
   if (!products || products.length === 0) {
     return <Row label="Meat products">{dash()}</Row>;
@@ -128,6 +132,24 @@ function MeatProductsRow({
                   Cert: {certLine}
                 </div>
               )}
+              {/* Registry reconciliation. If the owner already picked a
+                  registry line, it's linked; otherwise give admin a jump to
+                  the place's sourcing section (pre-filled with the stated
+                  supplier) to match an existing supplier or create a new one. */}
+              {p.supplier_product_id ? (
+                <div className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+                  ✓ Linked to a registry supplier
+                </div>
+              ) : p.supplier_name && placeId ? (
+                <Link
+                  href={`/places/${placeId}?linkSupplier=${encodeURIComponent(
+                    p.supplier_name,
+                  )}#sourcing`}
+                  className="mt-1 inline-block text-xs font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Link to registry →
+                </Link>
+              ) : null}
             </li>
           );
         })}
@@ -138,8 +160,11 @@ function MeatProductsRow({
 
 export function QuestionnaireView({
   questionnaire,
+  placeId,
 }: {
   questionnaire: HalalQuestionnaireDraft | null | undefined;
+  /** When set, each meat product gets a "link to registry" reconciliation jump. */
+  placeId?: string | null;
 }) {
   if (!questionnaire) {
     return (
@@ -192,7 +217,10 @@ export function QuestionnaireView({
           <YesNo value={questionnaire.seafood_only} />
         </Row>
 
-        <MeatProductsRow products={questionnaire.meat_products} />
+        <MeatProductsRow
+          products={questionnaire.meat_products}
+          placeId={placeId}
+        />
 
         <Row label="Has certification?">
           <YesNo value={questionnaire.has_certification} />
