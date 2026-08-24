@@ -333,7 +333,7 @@ def create_halal_claim_for_user(
     )
 
     structured_dict: Optional[dict[str, Any]] = (
-        payload.structured_response.model_dump(exclude_none=False)
+        payload.structured_response.model_dump(mode="json", exclude_none=False)
         if payload.structured_response is not None
         else None
     )
@@ -410,7 +410,7 @@ def batch_create_halal_claims_for_user(
         )
 
     structured_dict: Optional[dict[str, Any]] = (
-        payload.structured_response.model_dump(exclude_none=False)
+        payload.structured_response.model_dump(mode="json", exclude_none=False)
         if payload.structured_response is not None
         else None
     )
@@ -494,7 +494,7 @@ def patch_halal_claim_for_user(
         )
 
     claim.structured_response = patch.structured_response.model_dump(
-        exclude_none=False
+        mode="json", exclude_none=False
     )
     db.add(claim)
     db.commit()
