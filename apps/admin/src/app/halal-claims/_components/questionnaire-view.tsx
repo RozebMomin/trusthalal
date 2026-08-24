@@ -16,17 +16,20 @@
  * Layout is a flat definition list, admin scans for problems, and
  * a list of label/value rows is the fastest format to eyeball.
  */
-import Link from "next/link";
 import * as React from "react";
 
-import type {
-  AlcoholPolicy,
-  HalalQuestionnaireDraft,
-  MeatProductSourcing,
-  MeatType,
-  MenuPosture,
-  SlaughterMethod,
+import { friendlyApiError } from "@/lib/api/friendly-errors";
+import {
+  type AlcoholPolicy,
+  type HalalQuestionnaireDraft,
+  type MeatProductSourcing,
+  type MeatType,
+  type MeatTypeValue,
+  type MenuPosture,
+  type SlaughterMethod,
+  useReconcileSupplier,
 } from "@/lib/api/hooks";
+import { useToast } from "@/lib/hooks/use-toast";
 
 const MEAT_TYPE_LABELS: Record<MeatType, string> = {
   CHICKEN: "Chicken",
@@ -141,20 +144,73 @@ function MeatProductsRow({
                   ✓ Linked to a registry supplier
                 </div>
               ) : p.supplier_name && placeId ? (
-                <Link
-                  href={`/places/${placeId}?linkSupplier=${encodeURIComponent(
-                    p.supplier_name,
-                  )}#sourcing`}
-                  className="mt-1 inline-block text-xs font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  Link to registry →
-                </Link>
+                <ReconcileButton placeId={placeId} product={p} />
               ) : null}
             </li>
           );
         })}
       </ul>
     </Row>
+  );
+}
+
+/**
+ * One-click reconcile: creates (or reuses) the supplier + its product line and
+ * links it to the place in a single call. Idempotent, so a re-click is safe.
+ */
+function ReconcileButton({
+  placeId,
+  product,
+}: {
+  placeId: string;
+  product: MeatProductSourcing;
+}) {
+  const { toast } = useToast();
+  const reconcile = useReconcileSupplier(placeId);
+  const [done, setDone] = React.useState(false);
+
+  if (done) {
+    return (
+      <div className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+        ✓ Supplier created &amp; linked
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={reconcile.isPending || !product.supplier_name}
+      onClick={async () => {
+        try {
+          await reconcile.mutateAsync({
+            supplier_name: product.supplier_name ?? "",
+            meat_type: product.meat_type as MeatTypeValue,
+            product_name: product.product_name,
+            slaughter_method: product.slaughter_method,
+            supplier_city: product.supplier_city ?? null,
+            supplier_state: product.supplier_state ?? null,
+            certifying_body_name: product.certifying_authority ?? null,
+          });
+          setDone(true);
+          toast({
+            title: "Linked to registry",
+            description: `${product.supplier_name} · ${product.product_name}`,
+            variant: "success",
+          });
+        } catch (err) {
+          toast({
+            ...friendlyApiError(err, {
+              defaultTitle: "Couldn't create the supplier link",
+            }),
+            variant: "destructive",
+          });
+        }
+      }}
+      className="mt-1 inline-flex items-center gap-1 rounded-md border border-primary/40 px-2 py-1 text-xs font-medium text-primary transition hover:bg-primary/5 disabled:opacity-50"
+    >
+      {reconcile.isPending ? "Creating & linking…" : "Create & link supplier"}
+    </button>
   );
 }
 

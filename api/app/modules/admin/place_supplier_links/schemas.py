@@ -52,3 +52,20 @@ class PlaceSupplierLinkPatch(BaseModel):
 
     evidence_tier: SourcingEvidence | None = None
     note: str | None = Field(default=None, max_length=500)
+
+
+class SupplierReconcileRequest(BaseModel):
+    """One-shot reconciliation from a claim's stated supplier: find-or-create
+    the supplier + its product line and link this place to it, in one call."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    supplier_name: str = Field(min_length=1, max_length=255)
+    meat_type: MeatType
+    product_name: str = Field(min_length=1, max_length=255)
+    slaughter_method: SlaughterMethod = SlaughterMethod.NOT_DISCLOSED
+    supplier_city: str | None = Field(default=None, max_length=120)
+    supplier_state: str | None = Field(default=None, max_length=120)
+    certifying_body_name: str | None = Field(default=None, max_length=255)
+    evidence_tier: SourcingEvidence = SourcingEvidence.OWNER_STATED
+    note: str | None = Field(default=None, max_length=500)

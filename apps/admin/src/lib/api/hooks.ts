@@ -2769,6 +2769,34 @@ export function useCreatePlaceSupplierLink(placeId: string) {
   });
 }
 
+/**
+ * One-shot reconcile from a claim: find-or-create the supplier + its product
+ * line and link it to the place, atomically. Idempotent server-side, so a
+ * re-click reuses the existing supplier/line/link.
+ */
+export function useReconcileSupplier(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      supplier_name: string;
+      meat_type: MeatTypeValue;
+      product_name: string;
+      // Full SlaughterMethod enum server-side; string here to bridge the
+      // questionnaire's method type and the supplier vocabulary.
+      slaughter_method?: string;
+      supplier_city?: string | null;
+      supplier_state?: string | null;
+      certifying_body_name?: string | null;
+      note?: string | null;
+    }) =>
+      apiFetch<PlaceSupplierLinkAdminRead>(
+        `/admin/places/${placeId}/supplier-links/reconcile`,
+        { method: "POST", json: payload },
+      ),
+    onSuccess: () => invalidatePlaceLinks(qc, placeId),
+  });
+}
+
 export function usePatchPlaceSupplierLink(placeId: string) {
   const qc = useQueryClient();
   return useMutation({

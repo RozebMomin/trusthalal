@@ -1,10 +1,11 @@
 """Admin data access for place → supplier-product sourcing links."""
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError
@@ -12,15 +13,29 @@ from app.modules.admin.place_supplier_links.schemas import (
     PlaceSupplierLinkAdminRead,
     PlaceSupplierLinkCreate,
     PlaceSupplierLinkPatch,
+    SupplierReconcileRequest,
 )
 from app.modules.places.models import Place
-from app.modules.suppliers.enums import LinkSource
+from app.modules.suppliers.enums import (
+    LinkSource,
+    SupplierEventType,
+    SupplierTier,
+    ZabihahStatus,
+)
 from app.modules.suppliers.models import (
     PlaceSupplierLink,
     Supplier,
+    SupplierEvent,
     SupplierProduct,
 )
 from app.modules.suppliers.repo import fill_profile_method_from_supplier
+
+_RED_MEAT = {"BEEF", "LAMB", "GOAT"}
+
+
+def _slugify(name: str) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")
+    return s or "supplier"
 
 Row = tuple[PlaceSupplierLink, SupplierProduct, Supplier]
 
@@ -129,6 +144,124 @@ def admin_create_place_link(
     )
     db.commit()
     db.refresh(link)
+    return _to_read(link, product, supplier)
+
+
+def admin_reconcile_supplier_for_place(
+    db: Session,
+    *,
+    place_id: UUID,
+    payload: SupplierReconcileRequest,
+    actor_user_id: UUID | None,
+) -> PlaceSupplierLinkAdminRead:
+    """One-shot reconcile: find-or-create the supplier + its product line and
+    link this place to it — atomically, in a single transaction.
+
+    Idempotent by design: a supplier is reused when one already exists with the
+    same slug (name), a product line is reused on ``(supplier, meat, product
+    name)``, and an existing live link is returned rather than duplicated. So an
+    admin can safely re-run it. Used from the claim review's "create & link".
+    """
+    _require_place(db, place_id)
+    meat = payload.meat_type.value
+
+    # --- supplier: reuse by slug, else create -----------------------------
+    base = _slugify(payload.supplier_name)
+    supplier = db.execute(
+        select(Supplier).where(Supplier.slug == base)
+    ).scalar_one_or_none()
+    if supplier is None:
+        slug, n = base, 2
+        while db.execute(
+            select(Supplier.id).where(Supplier.slug == slug)
+        ).scalar_one_or_none() is not None:
+            slug, n = f"{base}-{n}", n + 1
+        supplier = Supplier(
+            name=payload.supplier_name.strip(),
+            slug=slug,
+            city=payload.supplier_city,
+            region=payload.supplier_state,
+            certifying_body_name=payload.certifying_body_name,
+            verification_tier=SupplierTier.LISTED.value,
+        )
+        db.add(supplier)
+        db.flush()
+        db.add(
+            SupplierEvent(
+                supplier_id=supplier.id,
+                event_type=SupplierEventType.LISTED.value,
+                actor_user_id=actor_user_id,
+                description="Created from claim reconciliation.",
+            )
+        )
+
+    # --- product line: reuse by (meat, name), else create -----------------
+    product = db.execute(
+        select(SupplierProduct).where(
+            SupplierProduct.supplier_id == supplier.id,
+            SupplierProduct.meat_type == meat,
+            func.lower(SupplierProduct.product_name)
+            == payload.product_name.strip().lower(),
+        )
+    ).scalar_one_or_none()
+    if product is None:
+        zabihah = None
+        if meat in _RED_MEAT:
+            zabihah = (
+                ZabihahStatus.ZABIHAH.value
+                if payload.slaughter_method.value in ("HAND_CUT", "MACHINE_CUT")
+                else ZabihahStatus.UNSURE.value
+            )
+        product = SupplierProduct(
+            supplier_id=supplier.id,
+            meat_type=meat,
+            product_name=payload.product_name.strip(),
+            slaughter_method=payload.slaughter_method.value,
+            zabihah_status=zabihah,
+            line_tier=SupplierTier.LISTED.value,
+            certifying_body_name=payload.certifying_body_name,
+        )
+        db.add(product)
+        db.flush()
+        db.add(
+            SupplierEvent(
+                supplier_id=supplier.id,
+                event_type=SupplierEventType.LINE_ADDED.value,
+                actor_user_id=actor_user_id,
+                description=f"{meat} — {product.product_name} (claim reconciliation).",
+            )
+        )
+
+    # --- link: reuse a live one, else create ------------------------------
+    link = db.execute(
+        select(PlaceSupplierLink).where(
+            PlaceSupplierLink.place_id == place_id,
+            PlaceSupplierLink.supplier_product_id == product.id,
+            PlaceSupplierLink.ended_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if link is None:
+        link = PlaceSupplierLink(
+            place_id=place_id,
+            supplier_product_id=product.id,
+            meat_type=product.meat_type,
+            evidence_tier=payload.evidence_tier.value,
+            source=LinkSource.ADMIN.value,
+            note=payload.note,
+        )
+        db.add(link)
+        db.flush()
+
+    fill_profile_method_from_supplier(
+        db,
+        place_id=place_id,
+        meat_type=str(product.meat_type),
+        method=str(product.slaughter_method),
+    )
+    db.commit()
+    db.refresh(link)
+    db.refresh(product)
+    db.refresh(supplier)
     return _to_read(link, product, supplier)
 
 

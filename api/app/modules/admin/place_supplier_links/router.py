@@ -16,11 +16,13 @@ from app.modules.admin.place_supplier_links.repo import (
     admin_end_place_link,
     admin_list_place_links,
     admin_patch_place_link,
+    admin_reconcile_supplier_for_place,
 )
 from app.modules.admin.place_supplier_links.schemas import (
     PlaceSupplierLinkAdminRead,
     PlaceSupplierLinkCreate,
     PlaceSupplierLinkPatch,
+    SupplierReconcileRequest,
 )
 from app.modules.users.enums import UserRole
 
@@ -59,6 +61,29 @@ def create_place_link_admin(
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> PlaceSupplierLinkAdminRead:
     return admin_create_place_link(
+        db, place_id=place_id, payload=payload, actor_user_id=user.id
+    )
+
+
+@router.post(
+    "/{place_id}/supplier-links/reconcile",
+    response_model=PlaceSupplierLinkAdminRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="One-shot: find-or-create a supplier + line and link it to the place",
+    description=(
+        "Reconciles a claim's stated free-text supplier into the registry in a "
+        "single call: find-or-create the supplier, find-or-create its product "
+        "line for the meat, and link this place to it. Idempotent — reuses "
+        "existing supplier/line/link rather than duplicating."
+    ),
+)
+def reconcile_supplier_admin(
+    place_id: UUID,
+    payload: SupplierReconcileRequest,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> PlaceSupplierLinkAdminRead:
+    return admin_reconcile_supplier_for_place(
         db, place_id=place_id, payload=payload, actor_user_id=user.id
     )
 
