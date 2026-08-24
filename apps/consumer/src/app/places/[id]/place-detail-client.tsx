@@ -51,6 +51,7 @@ import {
   PlacePhotoLightbox,
 } from "@/components/place-photo-gallery";
 import {
+  PlaceFamilyAmenities,
   PlaceNoTrustSummary,
   PlaceTrustSummary,
 } from "@/components/place-trust-summary";
@@ -267,6 +268,10 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
               ) : (
                 <PlaceNoTrustSummary />
               )}
+
+              {/* Family amenities as their own row — facility conveniences,
+                  not part of the halal verdict, so out of the trust card. */}
+              <PlaceFamilyAmenities profile={place.data.halal_profile} />
 
               <PlaceActionCard
                 place={place.data}

@@ -339,6 +339,8 @@ export default function PlaceDetail() {
                 />
               </View>
 
+              <AmenityRow profile={place.halal_profile} />
+
               <TrustHistoryRow
                 onPress={() => {
                   capture("trust_history_opened", { place_id: place.id, place_name: place.name });
@@ -881,24 +883,40 @@ function TrustCard({
           </View>
         ) : null}
 
-        <AmenityRow profile={profile} />
-
         <ProvenanceFooter profile={profile} onDetails={onDetails} />
       </View>
     </View>
   );
 }
 
-/** Family / prayer amenities the place positively offers (YES or ON_REQUEST).
+/** Family / prayer amenities the place positively offers (YES or ON_REQUEST),
+ *  as its own card row on the detail page (a sibling of the trust card, not
+ *  nested inside it — these are facility conveniences, not a halal claim).
  *  Subtle zinc pills, same labels + rule as the search card via the shared
  *  amenityBadgesFor helper. Renders nothing when there's no positive signal. */
-function AmenityRow({ profile }: { profile: HalalProfileEmbed }) {
+function AmenityRow({ profile }: { profile: HalalProfileEmbed | null }) {
   const t = useTheme();
   const badges = amenityBadgesFor(profile);
   if (badges.length === 0) return null;
   return (
-    <View style={{ gap: 6 }}>
-      <Text style={[ty.small, { color: t.sub, fontSize: 11 }]}>For families</Text>
+    <View
+      style={{
+        backgroundColor: t.card,
+        borderRadius: radii.xl,
+        paddingHorizontal: space.lg,
+        paddingVertical: 14,
+        gap: 10,
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+        <Feather name="users" size={16} color={t.accentDeep} />
+        <Text style={[ty.label, { color: t.ink, fontSize: 13 }]}>For families</Text>
+      </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
         {badges.map((b) => (
           <View

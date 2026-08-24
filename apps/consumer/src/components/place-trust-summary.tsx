@@ -45,6 +45,7 @@ import {
   ExternalLink,
   Info,
   ShieldCheck,
+  Users,
   Wine,
   WineOff,
 } from "lucide-react";
@@ -228,8 +229,6 @@ export function PlaceTrustSummary({
         )}
 
         {profile.caveats && <Caveats text={profile.caveats} />}
-
-        <AmenityBadges profile={profile} />
 
         <ProvenanceFooter profile={profile} />
       </div>
@@ -1016,20 +1015,29 @@ function Row({
 }
 
 // ---------------------------------------------------------------------------
-// Family-amenity badges. Convenience signals (prayer space, wudu, bidet,
-// baby changing) a place positively offers, subtle secondary chips so
-// they don't compete with the halal verdict above. Same YES / ON_REQUEST
-// rule and labels as the search-result card. Renders nothing when there's
-// no positive amenity signal.
+// Family-amenity card. Convenience signals (prayer space, wudu, bidet, baby
+// changing) a place positively offers. Its OWN section on the detail page (a
+// sibling of the trust summary, not nested inside it) — these are facility
+// conveniences, not part of the halal verdict, so they shouldn't ride inside
+// the verdict card. Same YES / ON_REQUEST rule and labels as the search-result
+// card. Renders nothing when there's no positive amenity signal.
 // ---------------------------------------------------------------------------
-function AmenityBadges({ profile }: { profile: HalalProfileEmbed }) {
+export function PlaceFamilyAmenities({
+  profile,
+}: {
+  profile: HalalProfileEmbed | null | undefined;
+}) {
   const badges = amenityBadgesFor(profile);
   if (badges.length === 0) return null;
   return (
-    <div className="space-y-1.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        Amenities
-      </p>
+    <section
+      aria-label="Family amenities"
+      className="space-y-2 rounded-xl border bg-card p-4 shadow-sm"
+    >
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Users className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+        For families
+      </h2>
       <div className="flex flex-wrap gap-1.5">
         {badges.map((label) => (
           <span
@@ -1040,7 +1048,7 @@ function AmenityBadges({ profile }: { profile: HalalProfileEmbed }) {
           </span>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
