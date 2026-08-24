@@ -54,3 +54,36 @@ export function amenityBadgesFor(
   }
   return out;
 }
+
+/** Boost-amenity wire code (as sent to the API's ``boost_amenities`` param) →
+ *  the profile field that carries it. Keep in step with the backend's
+ *  ``_AMENITY_SQL_COL`` map. */
+const BOOST_CODE_TO_FIELD: Readonly<
+  Record<string, "prayer_space" | "wudu" | "bidet" | "baby_changing">
+> = {
+  PRAYER_SPACE: "prayer_space",
+  WUDU: "wudu",
+  BIDET: "bidet",
+  BABY_CHANGING: "baby_changing",
+};
+
+/**
+ * True when a place positively offers at least one of the requested boost
+ * amenities (YES / ON_REQUEST). Used as a primary client-side sort key so the
+ * "prioritize for families" toggles float matching places to the top even
+ * after the Explore list is re-sorted by distance — mirroring the server's
+ * boost, which the distance re-sort would otherwise discard.
+ */
+export function matchesBoostAmenities(
+  profile: HalalProfileEmbed | null | undefined,
+  codes: readonly string[] | null | undefined,
+): boolean {
+  if (!profile || !codes?.length) return false;
+  for (const code of codes) {
+    const field = BOOST_CODE_TO_FIELD[code];
+    if (!field) continue;
+    const value = profile[field];
+    if (value === "YES" || value === "ON_REQUEST") return true;
+  }
+  return false;
+}

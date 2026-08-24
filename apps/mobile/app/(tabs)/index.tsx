@@ -17,6 +17,7 @@ import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { PlaceCard } from "@/components/PlaceCard";
+import { matchesBoostAmenities } from "@/lib/amenities";
 import { countFilters, FiltersSheet, type Filters } from "@/components/FiltersSheet";
 import { LocationSheet, type PickedLocation } from "@/components/LocationSheet";
 import { capture } from "@/lib/analytics";
@@ -180,13 +181,25 @@ export default function Explore() {
   >(() => {
     const data = search.data ?? [];
     if (!coords) return data.map((place) => ({ place }));
+    const boostCodes = filters.boost_amenities ?? [];
     return data
       .map((place) => ({
         place,
         distanceMeters: haversineMeters(coords, { lat: place.lat, lng: place.lng }),
       }))
-      .sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
-  }, [search.data, coords]);
+      .sort((a, b) => {
+        // "Prioritize for families" is a primary key: a place offering a
+        // requested amenity floats above one that doesn't, regardless of
+        // distance. Without this, this distance re-sort silently discards the
+        // server's amenity boost. Within each group, distance still governs.
+        if (boostCodes.length) {
+          const ba = matchesBoostAmenities(a.place.halal_profile, boostCodes) ? 1 : 0;
+          const bb = matchesBoostAmenities(b.place.halal_profile, boostCodes) ? 1 : 0;
+          if (ba !== bb) return bb - ba;
+        }
+        return (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0);
+      });
+  }, [search.data, coords, filters.boost_amenities]);
 
   // Only asked once the search already came back empty — several COUNT
   // queries, and no reason to pay for them on a search that worked.

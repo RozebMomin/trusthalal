@@ -124,6 +124,7 @@ const VALID_CUISINES: ReadonlySet<string> = new Set<Cuisine>([
 import { capturePostHog } from "@/lib/analytics";
 import { useMyPreferences } from "@/lib/api/preferences";
 import { haversineDistanceMeters } from "@/lib/geo";
+import { matchesBoostAmenities } from "@/lib/amenities";
 import {
   compareByGoogleRating,
   compareByTrustHalalRating,
@@ -473,7 +474,18 @@ function HomePageInner() {
         lng: place.lng,
       }),
     }));
+    const boostCodes = effectiveFilters.boost_amenities ?? [];
     withDistance.sort((a, b) => {
+      // "Prioritize for families" is a primary key: a place that offers a
+      // requested amenity floats above one that doesn't, regardless of the
+      // distance/rating sort below. Without this, re-sorting the page by
+      // distance here silently discards the server's amenity boost — the
+      // whole point of the toggle. Within each group the chosen sort applies.
+      if (boostCodes.length) {
+        const ba = matchesBoostAmenities(a.place.halal_profile, boostCodes) ? 1 : 0;
+        const bb = matchesBoostAmenities(b.place.halal_profile, boostCodes) ? 1 : 0;
+        if (ba !== bb) return bb - ba;
+      }
       // Two rating sorts, because there are two ratings. This used to be a
       // single "Highest rated" that silently meant Google's, the same
       // conflation the place page now avoids by labelling both.
@@ -489,7 +501,7 @@ function HomePageInner() {
       return sortMode === "closest" ? da - db : db - da;
     });
     return withDistance;
-  }, [search.data, nearMeActive, sortMode]);
+  }, [search.data, nearMeActive, sortMode, effectiveFilters.boost_amenities]);
 
   // Filter sheet open/close state. Lives here (not in the URL): a
   // shareable link with ``?filters_open=true`` would be confusing
