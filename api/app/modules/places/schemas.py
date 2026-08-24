@@ -317,9 +317,17 @@ class HalalProfileEmbed(BaseModel):
     alcohol_policy: str
     alcohol_in_cooking: bool
     chicken_slaughter: str
+    # Retained red-meat slaughter columns (legacy; clients read the *_zabihah
+    # fields below for beef/lamb/goat now). Kept until the cleanup migration.
     beef_slaughter: str
     lamb_slaughter: str
     goat_slaughter: str
+    # Red-meat zabihah axis (ZABIHAH / NOT_ZABIHAH / UNSURE / NOT_SERVED). This
+    # is what consumer surfaces render for beef/lamb/goat — hand/machine doesn't
+    # apply to red meat. Chicken keeps ``chicken_slaughter``.
+    beef_zabihah: str = "NOT_SERVED"
+    lamb_zabihah: str = "NOT_SERVED"
+    goat_zabihah: str = "NOT_SERVED"
     seafood_only: bool
     has_certification: bool
     certifying_body_name: str | None

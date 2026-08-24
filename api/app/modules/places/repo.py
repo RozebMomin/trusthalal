@@ -20,6 +20,7 @@ from app.modules.halal_profiles.enums import (
     MenuPosture,
     SlaughterMethod,
     ValidationTier,
+    ZabihahStatus,
 )
 from app.modules.halal_profiles.models import HalalProfile
 from app.modules.organizations.models import (
@@ -114,10 +115,13 @@ class HalalSearchFilters:
     # link composing to DOCUMENTED or better (all of supplier tier, line tier,
     # and sourcing evidence at rung >= 2), against a non-revoked supplier.
     supplier_verified: bool | None = None
+    # Poultry uses the hand/machine axis; red meat uses the zabihah axis. The
+    # frontend adds UNSURE to the red-meat list when the diner opts to include
+    # unsure places, so a plain IN(...) covers the "include Unsure" toggle.
     chicken_slaughter: Sequence[SlaughterMethod] = ()
-    beef_slaughter: Sequence[SlaughterMethod] = ()
-    lamb_slaughter: Sequence[SlaughterMethod] = ()
-    goat_slaughter: Sequence[SlaughterMethod] = ()
+    beef_zabihah: Sequence[ZabihahStatus] = ()
+    lamb_zabihah: Sequence[ZabihahStatus] = ()
+    goat_zabihah: Sequence[ZabihahStatus] = ()
     has_certification: bool | None = None
     no_pork: bool | None = None
     no_alcohol_served: bool | None = None
@@ -130,9 +134,9 @@ class HalalSearchFilters:
             and self.min_menu_posture is None
             and self.supplier_verified is None
             and not self.chicken_slaughter
-            and not self.beef_slaughter
-            and not self.lamb_slaughter
-            and not self.goat_slaughter
+            and not self.beef_zabihah
+            and not self.lamb_zabihah
+            and not self.goat_zabihah
             and self.has_certification is None
             and self.no_pork is None
             and self.no_alcohol_served is None
@@ -174,23 +178,17 @@ def _apply_halal_filters(stmt: Select, filters: HalalSearchFilters) -> Select:
                 [s.value for s in filters.chicken_slaughter]
             )
         )
-    if filters.beef_slaughter:
+    if filters.beef_zabihah:
         stmt = stmt.where(
-            HalalProfile.beef_slaughter.in_(
-                [s.value for s in filters.beef_slaughter]
-            )
+            HalalProfile.beef_zabihah.in_([s.value for s in filters.beef_zabihah])
         )
-    if filters.lamb_slaughter:
+    if filters.lamb_zabihah:
         stmt = stmt.where(
-            HalalProfile.lamb_slaughter.in_(
-                [s.value for s in filters.lamb_slaughter]
-            )
+            HalalProfile.lamb_zabihah.in_([s.value for s in filters.lamb_zabihah])
         )
-    if filters.goat_slaughter:
+    if filters.goat_zabihah:
         stmt = stmt.where(
-            HalalProfile.goat_slaughter.in_(
-                [s.value for s in filters.goat_slaughter]
-            )
+            HalalProfile.goat_zabihah.in_([s.value for s in filters.goat_zabihah])
         )
     if filters.has_certification is True:
         stmt = stmt.where(HalalProfile.has_certification.is_(True))
@@ -585,9 +583,9 @@ RELAXABLE_FILTERS: tuple[str, ...] = (
     "no_pork",
     "no_alcohol_served",
     "chicken_slaughter",
-    "beef_slaughter",
-    "lamb_slaughter",
-    "goat_slaughter",
+    "beef_zabihah",
+    "lamb_zabihah",
+    "goat_zabihah",
 )
 
 

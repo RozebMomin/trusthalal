@@ -52,6 +52,7 @@ from app.modules.halal_profiles.enums import (
     MenuPosture,
     SlaughterMethod,
     ValidationTier,
+    ZabihahStatus,
 )
 from app.modules.halal_profiles.models import HalalProfile, HalalProfileEvent
 
@@ -128,6 +129,27 @@ def _slaughter_rollup(products, meat_type: "MeatType") -> str:
     if SlaughterMethod.MACHINE_CUT in methods:
         return SlaughterMethod.MACHINE_CUT.value
     return SlaughterMethod.HAND_CUT.value
+
+
+def _zabihah_rollup(products, meat_type: "MeatType") -> str:
+    """Red-meat (beef/lamb/goat) equivalent of ``_slaughter_rollup``, on the
+    zabihah axis. The owner questionnaire still records a per-product
+    ``slaughter_method``; for red meat we map it to zabihah status (locked
+    rule): any product with a positive method (HAND_CUT / MACHINE_CUT) → ZABIHAH;
+    only NOT_DISCLOSED entries → UNSURE; nothing served → NOT_SERVED. (When the
+    owner capture flow gains a native zabihah field, read it here instead.)"""
+    matching = [
+        p
+        for p in (products or [])
+        if p.meat_type == meat_type
+        and p.slaughter_method != SlaughterMethod.NOT_SERVED
+    ]
+    if not matching:
+        return ZabihahStatus.NOT_SERVED.value
+    methods = {p.slaughter_method for p in matching}
+    if SlaughterMethod.HAND_CUT in methods or SlaughterMethod.MACHINE_CUT in methods:
+        return ZabihahStatus.ZABIHAH.value
+    return ZabihahStatus.UNSURE.value
 
 
 def _certification_from_claim(
@@ -316,9 +338,14 @@ def _profile_fields_from_questionnaire(
         # land in. Adding columns for those is a separate phase
         # if/when consumer search needs them.
         "chicken_slaughter": _slaughter_rollup(products, MeatType.CHICKEN),
+        # Red-meat *_slaughter retained (unread) with the same rollup; the
+        # *_zabihah columns below are what consumer surfaces render for red meat.
         "beef_slaughter": _slaughter_rollup(products, MeatType.BEEF),
         "lamb_slaughter": _slaughter_rollup(products, MeatType.LAMB),
         "goat_slaughter": _slaughter_rollup(products, MeatType.GOAT),
+        "beef_zabihah": _zabihah_rollup(products, MeatType.BEEF),
+        "lamb_zabihah": _zabihah_rollup(products, MeatType.LAMB),
+        "goat_zabihah": _zabihah_rollup(products, MeatType.GOAT),
         "seafood_only": questionnaire.seafood_only,
         "has_certification": has_cert,
         "certifying_body_name": cert_body,
