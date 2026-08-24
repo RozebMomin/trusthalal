@@ -12,8 +12,14 @@ suite or apply Alembic migrations** here. Everything below is py_compile-clean a
 follows existing house patterns, but the migrations + tests need a run in your
 env before deploy.
 
-### Done & committed (all additive / non-breaking — nothing reads the new red-meat
-axis yet, so deploying these alone changes no consumer display):
+### >>> CURRENT STATE: entire BACKEND done & committed; FRONTEND (both consumer
+### apps) + admin/verifier-capture UIs remain. Backend is coherent on its own —
+### it writes AND reads the zabihah axis for red meat; the API is deploy-safe.
+### The frontends still send/read the old `*_slaughter` fields for red meat, so
+### until they're updated the red-meat filter is an inert no-op and cards still
+### show the old label. Land the frontend before deploying so display matches.
+
+### Done & committed:
 - **Phase 1 — certifier registry** (`5ca5464`… actually commit `24fffe5`): new
   `app/modules/certifiers/` (models + enums), migration `ff60718293a4` creating
   `certifiers` / `certifier_aliases` / `certifier_adverse_events` + **seed of the
@@ -31,30 +37,51 @@ axis yet, so deploying these alone changes no consumer display):
   them; **fixed the lossy `_FINDING_TO_SLAUGHTER` bridge** — red meat now maps
   1:1 to the zabihah axis (bootstrap + refresh write the zabihah columns).
 
-### Remaining (must land atomically across API read-path + both frontends — this
-is the consumer-visible half; a partial deploy would break red-meat display):
-1. **API read-path:** add `beef_zabihah`/`lamb_zabihah`/`goat_zabihah` to
-   `HalalProfileEmbed` (`places/schemas.py`); populate from the profile columns
-   in `_embed_with_products` + the search mapper. (Optional 3b: extend
-   `resolve_place_method` so a red-meat *supplier link* composes zabihah +
-   certifier — currently red-meat zabihah comes from the profile column only.)
-2. **Owner-claim write path:** wherever claim approval writes
-   `beef/lamb/goat_slaughter`, also write the zabihah columns for red meat
-   (mirror of the verifier bridge). *(Check `halal_profiles/service.py` +
-   `halal_claims` processing.)*
-3. **Search filters:** red-meat query params `beef/lamb/goat_slaughter` →
-   `*_zabihah` (+ the "include Unsure" option); `_apply_halal_filters` in
-   `places/repo.py`.
-4. **consumer_preferences:** migrate `beef/lamb/goat_slaughter` columns → zabihah;
-   schema/repo/validator; both prefs UIs.
-5. **Consumer web + mobile:** red-meat filter → zabihah (toggle + include-unsure),
-   red-meat badge → attributed "Zabihah — certified by [body], as stated by the
-   restaurant", prefs UI, types.
-6. **Cleanup (later):** drop the retained `*_slaughter` red-meat columns/fields.
+- **Phase 3b — API read-path + filters** (`4f7280c`): `beef/lamb/goat_zabihah`
+  added to `HalalProfileEmbed` (populated straight from the profile columns);
+  search query params + `HalalSearchFilters` + `_apply_halal_filters` switched
+  red meat to the zabihah columns (the "include Unsure" toggle is just the
+  frontend adding UNSURE to the list); owner-claim approval now writes the
+  zabihah columns via a `_zabihah_rollup` in `halal_profiles/service.py`.
 
-Then **Phase 4** (admin UI: certifier picker + zabihah field + adverse events +
-`/suppliers/<slug>` fix; verifier capture: restore red-meat zabihah in mobile +
-staff visit UIs + cert-body field) and **Phase 5** (final verify: tests + tsc).
+### Remaining
+**A. Consumer frontend (web + mobile) — the deploy-blocking piece.** Coupled to
+consumer_preferences, so do them together:
+1. **Types:** add `beef/lamb/goat_zabihah` to `HalalProfileEmbed`; change the
+   red-meat `SearchPlacesParams` fields from `*_slaughter` → `*_zabihah`
+   (`ZabihahStatus[]`). (consumer `src/lib/api/hooks.ts`; mobile
+   `src/lib/api/types.ts` + `hooks.ts` `searchParamsToQuery`.)
+2. **Filter sheets:** red-meat section → a Zabihah toggle + "include Unsure"
+   option (drop hand/machine for beef/lamb/goat; keep it for chicken).
+   (`components/filters-sheet.tsx`, mobile `components/FiltersSheet.tsx`,
+   `countFilters`/`countActiveFilters`.)
+3. **page.tsx / URL + prefs mapping:** `effectiveFilters`, `isUsingSavedPrefs`,
+   `RELAXABLE`/URL param round-trip switch red meat to `*_zabihah`.
+4. **Display:** red-meat badge → attributed "Zabihah — certified by [body], as
+   stated by the restaurant" reading `*_zabihah` + `certifying_body_name`
+   (place-result-card, place-trust-summary, mobile PlaceCard + `[id].tsx`,
+   `lib/slaughter-display` equivalents). Chicken unchanged.
+5. **consumer_preferences:** migrate `beef/lamb/goat_slaughter` → zabihah
+   (column rename migration + convert values HAND/MACHINE→ZABIHAH; schema
+   validator to ZABIHAH/NOT_ZABIHAH/UNSURE; repo; both prefs UIs). NOTE:
+   PUT `/me/preferences` is `extra="forbid"`, so the frontend and backend prefs
+   fields MUST rename together or saves 422.
+
+**B. Phase 4 — admin UI + verifier capture:** admin certifier picker + zabihah
+field + adverse-event display + `/suppliers/<slug>` fix; verifier capture:
+restore red-meat zabihah findings in mobile + staff visit UIs (`file-visit.tsx`
+`SLAUGHTER_FINDINGS` → per-meat: red meat gets `["ZABIHAH","NOT_ZABIHAH",
+"NOT_SERVED","UNSURE"]`), add optional cert-body field, extend
+`_resolve_verifier_suppliers`.
+
+**C. Phase 5 — verify:** run pytest + `tsc` all apps; drop the retained
+`*_slaughter` red-meat columns in a cleanup migration.
+
+**Deferred/known-legacy (non-breaking):** `_embed_with_products`'s
+`supplier_provenance` loop + `resolve_place_method`'s profile fallback still read
+`beef_slaughter` for red meat (the retained column). Red-meat *supplier-link*
+composition on the zabihah axis is a later refinement; the primary badge already
+reads `beef_zabihah`.
 
 **Why I paused here:** the committed foundation is a clean, non-breaking unit. The
 remainder is tightly coupled and consumer-facing, and I can't run the test suite
