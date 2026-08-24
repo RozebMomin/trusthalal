@@ -17,29 +17,32 @@ const POSTURES = [
   { v: "HALAL_UPON_REQUEST", label: "On request" },
 ] as const;
 
-/** The four per-meat slaughter fields carried on Filters. Restrictive,
- *  multi-select per meat. Only the two user-selectable methods are togglable —
- *  the wire enum also carries NOT_SERVED / NOT_DISCLOSED, which aren't filters
- *  a diner picks. */
-type SlaughterField =
+/** Per-meat filter fields carried on Filters. Chicken uses hand/machine; red
+ *  meat uses a zabihah toggle plus an "include unsure" option. */
+type MeatFilterField =
   | "chicken_slaughter"
-  | "beef_slaughter"
-  | "lamb_slaughter"
-  | "goat_slaughter";
+  | "beef_zabihah"
+  | "lamb_zabihah"
+  | "goat_zabihah";
 
-const SLAUGHTER_MEATS: ReadonlyArray<{ field: SlaughterField; label: string }> = [
-  { field: "chicken_slaughter", label: "Chicken" },
-  { field: "beef_slaughter", label: "Beef" },
-  { field: "lamb_slaughter", label: "Lamb" },
-  { field: "goat_slaughter", label: "Goat" },
-];
-
-const SLAUGHTER_CHOICES: ReadonlyArray<{
-  value: Extract<SlaughterMethod, "HAND_CUT" | "MACHINE_CUT">;
-  label: string;
-}> = [
+const CHICKEN_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
   { value: "HAND_CUT", label: "Hand-cut" },
   { value: "MACHINE_CUT", label: "Machine-cut" },
+];
+const ZABIHAH_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "ZABIHAH", label: "Zabihah" },
+  { value: "UNSURE", label: "Include unsure" },
+];
+
+const MEAT_FILTERS: ReadonlyArray<{
+  field: MeatFilterField;
+  label: string;
+  choices: ReadonlyArray<{ value: string; label: string }>;
+}> = [
+  { field: "chicken_slaughter", label: "Chicken", choices: CHICKEN_CHOICES },
+  { field: "beef_zabihah", label: "Beef", choices: ZABIHAH_CHOICES },
+  { field: "lamb_zabihah", label: "Lamb", choices: ZABIHAH_CHOICES },
+  { field: "goat_zabihah", label: "Goat", choices: ZABIHAH_CHOICES },
 ];
 
 /** Family-amenity priority boosts. NOT restrictive — these re-rank rather than
@@ -61,16 +64,16 @@ export type Filters = Pick<
   | "has_certification"
   | "open_now"
   | "chicken_slaughter"
-  | "beef_slaughter"
-  | "lamb_slaughter"
-  | "goat_slaughter"
+  | "beef_zabihah"
+  | "lamb_zabihah"
+  | "goat_zabihah"
   | "boost_amenities"
 >;
 
 export function countFilters(f: Filters) {
   let n = [f.min_validation_tier, f.min_menu_posture, f.no_pork, f.no_alcohol_served, f.has_certification, f.open_now].filter(Boolean).length;
   // Each selected slaughter method is its own restrictive constraint.
-  for (const { field } of SLAUGHTER_MEATS) n += f[field]?.length ?? 0;
+  for (const { field } of MEAT_FILTERS) n += f[field]?.length ?? 0;
   // boost_amenities is intentionally NOT counted — it re-ranks, never removes,
   // so it must not inflate a badge that reads as "things are being filtered out".
   return n;
@@ -184,17 +187,17 @@ export function FiltersSheet({
             <Chip on={!!filters.has_certification} label="Certificate on file" onPress={() => onChange({ ...filters, has_certification: filters.has_certification ? undefined : true })} />
           </View>
 
-          <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 4 }]}>Slaughter method</Text>
+          <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 4 }]}>Meat</Text>
           <Text style={[ty.small, { color: t.sub, marginBottom: 10 }]}>
-            Picking a method keeps only places that serve that meat that way.
+            Chicken filters by hand vs machine. Beef, lamb and goat filter by zabihah — add &ldquo;Include unsure&rdquo; to also show unconfirmed places.
           </Text>
           <View style={{ gap: 10 }}>
-            {SLAUGHTER_MEATS.map(({ field, label }) => {
-              const selected = filters[field] ?? [];
+            {MEAT_FILTERS.map(({ field, label, choices }) => {
+              const selected = (filters[field] as string[] | undefined) ?? [];
               return (
                 <View key={field} style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
                   <Text style={{ width: 58, color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{label}</Text>
-                  {SLAUGHTER_CHOICES.map((choice) => {
+                  {choices.map((choice) => {
                     const on = selected.includes(choice.value);
                     return (
                       <Chip

@@ -23,9 +23,9 @@ export const FILTER_LABELS: Readonly<Record<string, string>> = {
   no_pork: "no pork on the menu",
   no_alcohol_served: "no alcohol served",
   chicken_slaughter: "that chicken slaughter method",
-  beef_slaughter: "that beef slaughter method",
-  lamb_slaughter: "that lamb slaughter method",
-  goat_slaughter: "that goat slaughter method",
+  beef_zabihah: "that beef zabihah status",
+  lamb_zabihah: "that lamb zabihah status",
+  goat_zabihah: "that goat zabihah status",
 };
 
 /**
@@ -60,7 +60,7 @@ export const FILTER_BUTTON_LABELS: Readonly<Record<string, string>> = {
   no_pork: "no pork",
   no_alcohol_served: "no alcohol",
   chicken_slaughter: "chicken method",
-  beef_slaughter: "beef method",
-  lamb_slaughter: "lamb method",
-  goat_slaughter: "goat method",
+  beef_zabihah: "beef zabihah",
+  lamb_zabihah: "lamb zabihah",
+  goat_zabihah: "goat zabihah",
 };

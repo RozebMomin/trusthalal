@@ -8,6 +8,7 @@ const profile = (over: object) => ({
   validation_tier: "SELF_ATTESTED" as const,
   menu_posture: "HALAL_OPTIONS_ADVERTISED" as const,
   chicken_slaughter: null, beef_slaughter: null, lamb_slaughter: null, goat_slaughter: null,
+  beef_zabihah: null, lamb_zabihah: null, goat_zabihah: null,
   has_pork: false, alcohol_policy: null, alcohol_in_cooking: false, seafood_only: false,
   has_certification: false, certifying_body_name: null,
   certificate_expires_at: null, certificate_url: null, certificate_content_type: null,
@@ -29,6 +30,7 @@ export const FIXTURE_PLACES: PlaceSearchResult[] = [
     halal_profile: profile({
       validation_tier: "TRUST_HALAL_VERIFIED", menu_posture: "FULLY_HALAL",
       chicken_slaughter: "HAND_CUT", beef_slaughter: "HAND_CUT", lamb_slaughter: "HAND_CUT",
+      beef_zabihah: "ZABIHAH", lamb_zabihah: "ZABIHAH",
       alcohol_policy: "NONE", has_certification: true, certifying_body_name: "IFANCA",
       // Deliberately mixed, because the uniform case hides the bug this
       // feature exists to fix: the rollup is least-conservative-wins, so

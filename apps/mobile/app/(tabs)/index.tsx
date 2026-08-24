@@ -71,9 +71,9 @@ function prefsToFilters(p: ConsumerPreferences): Filters {
   // Per-meat slaughter defaults seed the same restrictive filters the Filters
   // sheet sets. Null/empty = no preference.
   if (p.chicken_slaughter?.length) f.chicken_slaughter = p.chicken_slaughter;
-  if (p.beef_slaughter?.length) f.beef_slaughter = p.beef_slaughter;
-  if (p.lamb_slaughter?.length) f.lamb_slaughter = p.lamb_slaughter;
-  if (p.goat_slaughter?.length) f.goat_slaughter = p.goat_slaughter;
+  if (p.beef_zabihah?.length) f.beef_zabihah = p.beef_zabihah;
+  if (p.lamb_zabihah?.length) f.lamb_zabihah = p.lamb_zabihah;
+  if (p.goat_zabihah?.length) f.goat_zabihah = p.goat_zabihah;
   return f;
 }
 

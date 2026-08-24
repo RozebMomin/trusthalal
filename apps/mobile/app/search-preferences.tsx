@@ -51,22 +51,30 @@ const POSTURES: Array<{ v: MenuPosture; label: string }> = [
   { v: "HALAL_UPON_REQUEST", label: "On request" },
 ];
 
-const SLAUGHTER_MEATS: ReadonlyArray<{
-  field: "chicken_slaughter" | "beef_slaughter" | "lamb_slaughter" | "goat_slaughter";
-  label: string;
-}> = [
-  { field: "chicken_slaughter", label: "Chicken" },
-  { field: "beef_slaughter", label: "Beef" },
-  { field: "lamb_slaughter", label: "Lamb" },
-  { field: "goat_slaughter", label: "Goat" },
-];
+type MeatDefaultField =
+  | "chicken_slaughter"
+  | "beef_zabihah"
+  | "lamb_zabihah"
+  | "goat_zabihah";
 
-const SLAUGHTER_CHOICES: ReadonlyArray<{
-  value: Extract<SlaughterMethod, "HAND_CUT" | "MACHINE_CUT">;
-  label: string;
-}> = [
+const CHICKEN_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
   { value: "HAND_CUT", label: "Hand-cut" },
   { value: "MACHINE_CUT", label: "Machine-cut" },
+];
+const ZABIHAH_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "ZABIHAH", label: "Zabihah" },
+  { value: "UNSURE", label: "Include unsure" },
+];
+
+const MEAT_DEFAULTS: ReadonlyArray<{
+  field: MeatDefaultField;
+  label: string;
+  choices: ReadonlyArray<{ value: string; label: string }>;
+}> = [
+  { field: "chicken_slaughter", label: "Chicken", choices: CHICKEN_CHOICES },
+  { field: "beef_zabihah", label: "Beef", choices: ZABIHAH_CHOICES },
+  { field: "lamb_zabihah", label: "Lamb", choices: ZABIHAH_CHOICES },
+  { field: "goat_zabihah", label: "Goat", choices: ZABIHAH_CHOICES },
 ];
 
 function countSet(p: ConsumerPreferences): number {
@@ -77,7 +85,7 @@ function countSet(p: ConsumerPreferences): number {
     p.no_alcohol_served,
     p.has_certification,
   ].filter(Boolean).length;
-  for (const { field } of SLAUGHTER_MEATS) n += p[field]?.length ?? 0;
+  for (const { field } of MEAT_DEFAULTS) n += p[field]?.length ?? 0;
   return n;
 }
 
@@ -235,14 +243,13 @@ export default function SearchPreferences() {
         />
       </View>
 
-      <Seg>Slaughter method</Seg>
+      <Seg>Meat</Seg>
       <Text style={[ty.small, { color: t.sub }]}>
-        Pick per meat. A place is only shown if it serves that meat the way you
-        selected.
+        Chicken filters by hand vs machine. Beef, lamb and goat filter by zabihah — add &ldquo;Include unsure&rdquo; to also show unconfirmed places.
       </Text>
       <View style={{ gap: 10 }}>
-        {SLAUGHTER_MEATS.map((meat) => {
-          const selected = draft[meat.field] ?? [];
+        {MEAT_DEFAULTS.map((meat) => {
+          const selected = (draft[meat.field] as string[] | undefined) ?? [];
           return (
             <View
               key={meat.field}
@@ -258,7 +265,7 @@ export default function SearchPreferences() {
               >
                 {meat.label}
               </Text>
-              {SLAUGHTER_CHOICES.map((choice) => {
+              {meat.choices.map((choice) => {
                 const on = selected.includes(choice.value);
                 return (
                   <Chip

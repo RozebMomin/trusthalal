@@ -101,11 +101,16 @@ function eventDetail(event: HalalHistoryEvent): string | null {
 
 function methodLabel(m: string | null | undefined): string | null {
   if (!m || m === "NOT_SERVED") return null;
+  // Chicken (hand/machine).
   if (m === "HAND_CUT") return "Hand-slaughtered";
   if (m === "MACHINE_CUT") return "Machine-slaughtered";
   // Served, but the method wasn't confirmed on the visit — surfaced so the
   // consumer knows it's on the menu and can ask staff for the specifics.
   if (m === "NOT_DISCLOSED") return "Method not confirmed";
+  // Red meat (zabihah axis).
+  if (m === "ZABIHAH") return "Zabihah";
+  if (m === "NOT_ZABIHAH") return "Not zabihah";
+  if (m === "UNSURE") return "Zabihah status unconfirmed";
   return m.charAt(0) + m.slice(1).toLowerCase().replaceAll("_", " ");
 }
 
@@ -161,9 +166,9 @@ export function TrustProfileSheet({
   const meats = (
     [
       ["Chicken", p?.chicken_slaughter],
-      ["Beef", p?.beef_slaughter],
-      ["Lamb", p?.lamb_slaughter],
-      ["Goat", p?.goat_slaughter],
+      ["Beef", p?.beef_zabihah],
+      ["Lamb", p?.lamb_zabihah],
+      ["Goat", p?.goat_zabihah],
     ] as Array<[string, string | null | undefined]>
   ).filter(([, m]) => m && m !== "NOT_SERVED") as Array<[string, string]>;
 

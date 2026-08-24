@@ -246,9 +246,9 @@ function searchParamsToQuery(p: SearchPlacesParams): string {
   // Per-meat slaughter filters (restrictive) + amenity boosts (re-rank) —
   // all multi-value, serialized as repeated keys the same way cuisine is.
   for (const m of p.chicken_slaughter ?? []) u.append("chicken_slaughter", m);
-  for (const m of p.beef_slaughter ?? []) u.append("beef_slaughter", m);
-  for (const m of p.lamb_slaughter ?? []) u.append("lamb_slaughter", m);
-  for (const m of p.goat_slaughter ?? []) u.append("goat_slaughter", m);
+  for (const m of p.beef_zabihah ?? []) u.append("beef_zabihah", m);
+  for (const m of p.lamb_zabihah ?? []) u.append("lamb_zabihah", m);
+  for (const m of p.goat_zabihah ?? []) u.append("goat_zabihah", m);
   for (const a of p.boost_amenities ?? []) u.append("boost_amenities", a);
   return u.toString();
 }
@@ -546,9 +546,9 @@ export function useUpdateMyPreferences() {
           no_alcohol_served: input.no_alcohol_served ?? null,
           has_certification: input.has_certification ?? null,
           chicken_slaughter: input.chicken_slaughter ?? null,
-          beef_slaughter: input.beef_slaughter ?? null,
-          lamb_slaughter: input.lamb_slaughter ?? null,
-          goat_slaughter: input.goat_slaughter ?? null,
+          beef_zabihah: input.beef_zabihah ?? null,
+          lamb_zabihah: input.lamb_zabihah ?? null,
+          goat_zabihah: input.goat_zabihah ?? null,
         }),
       }),
     onSuccess: (data) => qc.setQueryData(SEARCH_PREFS_KEY, data),

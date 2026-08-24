@@ -20,6 +20,13 @@ export type SlaughterMethod =
   | "UNKNOWN"
   | "NOT_SERVED"
   | "NOT_DISCLOSED";
+
+/** Red-meat axis (beef / lamb / goat). Chicken keeps SlaughterMethod. */
+export type ZabihahStatus =
+  | "ZABIHAH"
+  | "NOT_ZABIHAH"
+  | "UNSURE"
+  | "NOT_SERVED";
 export type AlcoholPolicy = "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
 export type DisputeState = "NONE" | "DISPUTED" | "RECONCILING";
 
@@ -53,6 +60,10 @@ export type HalalProfileEmbed = {
   beef_slaughter: SlaughterMethod | null;
   lamb_slaughter: SlaughterMethod | null;
   goat_slaughter: SlaughterMethod | null;
+  // Red-meat zabihah axis — what the UI renders for beef/lamb/goat.
+  beef_zabihah: ZabihahStatus | null;
+  lamb_zabihah: ZabihahStatus | null;
+  goat_zabihah: ZabihahStatus | null;
   /** Family / prayer amenities, each `"YES" | "ON_REQUEST" | "NO" | "UNSURE"`
    *  or null (never captured). A badge shows only for YES / ON_REQUEST — see
    *  lib/amenities.ts, which both the search card and the detail screen read
@@ -264,9 +275,9 @@ export type SearchPlacesParams = {
    *  keeps places serving that meat by any of the listed methods. Only the two
    *  user-selectable values (HAND_CUT / MACHINE_CUT) are ever sent. */
   chicken_slaughter?: SlaughterMethod[];
-  beef_slaughter?: SlaughterMethod[];
-  lamb_slaughter?: SlaughterMethod[];
-  goat_slaughter?: SlaughterMethod[];
+  beef_zabihah?: ZabihahStatus[];
+  lamb_zabihah?: ZabihahStatus[];
+  goat_zabihah?: ZabihahStatus[];
   /** Family-amenity PRIORITY BOOST (never restrictive). Matching places rank
    *  higher; non-matches still appear. Values: PRAYER_SPACE | WUDU | BIDET |
    *  BABY_CHANGING. Deliberately excluded from the active-filter count. */
@@ -345,9 +356,9 @@ export type ConsumerPreferences = {
   // = no preference for that meat. Mirrors the Filters sheet's per-meat
   // multi-select.
   chicken_slaughter?: SlaughterMethod[] | null;
-  beef_slaughter?: SlaughterMethod[] | null;
-  lamb_slaughter?: SlaughterMethod[] | null;
-  goat_slaughter?: SlaughterMethod[] | null;
+  beef_zabihah?: ZabihahStatus[] | null;
+  lamb_zabihah?: ZabihahStatus[] | null;
+  goat_zabihah?: ZabihahStatus[] | null;
   updated_at?: string | null;
 };
 
