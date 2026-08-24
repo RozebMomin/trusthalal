@@ -32,6 +32,7 @@ import {
 import { ApiError, apiFetch } from "./client";
 import type {
   MenuPosture,
+  SlaughterMethod,
   ValidationTier,
 } from "./hooks";
 import {
@@ -58,6 +59,13 @@ export type ConsumerPreferences = {
   no_pork: boolean | null;
   no_alcohol_served: boolean | null;
   has_certification: boolean | null;
+  // Per-meat slaughter-method defaults (HAND_CUT / MACHINE_CUT). Null = no
+  // preference for that meat. Mirrors the per-meat multi-select in the search
+  // filter sheet.
+  chicken_slaughter: SlaughterMethod[] | null;
+  beef_slaughter: SlaughterMethod[] | null;
+  lamb_slaughter: SlaughterMethod[] | null;
+  goat_slaughter: SlaughterMethod[] | null;
   updated_at: string | null;
 };
 
@@ -178,6 +186,10 @@ export async function syncLocalToServerOnLogin(): Promise<{
       no_pork: local.no_pork,
       no_alcohol_served: local.no_alcohol_served,
       has_certification: local.has_certification,
+      chicken_slaughter: local.chicken_slaughter,
+      beef_slaughter: local.beef_slaughter,
+      lamb_slaughter: local.lamb_slaughter,
+      goat_slaughter: local.goat_slaughter,
     };
     await apiFetch<ConsumerPreferences>("/me/preferences", {
       method: "PUT",
@@ -206,5 +218,9 @@ export const EMPTY_PREFERENCES: ConsumerPreferences = {
   no_pork: null,
   no_alcohol_served: null,
   has_certification: null,
+  chicken_slaughter: null,
+  beef_slaughter: null,
+  lamb_slaughter: null,
+  goat_slaughter: null,
   updated_at: null,
 };

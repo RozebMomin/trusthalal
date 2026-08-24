@@ -20,9 +20,35 @@
 import type {
   HalalProfileEmbed,
   MenuPosture,
+  SlaughterMethod,
   ValidationTier,
 } from "@/lib/api/hooks";
 import type { ConsumerPreferences } from "@/lib/api/preferences";
+
+// The per-meat slaughter preference axes, paired with the profile field that
+// carries the place's method and a display noun. Iterated so one block covers
+// all four meats.
+const SLAUGHTER_MEATS: ReadonlyArray<{
+  prefKey: "chicken_slaughter" | "beef_slaughter" | "lamb_slaughter" | "goat_slaughter";
+  noun: string;
+}> = [
+  { prefKey: "chicken_slaughter", noun: "chicken" },
+  { prefKey: "beef_slaughter", noun: "beef" },
+  { prefKey: "lamb_slaughter", noun: "lamb" },
+  { prefKey: "goat_slaughter", noun: "goat" },
+];
+
+const SLAUGHTER_METHOD_LABELS: Record<string, string> = {
+  HAND_CUT: "hand-cut",
+  MACHINE_CUT: "machine-cut",
+};
+
+/** "hand-cut or machine-cut" — the accepted methods, human-joined. */
+function slaughterMethodsPhrase(methods: SlaughterMethod[]): string {
+  const words = methods.map((m) => SLAUGHTER_METHOD_LABELS[m] ?? m.toLowerCase());
+  if (words.length <= 1) return words[0] ?? "";
+  return `${words.slice(0, -1).join(", ")} or ${words[words.length - 1]}`;
+}
 
 // Same orderings as the server's _VALIDATION_TIER_ORDER /
 // _MENU_POSTURE_ORDER tuples (see api/app/modules/places/repo.py).
@@ -96,7 +122,8 @@ export function matchProfileToPreferences(
     prefs.min_menu_posture !== null ||
     prefs.no_pork === true ||
     prefs.no_alcohol_served === true ||
-    prefs.has_certification === true;
+    prefs.has_certification === true ||
+    SLAUGHTER_MEATS.some((m) => (prefs[m.prefKey]?.length ?? 0) > 0);
 
   if (!hasAnyPreference) return EMPTY_RESULT;
 
@@ -141,6 +168,16 @@ export function matchProfileToPreferences(
         label: "halal certification",
         reason: "no certification on file",
       });
+    }
+    for (const meat of SLAUGHTER_MEATS) {
+      const methods = prefs[meat.prefKey];
+      if (methods && methods.length > 0) {
+        reasons.push({
+          key: meat.prefKey,
+          label: `${meat.noun} ${slaughterMethodsPhrase(methods)}`,
+          reason: "no halal information on file",
+        });
+      }
     }
     return {
       isMatch: false,
@@ -215,6 +252,28 @@ export function matchProfileToPreferences(
       key: "has_certification",
       label: "halal certification on file",
       reason: ok ? "" : "no halal certification on file",
+    });
+  }
+
+  // ---- Per-meat slaughter method (set membership) ----
+  // Mirrors the server filter: a place matches only when its method for that
+  // meat is one the diner accepts. NOT_SERVED / NOT_DISCLOSED / null aren't in
+  // the accepted set, so they read as a mismatch (the place doesn't serve that
+  // meat the way the diner wants).
+  for (const meat of SLAUGHTER_MEATS) {
+    const methods = prefs[meat.prefKey];
+    if (!methods || methods.length === 0) continue;
+    const placeMethod = profile[meat.prefKey] as SlaughterMethod | null;
+    const ok = placeMethod !== null && methods.includes(placeMethod);
+    const wanted = slaughterMethodsPhrase(methods);
+    (ok ? matched : mismatched).push({
+      key: meat.prefKey,
+      label: `${meat.noun} ${wanted}`,
+      reason: ok
+        ? ""
+        : placeMethod && SLAUGHTER_METHOD_LABELS[placeMethod]
+          ? `${meat.noun} here is ${SLAUGHTER_METHOD_LABELS[placeMethod]}`
+          : `${meat.noun} slaughter method isn't confirmed here`,
     });
   }
 

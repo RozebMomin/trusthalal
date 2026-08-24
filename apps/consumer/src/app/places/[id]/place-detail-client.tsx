@@ -75,7 +75,7 @@ import {
   useMyDisputes,
   usePlaceDetail,
 } from "@/lib/api/hooks";
-import { useMyPreferences } from "@/lib/api/preferences";
+import { EMPTY_PREFERENCES, useMyPreferences } from "@/lib/api/preferences";
 import { matchProfileToPreferences } from "@/lib/preferences/match";
 import { reportPlaceSignal } from "@/lib/api/signals";
 
@@ -125,14 +125,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
     () =>
       matchProfileToPreferences(
         place.data?.halal_profile ?? null,
-        prefsQuery.data ?? {
-          min_validation_tier: null,
-          min_menu_posture: null,
-          no_pork: null,
-          no_alcohol_served: null,
-          has_certification: null,
-          updated_at: null,
-        },
+        prefsQuery.data ?? EMPTY_PREFERENCES,
       ),
     [place.data?.halal_profile, prefsQuery.data],
   );

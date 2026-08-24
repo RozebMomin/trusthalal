@@ -13,9 +13,42 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
-from app.modules.halal_profiles.enums import MenuPosture, ValidationTier
+from app.modules.halal_profiles.enums import (
+    MenuPosture,
+    SlaughterMethod,
+    ValidationTier,
+)
+
+# The only two methods a diner picks as a preference. NOT_SERVED / NOT_DISCLOSED
+# describe a place, not something a searcher filters *for*, so they're rejected
+# on write to keep saved prefs clean (and symmetric with the filter sheet's two
+# choices).
+_SELECTABLE_SLAUGHTER = frozenset(
+    {SlaughterMethod.HAND_CUT, SlaughterMethod.MACHINE_CUT}
+)
+
+
+def _validate_slaughter(
+    value: Optional[list[SlaughterMethod]],
+) -> Optional[list[SlaughterMethod]]:
+    if value is None:
+        return None
+    bad = [m for m in value if m not in _SELECTABLE_SLAUGHTER]
+    if bad:
+        raise ValueError(
+            "slaughter preferences must be HAND_CUT or MACHINE_CUT"
+        )
+    # De-dupe while preserving order — the UI shouldn't send dupes, but a
+    # stored ["HAND_CUT","HAND_CUT"] would be silly.
+    seen: set[SlaughterMethod] = set()
+    out: list[SlaughterMethod] = []
+    for m in value:
+        if m not in seen:
+            seen.add(m)
+            out.append(m)
+    return out or None
 
 
 class ConsumerPreferencesRead(BaseModel):
@@ -34,6 +67,13 @@ class ConsumerPreferencesRead(BaseModel):
     no_pork: Optional[bool] = None
     no_alcohol_served: Optional[bool] = None
     has_certification: Optional[bool] = None
+    # Per-meat slaughter-method defaults (each a list of HAND_CUT / MACHINE_CUT,
+    # or null for "no preference"). Mirror the search sheet's per-meat
+    # multi-select.
+    chicken_slaughter: Optional[list[SlaughterMethod]] = None
+    beef_slaughter: Optional[list[SlaughterMethod]] = None
+    lamb_slaughter: Optional[list[SlaughterMethod]] = None
+    goat_slaughter: Optional[list[SlaughterMethod]] = None
     # Set when at least one PUT has landed; null when the row doesn't
     # exist yet. Lets the UI tell "you haven't customized anything
     # yet" from "you turned everything off."
@@ -62,3 +102,19 @@ class ConsumerPreferencesUpdate(BaseModel):
     no_pork: Optional[bool] = None
     no_alcohol_served: Optional[bool] = None
     has_certification: Optional[bool] = None
+    chicken_slaughter: Optional[list[SlaughterMethod]] = None
+    beef_slaughter: Optional[list[SlaughterMethod]] = None
+    lamb_slaughter: Optional[list[SlaughterMethod]] = None
+    goat_slaughter: Optional[list[SlaughterMethod]] = None
+
+    @field_validator(
+        "chicken_slaughter",
+        "beef_slaughter",
+        "lamb_slaughter",
+        "goat_slaughter",
+    )
+    @classmethod
+    def _only_selectable_methods(
+        cls, value: Optional[list[SlaughterMethod]]
+    ) -> Optional[list[SlaughterMethod]]:
+        return _validate_slaughter(value)

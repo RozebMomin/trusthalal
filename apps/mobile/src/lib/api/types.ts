@@ -341,6 +341,13 @@ export type ConsumerPreferences = {
   no_pork?: boolean | null;
   no_alcohol_served?: boolean | null;
   has_certification?: boolean | null;
+  // Per-meat slaughter-method defaults (HAND_CUT / MACHINE_CUT). Null / absent
+  // = no preference for that meat. Mirrors the Filters sheet's per-meat
+  // multi-select.
+  chicken_slaughter?: SlaughterMethod[] | null;
+  beef_slaughter?: SlaughterMethod[] | null;
+  lamb_slaughter?: SlaughterMethod[] | null;
+  goat_slaughter?: SlaughterMethod[] | null;
   updated_at?: string | null;
 };
 

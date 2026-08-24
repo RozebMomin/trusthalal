@@ -15,7 +15,12 @@ import {
   useMyPreferences,
   useUpdateMyPreferences,
 } from "@/lib/api/hooks";
-import type { ConsumerPreferences, MenuPosture, ValidationTier } from "@/lib/api/types";
+import type {
+  ConsumerPreferences,
+  MenuPosture,
+  SlaughterMethod,
+  ValidationTier,
+} from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Card, Chip, ScreenHeader, Seg } from "@/ui/kit";
@@ -46,14 +51,34 @@ const POSTURES: Array<{ v: MenuPosture; label: string }> = [
   { v: "HALAL_UPON_REQUEST", label: "On request" },
 ];
 
+const SLAUGHTER_MEATS: ReadonlyArray<{
+  field: "chicken_slaughter" | "beef_slaughter" | "lamb_slaughter" | "goat_slaughter";
+  label: string;
+}> = [
+  { field: "chicken_slaughter", label: "Chicken" },
+  { field: "beef_slaughter", label: "Beef" },
+  { field: "lamb_slaughter", label: "Lamb" },
+  { field: "goat_slaughter", label: "Goat" },
+];
+
+const SLAUGHTER_CHOICES: ReadonlyArray<{
+  value: Extract<SlaughterMethod, "HAND_CUT" | "MACHINE_CUT">;
+  label: string;
+}> = [
+  { value: "HAND_CUT", label: "Hand-cut" },
+  { value: "MACHINE_CUT", label: "Machine-cut" },
+];
+
 function countSet(p: ConsumerPreferences): number {
-  return [
+  let n = [
     p.min_validation_tier,
     p.min_menu_posture,
     p.no_pork,
     p.no_alcohol_served,
     p.has_certification,
   ].filter(Boolean).length;
+  for (const { field } of SLAUGHTER_MEATS) n += p[field]?.length ?? 0;
+  return n;
 }
 
 export default function SearchPreferences() {
@@ -208,6 +233,50 @@ export default function SearchPreferences() {
             set({ has_certification: draft.has_certification ? null : true })
           }
         />
+      </View>
+
+      <Seg>Slaughter method</Seg>
+      <Text style={[ty.small, { color: t.sub }]}>
+        Pick per meat. A place is only shown if it serves that meat the way you
+        selected.
+      </Text>
+      <View style={{ gap: 10 }}>
+        {SLAUGHTER_MEATS.map((meat) => {
+          const selected = draft[meat.field] ?? [];
+          return (
+            <View
+              key={meat.field}
+              style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}
+            >
+              <Text
+                style={{
+                  width: 58,
+                  color: t.ink,
+                  fontFamily: "Inter_600SemiBold",
+                  fontSize: 12,
+                }}
+              >
+                {meat.label}
+              </Text>
+              {SLAUGHTER_CHOICES.map((choice) => {
+                const on = selected.includes(choice.value);
+                return (
+                  <Chip
+                    key={choice.value}
+                    on={on}
+                    label={choice.label}
+                    onPress={() => {
+                      const next = on
+                        ? selected.filter((m) => m !== choice.value)
+                        : [...selected, choice.value];
+                      set({ [meat.field]: next.length ? next : null });
+                    }}
+                  />
+                );
+              })}
+            </View>
+          );
+        })}
       </View>
 
       <View style={{ marginTop: space.lg, gap: space.sm }}>

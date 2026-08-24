@@ -18,7 +18,7 @@ from typing import Optional
 from uuid import UUID as PyUUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -48,6 +48,21 @@ class ConsumerPreferences(Base):
     has_certification: Mapped[Optional[bool]] = mapped_column(
         Boolean, nullable=True
     )
+
+    # Per-meat slaughter-method defaults. Each is a JSONB array of the
+    # user-selectable methods (``["HAND_CUT", "MACHINE_CUT"]``) — a saved
+    # version of the per-meat multi-select in the search filter sheet. NULL /
+    # absent = no preference for that meat. JSONB (not four scalar columns per
+    # meat) because the control is genuinely multi-select: a diner may accept
+    # either method. Kept out of the search SQL — the frontend expands these
+    # into the same repeated ``chicken_slaughter=`` query params a manual
+    # filter would send, so there's one filter code path.
+    chicken_slaughter: Mapped[Optional[list]] = mapped_column(
+        JSONB, nullable=True
+    )
+    beef_slaughter: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    lamb_slaughter: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    goat_slaughter: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

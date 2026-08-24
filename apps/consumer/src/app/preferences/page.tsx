@@ -39,6 +39,7 @@ import {
 } from "@/lib/api/preferences";
 import type {
   MenuPosture,
+  SlaughterMethod,
   ValidationTier,
 } from "@/lib/api/hooks";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
@@ -86,6 +87,27 @@ const MENU_POSTURE_OPTIONS: ReadonlyArray<{
   { value: "MIXED_SHARED_KITCHEN", label: "Any halal options" },
 ];
 
+// Per-meat slaughter defaults — the saved counterpart of the search sheet's
+// per-meat multi-select. Only the two methods a diner picks are offered
+// (NOT_SERVED / NOT_DISCLOSED describe a place, not a filter target).
+const SLAUGHTER_MEATS: ReadonlyArray<{
+  field: "chicken_slaughter" | "beef_slaughter" | "lamb_slaughter" | "goat_slaughter";
+  label: string;
+}> = [
+  { field: "chicken_slaughter", label: "Chicken" },
+  { field: "beef_slaughter", label: "Beef" },
+  { field: "lamb_slaughter", label: "Lamb" },
+  { field: "goat_slaughter", label: "Goat" },
+];
+
+const SLAUGHTER_CHOICES: ReadonlyArray<{
+  value: Extract<SlaughterMethod, "HAND_CUT" | "MACHINE_CUT">;
+  label: string;
+}> = [
+  { value: "HAND_CUT", label: "Hand-cut" },
+  { value: "MACHINE_CUT", label: "Machine-cut" },
+];
+
 export default function PreferencesPage() {
   const { data: me, isLoading: meLoading } = useCurrentUser();
   const isAuthenticated = Boolean(me);
@@ -130,6 +152,23 @@ export default function PreferencesPage() {
     setErrorMsg(null);
   }
 
+  // Toggle one method on/off for a meat. Collapses to null when the last
+  // method is removed so "no methods picked" reads the same as "no preference".
+  function toggleSlaughter(
+    field: (typeof SLAUGHTER_MEATS)[number]["field"],
+    method: SlaughterMethod,
+  ) {
+    setDraft((prev) => {
+      const current = prev[field] ?? [];
+      const next = current.includes(method)
+        ? current.filter((m) => m !== method)
+        : [...current, method];
+      return { ...prev, [field]: next.length > 0 ? next : null };
+    });
+    setSaved(false);
+    setErrorMsg(null);
+  }
+
   async function onSave() {
     setSaved(false);
     setErrorMsg(null);
@@ -140,6 +179,10 @@ export default function PreferencesPage() {
         no_pork: draft.no_pork,
         no_alcohol_served: draft.no_alcohol_served,
         has_certification: draft.has_certification,
+        chicken_slaughter: draft.chicken_slaughter,
+        beef_slaughter: draft.beef_slaughter,
+        lamb_slaughter: draft.lamb_slaughter,
+        goat_slaughter: draft.goat_slaughter,
       });
       setSaved(true);
     } catch (err) {
@@ -160,6 +203,10 @@ export default function PreferencesPage() {
         no_pork: null,
         no_alcohol_served: null,
         has_certification: null,
+        chicken_slaughter: null,
+        beef_slaughter: null,
+        lamb_slaughter: null,
+        goat_slaughter: null,
       });
       setDraft(EMPTY_PREFERENCES);
       setSaved(true);
@@ -328,6 +375,39 @@ export default function PreferencesPage() {
               )
             }
           />
+        </div>
+      </section>
+
+      <section className="space-y-4 rounded-lg border bg-card p-5">
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold">Slaughter method</h2>
+          <p className="text-xs text-muted-foreground">
+            Pick per meat. A place is only shown if it serves that meat the way
+            you selected. Leave a meat untouched for no preference.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {SLAUGHTER_MEATS.map((meat) => {
+            const selected = draft[meat.field] ?? [];
+            return (
+              <div
+                key={meat.field}
+                className="flex flex-wrap items-center gap-2"
+              >
+                <span className="w-16 shrink-0 text-sm font-medium">
+                  {meat.label}
+                </span>
+                {SLAUGHTER_CHOICES.map((choice) => (
+                  <PrefToggle
+                    key={choice.value}
+                    label={choice.label}
+                    active={selected.includes(choice.value)}
+                    onClick={() => toggleSlaughter(meat.field, choice.value)}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
       </section>
 

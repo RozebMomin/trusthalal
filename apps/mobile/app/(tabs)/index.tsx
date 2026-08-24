@@ -68,6 +68,12 @@ function prefsToFilters(p: ConsumerPreferences): Filters {
   if (p.no_pork) f.no_pork = true;
   if (p.no_alcohol_served) f.no_alcohol_served = true;
   if (p.has_certification) f.has_certification = true;
+  // Per-meat slaughter defaults seed the same restrictive filters the Filters
+  // sheet sets. Null/empty = no preference.
+  if (p.chicken_slaughter?.length) f.chicken_slaughter = p.chicken_slaughter;
+  if (p.beef_slaughter?.length) f.beef_slaughter = p.beef_slaughter;
+  if (p.lamb_slaughter?.length) f.lamb_slaughter = p.lamb_slaughter;
+  if (p.goat_slaughter?.length) f.goat_slaughter = p.goat_slaughter;
   return f;
 }
 

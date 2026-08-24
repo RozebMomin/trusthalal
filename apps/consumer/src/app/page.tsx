@@ -213,6 +213,18 @@ function HomePageInner() {
       has_certification:
         filtersFromUrl.has_certification ??
         (prefs?.has_certification === true ? true : undefined),
+      // Per-meat slaughter defaults. URL wins; otherwise the saved pref array
+      // (null → undefined) fills the axis, same auto-apply rule as above.
+      chicken_slaughter:
+        filtersFromUrl.chicken_slaughter ??
+        prefs?.chicken_slaughter ??
+        undefined,
+      beef_slaughter:
+        filtersFromUrl.beef_slaughter ?? prefs?.beef_slaughter ?? undefined,
+      lamb_slaughter:
+        filtersFromUrl.lamb_slaughter ?? prefs?.lamb_slaughter ?? undefined,
+      goat_slaughter:
+        filtersFromUrl.goat_slaughter ?? prefs?.goat_slaughter ?? undefined,
     };
   }, [filtersFromUrl, prefsQuery.data]);
 
@@ -231,7 +243,15 @@ function HomePageInner() {
       (filtersFromUrl.no_alcohol_served === undefined &&
         prefs.no_alcohol_served === true) ||
       (filtersFromUrl.has_certification === undefined &&
-        prefs.has_certification === true)
+        prefs.has_certification === true) ||
+      (filtersFromUrl.chicken_slaughter === undefined &&
+        (prefs.chicken_slaughter?.length ?? 0) > 0) ||
+      (filtersFromUrl.beef_slaughter === undefined &&
+        (prefs.beef_slaughter?.length ?? 0) > 0) ||
+      (filtersFromUrl.lamb_slaughter === undefined &&
+        (prefs.lamb_slaughter?.length ?? 0) > 0) ||
+      (filtersFromUrl.goat_slaughter === undefined &&
+        (prefs.goat_slaughter?.length ?? 0) > 0)
     );
   }, [filtersFromUrl, prefsQuery.data]);
 

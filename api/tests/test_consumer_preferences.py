@@ -36,6 +36,10 @@ def test_get_preferences_returns_empty_when_none_saved(api, factories, db_sessio
         "no_pork": None,
         "no_alcohol_served": None,
         "has_certification": None,
+        "chicken_slaughter": None,
+        "beef_slaughter": None,
+        "lamb_slaughter": None,
+        "goat_slaughter": None,
         "updated_at": None,
     }
 
@@ -121,6 +125,10 @@ def test_put_preferences_second_save_replaces_full_row(
         "no_pork": None,
         "no_alcohol_served": True,
         "has_certification": None,
+        "chicken_slaughter": None,
+        "beef_slaughter": None,
+        "lamb_slaughter": None,
+        "goat_slaughter": None,
         "updated_at": body["updated_at"],
     }
 
@@ -214,6 +222,65 @@ def test_put_preferences_rejects_unknown_field(api, factories):
         json={"min_validation_tier_typo": "SELF_ATTESTED"},
     )
     assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Per-meat slaughter preferences
+# ---------------------------------------------------------------------------
+
+
+def test_put_slaughter_prefs_round_trips(api, factories, db_session):
+    consumer = factories.consumer()
+
+    resp = api.as_user(consumer).put(
+        "/me/preferences",
+        json={
+            "chicken_slaughter": ["HAND_CUT", "MACHINE_CUT"],
+            "beef_slaughter": ["HAND_CUT"],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["chicken_slaughter"] == ["HAND_CUT", "MACHINE_CUT"]
+    assert body["beef_slaughter"] == ["HAND_CUT"]
+    # Untouched meats stay null (full-replace).
+    assert body["lamb_slaughter"] is None
+    assert body["goat_slaughter"] is None
+
+    # Stored as a JSONB array of plain strings.
+    row = db_session.execute(
+        select(ConsumerPreferences).where(
+            ConsumerPreferences.user_id == consumer.id
+        )
+    ).scalar_one()
+    assert row.chicken_slaughter == ["HAND_CUT", "MACHINE_CUT"]
+
+
+def test_put_slaughter_prefs_reject_non_selectable_method(api, factories):
+    consumer = factories.consumer()
+    # NOT_SERVED / NOT_DISCLOSED describe a place, not a filter target.
+    resp = api.as_user(consumer).put(
+        "/me/preferences",
+        json={"chicken_slaughter": ["NOT_SERVED"]},
+    )
+    assert resp.status_code == 422
+
+
+def test_put_slaughter_prefs_dedupe_and_empty_collapses_to_null(
+    api, factories
+):
+    consumer = factories.consumer()
+    resp = api.as_user(consumer).put(
+        "/me/preferences",
+        json={
+            "chicken_slaughter": ["HAND_CUT", "HAND_CUT"],
+            "beef_slaughter": [],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["chicken_slaughter"] == ["HAND_CUT"]
+    assert body["beef_slaughter"] is None
 
 
 # ---------------------------------------------------------------------------

@@ -22,6 +22,18 @@ from app.modules.consumer_preferences.models import ConsumerPreferences
 from app.modules.consumer_preferences.schemas import (
     ConsumerPreferencesUpdate,
 )
+from app.modules.halal_profiles.enums import SlaughterMethod
+
+
+def _slaughter_values(
+    methods: list[SlaughterMethod] | None,
+) -> list[str] | None:
+    """Enum members → list of plain strings for the JSONB column. None stays
+    None (no preference); an empty list also collapses to None so "cleared all
+    methods for this meat" reads the same as "never set"."""
+    if not methods:
+        return None
+    return [m.value for m in methods]
 
 
 def get_or_default(
@@ -68,6 +80,13 @@ def upsert(
         "no_pork": payload.no_pork,
         "no_alcohol_served": payload.no_alcohol_served,
         "has_certification": payload.has_certification,
+        # JSONB arrays of method strings. Coerce enum members to their .value
+        # so the stored JSON is plain strings ("HAND_CUT"), matching what the
+        # search query params expect. None (no preference) stays None.
+        "chicken_slaughter": _slaughter_values(payload.chicken_slaughter),
+        "beef_slaughter": _slaughter_values(payload.beef_slaughter),
+        "lamb_slaughter": _slaughter_values(payload.lamb_slaughter),
+        "goat_slaughter": _slaughter_values(payload.goat_slaughter),
     }
 
     if existing is None:
