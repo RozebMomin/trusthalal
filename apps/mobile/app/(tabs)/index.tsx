@@ -412,14 +412,14 @@ export default function Explore() {
                     paddingVertical: 8,
                     borderRadius: 11,
                     alignItems: "center",
-                    backgroundColor: on ? t.card : "transparent",
+                    backgroundColor: on ? t.accent : "transparent",
                     shadowColor: "#000",
                     shadowOpacity: on ? 0.08 : 0,
                     shadowRadius: 4,
                     shadowOffset: { width: 0, height: 1 },
                   }}
                 >
-                  <Text style={{ fontFamily: on ? "Inter_700Bold" : "Inter_600SemiBold", fontSize: 11.5, color: on ? t.ink : t.sub }}>
+                  <Text style={{ fontFamily: on ? "Inter_700Bold" : "Inter_600SemiBold", fontSize: 11.5, color: on ? t.onAccent : t.sub }}>
                     {r} mi
                   </Text>
                 </Pressable>
