@@ -97,12 +97,12 @@ export function PlaceCard({
     >
       <ImageBackground
         source={{ uri: place.hero_photo_url }}
-        style={{ height: 148, justifyContent: "flex-end" }}
+        style={{ height: 210, justifyContent: "flex-end" }}
         resizeMode="cover"
       >
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.65)"]}
-          style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 90 }}
+          style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 120 }}
         />
         <View style={{ position: "absolute", top: 10, left: 10 }}>
           <TierTag signal={signal} onPhoto />
