@@ -101,8 +101,9 @@ export function PlaceCard({
         resizeMode="cover"
       >
         <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.65)"]}
-          style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 120 }}
+          colors={["transparent", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.92)"]}
+          locations={[0, 0.55, 1]}
+          style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 150 }}
         />
         <View style={{ position: "absolute", top: 10, left: 10 }}>
           <TierTag signal={signal} onPhoto />
