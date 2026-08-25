@@ -22,7 +22,6 @@ import type {
   SearchPlacesParams,
   SlaughterMethod,
   ValidationTier,
-  ZabihahStatus,
 } from "@/lib/api/types";
 
 type MCIName = keyof typeof MaterialCommunityIcons.glyphMap;
@@ -191,30 +190,66 @@ export function FiltersSheet({
         <View style={{ backgroundColor: t.card, borderRadius: radii.xl, overflow: "hidden" }}>
           {MEAT_FILTERS.map(({ field, label, icon, red }, i) => {
             const selected = (filters[field] as string[] | undefined) ?? [];
+            const zab = selected.includes("ZABIHAH");
+            const unsure = selected.includes("UNSURE");
             return (
               <View key={field} style={{ borderTopWidth: i === 0 ? 0 : 1, borderTopColor: t.line, padding: 14, gap: 10 }}>
+                {/* icon → label → selector, all inline */}
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
-                    <MaterialCommunityIcons name={icon} size={20} color={t.accentDeep} />
+                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
+                    <MaterialCommunityIcons name={icon} size={18} color={t.accentDeep} />
                   </View>
-                  <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 15, flex: 1 }}>{label}</Text>
+                  <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 14, width: 52 }}>{label}</Text>
+                  <View style={{ flex: 1 }}>
+                    {red ? (
+                      <Segmented
+                        options={[
+                          { key: "", label: "Any" },
+                          { key: "ZABIHAH", label: "Zabihah" },
+                        ]}
+                        value={zab ? "ZABIHAH" : ""}
+                        onSelect={(k) => setField(field, k ? (unsure ? ["ZABIHAH", "UNSURE"] : ["ZABIHAH"]) : undefined)}
+                      />
+                    ) : (
+                      <Segmented
+                        options={[
+                          { key: "", label: "Any" },
+                          { key: "HAND_CUT", label: "Hand-cut" },
+                          { key: "MACHINE_CUT", label: "Machine-cut" },
+                        ]}
+                        value={selected[0] ?? ""}
+                        onSelect={(k) => setField(field, k ? [k] : undefined)}
+                      />
+                    )}
+                  </View>
                 </View>
-                {red ? (
-                  <RedMeatControl
-                    selected={selected}
-                    onSet={(v) => setField(field, v)}
-                  />
-                ) : (
-                  <Segmented
-                    options={[
-                      { key: "", label: "Any" },
-                      { key: "HAND_CUT", label: "Hand-cut" },
-                      { key: "MACHINE_CUT", label: "Machine-cut" },
-                    ]}
-                    value={selected[0] ?? ""}
-                    onSelect={(k) => setField(field, k ? [k] : undefined)}
-                  />
-                )}
+                {/* Include-unsure add-on stays subordinate, below the row */}
+                {red && zab ? (
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: unsure }}
+                    onPress={() => setField(field, unsure ? ["ZABIHAH"] : ["ZABIHAH", "UNSURE"])}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 44 }}
+                  >
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 6,
+                        borderWidth: unsure ? 0 : 1.5,
+                        borderColor: t.line,
+                        backgroundColor: unsure ? t.accent : "transparent",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {unsure ? <Feather name="check" size={13} color={t.onAccent} /> : null}
+                    </View>
+                    <Text style={{ color: t.sub, fontFamily: "Inter_500Medium", fontSize: 12, flex: 1, lineHeight: 16 }}>
+                      Include unconfirmed zabihah status
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
             );
           })}
@@ -266,68 +301,6 @@ export function FiltersSheet({
         onClose={() => setTrustOpen(false)}
       />
     </Sheet>
-  );
-}
-
-/** Red-meat control: an Any/Zabihah segment, plus an "Include unsure" add-on
- *  that appears only when Zabihah is chosen (widening, never a standalone). */
-function RedMeatControl({
-  selected,
-  onSet,
-}: {
-  selected: string[];
-  onSet: (v: string[] | undefined) => void;
-}) {
-  const t = useTheme();
-  const zab = selected.includes("ZABIHAH");
-  const unsure = selected.includes("UNSURE");
-  return (
-    <View style={{ gap: 10 }}>
-      <Segmented
-        options={[
-          { key: "", label: "Any" },
-          { key: "ZABIHAH", label: "Zabihah" },
-        ]}
-        value={zab ? "ZABIHAH" : ""}
-        onSelect={(k) => {
-          const next: ZabihahStatus[] | undefined = k
-            ? unsure
-              ? ["ZABIHAH", "UNSURE"]
-              : ["ZABIHAH"]
-            : undefined;
-          onSet(next);
-        }}
-      />
-      {zab ? (
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: unsure }}
-          onPress={() => {
-            const next: ZabihahStatus[] = unsure ? ["ZABIHAH"] : ["ZABIHAH", "UNSURE"];
-            onSet(next);
-          }}
-          style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-        >
-          <View
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              borderWidth: unsure ? 0 : 1.5,
-              borderColor: t.line,
-              backgroundColor: unsure ? t.accent : "transparent",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {unsure ? <Feather name="check" size={14} color={t.onAccent} /> : null}
-          </View>
-          <Text style={{ color: t.sub, fontFamily: "Inter_500Medium", fontSize: 12.5, flex: 1, lineHeight: 17 }}>
-            Include places whose zabihah status is unconfirmed
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
   );
 }
 
