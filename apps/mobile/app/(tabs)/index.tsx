@@ -329,7 +329,15 @@ export default function Explore() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
           <Chip
             active={coords !== null}
-            label={locating ? "Locating you…" : coords ? cityLabel : "Set location"}
+            label={
+              locating
+                ? "Locating you…"
+                : coords
+                  ? cityLabel === "you"
+                    ? "For you"
+                    : cityLabel
+                  : "Set location"
+            }
             icon="navigation"
             onPress={() => setLocOpen(true)}
           />
@@ -682,17 +690,17 @@ function Chip({
         flexDirection: "row",
         alignItems: "center",
         gap: 5,
-        backgroundColor: active ? t.ink : t.card,
+        backgroundColor: active ? t.accent : t.card,
         borderRadius: 999,
         paddingHorizontal: 13,
         paddingVertical: 8,
         minHeight: 34,
       }}
     >
-      {icon ? <Feather name={icon} size={12} color={active ? t.onInk : t.ink} /> : null}
+      {icon ? <Feather name={icon} size={12} color={active ? t.onAccent : t.ink} /> : null}
       <Text
         style={{
-          color: active ? t.onInk : t.ink,
+          color: active ? t.onAccent : t.ink,
           fontFamily: "Inter_600SemiBold",
           fontSize: 11.5,
         }}
