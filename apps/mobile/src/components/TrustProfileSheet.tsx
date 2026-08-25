@@ -592,26 +592,25 @@ function GroupedSourcing({
             <View key={g.meat} style={{ backgroundColor: t.card, borderRadius: radii.xl, overflow: "hidden" }}>
               <View
                 style={{
-                  flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                  gap: space.sm, paddingHorizontal: 18, paddingVertical: 12,
+                  paddingHorizontal: 18, paddingVertical: 12,
                   borderBottomWidth: 1, borderBottomColor: t.line,
                 }}
               >
-                <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
-                  {provenanceMeatLabel(g.meat)}
-                </Text>
-                {prov ? (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, justifyContent: "flex-end" }}>
-                    {prov.certifying_body_name ? (
-                      <Text style={[ty.small, { color: t.sub, fontSize: 12, textAlign: "right" }]} numberOfLines={1}>
-                        certified by {prov.certifying_body_name}
-                      </Text>
-                    ) : null}
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm }}>
+                  <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
+                    {provenanceMeatLabel(g.meat)}
+                  </Text>
+                  {prov ? (
                     <Pill
                       label={attributionLabel(prov.confidence, ownerAttested)}
                       tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
                     />
-                  </View>
+                  ) : null}
+                </View>
+                {prov?.certifying_body_name ? (
+                  <Text style={[ty.small, { color: t.sub, fontSize: 12, marginTop: 4 }]}>
+                    certified by {prov.certifying_body_name}
+                  </Text>
                 ) : null}
               </View>
               {g.items.map((pr, i) => {
