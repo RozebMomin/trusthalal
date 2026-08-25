@@ -226,6 +226,22 @@ export default function PlaceDetail() {
                     </Text>
                   </View>
                 ) : null}
+                {/* Open-now status, bottom-left over the hero — immediately visible. */}
+                {place.open_now != null ? (
+                  <View
+                    style={{
+                      position: "absolute", left: space.lg, bottom: 40,
+                      flexDirection: "row", alignItems: "center", gap: 6,
+                      backgroundColor: place.open_now ? "rgba(22,163,74,0.95)" : "rgba(0,0,0,0.6)",
+                      borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+                    }}
+                  >
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#fff" }} />
+                    <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>
+                      {place.open_now ? "Open now" : "Closed"}
+                    </Text>
+                  </View>
+                ) : null}
               </Pressable>
             ) : (
               <View style={{ height: insets.top + 44 }} />
