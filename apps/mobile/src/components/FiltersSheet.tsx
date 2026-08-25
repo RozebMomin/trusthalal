@@ -155,15 +155,15 @@ export function FiltersSheet({
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
             <Feather name="clock" size={20} color={t.accentDeep} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: t.ink }}>Places Open Now</Text>
+          <Text style={{ flex: 1, fontFamily: "Inter_700Bold", fontSize: 15, color: t.ink }}>Places Open Now</Text>
+          <View style={{ height: 44, justifyContent: "center" }}>
+            <Switch
+              value={!!filters.open_now}
+              onValueChange={(v) => onChange({ ...filters, open_now: v ? true : undefined })}
+              trackColor={{ true: t.accent, false: t.line }}
+              accessibilityLabel="Open now"
+            />
           </View>
-          <Switch
-            value={!!filters.open_now}
-            onValueChange={(v) => onChange({ ...filters, open_now: v ? true : undefined })}
-            trackColor={{ true: t.accent, false: t.line }}
-            accessibilityLabel="Open now"
-          />
         </Pressable>
 
         {/* Menu coverage — single-select */}
