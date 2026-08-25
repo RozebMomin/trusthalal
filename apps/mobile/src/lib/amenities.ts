@@ -49,13 +49,20 @@ const AMENITY_LABELS: ReadonlyArray<{
  * order (prayer space, wudu, bidet, baby changing). Returns an empty array when
  * the profile is null or has no YES / ON_REQUEST amenity.
  */
-export function amenityBadgesFor(src: AmenitySource): AmenityBadge[] {
+export function amenityBadgesFor(
+  src: AmenitySource,
+  opts: { onRequestSuffix?: boolean } = {},
+): AmenityBadge[] {
+  // Detail page keeps the "(on request)" nuance; the compact card drops it to
+  // save space (pass onRequestSuffix: false).
+  const suffix = opts.onRequestSuffix ?? true;
   if (!src) return [];
   const out: AmenityBadge[] = [];
   for (const { field, label, icon } of AMENITY_LABELS) {
     const value = src[field];
     if (value === "YES") out.push({ label, icon });
-    else if (value === "ON_REQUEST") out.push({ label: `${label} (on request)`, icon });
+    else if (value === "ON_REQUEST")
+      out.push({ label: suffix ? `${label} (on request)` : label, icon });
   }
   return out;
 }

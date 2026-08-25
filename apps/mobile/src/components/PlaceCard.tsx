@@ -35,7 +35,7 @@ export function PlaceCard({
 }) {
   const t = useTheme();
   const signal = primaryHalalSignal(place.halal_profile);
-  const amenities = amenityBadgesFor(place);
+  const amenities = amenityBadgesFor(place, { onRequestSuffix: false });
   const dist = miles(distanceMeters);
   const openState =
     place.open_now === true
