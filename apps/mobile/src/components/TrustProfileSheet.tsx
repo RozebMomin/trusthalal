@@ -9,7 +9,7 @@ import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { CertViewer } from "@/components/CertViewer";
 import { TierTag } from "@/components/TierTag";
-import type { HalalHistoryEvent, PlaceDetail } from "@/lib/api/types";
+import type { HalalHistoryEvent, HalalProfileEmbed, PlaceDetail, SupplierProvenance } from "@/lib/api/types";
 
 const TEST_FORCE_PORK = false;
 
@@ -112,6 +112,21 @@ function methodLabel(m: string | null | undefined): string | null {
   if (m === "NOT_ZABIHAH") return "Not zabihah";
   if (m === "UNSURE") return "Zabihah status unconfirmed";
   return m.charAt(0) + m.slice(1).toLowerCase().replaceAll("_", " ");
+}
+
+const RED_MEATS = new Set(["BEEF", "LAMB", "GOAT"]);
+const SOURCING_MEAT_ORDER = ["CHICKEN", "TURKEY", "DUCK", "BEEF", "LAMB", "GOAT", "FISH", "OTHER"];
+
+/** Species-aware label for a per-product method: red meat maps hand/machine to
+ *  the zabihah axis; chicken keeps hand/machine (via methodLabel). */
+function productMethodText(meatType: string, method: string): string {
+  if (RED_MEATS.has(meatType)) {
+    if (method === "HAND_CUT" || method === "MACHINE_CUT") return "Zabihah";
+    if (method === "NOT_DISCLOSED") return "Zabihah status unconfirmed";
+    if (method === "NOT_SERVED") return "Not served";
+    return method.charAt(0) + method.slice(1).toLowerCase().replaceAll("_", " ");
+  }
+  return methodLabel(method) ?? method;
 }
 
 function monthYear(iso: string | null | undefined): string {
@@ -228,6 +243,10 @@ export function TrustProfileSheet({
 
           {p ? (
             <>
+              {(p.meat_products?.length ?? 0) > 0 ? (
+                <GroupedSourcing profile={p} servesPork={servesPork} />
+              ) : (
+              <>
               {meats.length > 0 || servesPork ? (
                 <Section title="Sourcing · per meat">
                   {meats.map(([meat, raw], i) => (
@@ -293,6 +312,8 @@ export function TrustProfileSheet({
                   })}
                 </Section>
               ) : null}
+              </>
+              )}
 
               <Section title="Kitchen">
                 <SheetRow label="Menu coverage" right={<Value text={POSTURE_LABELS[p.menu_posture] ?? p.menu_posture} />} />
@@ -498,6 +519,140 @@ function Pill({ label, tone = "accent" }: { label: string; tone?: "accent" | "zi
   return (
     <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
       <Text style={{ color: fg, fontFamily: "Inter_700Bold", fontSize: 12.5, letterSpacing: 0.3 }}>{label}</Text>
+    </View>
+  );
+}
+
+function provenanceMeatLabel(meat: string): string {
+  return meat.charAt(0) + meat.slice(1).toLowerCase();
+}
+
+/** Weakest-tier attribution, matching the consumer ConfidenceChip: name the
+ *  source when it's only self-stated (owner's word vs. community). */
+function attributionLabel(
+  confidence: "SELF_STATED" | "DOCUMENTED" | "VERIFIED",
+  ownerAttested: boolean,
+): string {
+  if (confidence === "VERIFIED") return "verified";
+  if (confidence === "DOCUMENTED") return "documented";
+  return ownerAttested ? "as stated by owner" : "reported by community";
+}
+
+// Core meats with a profile column, for the "not served" footnote.
+const CORE_MEATS: ReadonlyArray<{ key: string; label: string; col: keyof HalalProfileEmbed }> = [
+  { key: "CHICKEN", label: "chicken", col: "chicken_slaughter" },
+  { key: "BEEF", label: "beef", col: "beef_zabihah" },
+  { key: "LAMB", label: "lamb", col: "lamb_zabihah" },
+  { key: "GOAT", label: "goat", col: "goat_zabihah" },
+];
+
+/** The single sourcing view: every product the restaurant listed, grouped under
+ *  its meat, with the registry-backed cert + confidence on the group header.
+ *  Replaces the old per-meat rows + separate composed box, which collapsed
+ *  multiple suppliers for one meat (e.g. two beef suppliers) into one row. */
+function GroupedSourcing({
+  profile,
+  servesPork,
+}: {
+  profile: HalalProfileEmbed;
+  servesPork: boolean;
+}) {
+  const t = useTheme();
+  const products = profile.meat_products ?? [];
+  const ownerAttested = profile.owner_attested ?? false;
+
+  // Registry-backed signal per meat (a live supplier link composed it).
+  const provByMeat = new Map<string, SupplierProvenance>();
+  for (const x of profile.supplier_provenance ?? []) {
+    if (x.source === "supplier") provByMeat.set(x.meat_type, x);
+  }
+
+  const groups = SOURCING_MEAT_ORDER.map((meat) => ({
+    meat,
+    items: products.filter((pr) => pr.meat_type === meat),
+  })).filter((g) => g.items.length > 0);
+
+  // "lamb, goat aren't served here" — core meats with no product and a
+  // NOT_SERVED column.
+  const absent = CORE_MEATS.filter(
+    (m) =>
+      String(profile[m.col]) === "NOT_SERVED" &&
+      !products.some((pr) => pr.meat_type === m.key),
+  ).map((m) => m.label);
+
+  return (
+    <View style={{ marginBottom: 22 }}>
+      <Text style={[ty.seg, { color: t.sub, fontSize: 15, letterSpacing: 0.4, marginBottom: 12, marginLeft: 2 }]}>
+        Meat sourcing
+      </Text>
+      <View style={{ gap: 12 }}>
+        {groups.map((g) => {
+          const prov = provByMeat.get(g.meat);
+          return (
+            <View key={g.meat} style={{ backgroundColor: t.card, borderRadius: radii.xl, overflow: "hidden" }}>
+              <View
+                style={{
+                  flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                  gap: space.sm, paddingHorizontal: 18, paddingVertical: 12,
+                  borderBottomWidth: 1, borderBottomColor: t.line,
+                }}
+              >
+                <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
+                  {provenanceMeatLabel(g.meat)}
+                </Text>
+                {prov ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, justifyContent: "flex-end" }}>
+                    {prov.certifying_body_name ? (
+                      <Text style={[ty.small, { color: t.sub, fontSize: 12, textAlign: "right" }]} numberOfLines={1}>
+                        certified by {prov.certifying_body_name}
+                      </Text>
+                    ) : null}
+                    <Pill
+                      label={attributionLabel(prov.confidence, ownerAttested)}
+                      tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
+                    />
+                  </View>
+                ) : null}
+              </View>
+              {g.items.map((pr, i) => {
+                const where = [pr.supplier_city, pr.supplier_state].filter(Boolean).join(", ");
+                const supplierLine = [pr.supplier_name, where].filter(Boolean).join(" · ");
+                return (
+                  <View
+                    key={`${pr.product_name}-${i}`}
+                    style={{ paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: t.line }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: space.sm }}>
+                      <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 16, flexShrink: 1 }]} numberOfLines={2}>
+                        {pr.product_name}
+                      </Text>
+                      <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_700Bold", fontSize: 13, textAlign: "right" }]}>
+                        {productMethodText(pr.meat_type, pr.slaughter_method)}
+                      </Text>
+                    </View>
+                    {supplierLine ? (
+                      <Text style={[ty.small, { color: t.sub, fontSize: 12.5, marginTop: 3 }]}>
+                        {supplierLine}
+                        {pr.certifying_authority ? ` · certified by ${pr.certifying_authority}` : ""}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          );
+        })}
+      </View>
+      {servesPork ? (
+        <View style={{ marginTop: 12, backgroundColor: t.card, borderRadius: radii.xl, paddingHorizontal: 18 }}>
+          <SheetRow label="Pork" last right={<Pill label="ON THE MENU" tone="danger" />} />
+        </View>
+      ) : null}
+      {absent.length > 0 ? (
+        <Text style={[ty.small, { color: t.sub, fontSize: 13, marginTop: 12, marginLeft: 2 }]}>
+          {absent.join(", ")} {absent.length === 1 ? "isn't" : "aren't"} served here.
+        </Text>
+      ) : null}
     </View>
   );
 }
