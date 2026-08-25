@@ -168,12 +168,12 @@ export function FiltersSheet({
 
         {/* Menu coverage — single-select */}
         <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 8 }]}>Menu coverage</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 4 }}>
           {POSTURES.map((o) => {
             const on = filters.min_menu_posture === o.v;
             return <Chip key={o.v} on={on} label={o.label} onPress={() => onChange({ ...filters, min_menu_posture: on ? undefined : o.v })} />;
           })}
-        </View>
+        </ScrollView>
 
         {/* Dietary — multi */}
         <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 8 }]}>Dietary</Text>
