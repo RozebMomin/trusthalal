@@ -769,6 +769,57 @@ const SLAUGHTER_LABELS: Record<string, string> = {
   NOT_DISCLOSED: "Method not confirmed",
 };
 
+// Red meat (beef/lamb/goat) uses the zabihah axis, not hand/machine.
+const ZABIHAH_LABELS: Record<string, string> = {
+  ZABIHAH: "Zabihah",
+  NOT_ZABIHAH: "Not zabihah",
+  UNSURE: "Zabihah status unconfirmed",
+  NOT_SERVED: "Not served",
+};
+
+const RED_MEATS = new Set(["BEEF", "LAMB", "GOAT"]);
+
+/** Species-aware label for a per-product method. Owners record hand/machine for
+ *  every meat; for red meat that maps to the zabihah axis. Chicken keeps
+ *  hand/machine. */
+function productMethodText(meatType: string, method: string): string {
+  if (RED_MEATS.has(meatType)) {
+    if (method === "HAND_CUT" || method === "MACHINE_CUT") return "Zabihah";
+    if (method === "NOT_DISCLOSED") return "Zabihah status unconfirmed";
+    return ZABIHAH_LABELS[method] ?? method;
+  }
+  return SLAUGHTER_LABELS[method] ?? method;
+}
+
+/** One display row per profile meat: chicken on the hand/machine axis,
+ *  beef/lamb/goat on the zabihah axis. ``value`` is the raw stored value;
+ *  ``text`` is the human label; ``served`` is false only for NOT_SERVED. */
+function perMeatDisplayRows(
+  profile: HalalProfileEmbed,
+): Array<{ label: string; value: string; text: string; served: boolean }> {
+  const chicken = profile.chicken_slaughter ?? "NOT_SERVED";
+  const red = (label: string, v: string | null | undefined) => {
+    const value = v ?? "NOT_SERVED";
+    return {
+      label,
+      value,
+      text: ZABIHAH_LABELS[value] ?? value,
+      served: value !== "NOT_SERVED",
+    };
+  };
+  return [
+    {
+      label: "Chicken",
+      value: chicken,
+      text: SLAUGHTER_LABELS[chicken] ?? chicken,
+      served: chicken !== "NOT_SERVED",
+    },
+    red("Beef", profile.beef_zabihah),
+    red("Lamb", profile.lamb_zabihah),
+    red("Goat", profile.goat_zabihah),
+  ];
+}
+
 /**
  * Banner fill by tier. The canonical tier colours live in the palette and are
  * specified in docs/brand-tier-colors.md — emerald / amber / slate, one hue
@@ -1085,6 +1136,11 @@ function meatSummary(profile: HalalProfileEmbed): MeatSummary {
   const known = (m: string) => m === "HAND_CUT" || m === "MACHINE_CUT";
 
   if (products.length > 0) {
+    // Red-meat products are on the zabihah axis — don't fold two axes; render
+    // open so each product shows its own label.
+    if (products.some((p) => RED_MEATS.has(p.meat_type))) {
+      return { text: "Meat sourcing", machine: true, collapsible: false };
+    }
     if (!products.every((p) => known(p.slaughter_method))) {
       return { text: "Meat sourcing", machine: true, collapsible: false };
     }
@@ -1100,39 +1156,31 @@ function meatSummary(profile: HalalProfileEmbed): MeatSummary {
     };
   }
 
-  const rows = [
-    { label: "chicken", method: profile.chicken_slaughter },
-    { label: "beef", method: profile.beef_slaughter },
-    { label: "lamb", method: profile.lamb_slaughter },
-    { label: "goat", method: profile.goat_slaughter },
-  ];
-  const served = rows.filter((r) => r.method && r.method !== "NOT_SERVED");
+  // Chicken is hand/machine; beef/lamb/goat are zabihah. Two axes don't fold
+  // into one tidy summary, so when red meat is served we render the section
+  // open (ServedMeatChips shows each correctly) rather than fake a summary.
+  const chicken = profile.chicken_slaughter ?? "NOT_SERVED";
+  const chickenServed = chicken !== "NOT_SERVED";
+  const redServed = (["beef", "lamb", "goat"] as const).some(
+    (m) => (profile[`${m}_zabihah`] ?? "NOT_SERVED") !== "NOT_SERVED",
+  );
 
-  if (served.length === 0) {
+  if (!chickenServed && !redServed) {
     return {
       text: "No chicken, beef, lamb or goat served",
       machine: false,
       collapsible: false,
     };
   }
-  if (!served.every((r) => known(r.method as string))) {
+  if (redServed) {
     return { text: "Meat sourcing", machine: true, collapsible: false };
   }
-
-  const hand = served.filter((r) => r.method === "HAND_CUT").map((r) => r.label);
-  const machine = served.filter((r) => r.method === "MACHINE_CUT").map((r) => r.label);
-
-  if (machine.length === 0) {
-    return { text: `${sentenceCase(hand.join(", "))} · all hand-cut`, machine: false, collapsible: true };
+  if (!known(chicken)) {
+    return { text: "Meat sourcing", machine: true, collapsible: false };
   }
-  if (hand.length === 0) {
-    return { text: `${sentenceCase(machine.join(", "))} · all machine-cut`, machine: true, collapsible: true };
-  }
-  return {
-    text: `${sentenceCase(hand.join(", "))} hand-cut · ${machine.join(", ")} machine-cut`,
-    machine: true,
-    collapsible: true,
-  };
+  return chicken === "HAND_CUT"
+    ? { text: "Chicken · hand-cut", machine: false, collapsible: true }
+    : { text: "Chicken · machine-cut", machine: true, collapsible: true };
 }
 
 /**
@@ -1155,13 +1203,7 @@ function KitchenDetail({
   const summary = meatSummary(profile);
   const [open, setOpen] = useState(!summary.collapsible);
 
-  const rows = [
-    { label: "Chicken", method: profile.chicken_slaughter },
-    { label: "Beef", method: profile.beef_slaughter },
-    { label: "Lamb", method: profile.lamb_slaughter },
-    { label: "Goat", method: profile.goat_slaughter },
-  ];
-  const absent = rows.filter((r) => r.method === "NOT_SERVED");
+  const absent = perMeatDisplayRows(profile).filter((r) => !r.served);
   const products = profile.meat_products ?? [];
 
   const tone = summary.machine ? t.amber : t.accentDeep;
@@ -1244,16 +1286,10 @@ function ServedMeatChips({
   absent,
 }: {
   profile: HalalProfileEmbed;
-  absent: { label: string; method: SlaughterMethod | null }[];
+  absent: { label: string }[];
 }) {
   const t = useTheme();
-  const rows = [
-    { label: "Chicken", method: profile.chicken_slaughter },
-    { label: "Beef", method: profile.beef_slaughter },
-    { label: "Lamb", method: profile.lamb_slaughter },
-    { label: "Goat", method: profile.goat_slaughter },
-  ];
-  const served = rows.filter((r) => r.method && r.method !== "NOT_SERVED");
+  const served = perMeatDisplayRows(profile).filter((r) => r.served);
 
   if (served.length === 0) {
     return (
@@ -1288,7 +1324,7 @@ function ServedMeatChips({
               {row.label}
             </Text>
             <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 12 }}>
-              {SLAUGHTER_LABELS[row.method as string] ?? row.method}
+              {row.text}
             </Text>
           </View>
         ))}
@@ -1395,7 +1431,7 @@ function ServedProducts({
   absent,
 }: {
   products: MeatProduct[];
-  absent: { label: string; method: SlaughterMethod | null }[];
+  absent: { label: string }[];
 }) {
   const t = useTheme();
 
@@ -1428,7 +1464,7 @@ function ServedProducts({
                 {p.product_name}
               </Text>
               <Text style={{ color: tone, fontFamily: "Inter_700Bold", fontSize: 11.5 }}>
-                {SLAUGHTER_LABELS[p.slaughter_method] ?? p.slaughter_method}
+                {productMethodText(p.meat_type, p.slaughter_method)}
               </Text>
             </View>
             {p.supplier_name ? (

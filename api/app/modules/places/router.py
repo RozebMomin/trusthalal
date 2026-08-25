@@ -133,11 +133,13 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
     # Only the four profile meats are resolved (the ones with a per-meat
     # column); NOT_SERVED meats are skipped.
     provenance: list[SlaughterProvenanceRead] = []
+    # Poultry composes on the slaughter column; red meat on the zabihah column —
+    # the composed value already matches each axis (see resolve_place_method).
     for meat, column in (
         ("CHICKEN", "chicken_slaughter"),
-        ("BEEF", "beef_slaughter"),
-        ("LAMB", "lamb_slaughter"),
-        ("GOAT", "goat_slaughter"),
+        ("BEEF", "beef_zabihah"),
+        ("LAMB", "lamb_zabihah"),
+        ("GOAT", "goat_zabihah"),
     ):
         r = resolve_place_method(db, place_id=profile.place_id, meat_type=meat)
         column_val = str(getattr(profile, column))

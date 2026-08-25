@@ -157,6 +157,20 @@ const SLAUGHTER_LABELS: Record<SlaughterMethod, string> = {
 // declares zabihah status (optionally naming a certifying body). "Zabihah
 // status unconfirmed" gets the same soft amber caveat as chicken's "Method not
 // confirmed".
+const RED_MEATS = new Set(["BEEF", "LAMB", "GOAT"]);
+
+/** Species-aware label for a per-product method. Owners record hand/machine for
+ *  every meat, but for red meat that maps to the zabihah axis (hand/machine →
+ *  Zabihah; not disclosed → status unconfirmed). Chicken keeps hand/machine. */
+function productMethodText(meatType: string, method: string): string {
+  if (RED_MEATS.has(meatType)) {
+    if (method === "HAND_CUT" || method === "MACHINE_CUT") return "Zabihah";
+    if (method === "NOT_DISCLOSED") return "Zabihah status unconfirmed";
+    return ZABIHAH_LABELS[method as ZabihahStatus] ?? method;
+  }
+  return SLAUGHTER_LABELS[method as SlaughterMethod] ?? method;
+}
+
 const ZABIHAH_LABELS: Record<ZabihahStatus, string> = {
   ZABIHAH: "Zabihah",
   NOT_ZABIHAH: "Not zabihah",
@@ -325,6 +339,10 @@ const PROVENANCE_METHOD_LABEL: Record<string, string> = {
   HAND_CUT: "hand-slaughtered",
   MACHINE_CUT: "machine-slaughtered",
   NOT_DISCLOSED: "method not disclosed",
+  // Red-meat zabihah axis (composed value for beef/lamb/goat).
+  ZABIHAH: "zabihah",
+  NOT_ZABIHAH: "not zabihah",
+  UNSURE: "zabihah status unconfirmed",
 };
 
 function provenanceMeatLabel(meat: string): string {
@@ -535,7 +553,7 @@ function ServedProducts({
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-sm font-semibold">{p.product_name}</span>
                 <span className="shrink-0 text-xs font-semibold">
-                  {SLAUGHTER_LABELS[p.slaughter_method] ?? p.slaughter_method}
+                  {productMethodText(p.meat_type, p.slaughter_method)}
                 </span>
               </div>
               {p.supplier_name ? (
@@ -762,6 +780,11 @@ function meatSummary(profile: HalalProfileEmbed): MeatSummary {
   const products = profile.meat_products ?? [];
 
   if (products.length > 0) {
+    // Red-meat products are on the zabihah axis, not hand/machine — don't fold
+    // two axes into one count; render open so each product shows its own label.
+    if (products.some((p) => RED_MEATS.has(p.meat_type))) {
+      return { text: "Meat sourcing", machine: true, collapsible: false };
+    }
     if (!products.every((p) => known(p.slaughter_method))) {
       return { text: "Meat sourcing", machine: true, collapsible: false };
     }

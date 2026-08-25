@@ -106,7 +106,14 @@ export type HalalProfileEmbed = {
  *  and never rank hand-cut above machine-cut. */
 export type SupplierProvenance = {
   meat_type: string;
-  method: "HAND_CUT" | "MACHINE_CUT" | "NOT_DISCLOSED";
+  // Poultry: hand/machine. Red meat: zabihah axis (ZABIHAH / NOT_ZABIHAH / UNSURE).
+  method:
+    | "HAND_CUT"
+    | "MACHINE_CUT"
+    | "NOT_DISCLOSED"
+    | "ZABIHAH"
+    | "NOT_ZABIHAH"
+    | "UNSURE";
   confidence: "SELF_STATED" | "DOCUMENTED" | "VERIFIED";
   source: "supplier" | "self_attested";
   supplier_id: string | null;

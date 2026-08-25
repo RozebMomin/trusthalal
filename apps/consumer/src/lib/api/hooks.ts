@@ -357,7 +357,15 @@ export type HalalProfileEmbed = {
  *  `self_attested` value as confirmed. */
 export type SupplierProvenance = {
   meat_type: string;
-  method: "HAND_CUT" | "MACHINE_CUT" | "NOT_DISCLOSED";
+  // Poultry: hand/machine. Red meat: the zabihah axis (ZABIHAH / NOT_ZABIHAH /
+  // UNSURE). The composed value matches the meat's species.
+  method:
+    | "HAND_CUT"
+    | "MACHINE_CUT"
+    | "NOT_DISCLOSED"
+    | "ZABIHAH"
+    | "NOT_ZABIHAH"
+    | "UNSURE";
   confidence: "SELF_STATED" | "DOCUMENTED" | "VERIFIED";
   source: "supplier" | "self_attested";
   supplier_id: string | null;

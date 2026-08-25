@@ -133,9 +133,18 @@ def resolve_place_method(
         )
     ).all()
 
+    # Red meat composes on the zabihah axis (the line's zabihah_status), poultry
+    # on hand/machine — so the surfaced value matches how each species reads.
+    _RED = {"BEEF", "LAMB", "GOAT"}
+
+    def _line_value(prod: SupplierProduct) -> str:
+        if str(prod.meat_type) in _RED:
+            return str(prod.zabihah_status or "UNSURE")
+        return str(prod.slaughter_method)
+
     candidates = [
         LinkCandidate(
-            method=str(prod.slaughter_method),
+            method=_line_value(prod),
             supplier_tier=str(sup.verification_tier),
             line_tier=str(prod.line_tier),
             evidence_tier=str(link.evidence_tier),
