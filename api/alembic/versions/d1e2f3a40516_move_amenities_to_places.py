@@ -45,17 +45,17 @@ def upgrade() -> None:
         """
     )
 
-    for col in reversed(_COLUMNS):
-        op.drop_column("halal_profiles", col, schema="app")
+    # NOTE: the old app.halal_profiles columns are intentionally NOT dropped
+    # here. Dropping in the same release that stops reading them breaks any
+    # still-running old-code instance during a rollout (it selects the whole
+    # HalalProfile entity, including these columns). They're left in place as
+    # dead columns; a separate cleanup migration drops them once every instance
+    # is on the new code (expand/contract).
 
 
 def downgrade() -> None:
-    for col in _COLUMNS:
-        op.add_column(
-            "halal_profiles",
-            sa.Column(col, sa.String(length=20), nullable=True),
-            schema="app",
-        )
+    # halal_profiles columns were never dropped in upgrade(); copy the current
+    # place values back into them, then drop the place columns.
     set_clause = ", ".join(f"{c} = p.{c}" for c in _COLUMNS)
     op.execute(
         f"""
