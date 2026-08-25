@@ -30,6 +30,7 @@ import {
   type PlacesOrderBy,
   useAdminPlaceCountries,
   useAdminPlaces,
+  useAdminPlacesCount,
 } from "@/lib/api/hooks";
 
 import { BulkAddPlacesDialog } from "./_components/bulk-add-dialog";
@@ -83,6 +84,17 @@ export default function PlacesPage() {
   // stays in sync with reality instead of hardcoding a static list.
   const { data: countries } = useAdminPlaceCountries();
 
+  // True catalog size (independent of the 200-row list cap). Tracks the same
+  // filters, so it reads as "N matching" when filters are on.
+  const { data: countData } = useAdminPlacesCount({
+    q: query || undefined,
+    city: city || undefined,
+    country: effectiveCountry,
+    includeDeleted,
+  });
+  const total = countData?.total;
+  const filtered = Boolean(query || city || effectiveCountry || includeDeleted);
+
   const rows = data ?? [];
 
   // Clicking the City column header toggles between the default sort
@@ -98,9 +110,18 @@ export default function PlacesPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Places</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Places</h1>
+            {total != null && (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-sm font-semibold tabular-nums text-muted-foreground">
+                {total.toLocaleString()}
+              </span>
+            )}
+          </div>
           <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            Browse, edit, and soft-delete places in the catalog.
+            {total != null
+              ? `${total.toLocaleString()} place${total === 1 ? "" : "s"} ${filtered ? "match your filters" : "in the catalog"}. Browse, edit, and soft-delete them.`
+              : "Browse, edit, and soft-delete places in the catalog."}
           </p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">

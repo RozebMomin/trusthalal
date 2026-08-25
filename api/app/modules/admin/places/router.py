@@ -8,6 +8,7 @@ from app.core.exceptions import AppError
 from app.db.deps import get_db
 from app.modules.admin.places.repo import (
     admin_bulk_preview_places,
+    admin_count_places,
     admin_delist_place,
     admin_get_place_by_id,
     admin_list_place_countries,
@@ -26,6 +27,7 @@ from app.modules.admin.places.repo import (
 from app.modules.admin.places.schemas import (
     PlaceAdminPatch,
     PlaceAdminRead,
+    PlaceCountResponse,
     PlaceBulkImportItem,
     PlaceBulkImportOutcome,
     PlaceBulkImportRequest,
@@ -719,6 +721,24 @@ def list_places_admin(
         order_by=order_by,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get(
+    "/count",
+    response_model=PlaceCountResponse,
+    summary="Total places matching the browse filters (catalog size)",
+)
+def count_places_admin(
+    deleted: str = Query("false", pattern="^(true|false|all)$"),
+    q: str | None = Query(default=None, max_length=255),
+    city: str | None = Query(default=None, max_length=255),
+    country: str | None = Query(default=None, max_length=2),
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> "PlaceCountResponse":
+    return PlaceCountResponse(
+        total=admin_count_places(db, deleted=deleted, q=q, city=city, country=country)
     )
 
 

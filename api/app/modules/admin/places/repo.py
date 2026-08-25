@@ -217,6 +217,42 @@ def admin_list_places(
     return list(db.execute(stmt).scalars().all())
 
 
+def admin_count_places(
+    db: Session,
+    *,
+    deleted: str = "false",
+    q: str | None = None,
+    city: str | None = None,
+    country: str | None = None,
+) -> int:
+    """Total places matching the same filters as ``admin_list_places`` (minus
+    order/limit/offset). Powers the catalog-size readout on the admin browse."""
+    stmt = select(func.count()).select_from(Place)
+
+    if deleted not in ("true", "all"):
+        stmt = stmt.where(Place.is_deleted.is_(False))
+
+    if q:
+        term = q.strip()
+        if term:
+            needle = f"%{escape_like(term)}%"
+            stmt = stmt.where(
+                or_(
+                    Place.name.ilike(needle, escape=LIKE_ESCAPE),
+                    Place.address.ilike(needle, escape=LIKE_ESCAPE),
+                )
+            )
+    if city:
+        city_term = city.strip()
+        if city_term:
+            city_needle = f"%{escape_like(city_term)}%"
+            stmt = stmt.where(Place.city.ilike(city_needle, escape=LIKE_ESCAPE))
+    if country:
+        stmt = stmt.where(Place.country_code == country.strip().upper())
+
+    return int(db.execute(stmt).scalar_one())
+
+
 def admin_list_place_countries(db: Session) -> list[str]:
     """Return every distinct ISO-2 country code in the catalog.
 

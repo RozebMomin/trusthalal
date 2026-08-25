@@ -21,6 +21,12 @@ BULK_PLACE_LIMIT = 25
 GooglePlaceId = Annotated[str, Field(min_length=1, max_length=255)]
 
 
+class PlaceCountResponse(BaseModel):
+    """Total places matching the admin browse filters (catalog size readout)."""
+
+    total: int
+
+
 class PlaceAdminRead(BaseModel):
     """Admin view of a place — exposes the soft-delete fields the public
     `PlaceRead` schema deliberately hides (the public `/places/{id}` 404s

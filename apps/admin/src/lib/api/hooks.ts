@@ -344,6 +344,8 @@ export const qk = {
     owners: (id: string) => ["places", "owners", id] as const,
     externalIds: (id: string) => ["places", "external-ids", id] as const,
     countries: () => ["places", "countries"] as const,
+    count: (params: { q?: string; city?: string; country?: string; deleted?: string }) =>
+      ["places", "count", params] as const,
   },
   ownershipRequests: {
     list: (status?: string) =>
@@ -432,6 +434,25 @@ export function useAdminPlaces(
           deleted,
           limit: 200,
         },
+      }),
+  });
+}
+
+/**
+ * Total places matching the current browse filters — the true catalog size,
+ * independent of the 200-row page cap on the list query. Same filters as
+ * useAdminPlaces so the number tracks what the admin is looking at.
+ */
+export function useAdminPlacesCount(
+  params: { q?: string; city?: string; country?: string; includeDeleted?: boolean } = {},
+) {
+  const deleted = params.includeDeleted ? "true" : "false";
+  const country = params.country?.toUpperCase() || undefined;
+  return useQuery({
+    queryKey: qk.places.count({ q: params.q, city: params.city, country, deleted }),
+    queryFn: () =>
+      apiFetch<{ total: number }>("/admin/places/count", {
+        searchParams: { q: params.q, city: params.city, country, deleted },
       }),
   });
 }
