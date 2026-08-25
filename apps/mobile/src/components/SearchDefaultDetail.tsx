@@ -395,6 +395,7 @@ const RESTAURANT_OPTIONS: Array<{ v: ConsumerPreferences["min_menu_posture"]; ti
   { v: "MIXED_SEPARATE_KITCHENS", title: "Separate kitchen", desc: "Halal prepared in a kitchen kept separate from non-halal." },
   { v: "HALAL_OPTIONS_ADVERTISED", title: "Halal options", desc: "Some halal items on an otherwise mixed menu." },
   { v: "HALAL_UPON_REQUEST", title: "On request", desc: "Halal available when you ask the staff." },
+  { v: "MIXED_SHARED_KITCHEN", title: "Shared kitchen", desc: "Halal proteins cooked on equipment shared with non-halal." },
 ];
 
 function RestaurantOptions({

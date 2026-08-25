@@ -35,6 +35,7 @@ const POSTURE_LABEL: Record<string, string> = {
   MIXED_SEPARATE_KITCHENS: "Separate kitchen",
   HALAL_OPTIONS_ADVERTISED: "Halal options",
   HALAL_UPON_REQUEST: "On request",
+  MIXED_SHARED_KITCHEN: "Shared kitchen",
 };
 
 function trustValue(p: ConsumerPreferences): string {
@@ -62,6 +63,8 @@ function restaurantDesc(p: ConsumerPreferences): string {
       return "Some halal items on an otherwise mixed menu.";
     case "HALAL_UPON_REQUEST":
       return "Halal available when you ask the staff.";
+    case "MIXED_SHARED_KITCHEN":
+      return "Halal proteins cooked on shared equipment.";
     default:
       return "Any level of halal menu coverage.";
   }

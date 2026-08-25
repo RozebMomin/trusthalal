@@ -31,17 +31,18 @@ const POSTURES = [
   { v: "MIXED_SEPARATE_KITCHENS", label: "Separate kitchen" },
   { v: "HALAL_OPTIONS_ADVERTISED", label: "Halal options" },
   { v: "HALAL_UPON_REQUEST", label: "On request" },
+  { v: "MIXED_SHARED_KITCHEN", label: "Shared kitchen" },
 ] as const;
 
 /** Per-meat filter fields. Chicken uses hand/machine; red meat uses a zabihah
  *  toggle plus an "include unsure" add-on. */
 type MeatFilterField = "chicken_slaughter" | "beef_zabihah" | "lamb_zabihah" | "goat_zabihah";
 
-const MEAT_FILTERS: ReadonlyArray<{ field: MeatFilterField; label: string; icon: MCIName; red: boolean }> = [
-  { field: "chicken_slaughter", label: "Chicken", icon: "food-drumstick-outline", red: false },
-  { field: "beef_zabihah", label: "Beef", icon: "cow", red: true },
-  { field: "lamb_zabihah", label: "Lamb", icon: "sheep", red: true },
-  { field: "goat_zabihah", label: "Goat", icon: "food-steak", red: true },
+const MEAT_FILTERS: ReadonlyArray<{ field: MeatFilterField; label: string; red: boolean }> = [
+  { field: "chicken_slaughter", label: "Chicken", red: false },
+  { field: "beef_zabihah", label: "Beef", red: true },
+  { field: "lamb_zabihah", label: "Lamb", red: true },
+  { field: "goat_zabihah", label: "Goat", red: true },
 ];
 
 /** Family-amenity priority boosts. NOT restrictive — these re-rank rather than
@@ -187,18 +188,15 @@ export function FiltersSheet({
         <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 4 }]}>Meat preferences</Text>
         <Text style={[ty.small, { color: t.sub, marginBottom: 10 }]}>Choose how you want each type of meat to be prepared.</Text>
         <View style={{ backgroundColor: t.card, borderRadius: radii.xl, overflow: "hidden" }}>
-          {MEAT_FILTERS.map(({ field, label, icon, red }, i) => {
+          {MEAT_FILTERS.map(({ field, label, red }, i) => {
             const selected = (filters[field] as string[] | undefined) ?? [];
             const zab = selected.includes("ZABIHAH");
             const unsure = selected.includes("UNSURE");
             return (
               <View key={field} style={{ borderTopWidth: i === 0 ? 0 : 1, borderTopColor: t.line, padding: 14, gap: 10 }}>
-                {/* icon → label → selector, all inline */}
+                {/* label → selector, inline */}
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
-                    <MaterialCommunityIcons name={icon} size={18} color={t.accentDeep} />
-                  </View>
-                  <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 14, width: 52 }}>{label}</Text>
+                  <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 14, width: 64 }}>{label}</Text>
                   <View style={{ flex: 1 }}>
                     {red ? (
                       <Segmented
