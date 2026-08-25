@@ -1519,6 +1519,63 @@ export function useLogout() {
  * OUTER JOIN so unprofiled places still appear with
  * ``halal_profile=null``).
  */
+/** One page of search results. The backend caps a request at 50; the home
+ *  page pages by offset via useSearchPlacesInfinite + a "Load more" button. */
+export const SEARCH_PAGE_SIZE = 50;
+
+/** The `/places` query params for a search, optionally scoped to one page. */
+function placesSearchQuery(
+  params: SearchPlacesParams,
+  page?: { limit: number; offset: number },
+) {
+  return {
+    q: params.q,
+    lat: params.lat,
+    lng: params.lng,
+    radius: params.radius,
+    limit: page ? page.limit : params.limit,
+    offset: page ? page.offset : params.offset,
+    min_validation_tier: params.min_validation_tier,
+    min_menu_posture: params.min_menu_posture,
+    has_certification: params.has_certification,
+    no_pork: params.no_pork,
+    no_alcohol_served: params.no_alcohol_served,
+    supplier_verified: params.supplier_verified,
+    open_now: params.open_now || undefined,
+    cuisine: params.cuisines,
+    chicken_slaughter: params.chicken_slaughter,
+    beef_zabihah: params.beef_zabihah,
+    lamb_zabihah: params.lamb_zabihah,
+    goat_zabihah: params.goat_zabihah,
+    boost_amenities: params.boost_amenities,
+  };
+}
+
+/** Search paged by offset, for the home page's "Load more" pagination. */
+export function useSearchPlacesInfinite(params: SearchPlacesParams) {
+  const enabled = Boolean(
+    (params.q && params.q.trim().length > 0) ||
+      (params.lat !== undefined &&
+        params.lng !== undefined &&
+        params.radius !== undefined),
+  );
+  return useInfiniteQuery<PlaceSearchResult[]>({
+    queryKey: ["places", "search-infinite", params],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      apiFetch<PlaceSearchResult[]>("/places", {
+        searchParams: placesSearchQuery(params, {
+          limit: SEARCH_PAGE_SIZE,
+          offset: pageParam as number,
+        }),
+      }),
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === SEARCH_PAGE_SIZE ? allPages.length * SEARCH_PAGE_SIZE : undefined,
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 export function useSearchPlaces(params: SearchPlacesParams) {
   const enabled = Boolean(
     (params.q && params.q.trim().length > 0) ||

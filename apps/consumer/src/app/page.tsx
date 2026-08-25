@@ -46,7 +46,9 @@ import {
 } from "@/components/filters-sheet";
 import { PlaceResultCard } from "@/components/place-result-card";
 import { SiteHero } from "@/components/site-hero";
-import { Clock, Search, Users, X } from "lucide-react";
+import { Clock, Loader2, Search, Users, X } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 
@@ -65,7 +67,7 @@ import {
   useCurrentUser,
   useReverseGeocode,
   useSearchDiagnostics,
-  useSearchPlaces,
+  useSearchPlacesInfinite,
 } from "@/lib/api/hooks";
 
 // Set of valid cuisine values used to validate URL query params.
@@ -395,13 +397,16 @@ function HomePageInner() {
   // Search uses the merged ``effectiveFilters``, URL plus prefs,
   // so saved defaults narrow results without the user re-typing
   // them every visit.
-  const search = useSearchPlaces(effectiveFilters);
+  const search = useSearchPlacesInfinite(effectiveFilters);
+  // Flatten the loaded pages into one array so the rest of the page reads it
+  // exactly as it did the old single-page result.
+  const searchData = React.useMemo(() => search.data?.pages.flat(), [search.data]);
 
   // Only asked when the search already came back empty, it's several COUNT
   // queries and there's no reason to pay for them on a search that worked.
   const WIDER_RADIUS_M = 40234; // 25 mi
   const diagnostics = useSearchDiagnostics(effectiveFilters, {
-    enabled: Boolean(search.data && search.data.length === 0),
+    enabled: Boolean(searchData && searchData.length === 0),
     widerRadius:
       effectiveFilters.radius && effectiveFilters.radius < WIDER_RADIUS_M
         ? WIDER_RADIUS_M
@@ -412,7 +417,7 @@ function HomePageInner() {
   // resolves. Keyed off the JSON-stringified filter shape so a
   // single user typing "chicago" → "chicago il" gets two events
   // (the second supersedes the first as a refinement signal). We
-  // gate on ``search.data`` being defined so we never fire a
+  // gate on ``searchData`` being defined so we never fire a
   // half-loaded event, and on having ANY active search criteria
   // so the cold home doesn't spam pageviews-as-searches.
   //
@@ -423,7 +428,7 @@ function HomePageInner() {
     [effectiveFilters],
   );
   React.useEffect(() => {
-    if (!search.data) return;
+    if (!searchData) return;
     const hasText = Boolean(effectiveFilters.q && effectiveFilters.q.length > 0);
     const hasGeo =
       effectiveFilters.lat !== undefined &&
@@ -439,13 +444,13 @@ function HomePageInner() {
       no_alcohol_served: effectiveFilters.no_alcohol_served === true,
       has_certification_filter: effectiveFilters.has_certification === true,
       radius_meters: effectiveFilters.radius ?? null,
-      result_count: search.data.length,
+      result_count: searchData.length,
     });
     // ``effectiveFilters`` is captured by ``filtersHash``; including
     // both would re-fire on every render even when the JSON's the
     // same. The hash is the load-bearing dep.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersHash, search.data]);
+  }, [filtersHash, searchData]);
 
   const hasQuery = Boolean(filtersFromUrl.q && filtersFromUrl.q.length > 0);
   // Search runs whenever EITHER text or geo is set. The hero +
@@ -483,7 +488,7 @@ function HomePageInner() {
   const decoratedResults = React.useMemo<
     Array<{ place: PlaceSearchResult; distanceMeters?: number }>
   >(() => {
-    const data = search.data ?? [];
+    const data = searchData ?? [];
     if (nearMeActive === null) {
       return data.map((place) => ({ place }));
     }
@@ -522,7 +527,7 @@ function HomePageInner() {
       return sortMode === "closest" ? da - db : db - da;
     });
     return withDistance;
-  }, [search.data, nearMeActive, sortMode, effectiveFilters.boost_amenities]);
+  }, [searchData, nearMeActive, sortMode, effectiveFilters.boost_amenities]);
 
   // Filter sheet open/close state. Lives here (not in the URL): a
   // shareable link with ``?filters_open=true`` would be confusing
@@ -652,8 +657,8 @@ function HomePageInner() {
       {hasActiveSearch &&
         !search.isLoading &&
         !search.error &&
-        search.data &&
-        search.data.length === 0 && (
+        searchData &&
+        searchData.length === 0 && (
           <NoResultsState
             mode={nearMeActive !== null ? "geo" : "text"}
             diagnostics={diagnostics.data}
@@ -691,8 +696,8 @@ function HomePageInner() {
       {hasActiveSearch &&
         !search.isLoading &&
         !search.error &&
-        search.data &&
-        search.data.length > 0 && (
+        searchData &&
+        searchData.length > 0 && (
           <div className="space-y-3">
             {boostPhrase && (
               <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
@@ -742,6 +747,24 @@ function HomePageInner() {
                 />
               ))}
             </ul>
+            {search.hasNextPage && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => search.fetchNextPage()}
+                  disabled={search.isFetchingNextPage}
+                >
+                  {search.isFetchingNextPage ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading…
+                    </>
+                  ) : (
+                    "Load more places"
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         )}
     </div>
