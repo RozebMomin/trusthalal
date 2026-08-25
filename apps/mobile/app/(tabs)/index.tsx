@@ -9,6 +9,7 @@ import {
   ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,6 +19,8 @@ import type { PlaceSearchResult } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { PlaceCard } from "@/components/PlaceCard";
+import { Button } from "@/components/Button";
+import { Sheet } from "@/ui/kit";
 import { boostAmenityPhrase, matchesBoostAmenities } from "@/lib/amenities";
 import { countFilters, FiltersSheet, type Filters } from "@/components/FiltersSheet";
 import { LocationSheet, type PickedLocation } from "@/components/LocationSheet";
@@ -28,17 +31,36 @@ import { FILTER_BUTTON_LABELS } from "@/lib/filter-labels";
 
 const RADII_MI = [1, 3, 5, 10, 25] as const;
 
-/** Same top-8 rail as the consumer web (cuisine-rail.tsx). */
-const TOP_CUISINES = [
-  { value: "PAKISTANI", label: "Pakistani" },
-  { value: "INDIAN", label: "Indian" },
-  { value: "MEDITERRANEAN", label: "Mediterranean" },
-  { value: "LEBANESE", label: "Lebanese" },
-  { value: "TURKISH", label: "Turkish" },
-  { value: "YEMENI", label: "Yemeni" },
-  { value: "AFGHAN", label: "Afghan" },
-  { value: "AMERICAN", label: "American" },
+/** Full cuisine set (mirrors the backend Cuisine enum), surfaced in the
+ *  cuisine picker modal. Special-cased labels for the ones title-case gets
+ *  wrong; everything else is Title Case with underscores → spaces. */
+const ALL_CUISINE_VALUES = [
+  "PAKISTANI", "INDIAN", "BANGLADESHI", "SRI_LANKAN", "NEPALI", "LEBANESE",
+  "TURKISH", "YEMENI", "SYRIAN", "PALESTINIAN", "IRAQI", "PERSIAN", "EGYPTIAN",
+  "MOROCCAN", "TUNISIAN", "ALGERIAN", "SOMALI", "ETHIOPIAN", "ERITREAN",
+  "AFGHAN", "UZBEK", "INDONESIAN", "MALAYSIAN", "FILIPINO", "THAI", "CHINESE",
+  "KOREAN", "JAPANESE", "MEDITERRANEAN", "GREEK", "ITALIAN", "SPANISH",
+  "AMERICAN", "MEXICAN", "CARIBBEAN", "SOUL_FOOD", "BURGERS", "PIZZA", "BBQ",
+  "STEAKHOUSE", "SEAFOOD", "SANDWICHES", "DELI", "WINGS", "HOT_DOGS",
+  "BREAKFAST", "BAKERY", "DESSERTS", "CAFE",
 ] as const;
+
+const CUISINE_LABEL_OVERRIDES: Record<string, string> = {
+  SRI_LANKAN: "Sri Lankan",
+  BBQ: "BBQ",
+  SOUL_FOOD: "Soul food",
+  HOT_DOGS: "Hot dogs",
+};
+function cuisineLabel(v: string): string {
+  return (
+    CUISINE_LABEL_OVERRIDES[v] ??
+    v
+      .toLowerCase()
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ")
+  );
+}
 const M_PER_MI = 1609.34;
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -89,6 +111,7 @@ export default function Explore() {
   const [filters, setFilters] = useState<Filters>({});
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [cuisinesOpen, setCuisinesOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
   const [view, setView] = useState<"list" | "map">("list");
   // List ⇄ map cross-fade: fade the whole surface out, swap layouts,
@@ -359,18 +382,12 @@ export default function Explore() {
               }))
             }
           />
-          {TOP_CUISINES.map((c) => (
-            <Chip
-              key={c.value}
-              active={cuisines.includes(c.value)}
-              label={c.label}
-              onPress={() =>
-                setCuisines((prev) =>
-                  prev.includes(c.value) ? prev.filter((x) => x !== c.value) : [...prev, c.value],
-                )
-              }
-            />
-          ))}
+          <Chip
+            active={cuisines.length > 0}
+            icon="chevron-down"
+            label={cuisines.length ? `${cuisines.length} cuisine${cuisines.length === 1 ? "" : "s"}` : "Cuisines"}
+            onPress={() => setCuisinesOpen(true)}
+          />
         </ScrollView>
 
         {/* Saved-defaults hint. Shown only while the seeded filters are still
@@ -593,7 +610,80 @@ export default function Explore() {
         onChange={changeFilters}
         resultCount={hasActiveSearch ? results.length : undefined}
       />
+      <CuisineSheet
+        visible={cuisinesOpen}
+        onClose={() => setCuisinesOpen(false)}
+        selected={cuisines}
+        onToggle={(v) =>
+          setCuisines((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]))
+        }
+        onClear={() => setCuisines([])}
+      />
     </View>
+  );
+}
+
+/** Cuisine picker — a single "Cuisines" pill on the rail opens this so all
+ *  options are discoverable without a horizontal scroll. Multi-select, live. */
+function CuisineSheet({
+  visible,
+  onClose,
+  selected,
+  onToggle,
+  onClear,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  selected: string[];
+  onToggle: (v: string) => void;
+  onClear: () => void;
+}) {
+  const t = useTheme();
+  const { height } = useWindowDimensions();
+  return (
+    <Sheet visible={visible} onClose={onClose}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: space.md }}>
+        <Text style={[ty.h2, { color: t.ink }]}>Cuisines</Text>
+        {selected.length > 0 ? (
+          <Pressable onPress={onClear}>
+            <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold" }]}>Clear</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      <ScrollView style={{ maxHeight: Math.round(height * 0.6) }} showsVerticalScrollIndicator>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, paddingBottom: space.md }}>
+          {ALL_CUISINE_VALUES.map((v) => {
+            const on = selected.includes(v);
+            return (
+              <Pressable
+                key={v}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                onPress={() => onToggle(v)}
+                style={{
+                  backgroundColor: on ? t.accent : t.card,
+                  borderWidth: 1,
+                  borderColor: on ? t.accent : t.line,
+                  borderRadius: 999,
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
+                }}
+              >
+                <Text style={{ color: on ? t.onAccent : t.ink, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>
+                  {cuisineLabel(v)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
+      <View style={{ paddingTop: space.md, borderTopWidth: 1, borderTopColor: t.line }}>
+        <Button
+          title={selected.length ? `Show ${selected.length} cuisine${selected.length === 1 ? "" : "s"}` : "Done"}
+          onPress={onClose}
+        />
+      </View>
+    </Sheet>
   );
 }
 
