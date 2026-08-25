@@ -168,6 +168,52 @@ def resolve_place_method(
     )
 
 
+def place_supplier_certifiers(
+    db: Session, *, place_id: uuid.UUID, now: Optional[datetime] = None
+) -> dict[tuple[str, str], str]:
+    """Map ``(meat_type, supplier_name_lower)`` -> canonical certifier name for
+    the place's **live** supplier links.
+
+    The composed provenance (``resolve_place_method``) is one row per meat, so
+    it can only carry a single certifier even when a meat is sourced from
+    several suppliers (three beef suppliers, three different certifiers). This
+    keeps the per-supplier granularity so each product row can show the
+    certifier of ITS own supplier. Canonical certifier wins over the line's
+    free-text; lines with neither are omitted.
+    """
+    now = now or datetime.now(timezone.utc)
+    rows = db.execute(
+        select(
+            PlaceSupplierLink.meat_type,
+            Supplier.name,
+            Certifier.name,
+            SupplierProduct.certifying_body_name,
+        )
+        .join(
+            SupplierProduct,
+            SupplierProduct.id == PlaceSupplierLink.supplier_product_id,
+        )
+        .join(Supplier, Supplier.id == SupplierProduct.supplier_id)
+        .outerjoin(Certifier, Certifier.id == SupplierProduct.certifier_id)
+        .where(
+            PlaceSupplierLink.place_id == place_id,
+            PlaceSupplierLink.ended_at.is_(None),
+            or_(
+                PlaceSupplierLink.expires_at.is_(None),
+                PlaceSupplierLink.expires_at > now,
+            ),
+            Supplier.revoked_at.is_(None),
+        )
+    ).all()
+    out: dict[tuple[str, str], str] = {}
+    for meat_type, supplier_name, cert_name, free_text in rows:
+        cert = cert_name or free_text
+        if not cert:
+            continue
+        out[(str(meat_type), (supplier_name or "").strip().lower())] = cert
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Free-text → registry matching + profile-column fill
 #

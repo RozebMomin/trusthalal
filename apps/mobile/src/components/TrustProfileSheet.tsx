@@ -592,25 +592,19 @@ function GroupedSourcing({
             <View key={g.meat} style={{ backgroundColor: t.card, borderRadius: radii.xl, overflow: "hidden" }}>
               <View
                 style={{
-                  paddingHorizontal: 18, paddingVertical: 12,
+                  flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                  gap: space.sm, paddingHorizontal: 18, paddingVertical: 12,
                   borderBottomWidth: 1, borderBottomColor: t.line,
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm }}>
-                  <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
-                    {provenanceMeatLabel(g.meat)}
-                  </Text>
-                  {prov ? (
-                    <Pill
-                      label={attributionLabel(prov.confidence, ownerAttested)}
-                      tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
-                    />
-                  ) : null}
-                </View>
-                {prov?.certifying_body_name ? (
-                  <Text style={[ty.small, { color: t.sub, fontSize: 12, marginTop: 4 }]}>
-                    certified by {prov.certifying_body_name}
-                  </Text>
+                <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
+                  {provenanceMeatLabel(g.meat)}
+                </Text>
+                {prov ? (
+                  <Pill
+                    label={attributionLabel(prov.confidence, ownerAttested)}
+                    tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
+                  />
                 ) : null}
               </View>
               {g.items.map((pr, i) => {
@@ -632,7 +626,11 @@ function GroupedSourcing({
                     {supplierLine ? (
                       <Text style={[ty.small, { color: t.sub, fontSize: 12.5, marginTop: 3 }]}>
                         {supplierLine}
-                        {pr.certifying_authority ? ` · certified by ${pr.certifying_authority}` : ""}
+                      </Text>
+                    ) : null}
+                    {pr.certifying_authority ? (
+                      <Text style={[ty.small, { color: t.sub, fontSize: 12, marginTop: 2 }]}>
+                        certified by {pr.certifying_authority}
                       </Text>
                     ) : null}
                   </View>

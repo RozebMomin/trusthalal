@@ -496,17 +496,10 @@ function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
                   {provenanceMeatLabel(g.meat)}
                 </span>
                 {prov && (
-                  <span className="flex flex-wrap items-center gap-1.5">
-                    {prov.certifying_body_name && (
-                      <span className="text-[11px] text-muted-foreground">
-                        certified by {prov.certifying_body_name}
-                      </span>
-                    )}
-                    <ConfidenceChip
-                      confidence={prov.confidence}
-                      ownerAttested={profile.owner_attested ?? false}
-                    />
-                  </span>
+                  <ConfidenceChip
+                    confidence={prov.confidence}
+                    ownerAttested={profile.owner_attested ?? false}
+                  />
                 )}
               </div>
               <ul>
@@ -529,9 +522,11 @@ function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
                       {supplierLine && (
                         <span className="w-full text-xs text-muted-foreground">
                           {supplierLine}
-                          {p.certifying_authority
-                            ? ` · certified by ${p.certifying_authority}`
-                            : ""}
+                        </span>
+                      )}
+                      {p.certifying_authority && (
+                        <span className="w-full text-xs text-muted-foreground">
+                          certified by {p.certifying_authority}
                         </span>
                       )}
                     </li>

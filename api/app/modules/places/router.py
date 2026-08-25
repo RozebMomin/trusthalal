@@ -54,7 +54,7 @@ from app.modules.places.repo import (
     search_by_text,
     search_nearby,
 )
-from app.modules.suppliers.repo import resolve_place_method
+from app.modules.suppliers.repo import place_supplier_certifiers, resolve_place_method
 from app.modules.places.schemas import (
     GoogleAutocompletePrediction,
     HalalHistoryEventRead,
@@ -124,6 +124,21 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
         MeatProductRead.model_validate(p, from_attributes=True)
         for p in public_meat_products(db, profile=profile)
     ]
+
+    # Per-product certifier, keyed by the product's OWN supplier. A meat with
+    # several suppliers (three beef suppliers, three certifiers) can't be served
+    # by the composed one-per-meat provenance, so we resolve each product's
+    # certifier from its live supplier link and let the registry value win over
+    # the owner's free-text. Only fills where the product's supplier is actually
+    # linked; unlinked products keep whatever the owner stated.
+    cert_by_supplier = place_supplier_certifiers(db, place_id=profile.place_id)
+    if cert_by_supplier:
+        for mp in embed.meat_products:
+            reg_cert = cert_by_supplier.get(
+                (str(mp.meat_type), (mp.supplier_name or "").strip().lower())
+            )
+            if reg_cert:
+                mp.certifying_authority = reg_cert
 
     # Compose supplier-backed slaughter method + confidence for each served
     # meat. resolve_place_method falls back to the profile's own (self-attested)
