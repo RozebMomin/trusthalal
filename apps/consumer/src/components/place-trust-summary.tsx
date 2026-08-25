@@ -64,6 +64,7 @@ import type {
   MeatProduct,
   MenuPosture,
   SlaughterMethod,
+  SupplierProvenance,
   ValidationTier,
   ZabihahStatus,
 } from "@/lib/api/hooks";
@@ -242,17 +243,25 @@ export function PlaceTrustSummary({
           <KitchenExceptions profile={profile} />
         </div>
 
-        {!profile.seafood_only && (
-          <>
-            <div className="hidden sm:block">
-              <ServedMeats profile={profile} />
-              <SupplierBackedSourcing profile={profile} />
-            </div>
-            <div className="sm:hidden">
-              <MeatDisclosure profile={profile} />
-            </div>
-          </>
-        )}
+        {!profile.seafood_only &&
+          ((profile.meat_products?.length ?? 0) > 0 ? (
+            // One grouped list — the restaurant's products under each meat, with
+            // the registry-backed cert + confidence on the header. Same at all
+            // widths (no fold: the list is the substance, not overhead).
+            <GroupedSourcing profile={profile} />
+          ) : (
+            // No product-level detail: fall back to the rolled-up per-meat view
+            // (+ composed supplier box on desktop, folded on mobile).
+            <>
+              <div className="hidden sm:block">
+                <ServedMeats profile={profile} />
+                <SupplierBackedSourcing profile={profile} />
+              </div>
+              <div className="sm:hidden">
+                <MeatDisclosure profile={profile} />
+              </div>
+            </>
+          ))}
 
         {profile.seafood_only && (
           <p className="text-sm text-muted-foreground">
@@ -420,6 +429,125 @@ function SupplierBackedSourcing({ profile }: { profile: HalalProfileEmbed }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+// Order meats appear in the grouped sourcing view.
+const SOURCING_MEAT_ORDER = [
+  "CHICKEN",
+  "TURKEY",
+  "DUCK",
+  "BEEF",
+  "LAMB",
+  "GOAT",
+  "FISH",
+  "OTHER",
+];
+// Core meats with a profile column, for the "not served" footnote.
+const CORE_MEATS: ReadonlyArray<{ key: string; label: string; col: keyof HalalProfileEmbed }> = [
+  { key: "CHICKEN", label: "chicken", col: "chicken_slaughter" },
+  { key: "BEEF", label: "beef", col: "beef_zabihah" },
+  { key: "LAMB", label: "lamb", col: "lamb_zabihah" },
+  { key: "GOAT", label: "goat", col: "goat_zabihah" },
+];
+
+/**
+ * The single sourcing view: every product the restaurant listed, grouped under
+ * its meat, with the registry-backed cert + confidence on the group header.
+ * Replaces the old per-product list + separate composed box, which duplicated
+ * the same data and collapsed multiple suppliers for one meat into one row.
+ */
+function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
+  const products = profile.meat_products ?? [];
+  if (products.length === 0) return null;
+
+  // Registry-backed signal per meat (a live supplier link composed it).
+  const provByMeat = new Map<string, SupplierProvenance>();
+  for (const p of profile.supplier_provenance ?? []) {
+    if (p.source === "supplier") provByMeat.set(p.meat_type, p);
+  }
+
+  const groups = SOURCING_MEAT_ORDER.map((meat) => ({
+    meat,
+    items: products.filter((p) => p.meat_type === meat),
+  })).filter((g) => g.items.length > 0);
+
+  // "lamb, goat aren't served here" — core meats with no product and a
+  // NOT_SERVED column.
+  const absent = CORE_MEATS.filter(
+    (m) =>
+      String(profile[m.col]) === "NOT_SERVED" &&
+      !products.some((p) => p.meat_type === m.key),
+  ).map((m) => m.label);
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Meat sourcing
+      </p>
+      <div className="space-y-2">
+        {groups.map((g) => {
+          const prov = provByMeat.get(g.meat);
+          return (
+            <div key={g.meat} className="overflow-hidden rounded-md border">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-muted/40 px-2.5 py-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {provenanceMeatLabel(g.meat)}
+                </span>
+                {prov && (
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    {prov.certifying_body_name && (
+                      <span className="text-[11px] text-muted-foreground">
+                        certified by {prov.certifying_body_name}
+                      </span>
+                    )}
+                    <ConfidenceChip
+                      confidence={prov.confidence}
+                      ownerAttested={profile.owner_attested ?? false}
+                    />
+                  </span>
+                )}
+              </div>
+              <ul>
+                {g.items.map((p, i) => {
+                  const where = [p.supplier_city, p.supplier_state]
+                    .filter(Boolean)
+                    .join(", ");
+                  const supplierLine = [p.supplier_name, where]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <li
+                      key={`${p.product_name}-${i}`}
+                      className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-t border-border/60 px-2.5 py-2 first:border-t-0"
+                    >
+                      <span className="text-sm font-medium">{p.product_name}</span>
+                      <span className="shrink-0 text-xs font-semibold">
+                        {productMethodText(p.meat_type, p.slaughter_method)}
+                      </span>
+                      {supplierLine && (
+                        <span className="w-full text-xs text-muted-foreground">
+                          {supplierLine}
+                          {p.certifying_authority
+                            ? ` · certified by ${p.certifying_authority}`
+                            : ""}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+      {absent.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {absent.join(", ")}
+          {absent.length === 1 ? " isn't" : " aren't"} served here.
+        </p>
+      )}
     </div>
   );
 }
