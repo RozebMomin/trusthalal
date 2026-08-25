@@ -167,6 +167,34 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
                 as_of=r.as_of,
             )
         )
+
+    # Meats without a profile column (turkey, duck, fish, other) can't fall back
+    # to a self-attested value or override a column — but a live supplier link
+    # still composes a certifier + confidence we want to surface (e.g. a turkey
+    # supplier that just had its certifier filled in). Resolve them from the
+    # products the owner actually listed, appending only when a supplier link
+    # backs them so a link's certifier reaches the per-meat group header.
+    handled = {"CHICKEN", "BEEF", "LAMB", "GOAT"}
+    other_meats = sorted(
+        {str(p.meat_type) for p in (embed.meat_products or [])} - handled
+    )
+    for meat in other_meats:
+        r = resolve_place_method(db, place_id=profile.place_id, meat_type=meat)
+        if r.source != "supplier":
+            continue
+        provenance.append(
+            SlaughterProvenanceRead(
+                meat_type=meat,
+                method=r.method,
+                confidence=str(r.confidence),
+                source=r.source,
+                supplier_id=r.supplier_id,
+                supplier_name=r.supplier_name,
+                certifying_body_name=r.certifying_body_name,
+                as_of=r.as_of,
+            )
+        )
+
     embed.supplier_provenance = provenance
     return embed
 
