@@ -40,7 +40,7 @@ export default function MyPlacesPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             The restaurants you manage. Edit cuisine tags, upload photos,
-            and pick a hero image diners see in search results.
+            and pick a hero image that the diners see in search results.
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
