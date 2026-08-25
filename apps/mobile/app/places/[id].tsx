@@ -975,18 +975,20 @@ function AmenityRow({ place }: { place: AmenitySource }) {
             style={{
               flex: 1,
               height: 76,
-              backgroundColor: t.zincSoft,
+              backgroundColor: t.bg,
               borderRadius: radii.md,
+              borderWidth: 1,
+              borderColor: t.line,
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
               paddingHorizontal: 4,
             }}
           >
-            <MaterialCommunityIcons name={b.icon} size={24} color={t.zinc} />
+            <MaterialCommunityIcons name={b.icon} size={24} color={t.accentDeep} />
             <Text
               numberOfLines={2}
-              style={{ color: t.zinc, fontFamily: "Inter_600SemiBold", fontSize: 10.5, lineHeight: 13, textAlign: "center" }}
+              style={{ color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 10.5, lineHeight: 13, textAlign: "center" }}
             >
               {b.label}
             </Text>

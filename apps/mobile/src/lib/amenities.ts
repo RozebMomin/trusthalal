@@ -38,9 +38,9 @@ const AMENITY_LABELS: ReadonlyArray<{
   icon: MCIName;
 }> = [
   { field: "prayer_space", label: "Prayer space", icon: "mosque" },
-  { field: "wudu", label: "Wudu area", icon: "hand-water" },
+  { field: "wudu", label: "Wudu area", icon: "hand-wash" },
   { field: "bidet", label: "Bidet", icon: "shower-head" },
-  { field: "baby_changing", label: "Baby changing", icon: "baby-carriage" },
+  { field: "baby_changing", label: "Baby changing", icon: "human-baby-changing-table" },
 ];
 
 /**
