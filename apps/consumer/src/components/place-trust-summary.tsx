@@ -250,17 +250,10 @@ export function PlaceTrustSummary({
             // widths (no fold: the list is the substance, not overhead).
             <GroupedSourcing profile={profile} />
           ) : (
-            // No product-level detail: fall back to the rolled-up per-meat view
-            // (+ composed supplier box on desktop, folded on mobile).
-            <>
-              <div className="hidden sm:block">
-                <ServedMeats profile={profile} />
-                <SupplierBackedSourcing profile={profile} />
-              </div>
-              <div className="sm:hidden">
-                <MeatDisclosure profile={profile} />
-              </div>
-            </>
+            // No product-level claim (community / verifier-visit place): render
+            // the composed per-meat method + supplier in the SAME grouped-card
+            // shape as the owner view, so the two surfaces look identical.
+            <GroupedProvenanceSourcing profile={profile} />
           ))}
 
         {profile.seafood_only && (
@@ -534,6 +527,94 @@ function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
                   );
                 })}
               </ul>
+            </div>
+          );
+        })}
+      </div>
+      {absent.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {absent.join(", ")}
+          {absent.length === 1 ? " isn't" : " aren't"} served here.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The no-owner fallback (community / verifier-visit places with no product-level
+ * claim), rendered in the SAME grouped-card shape as GroupedSourcing. There are
+ * no per-product rows here — only the composed per-meat method + supplier — so
+ * each meat card holds a single row, but the look matches the owner view.
+ */
+function GroupedProvenanceSourcing({ profile }: { profile: HalalProfileEmbed }) {
+  const provByMeat = new Map<string, SupplierProvenance>();
+  for (const p of profile.supplier_provenance ?? []) {
+    if (p.source === "supplier") provByMeat.set(p.meat_type, p);
+  }
+
+  // Method per column meat, and which are served.
+  const methodByMeat = new Map<string, string>();
+  const served = new Set<string>();
+  const chickenServed = profile.chicken_slaughter !== "NOT_SERVED";
+  methodByMeat.set(
+    "CHICKEN",
+    SLAUGHTER_LABELS[profile.chicken_slaughter] ?? profile.chicken_slaughter,
+  );
+  if (chickenServed) served.add("CHICKEN");
+  for (const m of ["beef", "lamb", "goat"] as const) {
+    const status = profile[`${m}_zabihah`];
+    methodByMeat.set(m.toUpperCase(), ZABIHAH_LABELS[status] ?? status);
+    if (status !== "NOT_SERVED") served.add(m.toUpperCase());
+  }
+  // Supplier-linked meats without a column (turkey, duck, …) are served too.
+  for (const meat of provByMeat.keys()) served.add(meat);
+
+  const groups = SOURCING_MEAT_ORDER.filter((m) => served.has(m));
+  if (groups.length === 0) return null;
+
+  const absent = CORE_MEATS.filter(
+    (m) => String(profile[m.col]) === "NOT_SERVED" && !served.has(m.key),
+  ).map((m) => m.label);
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Meat sourcing
+      </p>
+      <div className="space-y-2">
+        {groups.map((meat) => {
+          const prov = provByMeat.get(meat);
+          const methodText =
+            methodByMeat.get(meat) ??
+            (prov ? productMethodText(meat, prov.method) : "");
+          return (
+            <div key={meat} className="overflow-hidden rounded-md border">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-muted/40 px-2.5 py-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {provenanceMeatLabel(meat)}
+                </span>
+                {prov && (
+                  <ConfidenceChip
+                    confidence={prov.confidence}
+                    ownerAttested={profile.owner_attested ?? false}
+                  />
+                )}
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 px-2.5 py-2">
+                <span className="text-sm font-medium">{methodText}</span>
+                {prov?.supplier_name && (
+                  <span className="w-full text-xs text-muted-foreground">
+                    {prov.supplier_name}
+                  </span>
+                )}
+                {prov?.certifying_body_name && (
+                  <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                    <ShieldCheck className="h-3 w-3" />
+                    {prov.certifying_body_name}
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}
