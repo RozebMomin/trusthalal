@@ -232,7 +232,7 @@ export default function PlaceDetail() {
                     style={{
                       position: "absolute", left: space.lg, bottom: 40,
                       flexDirection: "row", alignItems: "center", gap: 6,
-                      backgroundColor: place.open_now ? "rgba(22,163,74,0.95)" : "rgba(0,0,0,0.6)",
+                      backgroundColor: place.open_now ? "rgba(14,159,110,0.72)" : "rgba(0,0,0,0.6)",
                       borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
                     }}
                   >
