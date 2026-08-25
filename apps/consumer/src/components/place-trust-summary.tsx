@@ -525,8 +525,9 @@ function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
                         </span>
                       )}
                       {p.certifying_authority && (
-                        <span className="w-full text-xs text-muted-foreground">
-                          certified by {p.certifying_authority}
+                        <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                          <ShieldCheck className="h-3 w-3" />
+                          {p.certifying_authority}
                         </span>
                       )}
                     </li>
