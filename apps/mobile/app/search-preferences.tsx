@@ -1,92 +1,264 @@
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button } from "@/components/Button";
+import {
+  type CategoryKey,
+  SearchDefaultDetail,
+} from "@/components/SearchDefaultDetail";
 import {
   useCurrentUser,
   useMyPreferences,
   useUpdateMyPreferences,
 } from "@/lib/api/hooks";
-import type {
-  ConsumerPreferences,
-  MenuPosture,
-  SlaughterMethod,
-  ValidationTier,
-} from "@/lib/api/types";
+import type { ConsumerPreferences } from "@/lib/api/types";
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
-import { Card, Chip, ScreenHeader, Seg } from "@/ui/kit";
+import { Card, ScreenHeader } from "@/ui/kit";
 
 /**
- * Search defaults — the filters every search starts from.
+ * Search defaults — the filters every search starts from, saved server-side.
  *
- * Deliberately the same vocabulary as the Filters sheet ("Any claim",
- * "Fully halal", "Pork-free"…). These are the same knobs; if the wording
- * drifted, a diner would reasonably wonder whether they're different settings.
- *
- * Saved server-side, so the defaults follow you to the web and to a new phone.
- * The Explore tab seeds its filters from these on open — and once you touch a
- * filter there, your edit wins for that session rather than getting silently
- * re-applied underneath you.
+ * A hub-and-detail layout: the hub lists each preference category with its
+ * current value; tapping opens a full-screen picker (SearchDefaultDetail). Edits
+ * are live on a local draft; "Save changes" commits to the server. The Explore
+ * tab seeds its per-search filters from these on open.
  */
 
-const TIERS: Array<{ v: ValidationTier | undefined; label: string }> = [
-  { v: undefined, label: "Any claim" },
-  { v: "CERTIFICATE_ON_FILE", label: "Certified" },
-  { v: "TRUST_HALAL_VERIFIED", label: "✓ Verified" },
+type MCIName = keyof typeof MaterialCommunityIcons.glyphMap;
+
+const POSTURE_LABEL: Record<string, string> = {
+  FULLY_HALAL: "Fully halal",
+  MIXED_SEPARATE_KITCHENS: "Separate kitchen",
+  HALAL_OPTIONS_ADVERTISED: "Halal options",
+  HALAL_UPON_REQUEST: "On request",
+};
+
+function trustValue(p: ConsumerPreferences): string {
+  if (p.min_validation_tier === "TRUST_HALAL_VERIFIED") return "Verified";
+  if (p.min_validation_tier === "CERTIFICATE_ON_FILE") return "Certified";
+  return "Any claim";
+}
+function trustDesc(p: ConsumerPreferences): string {
+  if (p.min_validation_tier === "TRUST_HALAL_VERIFIED")
+    return "Only show places verified in person by the Trust Halal community.";
+  if (p.min_validation_tier === "CERTIFICATE_ON_FILE")
+    return "Only places with a valid halal certificate on file.";
+  return "All places with any halal claim, including self-attested.";
+}
+function restaurantValue(p: ConsumerPreferences): string {
+  return p.min_menu_posture ? POSTURE_LABEL[p.min_menu_posture] : "No preference";
+}
+function restaurantDesc(p: ConsumerPreferences): string {
+  switch (p.min_menu_posture) {
+    case "FULLY_HALAL":
+      return "Restaurants that are 100% halal throughout the menu.";
+    case "MIXED_SEPARATE_KITCHENS":
+      return "Halal kept separate from non-halal in the kitchen.";
+    case "HALAL_OPTIONS_ADVERTISED":
+      return "Some halal items on an otherwise mixed menu.";
+    case "HALAL_UPON_REQUEST":
+      return "Halal available when you ask the staff.";
+    default:
+      return "Any level of halal menu coverage.";
+  }
+}
+function chickenValue(p: ConsumerPreferences): string {
+  const v = (p.chicken_slaughter ?? [])[0];
+  if (v === "HAND_CUT") return "Hand-slaughtered";
+  if (v === "MACHINE_CUT") return "Machine-slaughtered";
+  return "No preference";
+}
+function redMeatValue(p: ConsumerPreferences): string {
+  const arr = p.beef_zabihah ?? [];
+  if (!arr.includes("ZABIHAH")) return "No preference";
+  return arr.includes("UNSURE") ? "Zabihah + unsure" : "Zabihah only";
+}
+function dietaryActive(p: ConsumerPreferences): string[] {
+  return [
+    p.no_pork ? "Pork-free" : null,
+    p.no_alcohol_served ? "No alcohol" : null,
+    p.has_certification ? "Certificate on file" : null,
+  ].filter(Boolean) as string[];
+}
+function dietaryValue(p: ConsumerPreferences): string {
+  const a = dietaryActive(p);
+  return a.length ? a.join(", ") : "None set";
+}
+
+type Cat = {
+  key: CategoryKey;
+  n: number;
+  icon: MCIName;
+  title: string;
+  short: string; // summary-strip value
+  stripLabel: string; // summary-strip caption
+  value: (p: ConsumerPreferences) => string;
+  desc: (p: ConsumerPreferences) => string;
+};
+
+const CATS: Cat[] = [
+  {
+    key: "trust",
+    n: 1,
+    icon: "shield-check-outline",
+    title: "Trust level required",
+    stripLabel: "Trust level",
+    short: "",
+    value: trustValue,
+    desc: trustDesc,
+  },
+  {
+    key: "restaurant",
+    n: 2,
+    icon: "silverware-fork-knife",
+    title: "Restaurant type",
+    stripLabel: "Restaurant type",
+    short: "",
+    value: restaurantValue,
+    desc: restaurantDesc,
+  },
+  {
+    key: "chicken",
+    n: 3,
+    icon: "food-drumstick-outline",
+    title: "Chicken preference",
+    stripLabel: "Chicken",
+    short: "",
+    value: chickenValue,
+    desc: () => "Your preferred preparation for chicken dishes.",
+  },
+  {
+    key: "redmeat",
+    n: 4,
+    icon: "food-steak",
+    title: "Red meat preference",
+    stripLabel: "Red meat",
+    short: "",
+    value: redMeatValue,
+    desc: () => "Beef, lamb and goat slaughter preference.",
+  },
+  {
+    key: "dietary",
+    n: 5,
+    icon: "leaf",
+    title: "Dietary preferences",
+    stripLabel: "Preferences",
+    short: "",
+    value: dietaryValue,
+    desc: () => "Additional dietary and evidence preferences.",
+  },
 ];
 
-const POSTURES: Array<{ v: MenuPosture; label: string }> = [
-  { v: "FULLY_HALAL", label: "Fully halal" },
-  { v: "MIXED_SEPARATE_KITCHENS", label: "Separate kitchen" },
-  { v: "HALAL_OPTIONS_ADVERTISED", label: "Halal options" },
-  { v: "HALAL_UPON_REQUEST", label: "On request" },
-];
+/** Short value for the summary strip at the top. */
+function stripValue(cat: Cat, p: ConsumerPreferences): string {
+  switch (cat.key) {
+    case "trust":
+      return trustValue(p);
+    case "restaurant":
+      return p.min_menu_posture ? POSTURE_LABEL[p.min_menu_posture] : "Any";
+    case "chicken": {
+      const v = (p.chicken_slaughter ?? [])[0];
+      return v === "HAND_CUT" ? "Hand-cut" : v === "MACHINE_CUT" ? "Machine-cut" : "Any";
+    }
+    case "redmeat":
+      return (p.beef_zabihah ?? []).includes("ZABIHAH") ? "Zabihah" : "Any";
+    case "dietary": {
+      const n = dietaryActive(p).length;
+      return n ? `${n} dietary` : "None";
+    }
+  }
+}
 
-type MeatDefaultField =
-  | "chicken_slaughter"
-  | "beef_zabihah"
-  | "lamb_zabihah"
-  | "goat_zabihah";
+function SummaryStrip({ draft }: { draft: ConsumerPreferences }) {
+  const t = useTheme();
+  return (
+    <Card style={{ padding: 16, gap: 14 }}>
+      <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 17 }}>Your default search</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={{ flexDirection: "row" }}>
+          {CATS.map((cat, i) => (
+            <View key={cat.key} style={{ flexDirection: "row" }}>
+              <View style={{ width: 92, alignItems: "center", gap: 6, paddingHorizontal: 4 }}>
+                <View
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 23,
+                    backgroundColor: t.accentSoft,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MaterialCommunityIcons name={cat.icon} size={22} color={t.accentDeep} />
+                </View>
+                <Text
+                  numberOfLines={1}
+                  style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 12.5, textAlign: "center" }}
+                >
+                  {stripValue(cat, draft)}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{ color: t.sub, fontFamily: "Inter_500Medium", fontSize: 11, textAlign: "center" }}
+                >
+                  {cat.stripLabel}
+                </Text>
+              </View>
+              {i < CATS.length - 1 ? (
+                <View style={{ width: 1, backgroundColor: t.line, marginVertical: 6 }} />
+              ) : null}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </Card>
+  );
+}
 
-const CHICKEN_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "HAND_CUT", label: "Hand-cut" },
-  { value: "MACHINE_CUT", label: "Machine-cut" },
-];
-const ZABIHAH_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "ZABIHAH", label: "Zabihah" },
-  { value: "UNSURE", label: "Include unsure" },
-];
-
-const MEAT_DEFAULTS: ReadonlyArray<{
-  field: MeatDefaultField;
-  label: string;
-  choices: ReadonlyArray<{ value: string; label: string }>;
-}> = [
-  { field: "chicken_slaughter", label: "Chicken", choices: CHICKEN_CHOICES },
-  { field: "beef_zabihah", label: "Beef", choices: ZABIHAH_CHOICES },
-  { field: "lamb_zabihah", label: "Lamb", choices: ZABIHAH_CHOICES },
-  { field: "goat_zabihah", label: "Goat", choices: ZABIHAH_CHOICES },
-];
-
-function countSet(p: ConsumerPreferences): number {
-  let n = [
-    p.min_validation_tier,
-    p.min_menu_posture,
-    p.no_pork,
-    p.no_alcohol_served,
-    p.has_certification,
-  ].filter(Boolean).length;
-  for (const { field } of MEAT_DEFAULTS) n += p[field]?.length ?? 0;
-  return n;
+function HubRow({
+  cat,
+  draft,
+  onPress,
+}: {
+  cat: Cat;
+  draft: ConsumerPreferences;
+  onPress: () => void;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable onPress={onPress}>
+      <Card style={{ padding: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 14,
+              backgroundColor: t.zincSoft,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MaterialCommunityIcons name={cat.icon} size={24} color={t.ink} />
+          </View>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 17 }}>
+              {cat.n}. {cat.title}
+            </Text>
+            <Text style={{ color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 14 }}>
+              {cat.value(draft)}
+            </Text>
+            <Text style={[ty.small, { color: t.sub, fontSize: 13, lineHeight: 18 }]}>{cat.desc(draft)}</Text>
+          </View>
+          <Feather name="chevron-right" size={22} color={t.sub} />
+        </View>
+      </Card>
+    </Pressable>
+  );
 }
 
 export default function SearchPreferences() {
@@ -98,11 +270,12 @@ export default function SearchPreferences() {
   const prefs = useMyPreferences(signedIn);
   const save = useUpdateMyPreferences();
 
-  // Local draft so toggling feels instant and Save is an explicit commit —
-  // these change what every future search returns, so a stray tap shouldn't
-  // silently persist.
   const [draft, setDraft] = useState<ConsumerPreferences>({});
   const [dirty, setDirty] = useState(false);
+  const [openCat, setOpenCat] = useState<CategoryKey | null>(null);
+
+  // Snapshot captured when a detail opens, so Cancel can revert its live edits.
+  const snapshot = useRef<{ draft: ConsumerPreferences; dirty: boolean } | null>(null);
 
   useEffect(() => {
     if (prefs.data && !dirty) setDraft(prefs.data);
@@ -111,6 +284,19 @@ export default function SearchPreferences() {
   const set = (patch: Partial<ConsumerPreferences>) => {
     setDirty(true);
     setDraft((d) => ({ ...d, ...patch }));
+  };
+
+  const openDetail = (key: CategoryKey) => {
+    snapshot.current = { draft, dirty };
+    setOpenCat(key);
+  };
+  const closeDetail = (revert: boolean) => {
+    if (revert && snapshot.current) {
+      setDraft(snapshot.current.draft);
+      setDirty(snapshot.current.dirty);
+    }
+    snapshot.current = null;
+    setOpenCat(null);
   };
 
   const shell = (children: React.ReactNode) => (
@@ -133,13 +319,10 @@ export default function SearchPreferences() {
   if (!signedIn) {
     return shell(
       <Card style={{ padding: space.lg, gap: 10 }}>
-        <Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>
-          Sign in to save your defaults
-        </Text>
+        <Text style={[ty.body, { color: t.ink, fontWeight: "600" }]}>Sign in to save your defaults</Text>
         <Text style={[ty.small, { color: t.sub, lineHeight: 19 }]}>
-          Saved defaults follow your account, so the same filters apply on the
-          web and on a new phone. You can still set filters per-search from the
-          Explore tab without an account.
+          Saved defaults follow your account, so the same filters apply on the web and on a new phone. You
+          can still set filters per-search from the Explore tab without an account.
         </Text>
         <Button title="Sign in" onPress={() => router.push("/(auth)/sign-in")} />
       </Card>,
@@ -154,177 +337,45 @@ export default function SearchPreferences() {
     );
   }
 
-  const setCount = countSet(draft);
-
-  return shell(
+  return (
     <>
-      <Text style={[ty.small, { color: t.sub, lineHeight: 19 }]}>
-        Every search starts from these. You can still change filters for a
-        single search from the Explore tab.
-      </Text>
+      {shell(
+        <>
+          <Text style={[ty.small, { color: t.sub, lineHeight: 20, fontSize: 14 }]}>
+            These preferences are used every time you search. You can change them for any individual
+            search.
+          </Text>
 
-      <Seg>Minimum proof</Seg>
-      <View
-        style={{
-          flexDirection: "row",
-          backgroundColor: t.zincSoft,
-          borderRadius: radii.md,
-          padding: 3,
-        }}
-      >
-        {TIERS.map((o) => {
-          const on = draft.min_validation_tier === o.v ||
-            (o.v === undefined && !draft.min_validation_tier);
-          return (
-            <Pressable
-              key={o.label}
-              onPress={() => set({ min_validation_tier: o.v ?? null })}
-              style={{
-                flex: 1,
-                paddingVertical: 9,
-                borderRadius: 11,
-                backgroundColor: on ? t.card : "transparent",
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: on ? "Inter_700Bold" : "Inter_600SemiBold",
-                  fontSize: 11,
-                  color: on ? t.ink : t.sub,
-                }}
-              >
-                {o.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Text style={[ty.small, { color: t.sub }]}>
-        Verified = a Trust Halal community member ate there and confirmed it in
-        person.
-      </Text>
+          <SummaryStrip draft={draft} />
 
-      <Seg>Menu coverage</Seg>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-        {POSTURES.map((o) => {
-          const on = draft.min_menu_posture === o.v;
-          return (
-            <Chip
-              key={o.v}
-              on={on}
-              label={o.label}
-              onPress={() => set({ min_menu_posture: on ? null : o.v })}
+          <View style={{ gap: space.md, marginTop: 4 }}>
+            {CATS.map((cat) => (
+              <HubRow key={cat.key} cat={cat} draft={draft} onPress={() => openDetail(cat.key)} />
+            ))}
+          </View>
+
+          <View style={{ marginTop: space.md, gap: space.sm }}>
+            <Button
+              title={save.isPending ? "Saving…" : "Save changes"}
+              icon="save"
+              variant="accent"
+              onPress={() => save.mutate(draft, { onSuccess: () => setDirty(false) })}
+              disabled={save.isPending || !dirty}
             />
-          );
-        })}
-      </View>
-
-      <Seg>Dietary</Seg>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-        <Chip
-          on={!!draft.no_pork}
-          label="Pork-free"
-          onPress={() => set({ no_pork: draft.no_pork ? null : true })}
-        />
-        <Chip
-          on={!!draft.no_alcohol_served}
-          label="No alcohol served"
-          onPress={() =>
-            set({ no_alcohol_served: draft.no_alcohol_served ? null : true })
-          }
-        />
-        <Chip
-          on={!!draft.has_certification}
-          label="Certificate on file"
-          onPress={() =>
-            set({ has_certification: draft.has_certification ? null : true })
-          }
-        />
-      </View>
-
-      <Seg>Meat</Seg>
-      <Text style={[ty.small, { color: t.sub }]}>
-        Chicken filters by hand vs machine. Beef, lamb and goat filter by zabihah — add &ldquo;Include unsure&rdquo; to also show unconfirmed places.
-      </Text>
-      <View style={{ gap: 10 }}>
-        {MEAT_DEFAULTS.map((meat) => {
-          const selected = (draft[meat.field] as string[] | undefined) ?? [];
-          return (
-            <View
-              key={meat.field}
-              style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}
-            >
-              <Text
-                style={{
-                  width: 58,
-                  color: t.ink,
-                  fontFamily: "Inter_600SemiBold",
-                  fontSize: 12,
-                }}
-              >
-                {meat.label}
+            {save.isError ? (
+              <Text style={[ty.small, { color: t.danger ?? "#DC2626", textAlign: "center" }]}>
+                Couldn&rsquo;t save. Check your connection and try again.
               </Text>
-              {meat.choices.map((choice) => {
-                const on = selected.includes(choice.value);
-                return (
-                  <Chip
-                    key={choice.value}
-                    on={on}
-                    label={choice.label}
-                    onPress={() => {
-                      const next = on
-                        ? selected.filter((m) => m !== choice.value)
-                        : [...selected, choice.value];
-                      set({ [meat.field]: next.length ? next : null });
-                    }}
-                  />
-                );
-              })}
-            </View>
-          );
-        })}
-      </View>
+            ) : (
+              <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
+                {dirty ? "Unsaved changes." : "Changes will apply to all new searches."}
+              </Text>
+            )}
+          </View>
+        </>,
+      )}
 
-      <View style={{ marginTop: space.lg, gap: space.sm }}>
-        <Button
-          title={
-            save.isPending
-              ? "Saving…"
-              : setCount > 0
-                ? `Save ${setCount} default${setCount === 1 ? "" : "s"}`
-                : "Save"
-          }
-          onPress={() => {
-            save.mutate(draft, { onSuccess: () => setDirty(false) });
-          }}
-          disabled={save.isPending || !dirty}
-        />
-        {setCount > 0 ? (
-          <Button
-            title="Clear all defaults"
-            variant="secondary"
-            onPress={() => {
-              setDirty(false);
-              setDraft({});
-              save.mutate({});
-            }}
-            disabled={save.isPending}
-          />
-        ) : null}
-      </View>
-
-      {save.isError ? (
-        <Text style={[ty.small, { color: t.danger ?? "#DC2626" }]}>
-          Couldn&rsquo;t save. Check your connection and try again.
-        </Text>
-      ) : null}
-
-      {prefs.data?.updated_at && !dirty ? (
-        <Text style={[ty.small, { color: t.sub, textAlign: "center" }]}>
-          Saved. These apply to new searches.
-        </Text>
-      ) : null}
-    </>,
+      <SearchDefaultDetail category={openCat} draft={draft} set={set} onClose={closeDetail} />
+    </>
   );
 }
