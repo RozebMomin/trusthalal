@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Award,
   Building2,
   ClipboardCheck,
   Factory,
@@ -33,6 +34,7 @@ const items: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/places", label: "Places", icon: Store },
   { href: "/suppliers", label: "Suppliers", icon: Factory },
+  { href: "/certifiers", label: "Certifiers", icon: Award },
   { href: "/halal-claims", label: "Halal claims", icon: ClipboardCheck },
   { href: "/verifier-applications", label: "Verifier applications", icon: UserPlus },
   { href: "/verification-visits", label: "Verification visits", icon: ShieldCheck },

@@ -30,6 +30,7 @@ import {
   type SupplierTier,
   type ZabihahStatusValue,
   useAddSupplierProduct,
+  useAdminCertifiers,
   usePatchSupplierProduct,
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -61,6 +62,8 @@ const TIERS: SupplierTier[] = [
 ];
 const STUNNING: StunningValue[] = ["STUNNED", "NON_STUNNED", "NOT_DISCLOSED"];
 const NO_STUN = "__none__";
+// Sentinel for "no registry certifier linked" in the certifier Select.
+const NO_CERT = "__none__";
 
 const METHOD_LABEL: Record<SlaughterMethodValue, string> = {
   HAND_CUT: "Hand-cut",
@@ -92,9 +95,14 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
   const [zabihah, setZabihah] = React.useState<ZabihahStatusValue>("UNSURE");
   const [tier, setTier] = React.useState<SupplierTier>("LISTED");
   const [stunning, setStunning] = React.useState<string>(NO_STUN);
+  const [certifierId, setCertifierId] = React.useState<string>(NO_CERT);
   const [cert, setCert] = React.useState("");
   const [source, setSource] = React.useState("");
   const [notes, setNotes] = React.useState("");
+
+  // The registry, for linking this line to a canonical certifier (what makes
+  // an acronym display as its full name everywhere).
+  const { data: certifiers } = useAdminCertifiers();
 
   React.useEffect(() => {
     if (!open) return;
@@ -104,6 +112,7 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
     setZabihah(product?.zabihah_status ?? "UNSURE");
     setTier(product?.line_tier ?? "LISTED");
     setStunning(product?.stunning ?? NO_STUN);
+    setCertifierId(product?.certifier_id ?? NO_CERT);
     setCert(product?.certifying_body_name ?? "");
     setSource(product?.source_url ?? "");
     setNotes(product?.notes ?? "");
@@ -122,6 +131,9 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
       zabihah_status: isRed ? zabihah : null,
       line_tier: tier,
       stunning: stunning === NO_STUN ? null : (stunning as StunningValue),
+      // A linked registry certifier is the canonical display name; the
+      // free-text is only used when the body isn't in the registry.
+      certifier_id: certifierId === NO_CERT ? null : certifierId,
       certifying_body_name: cert.trim() || null,
       source_url: source.trim() || null,
       notes: notes.trim() || null,
@@ -253,15 +265,38 @@ export function ProductLineDialog({ supplierId, product, open, onOpenChange }: P
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="line-cert">Certifier</Label>
+                <Label>Certifier</Label>
+                <Select value={certifierId} onValueChange={setCertifierId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Link to registry" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_CERT}>— None —</SelectItem>
+                    {(certifiers ?? []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {certifierId === NO_CERT ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="line-cert">Certifier (free text)</Label>
                 <Input
                   id="line-cert"
                   value={cert}
                   onChange={(e) => setCert(e.target.value)}
-                  placeholder="e.g. HMS"
+                  placeholder="Only if not in the registry above"
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Prefer linking a registry certifier so its full name shows
+                  everywhere. Free-text is displayed verbatim.
+                </p>
               </div>
-            </div>
+            ) : null}
 
             <div className="space-y-1.5">
               <Label htmlFor="line-source">Source URL</Label>

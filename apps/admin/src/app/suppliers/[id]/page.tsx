@@ -17,6 +17,7 @@ import {
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type SupplierProductAdminRead,
+  useAdminCertifiers,
   useAdminSupplier,
   useAdminSupplierEvents,
   useDeleteSupplierProduct,
@@ -49,6 +50,12 @@ export default function SupplierDetailPage() {
 
   const { data: supplier, isLoading } = useAdminSupplier(id);
   const { data: events } = useAdminSupplierEvents(id);
+  // Resolve a line's certifier_id to its canonical name for display.
+  const { data: certifiers } = useAdminCertifiers();
+  const certNameById = React.useMemo(
+    () => new Map((certifiers ?? []).map((c) => [c.id, c.name])),
+    [certifiers],
+  );
   const revoke = useRevokeSupplier(id ?? "");
   const restore = useRestoreSupplier(id ?? "");
   const deleteProduct = useDeleteSupplierProduct(id ?? "");
@@ -201,7 +208,14 @@ export default function SupplierDetailPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {p.certifying_body_name ? (
+                      {p.certifier_id && certNameById.get(p.certifier_id) ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          {certNameById.get(p.certifier_id)}
+                          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                            registry
+                          </span>
+                        </span>
+                      ) : p.certifying_body_name ? (
                         p.certifying_body_name
                       ) : (
                         <span className="text-muted-foreground">—</span>

@@ -378,6 +378,10 @@ export const qk = {
     detail: (id: string) => ["suppliers", "detail", id] as const,
     events: (id: string) => ["suppliers", "events", id] as const,
   },
+  certifiers: {
+    list: (q?: string) => ["certifiers", "list", { q }] as const,
+    detail: (id: string) => ["certifiers", "detail", id] as const,
+  },
   me: () => ["me"] as const,
 } as const;
 
@@ -2820,5 +2824,153 @@ export function useEndPlaceSupplierLink(placeId: string) {
         method: "DELETE",
       }),
     onSuccess: () => invalidatePlaceLinks(qc, placeId),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Certifier registry (admin) — canonical certifying bodies + aliases.
+//
+// The registry is what free-text certifier strings (typed on supplier lines,
+// captured on visits) resolve to. Linking a line's certifier_id to a canonical
+// body is what makes "HTO" display as "Halal Transactions of Omaha" everywhere.
+// ---------------------------------------------------------------------------
+export type CertifierAdverseEventTypeValue =
+  | "CONVICTION"
+  | "SANCTION"
+  | "DELISTING"
+  | "DISPUTE"
+  | "OTHER";
+
+export type CertifierAliasRead = { id: string; alias: string };
+
+export type CertifierAdverseEventRead = {
+  id: string;
+  event_type: CertifierAdverseEventTypeValue;
+  occurred_on?: string | null;
+  summary: string;
+  source_url?: string | null;
+  created_at: string;
+};
+
+export type CertifierAdminRead = {
+  id: string;
+  slug: string;
+  name: string;
+  legal_entity?: string | null;
+  country_code?: string | null;
+  website?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  alias_count: number;
+  adverse_event_count: number;
+};
+
+export type CertifierDetailRead = CertifierAdminRead & {
+  aliases: CertifierAliasRead[];
+  adverse_events: CertifierAdverseEventRead[];
+};
+
+export type CertifierCreate = {
+  slug: string;
+  name: string;
+  legal_entity?: string | null;
+  country_code?: string | null;
+  website?: string | null;
+  notes?: string | null;
+  aliases?: string[];
+};
+
+export type CertifierPatch = {
+  name?: string;
+  legal_entity?: string | null;
+  country_code?: string | null;
+  website?: string | null;
+  notes?: string | null;
+};
+
+function invalidateCertifiers(qc: ReturnType<typeof useQueryClient>) {
+  return qc.invalidateQueries({ queryKey: ["certifiers"] });
+}
+
+export function useAdminCertifiers(q?: string) {
+  return useQuery({
+    queryKey: qk.certifiers.list(q),
+    queryFn: () =>
+      apiFetch<CertifierAdminRead[]>("/admin/certifiers", {
+        searchParams: { q: q || undefined },
+      }),
+  });
+}
+
+export function useAdminCertifier(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.certifiers.detail(id ?? ""),
+    queryFn: () => apiFetch<CertifierDetailRead>(`/admin/certifiers/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useCreateCertifier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CertifierCreate) =>
+      apiFetch<CertifierDetailRead>("/admin/certifiers", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => void invalidateCertifiers(qc),
+  });
+}
+
+export function usePatchCertifier(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CertifierPatch) =>
+      apiFetch<CertifierDetailRead>(`/admin/certifiers/${id}`, {
+        method: "PATCH",
+        json: payload,
+      }),
+    onSuccess: () => void invalidateCertifiers(qc),
+  });
+}
+
+export function useAddCertifierAlias(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (alias: string) =>
+      apiFetch<CertifierDetailRead>(`/admin/certifiers/${id}/aliases`, {
+        method: "POST",
+        json: { alias },
+      }),
+    onSuccess: () => void invalidateCertifiers(qc),
+  });
+}
+
+export function useRemoveCertifierAlias(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (aliasId: string) =>
+      apiFetch<void>(`/admin/certifiers/${id}/aliases/${aliasId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => void invalidateCertifiers(qc),
+  });
+}
+
+export function useAddCertifierAdverseEvent(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      event_type: CertifierAdverseEventTypeValue;
+      summary: string;
+      occurred_on?: string | null;
+      source_url?: string | null;
+    }) =>
+      apiFetch<CertifierDetailRead>(`/admin/certifiers/${id}/adverse-events`, {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => void invalidateCertifiers(qc),
   });
 }
