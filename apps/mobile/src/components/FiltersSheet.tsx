@@ -1,15 +1,32 @@
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  Modal,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Button } from "./Button";
+import { OptionCard } from "./SearchDefaultDetail";
 import { Sheet } from "@/ui/kit";
-import type { SearchPlacesParams, SlaughterMethod, ValidationTier } from "@/lib/api/types";
+import type {
+  SearchPlacesParams,
+  SlaughterMethod,
+  ValidationTier,
+  ZabihahStatus,
+} from "@/lib/api/types";
 
-const TIERS: Array<{ v: ValidationTier | undefined; label: string }> = [
-  { v: undefined, label: "Any claim" },
-  { v: "CERTIFICATE_ON_FILE", label: "Certified" },
-  { v: "TRUST_HALAL_VERIFIED", label: "✓ Verified" },
-];
+type MCIName = keyof typeof MaterialCommunityIcons.glyphMap;
+
 const POSTURES = [
   { v: "FULLY_HALAL", label: "Fully halal" },
   { v: "MIXED_SEPARATE_KITCHENS", label: "Separate kitchen" },
@@ -17,43 +34,33 @@ const POSTURES = [
   { v: "HALAL_UPON_REQUEST", label: "On request" },
 ] as const;
 
-/** Per-meat filter fields carried on Filters. Chicken uses hand/machine; red
- *  meat uses a zabihah toggle plus an "include unsure" option. */
-type MeatFilterField =
-  | "chicken_slaughter"
-  | "beef_zabihah"
-  | "lamb_zabihah"
-  | "goat_zabihah";
+/** Per-meat filter fields. Chicken uses hand/machine; red meat uses a zabihah
+ *  toggle plus an "include unsure" add-on. */
+type MeatFilterField = "chicken_slaughter" | "beef_zabihah" | "lamb_zabihah" | "goat_zabihah";
 
-const CHICKEN_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "HAND_CUT", label: "Hand-cut" },
-  { value: "MACHINE_CUT", label: "Machine-cut" },
-];
-const ZABIHAH_CHOICES: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "ZABIHAH", label: "Zabihah" },
-  { value: "UNSURE", label: "Include unsure" },
-];
-
-const MEAT_FILTERS: ReadonlyArray<{
-  field: MeatFilterField;
-  label: string;
-  choices: ReadonlyArray<{ value: string; label: string }>;
-}> = [
-  { field: "chicken_slaughter", label: "Chicken", choices: CHICKEN_CHOICES },
-  { field: "beef_zabihah", label: "Beef", choices: ZABIHAH_CHOICES },
-  { field: "lamb_zabihah", label: "Lamb", choices: ZABIHAH_CHOICES },
-  { field: "goat_zabihah", label: "Goat", choices: ZABIHAH_CHOICES },
+const MEAT_FILTERS: ReadonlyArray<{ field: MeatFilterField; label: string; icon: MCIName; red: boolean }> = [
+  { field: "chicken_slaughter", label: "Chicken", icon: "food-drumstick-outline", red: false },
+  { field: "beef_zabihah", label: "Beef", icon: "cow", red: true },
+  { field: "lamb_zabihah", label: "Lamb", icon: "sheep", red: true },
+  { field: "goat_zabihah", label: "Goat", icon: "food-steak", red: true },
 ];
 
 /** Family-amenity priority boosts. NOT restrictive — these re-rank rather than
- *  filter, so they're deliberately kept out of countFilters and given a
- *  distinct "prioritize" section. */
-const AMENITY_BOOSTS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "PRAYER_SPACE", label: "Prayer space" },
-  { value: "WUDU", label: "Wudu area" },
-  { value: "BIDET", label: "Bidet" },
-  { value: "BABY_CHANGING", label: "Baby changing" },
+ *  filter, so they're kept out of countFilters and given a distinct section. */
+const AMENITY_BOOSTS: ReadonlyArray<{ value: string; label: string; icon: MCIName }> = [
+  { value: "PRAYER_SPACE", label: "Prayer space", icon: "mosque" },
+  { value: "WUDU", label: "Wudu area", icon: "water-outline" },
+  { value: "BIDET", label: "Bidet", icon: "toilet" },
+  { value: "BABY_CHANGING", label: "Baby changing", icon: "baby-carriage" },
 ];
+
+const TIER_LABEL: Record<string, string> = {
+  TRUST_HALAL_VERIFIED: "Verified",
+  CERTIFICATE_ON_FILE: "Certified",
+};
+function tierLabel(v: ValidationTier | undefined | null): string {
+  return v ? (TIER_LABEL[v] ?? "Any claim") : "Any claim";
+}
 
 export type Filters = Pick<
   SearchPlacesParams,
@@ -72,10 +79,8 @@ export type Filters = Pick<
 
 export function countFilters(f: Filters) {
   let n = [f.min_validation_tier, f.min_menu_posture, f.no_pork, f.no_alcohol_served, f.has_certification, f.open_now].filter(Boolean).length;
-  // Each selected slaughter method is its own restrictive constraint.
   for (const { field } of MEAT_FILTERS) n += f[field]?.length ?? 0;
-  // boost_amenities is intentionally NOT counted — it re-ranks, never removes,
-  // so it must not inflate a badge that reads as "things are being filtered out".
+  // boost_amenities is intentionally NOT counted — it re-ranks, never removes.
   return n;
 }
 
@@ -94,178 +99,363 @@ export function FiltersSheet({
 }) {
   const t = useTheme();
   const { height } = useWindowDimensions();
-  // Give the scroller most of the screen so the sheet reads as near-full-height
-  // — the old fixed 520 hid the newer sections with no hint they were there.
   const scrollMax = Math.round(height * 0.72);
+  const [trustOpen, setTrustOpen] = useState(false);
+
+  const setField = (field: MeatFilterField, value: string[] | undefined) =>
+    onChange({ ...filters, [field]: value } as Filters);
+
   return (
     <Sheet visible={visible} onClose={onClose}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: space.md }}>
-          <Text style={[ty.h2, { color: t.ink }]}>Filters</Text>
-          <Pressable onPress={() => onChange({})}>
-            <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold" }]}>Reset</Text>
-          </Pressable>
-        </View>
-        <ScrollView
-          style={{ maxHeight: scrollMax }}
-          showsVerticalScrollIndicator
-          contentContainerStyle={{ paddingBottom: space.md }}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: space.md }}>
+        <Text style={[ty.h2, { color: t.ink }]}>Filters</Text>
+        <Pressable onPress={() => onChange({})}>
+          <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold" }]}>Reset</Text>
+        </Pressable>
+      </View>
+      <ScrollView style={{ maxHeight: scrollMax }} showsVerticalScrollIndicator contentContainerStyle={{ paddingBottom: space.md }}>
+        {/* Trust level — a summary card that opens the full picker. */}
+        <Pressable
+          onPress={() => setTrustOpen(true)}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            backgroundColor: t.accentSoft,
+            borderRadius: radii.xl,
+            padding: 16,
+            marginBottom: space.lg,
+          }}
         >
-          <Text style={[ty.seg, { color: t.sub, marginBottom: 8 }]}>Availability</Text>
-          <Pressable
-            onPress={() => onChange({ ...filters, open_now: filters.open_now ? undefined : true })}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              backgroundColor: filters.open_now ? "rgba(22,163,74,0.12)" : "transparent",
-              borderWidth: 1,
-              borderColor: filters.open_now ? "#16A34A" : t.line,
-              borderRadius: radii.md,
-              paddingHorizontal: 14,
-              paddingVertical: 12,
-            }}
-          >
-            <View>
-              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: t.ink }}>Open now</Text>
-              <Text style={[ty.small, { color: t.sub, marginTop: 2 }]}>
-                Only show places confirmed open right now.
-              </Text>
-            </View>
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: filters.open_now ? "#16A34A" : "transparent",
-                borderWidth: filters.open_now ? 0 : 1.5,
-                borderColor: t.line,
-              }}
-            >
-              {filters.open_now ? (
-                <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>✓</Text>
-              ) : null}
-            </View>
-          </Pressable>
-
-          <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 8 }]}>Minimum proof</Text>
-          <View style={{ flexDirection: "row", backgroundColor: t.zincSoft, borderRadius: radii.md, padding: 3 }}>
-            {TIERS.map((o) => {
-              const on = filters.min_validation_tier === o.v;
-              return (
-                <Pressable
-                  key={o.label}
-                  onPress={() => onChange({ ...filters, min_validation_tier: o.v })}
-                  style={{ flex: 1, paddingVertical: 9, borderRadius: 11, backgroundColor: on ? t.card : "transparent", alignItems: "center" }}
-                >
-                  <Text style={{ fontFamily: on ? "Inter_700Bold" : "Inter_600SemiBold", fontSize: 11, color: on ? t.ink : t.sub }}>
-                    {o.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <MaterialCommunityIcons name="shield-check" size={30} color={t.accentDeep} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 15.5 }}>
+              Showing places that are{" "}
+              <Text style={{ color: t.accentDeep }}>{tierLabel(filters.min_validation_tier)}</Text>
+            </Text>
+            <Text style={[ty.small, { color: t.sub, fontSize: 13, marginTop: 2 }]}>
+              Change your minimum proof level
+            </Text>
           </View>
-          <Text style={[ty.small, { color: t.sub, marginTop: 6 }]}>
-            Verified = a Trust Halal community member ate there and confirmed it in person.
-          </Text>
+          <Feather name="chevron-right" size={22} color={t.sub} />
+        </Pressable>
 
-          <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 8 }]}>Menu coverage</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-            {POSTURES.map((o) => {
-              const on = filters.min_menu_posture === o.v;
-              return (
-                <Chip key={o.v} on={on} label={o.label} onPress={() => onChange({ ...filters, min_menu_posture: on ? undefined : o.v })} />
-              );
-            })}
+        {/* Availability */}
+        <Text style={[ty.seg, { color: t.sub, marginBottom: 8 }]}>Availability</Text>
+        <Pressable
+          onPress={() => onChange({ ...filters, open_now: filters.open_now ? undefined : true })}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            backgroundColor: t.card,
+            borderRadius: radii.xl,
+            padding: 14,
+          }}
+        >
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
+            <Feather name="clock" size={20} color={t.accentDeep} />
           </View>
-
-          <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 8 }]}>Dietary</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-            <Chip on={!!filters.no_pork} label="Pork-free" onPress={() => onChange({ ...filters, no_pork: filters.no_pork ? undefined : true })} />
-            <Chip on={!!filters.no_alcohol_served} label="No alcohol served" onPress={() => onChange({ ...filters, no_alcohol_served: filters.no_alcohol_served ? undefined : true })} />
-            <Chip on={!!filters.has_certification} label="Certificate on file" onPress={() => onChange({ ...filters, has_certification: filters.has_certification ? undefined : true })} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: t.ink }}>Open now</Text>
+            <Text style={[ty.small, { color: t.sub, marginTop: 2, fontSize: 13 }]}>Only show places confirmed open right now.</Text>
           </View>
+          <Switch
+            value={!!filters.open_now}
+            onValueChange={(v) => onChange({ ...filters, open_now: v ? true : undefined })}
+            trackColor={{ true: t.accent, false: t.line }}
+            accessibilityLabel="Open now"
+          />
+        </Pressable>
 
-          <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 4 }]}>Meat</Text>
-          <Text style={[ty.small, { color: t.sub, marginBottom: 10 }]}>
-            Chicken filters by hand vs machine. Beef, lamb and goat filter by zabihah — add &ldquo;Include unsure&rdquo; to also show unconfirmed places.
-          </Text>
-          <View style={{ gap: 10 }}>
-            {MEAT_FILTERS.map(({ field, label, choices }) => {
-              const selected = (filters[field] as string[] | undefined) ?? [];
-              return (
-                <View key={field} style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-                  <Text style={{ width: 58, color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{label}</Text>
-                  {choices.map((choice) => {
-                    const on = selected.includes(choice.value);
-                    return (
-                      <Chip
-                        key={choice.value}
-                        on={on}
-                        label={choice.label}
-                        onPress={() => {
-                          const next = on
-                            ? selected.filter((v) => v !== choice.value)
-                            : [...selected, choice.value];
-                          onChange({ ...filters, [field]: next.length ? next : undefined });
-                        }}
-                      />
-                    );
-                  })}
+        {/* Menu coverage — single-select */}
+        <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 8 }]}>Menu coverage</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+          {POSTURES.map((o) => {
+            const on = filters.min_menu_posture === o.v;
+            return <Chip key={o.v} on={on} label={o.label} onPress={() => onChange({ ...filters, min_menu_posture: on ? undefined : o.v })} />;
+          })}
+        </View>
+
+        {/* Dietary — multi */}
+        <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 8 }]}>Dietary</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+          <Chip on={!!filters.no_pork} label="Pork-free" onPress={() => onChange({ ...filters, no_pork: filters.no_pork ? undefined : true })} />
+          <Chip on={!!filters.no_alcohol_served} label="No alcohol served" onPress={() => onChange({ ...filters, no_alcohol_served: filters.no_alcohol_served ? undefined : true })} />
+          <Chip on={!!filters.has_certification} label="Certificate on file" onPress={() => onChange({ ...filters, has_certification: filters.has_certification ? undefined : true })} />
+        </View>
+
+        {/* Meat preferences — per-meat cards with a segmented control */}
+        <Text style={[ty.seg, { color: t.sub, marginTop: space.lg, marginBottom: 4 }]}>Meat preferences</Text>
+        <Text style={[ty.small, { color: t.sub, marginBottom: 10 }]}>Choose how you want each type of meat to be prepared.</Text>
+        <View style={{ backgroundColor: t.card, borderRadius: radii.xl, overflow: "hidden" }}>
+          {MEAT_FILTERS.map(({ field, label, icon, red }, i) => {
+            const selected = (filters[field] as string[] | undefined) ?? [];
+            return (
+              <View key={field} style={{ borderTopWidth: i === 0 ? 0 : 1, borderTopColor: t.line, padding: 14, gap: 10 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.accentSoft, alignItems: "center", justifyContent: "center" }}>
+                    <MaterialCommunityIcons name={icon} size={20} color={t.accentDeep} />
+                  </View>
+                  <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 15, flex: 1 }}>{label}</Text>
                 </View>
+                {red ? (
+                  <RedMeatControl
+                    selected={selected}
+                    onSet={(v) => setField(field, v)}
+                  />
+                ) : (
+                  <Segmented
+                    options={[
+                      { key: "", label: "Any" },
+                      { key: "HAND_CUT", label: "Hand-cut" },
+                      { key: "MACHINE_CUT", label: "Machine-cut" },
+                    ]}
+                    value={selected[0] ?? ""}
+                    onSelect={(k) => setField(field, k ? [k] : undefined)}
+                  />
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Prioritize for families — re-ranks, doesn't filter */}
+        <View
+          style={{
+            marginTop: space.lg,
+            backgroundColor: t.accentSoft,
+            borderRadius: radii.xl,
+            borderWidth: 1,
+            borderColor: t.accent,
+            padding: 14,
+          }}
+        >
+          <Text style={[ty.seg, { color: t.accentDeep, marginBottom: 4 }]}>Prioritize for families</Text>
+          <Text style={[ty.small, { color: t.sub, marginBottom: 10 }]}>Bubbles these up first — doesn&apos;t hide other places.</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+            {AMENITY_BOOSTS.map((amenity) => {
+              const selected = filters.boost_amenities ?? [];
+              const on = selected.includes(amenity.value);
+              return (
+                <Chip
+                  key={amenity.value}
+                  on={on}
+                  accent
+                  icon={amenity.icon}
+                  label={amenity.label}
+                  onPress={() => {
+                    const next = on ? selected.filter((v) => v !== amenity.value) : [...selected, amenity.value];
+                    onChange({ ...filters, boost_amenities: next.length ? next : undefined });
+                  }}
+                />
               );
             })}
           </View>
+        </View>
+      </ScrollView>
 
-          {/* Distinct "prioritize" section — these RE-RANK, they never remove a
-              place, so they get a tinted card, their own copy, and (via
-              countFilters) stay out of the active-filter count. */}
+      <View style={{ paddingTop: space.md, marginTop: 2, borderTopWidth: 1, borderTopColor: t.line }}>
+        <Button title={resultCount !== undefined ? `Show ${resultCount} places` : "Done"} onPress={onClose} />
+      </View>
+
+      <TrustDetail
+        open={trustOpen}
+        value={filters.min_validation_tier ?? undefined}
+        onSelect={(v) => onChange({ ...filters, min_validation_tier: v })}
+        onClose={() => setTrustOpen(false)}
+      />
+    </Sheet>
+  );
+}
+
+/** Red-meat control: an Any/Zabihah segment, plus an "Include unsure" add-on
+ *  that appears only when Zabihah is chosen (widening, never a standalone). */
+function RedMeatControl({
+  selected,
+  onSet,
+}: {
+  selected: string[];
+  onSet: (v: string[] | undefined) => void;
+}) {
+  const t = useTheme();
+  const zab = selected.includes("ZABIHAH");
+  const unsure = selected.includes("UNSURE");
+  return (
+    <View style={{ gap: 10 }}>
+      <Segmented
+        options={[
+          { key: "", label: "Any" },
+          { key: "ZABIHAH", label: "Zabihah" },
+        ]}
+        value={zab ? "ZABIHAH" : ""}
+        onSelect={(k) => {
+          const next: ZabihahStatus[] | undefined = k
+            ? unsure
+              ? ["ZABIHAH", "UNSURE"]
+              : ["ZABIHAH"]
+            : undefined;
+          onSet(next);
+        }}
+      />
+      {zab ? (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: unsure }}
+          onPress={() => {
+            const next: ZabihahStatus[] = unsure ? ["ZABIHAH"] : ["ZABIHAH", "UNSURE"];
+            onSet(next);
+          }}
+          style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+        >
           <View
             style={{
-              marginTop: space.lg,
-              backgroundColor: t.accentSoft,
-              borderRadius: radii.md,
-              borderWidth: 1,
-              borderColor: t.accent,
-              padding: 14,
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              borderWidth: unsure ? 0 : 1.5,
+              borderColor: t.line,
+              backgroundColor: unsure ? t.accent : "transparent",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <Text style={[ty.seg, { color: t.accentDeep, marginBottom: 4 }]}>Prioritize for families</Text>
-            <Text style={[ty.small, { color: t.sub, marginBottom: 10 }]}>
-              Bubbles these up first — doesn&apos;t hide other places.
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {AMENITY_BOOSTS.map((amenity) => {
-                const selected = filters.boost_amenities ?? [];
-                const on = selected.includes(amenity.value);
-                return (
-                  <Chip
-                    key={amenity.value}
-                    on={on}
-                    accent
-                    label={amenity.label}
-                    onPress={() => {
-                      const next = on
-                        ? selected.filter((v) => v !== amenity.value)
-                        : [...selected, amenity.value];
-                      onChange({ ...filters, boost_amenities: next.length ? next : undefined });
-                    }}
-                  />
-                );
-              })}
-            </View>
+            {unsure ? <Feather name="check" size={14} color={t.onAccent} /> : null}
           </View>
+          <Text style={{ color: t.sub, fontFamily: "Inter_500Medium", fontSize: 12.5, flex: 1, lineHeight: 17 }}>
+            Include places whose zabihah status is unconfirmed
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
 
-        </ScrollView>
+/** A segmented single-select control. Selected segment fills with ink. */
+function Segmented({
+  options,
+  value,
+  onSelect,
+}: {
+  options: ReadonlyArray<{ key: string; label: string }>;
+  value: string;
+  onSelect: (key: string) => void;
+}) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: "row", backgroundColor: t.zincSoft, borderRadius: 999, padding: 3 }}>
+      {options.map((o) => {
+        const on = value === o.key;
+        return (
+          <Pressable
+            key={o.key || "any"}
+            onPress={() => onSelect(o.key)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            style={{ flex: 1, paddingVertical: 8, borderRadius: 999, backgroundColor: on ? t.ink : "transparent", alignItems: "center" }}
+          >
+            <Text style={{ color: on ? t.onInk : t.ink, fontFamily: on ? "Inter_700Bold" : "Inter_600SemiBold", fontSize: 12 }}>
+              {o.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
-        {/* Pinned footer — always visible below the scroller, so the CTA is
-            never hidden and the sheet's bottom edge is unmistakable (the
-            content above it scrolls). */}
-        <View style={{ paddingTop: space.md, marginTop: 2, borderTopWidth: 1, borderTopColor: t.line }}>
-          <Button title={resultCount !== undefined ? `Show ${resultCount} places` : "Done"} onPress={onClose} />
+/** Full-screen trust-level picker, reusing the shared OptionCard so it matches
+ *  the Search-defaults trust page. Applies live to the sheet's filters. */
+function TrustDetail({
+  open,
+  value,
+  onSelect,
+  onClose,
+}: {
+  open: boolean;
+  value: ValidationTier | undefined;
+  onSelect: (v: ValidationTier | undefined) => void;
+  onClose: () => void;
+}) {
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const tx = useRef(new Animated.Value(60)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (open) {
+      tx.setValue(60);
+      op.setValue(0);
+      Animated.parallel([
+        Animated.timing(tx, { toValue: 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 1, duration: 240, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [open, tx, op]);
+
+  if (!open) return null;
+  return (
+    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+      <Animated.View style={{ flex: 1, backgroundColor: t.bg, opacity: op, transform: [{ translateX: tx }] }}>
+        <View style={{ flex: 1, paddingTop: insets.top + space.md }}>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: insets.bottom + 24, gap: 12 }}>
+            <Pressable onPress={onClose} hitSlop={10} style={{ flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start" }}>
+              <Feather name="chevron-left" size={20} color={t.accentDeep} />
+              <Text style={[ty.label, { color: t.accentDeep, fontSize: 15 }]}>Filters</Text>
+            </Pressable>
+            <Text style={[ty.title, { color: t.ink, fontSize: 28, lineHeight: 32, marginTop: 6 }]}>Minimum proof</Text>
+            <Text style={[ty.small, { color: t.sub, fontSize: 14, lineHeight: 20, marginBottom: 4 }]}>
+              Choose the minimum level of proof you want to see in your results.
+            </Text>
+
+            <View style={{ gap: 8 }}>
+              <OptionCard
+                icon="shield-check"
+                title="Verified"
+                recommended
+                desc="Only show places verified in person by a Trust Halal community member."
+                tag="Highest trust"
+                tagIcon="account-group"
+                kind="radio"
+                on={value === "TRUST_HALAL_VERIFIED"}
+                onPress={() => onSelect("TRUST_HALAL_VERIFIED")}
+              />
+              <OptionCard
+                icon="certificate"
+                title="Certified"
+                desc="Only show places with a valid halal certificate from a recognized certifying body."
+                tag="Third-party certified"
+                tagIcon="shield-check-outline"
+                kind="radio"
+                on={value === "CERTIFICATE_ON_FILE"}
+                onPress={() => onSelect("CERTIFICATE_ON_FILE")}
+              />
+              <OptionCard
+                icon="magnify"
+                title="Any claim"
+                desc="Show all places with any halal claim, including self-attested."
+                tag="Most results"
+                tagIcon="information-outline"
+                kind="radio"
+                on={!value}
+                onPress={() => onSelect(undefined)}
+              />
+            </View>
+          </ScrollView>
+
+          <View
+            style={{
+              paddingHorizontal: space.lg,
+              paddingTop: space.md,
+              paddingBottom: insets.bottom + space.sm,
+              borderTopWidth: 1,
+              borderTopColor: t.line,
+            }}
+          >
+            <Button title="Done" variant="accent" onPress={onClose} />
+          </View>
         </View>
-    </Sheet>
+      </Animated.View>
+    </Modal>
   );
 }
 
@@ -274,13 +464,14 @@ function Chip({
   label,
   onPress,
   accent,
+  icon,
 }: {
   on: boolean;
   label: string;
   onPress: () => void;
-  /** When selected, fill with the brand emerald instead of ink — used by the
-   *  non-restrictive "prioritize" boosts so they read apart from filters. */
+  /** When selected, fill with the brand emerald instead of ink. */
   accent?: boolean;
+  icon?: MCIName;
 }) {
   const t = useTheme();
   const onBg = accent ? t.accent : t.ink;
@@ -291,6 +482,9 @@ function Chip({
       accessibilityState={{ selected: on }}
       onPress={onPress}
       style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
         backgroundColor: on ? onBg : "transparent",
         borderWidth: 1,
         borderColor: on ? onBg : t.line,
@@ -299,6 +493,7 @@ function Chip({
         paddingVertical: 8,
       }}
     >
+      {icon ? <MaterialCommunityIcons name={icon} size={15} color={on ? onFg : t.accentDeep} /> : null}
       <Text style={{ color: on ? onFg : t.ink, fontFamily: "Inter_600SemiBold", fontSize: 11 }}>{label}</Text>
     </Pressable>
   );

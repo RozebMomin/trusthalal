@@ -19,7 +19,7 @@ export type CategoryKey =
 type MCIName = keyof typeof MaterialCommunityIcons.glyphMap;
 
 /** One selectable option in a detail page — the big radio/checkbox card. */
-function OptionCard({
+export function OptionCard({
   icon,
   title,
   recommended,
