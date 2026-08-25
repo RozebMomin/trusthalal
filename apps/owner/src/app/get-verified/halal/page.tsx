@@ -31,6 +31,7 @@ import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type AlcoholPolicy,
+  type AmenityStatus,
   type HalalQuestionnaireDraft,
   type MeatProductSourcing,
   type MeatType,
@@ -77,6 +78,17 @@ const ALCOHOL_OPTIONS: Array<{ value: AlcoholPolicy; label: string }> = [
   { value: "NONE", label: "None" },
   { value: "BEER_AND_WINE_ONLY", label: "Beer & wine" },
   { value: "FULL_BAR", label: "Full bar" },
+];
+
+type AmenityCode = "PRAYER_SPACE" | "WUDU" | "BIDET" | "BABY_CHANGING";
+
+// "On request" only makes sense for prayer space + wudu (staff can set aside a
+// spot); a bidet or a baby-changing table is simply there or not.
+const AMENITY_ROWS: Array<{ code: AmenityCode; label: string; allowOnRequest: boolean }> = [
+  { code: "PRAYER_SPACE", label: "Prayer space", allowOnRequest: true },
+  { code: "WUDU", label: "Wudu area", allowOnRequest: true },
+  { code: "BIDET", label: "Bidet", allowOnRequest: false },
+  { code: "BABY_CHANGING", label: "Baby changing", allowOnRequest: false },
 ];
 
 export default function HalalStagePage() {
@@ -131,6 +143,10 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
   const [menu, setMenu] = React.useState<MenuPosture>("FULLY_HALAL");
   const [alcohol, setAlcohol] = React.useState<AlcoholPolicy>("NONE");
   const [products, setProducts] = React.useState<MeatProductSourcing[]>([]);
+  // Family amenities — null means "not declared" (never sent as a claim).
+  const [amenities, setAmenities] = React.useState<
+    Record<AmenityCode, AmenityStatus | null>
+  >({ PRAYER_SPACE: null, WUDU: null, BIDET: null, BABY_CHANGING: null });
   const [sourcingOpen, setSourcingOpen] = React.useState(false);
   const [certFiles, setCertFiles] = React.useState<File[]>([]);
   const [fileError, setFileError] = React.useState<string | null>(null);
@@ -176,6 +192,10 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
       has_certification: certFiles.length > 0,
       certifying_body_name: null,
       caveats: null,
+      prayer_space: amenities.PRAYER_SPACE,
+      wudu: amenities.WUDU,
+      bidet: amenities.BIDET,
+      baby_changing: amenities.BABY_CHANGING,
     };
   }
 
@@ -438,6 +458,29 @@ function HalalForm({ rows }: { rows: OwnedPlaceRead[] }) {
             />
           </div>
 
+          {/* Family amenities — owner-declared, optional. Helps family diners
+              find you; leaving one unset simply doesn't declare it. */}
+          <div className="space-y-3 rounded-md border p-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Family amenities (optional)
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Let families know what you offer. Leave any unset if it doesn&apos;t apply.
+              </p>
+            </div>
+            {AMENITY_ROWS.map((row) => (
+              <AmenityPicker
+                key={row.code}
+                label={row.label}
+                allowOnRequest={row.allowOnRequest}
+                value={amenities[row.code]}
+                disabled={busy}
+                onChange={(v) => setAmenities((a) => ({ ...a, [row.code]: v }))}
+              />
+            ))}
+          </div>
+
           {progress && (
             <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
               {progress}
@@ -492,6 +535,53 @@ function OptionCard({
         {selected && <Check className="h-3 w-3" strokeWidth={3} aria-hidden />}
       </span>
     </button>
+  );
+}
+
+/** One amenity row: label + Yes / (On request) / No pills. Tapping the active
+ *  pill clears it back to "not declared" (null). */
+function AmenityPicker({
+  label,
+  allowOnRequest,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  allowOnRequest: boolean;
+  value: AmenityStatus | null;
+  disabled?: boolean;
+  onChange: (v: AmenityStatus | null) => void;
+}) {
+  const opts: Array<{ v: AmenityStatus; label: string }> = [
+    { v: "YES", label: "Yes" },
+    ...(allowOnRequest ? [{ v: "ON_REQUEST" as AmenityStatus, label: "On request" }] : []),
+    { v: "NO", label: "No" },
+  ];
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm font-medium">{label}</span>
+      <div className="flex gap-1.5">
+        {opts.map((o) => {
+          const on = value === o.v;
+          return (
+            <button
+              key={o.v}
+              type="button"
+              disabled={disabled}
+              aria-pressed={on}
+              onClick={() => onChange(on ? null : o.v)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold transition disabled:opacity-60",
+                on ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card hover:bg-accent",
+              )}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

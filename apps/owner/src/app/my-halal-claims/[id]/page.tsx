@@ -37,8 +37,10 @@ import {
 import { CertifyingAuthoritySelect } from "@/components/certifying-authority-select";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
+import { cn } from "@/lib/utils";
 import {
   type AlcoholPolicy,
+  type AmenityStatus,
   type HalalClaimAttachmentRead,
   type HalalClaimAttachmentType,
   type HalalQuestionnaireDraft,
@@ -120,6 +122,20 @@ const ALCOHOL_OPTIONS: Array<{
   { value: "NONE", label: "No alcohol on premises" },
   { value: "BEER_AND_WINE_ONLY", label: "Beer / wine only" },
   { value: "FULL_BAR", label: "Full bar / spirits" },
+];
+
+// Owner-declarable family amenities. "On request" applies only to prayer
+// space + wudu (staff can set aside a spot); bidet / baby-changing are plain
+// yes/no.
+const AMENITY_FIELDS: Array<{
+  key: "prayer_space" | "wudu" | "bidet" | "baby_changing";
+  label: string;
+  allowOnRequest: boolean;
+}> = [
+  { key: "prayer_space", label: "Prayer space", allowOnRequest: true },
+  { key: "wudu", label: "Wudu area", allowOnRequest: true },
+  { key: "bidet", label: "Bidet", allowOnRequest: false },
+  { key: "baby_changing", label: "Baby changing", allowOnRequest: false },
 ];
 
 const SLAUGHTER_OPTIONS: Array<{
@@ -516,6 +532,52 @@ function QuestionnaireSection({
             onChange={(e) => setField("caveats", e.target.value || null)}
             placeholder="Anything a halal-conscious diner should know."
           />
+        </Field>
+
+        {/* Family amenities — owner-declared, optional. */}
+        <Field
+          label="Family amenities (optional)"
+          help="Let families know what you offer. Leave any unset if it doesn't apply."
+        >
+          <div className="space-y-3">
+            {AMENITY_FIELDS.map((row) => {
+              const value = draft[row.key] ?? null;
+              const opts: Array<{ v: AmenityStatus; label: string }> = [
+                { v: "YES", label: "Yes" },
+                ...(row.allowOnRequest
+                  ? [{ v: "ON_REQUEST" as AmenityStatus, label: "On request" }]
+                  : []),
+                { v: "NO", label: "No" },
+              ];
+              return (
+                <div key={row.key} className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">{row.label}</span>
+                  <div className="flex gap-1.5">
+                    {opts.map((o) => {
+                      const on = value === o.v;
+                      return (
+                        <button
+                          key={o.v}
+                          type="button"
+                          disabled={!editable}
+                          aria-pressed={on}
+                          onClick={() => setField(row.key, on ? null : o.v)}
+                          className={cn(
+                            "rounded-full border px-3 py-1 text-xs font-semibold transition disabled:opacity-60",
+                            on
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-input bg-background hover:bg-accent/40",
+                          )}
+                        >
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </Field>
       </fieldset>
 

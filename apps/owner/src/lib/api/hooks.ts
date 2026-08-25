@@ -958,6 +958,9 @@ export function useSupplierSearch(q: string, meat?: MeatType) {
  * during edits; submit re-validates against the strict shape on
  * the server side.
  */
+/** Family/prayer amenity availability — same axis verifier visits record. */
+export type AmenityStatus = "YES" | "ON_REQUEST" | "NO" | "UNSURE";
+
 export type HalalQuestionnaireDraft = {
   questionnaire_version?: number;
   menu_posture?: MenuPosture | null;
@@ -969,6 +972,12 @@ export type HalalQuestionnaireDraft = {
   has_certification?: boolean | null;
   certifying_body_name?: string | null;
   caveats?: string | null;
+  // Owner-declared family amenities. Null = not declared (never overwrites a
+  // verifier reading on the server).
+  prayer_space?: AmenityStatus | null;
+  wudu?: AmenityStatus | null;
+  bidet?: AmenityStatus | null;
+  baby_changing?: AmenityStatus | null;
 };
 
 export type HalalClaimAttachmentRead = {

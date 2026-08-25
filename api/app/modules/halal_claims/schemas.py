@@ -32,6 +32,7 @@ from app.modules.halal_profiles.enums import (
     MenuPosture,
     SlaughterMethod,
 )
+from app.modules.verifiers.enums import AmenityStatus
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +233,15 @@ class HalalQuestionnaireResponse(BaseModel):
         ),
     )
 
+    # Family / prayer amenities the OWNER declares. Optional — an owner who
+    # skips one leaves it NULL ("not declared"), which never overwrites a
+    # prior verifier reading (see _profile_fields_from_questionnaire). Values
+    # are the same YES/ON_REQUEST/NO/UNSURE axis verifier visits record.
+    prayer_space: Optional[AmenityStatus] = None
+    wudu: Optional[AmenityStatus] = None
+    bidet: Optional[AmenityStatus] = None
+    baby_changing: Optional[AmenityStatus] = None
+
 
 class HalalQuestionnaireDraft(BaseModel):
     """PERMISSIVE shape — every field optional.
@@ -264,6 +274,11 @@ class HalalQuestionnaireDraft(BaseModel):
     certifying_body_name: Optional[str] = Field(default=None, max_length=255)
 
     caveats: Optional[str] = Field(default=None, max_length=2000)
+
+    prayer_space: Optional[AmenityStatus] = None
+    wudu: Optional[AmenityStatus] = None
+    bidet: Optional[AmenityStatus] = None
+    baby_changing: Optional[AmenityStatus] = None
 
 
 # ---------------------------------------------------------------------------
