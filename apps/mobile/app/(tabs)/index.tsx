@@ -61,6 +61,11 @@ function cuisineLabel(v: string): string {
       .join(" ")
   );
 }
+
+/** Alphabetical by display label, so the picker is easy to scan. */
+const CUISINES_SORTED = [...ALL_CUISINE_VALUES].sort((a, b) =>
+  cuisineLabel(a).localeCompare(cuisineLabel(b)),
+);
 const M_PER_MI = 1609.34;
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -652,7 +657,7 @@ function CuisineSheet({
       </View>
       <ScrollView style={{ maxHeight: Math.round(height * 0.6) }} showsVerticalScrollIndicator>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, paddingBottom: space.md }}>
-          {ALL_CUISINE_VALUES.map((v) => {
+          {CUISINES_SORTED.map((v) => {
             const on = selected.includes(v);
             return (
               <Pressable
