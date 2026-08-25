@@ -629,9 +629,19 @@ function GroupedSourcing({
                       </Text>
                     ) : null}
                     {pr.certifying_authority ? (
-                      <Text style={[ty.small, { color: t.sub, fontSize: 12, marginTop: 2 }]}>
-                        certified by {pr.certifying_authority}
-                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row", alignItems: "center", gap: 5,
+                          alignSelf: "flex-start", marginTop: 8,
+                          backgroundColor: t.accentSoft, borderRadius: 999,
+                          paddingHorizontal: 10, paddingVertical: 5,
+                        }}
+                      >
+                        <Feather name="shield" size={12} color={t.accentDeep} />
+                        <Text style={{ color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 12, letterSpacing: 0.2 }}>
+                          {pr.certifying_authority}
+                        </Text>
+                      </View>
                     ) : null}
                   </View>
                 );
