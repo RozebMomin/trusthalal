@@ -326,18 +326,7 @@ def _profile_fields_from_questionnaire(
     """
     has_cert, cert_body = _certification_from_claim(claim)
     products = questionnaire.meat_products or []
-    # Owner-declared family amenities. Only include a column when the owner
-    # actually declared it (non-None): on an UPDATE the fields dict is applied
-    # with setattr, so a NULL here would wipe a prior verifier reading. An
-    # undeclared amenity simply stays out of the dict — untouched on update,
-    # NULL on a fresh create.
-    amenity_fields = {
-        col: getattr(questionnaire, col).value
-        for col in ("prayer_space", "wudu", "bidet", "baby_changing")
-        if getattr(questionnaire, col, None) is not None
-    }
     return {
-        **amenity_fields,
         "validation_tier": validation_tier.value,
         "menu_posture": questionnaire.menu_posture.value,
         "has_pork": questionnaire.has_pork,

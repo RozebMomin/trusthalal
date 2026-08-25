@@ -64,14 +64,8 @@ export type HalalProfileEmbed = {
   beef_zabihah: ZabihahStatus | null;
   lamb_zabihah: ZabihahStatus | null;
   goat_zabihah: ZabihahStatus | null;
-  /** Family / prayer amenities, each `"YES" | "ON_REQUEST" | "NO" | "UNSURE"`
-   *  or null (never captured). A badge shows only for YES / ON_REQUEST — see
-   *  lib/amenities.ts, which both the search card and the detail screen read
-   *  so the two surfaces always agree on labels and the show/hide rule. */
-  prayer_space?: string | null;
-  wudu?: string | null;
-  bidet?: string | null;
-  baby_changing?: string | null;
+  // NOTE: family amenities moved OFF the profile onto the place (PlaceSummary /
+  // PlaceDetail) — they're a place attribute now.
   has_pork: boolean;
   alcohol_policy: AlcoholPolicy | null;
   alcohol_in_cooking: boolean;
@@ -204,6 +198,12 @@ export type PlaceSearchResult = {
   region: string | null;
   country_code: string | null;
   cuisine_types: string[];
+  /** Family / prayer amenities on the place. `"YES" | "ON_REQUEST" | "NO" |
+   *  "UNSURE"` or null. Drive amenity badges + the family-priority sort. */
+  prayer_space?: string | null;
+  wudu?: string | null;
+  bidet?: string | null;
+  baby_changing?: string | null;
   hero_photo_url: string | null;
   halal_profile: HalalProfileEmbed | null;
   /** Google star rating (1.0–5.0) + number of ratings. Null until synced.

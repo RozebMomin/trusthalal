@@ -12,6 +12,7 @@ from app.modules.places.enums import (
     PhotoAttribution,
     PlacePhotoSource,
 )
+from app.modules.verifiers.enums import AmenityStatus
 
 
 class PlaceCreate(BaseModel):
@@ -43,6 +44,15 @@ class PlaceRead(BaseModel):
     # filters).
     cuisine_types: list[Cuisine] = Field(default_factory=list)
 
+    # Family / cleanliness amenities — a place attribute (owner-declarable,
+    # also set by verifier visits). Each is an AmenityStatus (YES / ON_REQUEST /
+    # NO / UNSURE) or null when never assessed. Drives amenity badges + the
+    # family-priority search boost.
+    prayer_space: str | None = None
+    wudu: str | None = None
+    bidet: str | None = None
+    baby_changing: str | None = None
+
 class PlaceNearby(BaseModel):
     distance_m: float
 
@@ -62,6 +72,13 @@ class PlaceSearchResult(BaseModel):
     # result card can render cuisine chips alongside the halal
     # badges. Empty list = no cuisines tagged yet.
     cuisine_types: list[Cuisine] = Field(default_factory=list)
+
+    # Family / cleanliness amenities on the place (see PlaceRead). Drive the
+    # amenity badges on the result card + the family-priority sort.
+    prayer_space: str | None = None
+    wudu: str | None = None
+    bidet: str | None = None
+    baby_changing: str | None = None
 
     # Hero photo URL for the search-result thumbnail. Null when no
     # owner has marked a photo as hero (or when no photos exist
@@ -222,6 +239,13 @@ class PlaceDetail(BaseModel):
     open_now: bool | None = None
     # Curated cuisine tags. See PlaceSearchResult.cuisine_types.
     cuisine_types: list[Cuisine] = Field(default_factory=list)
+
+    # Family / cleanliness amenities on the place (see PlaceRead). Owner-
+    # declarable + verifier-set; drive the amenity badges on the detail page.
+    prayer_space: str | None = None
+    wudu: str | None = None
+    bidet: str | None = None
+    baby_changing: str | None = None
     # We intentionally skip a ``created_at`` field: the CREATED row on
     # ``place_events`` carries ingest time + actor, so a top-level
     # created_at would duplicate that with strictly less information.
@@ -366,13 +390,8 @@ class HalalProfileEmbed(BaseModel):
     # "reported by the community" — consistently across every client. Computed
     # in _embed_with_products; defaults False for surfaces that don't set it.
     owner_attested: bool = False
-    # Family/cleanliness amenities rolled up from the latest accepted verifier
-    # visit. Each is an AmenityStatus (YES / ON_REQUEST / NO / UNSURE) or null
-    # when never assessed. Drives the family-priority sort + amenity badges.
-    prayer_space: str | None = None
-    wudu: str | None = None
-    bidet: str | None = None
-    baby_changing: str | None = None
+    # NOTE: family amenities moved OFF the profile onto the place read
+    # (PlaceRead / PlaceSearchResult) — they're a place attribute now.
     updated_at: datetime
 
 
@@ -529,9 +548,20 @@ class OwnedPlaceUpdate(BaseModel):
         default_factory=list,
         description=(
             "Replace the place's full cuisine tag set. Pass [] to "
-            "clear. Duplicates are deduped."
+            "clear. Duplicates are deduped. Only applied when the field "
+            "is present in the request (a true PATCH)."
         ),
     )
+
+    # Family amenities — a place attribute the owner can declare directly
+    # (no halal claim). Each is an AmenityStatus or null (null = not declared /
+    # cleared). PATCH semantics: only amenity fields PRESENT in the request are
+    # written, so the amenities form and the cuisine editor don't clobber each
+    # other.
+    prayer_space: Optional[AmenityStatus] = None
+    wudu: Optional[AmenityStatus] = None
+    bidet: Optional[AmenityStatus] = None
+    baby_changing: Optional[AmenityStatus] = None
 
 
 class OwnedPlaceRead(BaseModel):

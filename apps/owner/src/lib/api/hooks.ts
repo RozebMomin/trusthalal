@@ -317,6 +317,11 @@ export type PlaceDetail = {
   postal_code: string | null;
   timezone: string | null;
   cuisine_types: Cuisine[];
+  /** Family / prayer amenities on the place — owner-editable, no claim needed. */
+  prayer_space: AmenityStatus | null;
+  wudu: AmenityStatus | null;
+  bidet: AmenityStatus | null;
+  baby_changing: AmenityStatus | null;
   updated_at: string | null;
   /** Owner + consumer uploaded photos, hero-first then newest-first. */
   photos: PlacePhotoRead[];
@@ -972,12 +977,6 @@ export type HalalQuestionnaireDraft = {
   has_certification?: boolean | null;
   certifying_body_name?: string | null;
   caveats?: string | null;
-  // Owner-declared family amenities. Null = not declared (never overwrites a
-  // verifier reading on the server).
-  prayer_space?: AmenityStatus | null;
-  wudu?: AmenityStatus | null;
-  bidet?: AmenityStatus | null;
-  baby_changing?: AmenityStatus | null;
 };
 
 export type HalalClaimAttachmentRead = {
@@ -1011,7 +1010,12 @@ export type MyHalalClaimPlaceSummary = {
 /** Body for ``PATCH /me/places/{place_id}``. Replaces the cuisine
  *  set in full (no partial-update semantics, pass [] to clear). */
 export type MyOwnedPlacePatch = {
-  cuisine_types: Cuisine[];
+  // PATCH semantics server-side: send only the fields you're changing.
+  cuisine_types?: Cuisine[];
+  prayer_space?: AmenityStatus | null;
+  wudu?: AmenityStatus | null;
+  bidet?: AmenityStatus | null;
+  baby_changing?: AmenityStatus | null;
 };
 
 /**

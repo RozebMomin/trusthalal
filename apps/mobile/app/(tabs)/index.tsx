@@ -206,8 +206,8 @@ export default function Explore() {
         // distance. Without this, this distance re-sort silently discards the
         // server's amenity boost. Within each group, distance still governs.
         if (boostCodes.length) {
-          const ba = matchesBoostAmenities(a.place.halal_profile, boostCodes) ? 1 : 0;
-          const bb = matchesBoostAmenities(b.place.halal_profile, boostCodes) ? 1 : 0;
+          const ba = matchesBoostAmenities(a.place, boostCodes) ? 1 : 0;
+          const bb = matchesBoostAmenities(b.place, boostCodes) ? 1 : 0;
           if (ba !== bb) return bb - ba;
         }
         return (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0);
@@ -220,7 +220,7 @@ export default function Explore() {
   const boostPhrase = boostAmenityPhrase(filters.boost_amenities);
   const boostMatchCount = boostPhrase
     ? results.filter((r) =>
-        matchesBoostAmenities(r.place.halal_profile, filters.boost_amenities),
+        matchesBoostAmenities(r.place, filters.boost_amenities),
       ).length
     : 0;
 

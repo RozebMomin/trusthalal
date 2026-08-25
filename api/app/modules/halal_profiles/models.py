@@ -199,15 +199,9 @@ class HalalProfile(Base):
     )
 
     # --- family / cleanliness amenities ---------------------------------
-    # Captured by verifiers on a visit and rolled up here (latest accepted
-    # visit wins) so they're queryable for the family-priority search boost and
-    # renderable as badges. Each holds an AmenityStatus (YES / ON_REQUEST / NO /
-    # UNSURE) or NULL when never assessed. Stored as plain VARCHAR (no DB CHECK)
-    # so the enum can grow without a migration.
-    prayer_space: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    wudu: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    bidet: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    baby_changing: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    # MOVED to app.places (see the d1e2f3a40516 migration): amenities are a
+    # place attribute an owner can declare directly, not a halal-verification
+    # signal, so they no longer live on the profile.
 
     # --- certification context ------------------------------------------
     has_certification: Mapped[bool] = mapped_column(

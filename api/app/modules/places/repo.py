@@ -322,13 +322,14 @@ _AMENITY_BONUS_METERS = 8000
 
 def _amenity_score_sql(codes: Sequence[str]) -> str | None:
     """A SQL sum-of-CASE expression scoring how many requested amenities a
-    place's profile has (YES / ON_REQUEST). Returns None when nothing valid was
-    requested. NULL columns (unprofiled / unassessed) score 0."""
+    place has (YES / ON_REQUEST). Returns None when nothing valid was
+    requested. NULL columns (unassessed) score 0. Reads from ``app.places``
+    (amenities are a place attribute now, not on the halal profile)."""
     cols = [_AMENITY_SQL_COL[c] for c in codes if c in _AMENITY_SQL_COL]
     if not cols:
         return None
     parts = [
-        f"(CASE WHEN app.halal_profiles.{col} IN ('YES', 'ON_REQUEST') THEN 1 ELSE 0 END)"
+        f"(CASE WHEN app.places.{col} IN ('YES', 'ON_REQUEST') THEN 1 ELSE 0 END)"
         for col in cols
     ]
     return " + ".join(parts)

@@ -1277,11 +1277,11 @@ function Row({
 // card. Renders nothing when there's no positive amenity signal.
 // ---------------------------------------------------------------------------
 export function PlaceFamilyAmenities({
-  profile,
+  amenities,
 }: {
-  profile: HalalProfileEmbed | null | undefined;
+  amenities: import("@/lib/amenities").AmenitySource;
 }) {
-  const badges = amenityBadgesFor(profile);
+  const badges = amenityBadgesFor(amenities);
   if (badges.length === 0) return null;
   return (
     <section

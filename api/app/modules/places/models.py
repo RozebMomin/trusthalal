@@ -38,6 +38,17 @@ class Place(Base):
     # owner override isn't clobbered by the weekly refresh.
     website_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # --- family / cleanliness amenities ---------------------------------
+    # A place attribute, not a halal-verification signal: an owner declares
+    # these directly (no claim/visit), and verifier visits also record them.
+    # Each holds an AmenityStatus (YES / ON_REQUEST / NO / UNSURE) or NULL when
+    # never assessed. Plain VARCHAR (no DB CHECK) so the enum can grow freely.
+    # Queried by the family-priority search boost; rendered as badges.
+    prayer_space: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    wudu: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    bidet: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    baby_changing: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     # Google star rating + count. Volatile — refreshed (overwritten) on every
     # resync. ``google_synced_at`` records when rating/hours were last pulled
     # so consumer surfaces can show "as of <date>".

@@ -35,7 +35,7 @@ from typing import Sequence
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.core.analytics import track
 from app.core.exceptions import ConflictError, NotFoundError
@@ -54,7 +54,7 @@ from app.modules.places.enums import (
     PlaceEventType,
     PlacePhotoSource,
 )
-from app.modules.places.models import PlacePhoto
+from app.modules.places.models import Place, PlacePhoto
 from app.modules.places.photos.repo import has_active_hero_for_place
 from app.modules.places.repo import log_place_event
 from app.modules.suppliers.enums import LinkSource, SourcingEvidence
@@ -278,15 +278,20 @@ _AMENITY_COLUMNS = (
 )
 
 
-def _apply_amenities(profile: HalalProfile, obs: dict) -> None:
-    """Roll the visit's amenity observations up onto the profile. Only sets the
-    ones the visit actually recorded (latest-wins; a visit that skipped an
-    amenity doesn't wipe a prior reading)."""
+def _apply_amenities(db: Session, *, place_id: uuid.UUID, obs: dict) -> None:
+    """Roll the visit's amenity observations onto the PLACE (amenities live on
+    the place now, not the profile). Only sets the ones the visit actually
+    recorded (latest-wins; a visit that skipped an amenity doesn't wipe a prior
+    reading)."""
     amenities = obs.get("amenities") or {}
-    for code, col in _AMENITY_COLUMNS:
-        val = amenities.get(code)
-        if val:
-            setattr(profile, col, val)
+    to_set = {col: amenities.get(code) for code, col in _AMENITY_COLUMNS if amenities.get(code)}
+    if not to_set:
+        return
+    place = db.get(Place, place_id)
+    if place is None:
+        return
+    for col, val in to_set.items():
+        setattr(place, col, val)
 
 
 # Each "_opt" helper returns None when the visit didn't record that field, so
@@ -379,7 +384,7 @@ def _bootstrap_profile_from_visit(
         has_certification=bool(_cert_opt(checks)),
         last_verified_at=visit.visited_at,
     )
-    _apply_amenities(profile, obs)
+    _apply_amenities(db, place_id=visit.place_id, obs=obs)
     db.add(profile)
     db.flush()  # assign profile.id for the event below
     db.add(
@@ -421,7 +426,9 @@ def _refresh_profile_from_visit(profile: HalalProfile, visit: VerificationVisit)
         v = _meat_zabihah_opt(meat_checks, key)
         if v is not None:
             setattr(profile, attr, v)
-    _apply_amenities(profile, obs)
+    db = object_session(profile)
+    if db is not None:
+        _apply_amenities(db, place_id=profile.place_id, obs=obs)
 
 
 def _resolve_verifier_suppliers(

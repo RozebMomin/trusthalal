@@ -333,35 +333,50 @@ def patch_owned_place(
         # rows; keeps the owner UI's error handling simple.
         raise NotFoundError("PLACE_NOT_FOUND", "Place not found")
 
-    # Today the only patchable field is cuisine_types. Pydantic has
-    # already validated each entry against the Cuisine enum; we only
-    # have to dedupe + serialize to the StrEnum's string value (the
-    # column is TEXT[]).
-    seen: set[Cuisine] = set()
-    deduped: list[Cuisine] = []
-    for c in body.cuisine_types:
-        if c in seen:
-            continue
-        seen.add(c)
-        deduped.append(c)
-    place.cuisine_types = [c.value for c in deduped]
+    # PATCH semantics: only touch fields the caller actually sent, so the
+    # amenities form and the cuisine editor (separate owner surfaces) don't
+    # clobber each other's data.
+    sent = body.model_fields_set
+    messages: list[str] = []
 
-    # EDITED audit row — keeps cuisine changes visible in the place
-    # event timeline alongside admin edits and Google resyncs. Message
-    # text mirrors the convention used by link/resync ("Set cuisines:
-    # ..." vs "Cleared cuisine tags") so the timeline reads cleanly.
-    if deduped:
-        message = "Owner set cuisines: " + ", ".join(c.value for c in deduped)
-    else:
-        message = "Owner cleared cuisine tags"
-    db.add(
-        PlaceEvent(
-            place_id=place.id,
-            event_type=PlaceEventType.EDITED.value,
-            actor_user_id=user.id,
-            message=message,
+    if "cuisine_types" in sent:
+        # Pydantic validated each entry against the Cuisine enum; dedupe +
+        # serialize to the StrEnum's string value (the column is TEXT[]).
+        seen: set[Cuisine] = set()
+        deduped: list[Cuisine] = []
+        for c in body.cuisine_types:
+            if c in seen:
+                continue
+            seen.add(c)
+            deduped.append(c)
+        place.cuisine_types = [c.value for c in deduped]
+        messages.append(
+            "Owner set cuisines: " + ", ".join(c.value for c in deduped)
+            if deduped
+            else "Owner cleared cuisine tags"
         )
-    )
+
+    # Family amenities — each is applied only when present; null clears it.
+    amenity_changed: list[str] = []
+    for col in ("prayer_space", "wudu", "bidet", "baby_changing"):
+        if col in sent:
+            val = getattr(body, col)
+            setattr(place, col, val.value if val is not None else None)
+            amenity_changed.append(col)
+    if amenity_changed:
+        messages.append("Owner updated amenities: " + ", ".join(amenity_changed))
+
+    # EDITED audit row — keeps owner edits visible in the place event timeline
+    # alongside admin edits and Google resyncs.
+    for message in messages:
+        db.add(
+            PlaceEvent(
+                place_id=place.id,
+                event_type=PlaceEventType.EDITED.value,
+                actor_user_id=user.id,
+                message=message,
+            )
+        )
 
     db.add(place)
     db.commit()
@@ -391,6 +406,10 @@ def patch_owned_place(
             "timezone": place.timezone,
             "phone": place.phone,
             "cuisine_types": list(place.cuisine_types or []),
+            "prayer_space": place.prayer_space,
+            "wudu": place.wudu,
+            "bidet": place.bidet,
+            "baby_changing": place.baby_changing,
             "updated_at": place.updated_at,
             "halal_profile": halal_embed,
             "photos": photos_payload,
@@ -975,6 +994,10 @@ def get_place_by_id(
             # column may come back as a tuple/array depending on the
             # SQLAlchemy dialect on the connection.
             "cuisine_types": list(place.cuisine_types or []),
+            "prayer_space": place.prayer_space,
+            "wudu": place.wudu,
+            "bidet": place.bidet,
+            "baby_changing": place.baby_changing,
             "updated_at": place.updated_at,
             "halal_profile": halal_embed,
             "photos": photos_payload,
@@ -1503,6 +1526,10 @@ def search_places(
                 "region": place.region,
                 "country_code": place.country_code,
                 "cuisine_types": list(place.cuisine_types or []),
+                "prayer_space": place.prayer_space,
+                "wudu": place.wudu,
+                "bidet": place.bidet,
+                "baby_changing": place.baby_changing,
                 "is_claimed": place.id in claimed_place_ids,
                 "hero_photo_url": _hero_url_for(place),
                 "review_rating_avg": (

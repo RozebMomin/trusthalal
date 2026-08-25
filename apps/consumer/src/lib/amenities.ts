@@ -11,9 +11,16 @@
  * "we don't have a positive signal", not "definitely absent".
  */
 
-import type { HalalProfileEmbed } from "@/lib/api/hooks";
+/** Anything carrying the four amenity fields — a place (search result / detail),
+ *  since amenities are a place attribute now, not on the halal profile. */
+export type AmenitySource = {
+  prayer_space?: string | null;
+  wudu?: string | null;
+  bidet?: string | null;
+  baby_changing?: string | null;
+} | null | undefined;
 
-/** Amenity field on the profile → its human label. */
+/** Amenity field → its human label. */
 const AMENITY_LABELS: ReadonlyArray<{
   field: "prayer_space" | "wudu" | "bidet" | "baby_changing";
   label: string;
@@ -29,13 +36,11 @@ const AMENITY_LABELS: ReadonlyArray<{
  * canonical order (prayer space, wudu, bidet, baby changing). Returns an
  * empty array when the profile is null or has no YES / ON_REQUEST amenity.
  */
-export function amenityBadgesFor(
-  profile: HalalProfileEmbed | null | undefined,
-): string[] {
-  if (!profile) return [];
+export function amenityBadgesFor(src: AmenitySource): string[] {
+  if (!src) return [];
   const out: string[] = [];
   for (const { field, label } of AMENITY_LABELS) {
-    const value = profile[field];
+    const value = src[field];
     if (value === "YES") out.push(label);
     else if (value === "ON_REQUEST") out.push(`${label} (on request)`);
   }
@@ -85,14 +90,14 @@ export function boostAmenityPhrase(
  * boost, which a client re-sort would otherwise discard.
  */
 export function matchesBoostAmenities(
-  profile: HalalProfileEmbed | null | undefined,
+  src: AmenitySource,
   codes: readonly string[] | null | undefined,
 ): boolean {
-  if (!profile || !codes?.length) return false;
+  if (!src || !codes?.length) return false;
   for (const code of codes) {
     const field = BOOST_CODE_TO_FIELD[code];
     if (!field) continue;
-    const value = profile[field];
+    const value = src[field];
     if (value === "YES" || value === "ON_REQUEST") return true;
   }
   return false;

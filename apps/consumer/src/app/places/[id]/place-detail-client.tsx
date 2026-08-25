@@ -264,7 +264,7 @@ export function PlaceDetailClient({ placeId }: { placeId: string }) {
 
               {/* Family amenities as their own row — facility conveniences,
                   not part of the halal verdict, so out of the trust card. */}
-              <PlaceFamilyAmenities profile={place.data.halal_profile} />
+              <PlaceFamilyAmenities amenities={place.data} />
 
               <PlaceActionCard
                 place={place.data}

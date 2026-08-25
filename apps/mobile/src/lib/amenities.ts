@@ -16,7 +16,14 @@
  */
 import type { ComponentProps } from "react";
 import type { MaterialCommunityIcons } from "@expo/vector-icons";
-import type { HalalProfileEmbed } from "@/lib/api/types";
+/** Anything carrying the four amenity fields — a place (search result / detail),
+ *  since amenities are a place attribute now, not on the halal profile. */
+export type AmenitySource = {
+  prayer_space?: string | null;
+  wudu?: string | null;
+  bidet?: string | null;
+  baby_changing?: string | null;
+} | null | undefined;
 
 type MCIName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
@@ -42,13 +49,11 @@ const AMENITY_LABELS: ReadonlyArray<{
  * order (prayer space, wudu, bidet, baby changing). Returns an empty array when
  * the profile is null or has no YES / ON_REQUEST amenity.
  */
-export function amenityBadgesFor(
-  profile: HalalProfileEmbed | null | undefined,
-): AmenityBadge[] {
-  if (!profile) return [];
+export function amenityBadgesFor(src: AmenitySource): AmenityBadge[] {
+  if (!src) return [];
   const out: AmenityBadge[] = [];
   for (const { field, label, icon } of AMENITY_LABELS) {
-    const value = profile[field];
+    const value = src[field];
     if (value === "YES") out.push({ label, icon });
     else if (value === "ON_REQUEST") out.push({ label: `${label} (on request)`, icon });
   }
@@ -98,14 +103,14 @@ export function boostAmenityPhrase(
  * boost, which the distance re-sort would otherwise discard.
  */
 export function matchesBoostAmenities(
-  profile: HalalProfileEmbed | null | undefined,
+  src: AmenitySource,
   codes: readonly string[] | null | undefined,
 ): boolean {
-  if (!profile || !codes?.length) return false;
+  if (!src || !codes?.length) return false;
   for (const code of codes) {
     const field = BOOST_CODE_TO_FIELD[code];
     if (!field) continue;
-    const value = profile[field];
+    const value = src[field];
     if (value === "YES" || value === "ON_REQUEST") return true;
   }
   return false;

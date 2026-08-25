@@ -304,13 +304,6 @@ export type HalalProfileEmbed = {
   beef_zabihah: ZabihahStatus;
   lamb_zabihah: ZabihahStatus;
   goat_zabihah: ZabihahStatus;
-  /** Family / prayer amenities, ``YES`` | ``ON_REQUEST`` | ``NO`` |
-   *  ``UNSURE`` or null when never captured. Drive the amenity badges on
-   *  the result card + place detail (badge only for YES / ON_REQUEST). */
-  prayer_space: AmenityAvailability | null;
-  wudu: AmenityAvailability | null;
-  bidet: AmenityAvailability | null;
-  baby_changing: AmenityAvailability | null;
   seafood_only: boolean;
   has_certification: boolean;
   certifying_body_name: string | null;
@@ -753,6 +746,13 @@ export type PlaceSearchResult = {
    * appears in unfiltered searches; only drops out when the consumer
    * is filtering on cuisine and this place doesn't match). */
   cuisine_types: Cuisine[];
+  /** Family / prayer amenities on the place. YES / ON_REQUEST / NO / UNSURE
+   *  or null. Drive the amenity badges + family-priority sort. Optional so
+   *  synthetic result objects (built from a PlaceDetail) can omit them. */
+  prayer_space?: AmenityAvailability | null;
+  wudu?: AmenityAvailability | null;
+  bidet?: AmenityAvailability | null;
+  baby_changing?: AmenityAvailability | null;
   /** Hero photo URL for the result-card thumbnail. Null when the
    * place has no owner-set hero (or no photos at all). The result
    * card renders a placeholder in that case. */
@@ -805,6 +805,11 @@ export type PlaceDetail = {
   phone: string | null;
   /** Curated cuisine tags. See PlaceSearchResult.cuisine_types. */
   cuisine_types: Cuisine[];
+  /** Family / prayer amenities on the place (see PlaceSearchResult). */
+  prayer_space?: AmenityAvailability | null;
+  wudu?: AmenityAvailability | null;
+  bidet?: AmenityAvailability | null;
+  baby_changing?: AmenityAvailability | null;
   updated_at: string | null;
   halal_profile: HalalProfileEmbed | null;
   /** Owner + consumer uploaded photos, hero-first then newest-first.

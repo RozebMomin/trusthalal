@@ -508,8 +508,8 @@ function HomePageInner() {
       // distance here silently discards the server's amenity boost — the
       // whole point of the toggle. Within each group the chosen sort applies.
       if (boostCodes.length) {
-        const ba = matchesBoostAmenities(a.place.halal_profile, boostCodes) ? 1 : 0;
-        const bb = matchesBoostAmenities(b.place.halal_profile, boostCodes) ? 1 : 0;
+        const ba = matchesBoostAmenities(a.place, boostCodes) ? 1 : 0;
+        const bb = matchesBoostAmenities(b.place, boostCodes) ? 1 : 0;
         if (ba !== bb) return bb - ba;
       }
       // Two rating sorts, because there are two ratings. This used to be a
@@ -542,7 +542,7 @@ function HomePageInner() {
   const boostPhrase = boostAmenityPhrase(effectiveFilters.boost_amenities);
   const boostMatchCount = boostPhrase
     ? decoratedResults.filter((r) =>
-        matchesBoostAmenities(r.place.halal_profile, effectiveFilters.boost_amenities),
+        matchesBoostAmenities(r.place, effectiveFilters.boost_amenities),
       ).length
     : 0;
 

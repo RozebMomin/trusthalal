@@ -22,7 +22,7 @@ import type {
 } from "@/lib/api/types";
 import { capture } from "@/lib/analytics";
 import { reportPlaceSignal } from "@/lib/api/signals";
-import { amenityBadgesFor } from "@/lib/amenities";
+import { amenityBadgesFor, type AmenitySource } from "@/lib/amenities";
 
 const TEST_FORCE_PORK = false;
 
@@ -339,7 +339,7 @@ export default function PlaceDetail() {
                 />
               </View>
 
-              <AmenityRow profile={place.halal_profile} />
+              <AmenityRow place={place} />
 
               <TrustHistoryRow
                 onPress={() => {
@@ -945,9 +945,9 @@ function TrustCard({
  *  nested inside it — these are facility conveniences, not a halal claim).
  *  Subtle zinc pills, same labels + rule as the search card via the shared
  *  amenityBadgesFor helper. Renders nothing when there's no positive signal. */
-function AmenityRow({ profile }: { profile: HalalProfileEmbed | null }) {
+function AmenityRow({ place }: { place: AmenitySource }) {
   const t = useTheme();
-  const badges = amenityBadgesFor(profile);
+  const badges = amenityBadgesFor(place);
   if (badges.length === 0) return null;
   return (
     <View

@@ -39,6 +39,7 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
+  type AmenityStatus,
   type Cuisine,
   type MyHalalClaimRead,
   type PlaceDetail,
@@ -136,6 +137,7 @@ function PlaceDetailBody({ place }: { place: PlaceDetail }) {
       </header>
 
       <CuisineSection place={place} />
+      <AmenitiesSection place={place} />
       <PhotosSection placeId={place.id} />
 
       <PlaceReviewsSection placeId={place.id} />
@@ -283,6 +285,137 @@ function CuisineSection({ place }: { place: PlaceDetail }) {
             ? "No cuisines selected"
             : `${selected.length} selected`}
         </p>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Family amenities — a place attribute the owner edits directly (no halal
+// claim / verification needed), just like cuisine tags. Saved via the same
+// owner place-patch endpoint and effective immediately.
+// ---------------------------------------------------------------------------
+type AmenityKey = "prayer_space" | "wudu" | "bidet" | "baby_changing";
+type AmenityState = Record<AmenityKey, AmenityStatus | null>;
+
+const AMENITY_ROWS: Array<{ key: AmenityKey; label: string; allowOnRequest: boolean }> = [
+  { key: "prayer_space", label: "Prayer space", allowOnRequest: true },
+  { key: "wudu", label: "Wudu area", allowOnRequest: true },
+  { key: "bidet", label: "Bidet", allowOnRequest: false },
+  { key: "baby_changing", label: "Baby changing", allowOnRequest: false },
+];
+
+function AmenitiesSection({ place }: { place: PlaceDetail }) {
+  const initial = React.useMemo<AmenityState>(
+    () => ({
+      prayer_space: place.prayer_space,
+      wudu: place.wudu,
+      bidet: place.bidet,
+      baby_changing: place.baby_changing,
+    }),
+    [place.prayer_space, place.wudu, place.bidet, place.baby_changing],
+  );
+  const [state, setState] = React.useState<AmenityState>(initial);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => setState(initial), [initial]);
+
+  const patch = usePatchMyOwnedPlace();
+
+  const dirty = AMENITY_ROWS.some((r) => state[r.key] !== initial[r.key]);
+
+  async function onSave() {
+    setError(null);
+    try {
+      await patch.mutateAsync({
+        placeId: place.id,
+        patch: {
+          prayer_space: state.prayer_space,
+          wudu: state.wudu,
+          bidet: state.bidet,
+          baby_changing: state.baby_changing,
+        },
+      });
+    } catch (err) {
+      const { description } = friendlyApiError(err, {
+        defaultTitle: "Couldn't save amenities",
+      });
+      setError(description);
+    }
+  }
+
+  return (
+    <section className="space-y-4 rounded-md border bg-card p-5">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold">Family amenities</h2>
+        <p className="text-sm text-muted-foreground">
+          Let family diners know what you offer. These aren&apos;t verified —
+          they&apos;re your listing, editable anytime like your other place
+          details. Leave any unset if it doesn&apos;t apply.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {AMENITY_ROWS.map((row) => {
+          const value = state[row.key];
+          const opts: Array<{ v: AmenityStatus; label: string }> = [
+            { v: "YES", label: "Yes" },
+            ...(row.allowOnRequest
+              ? [{ v: "ON_REQUEST" as AmenityStatus, label: "On request" }]
+              : []),
+            { v: "NO", label: "No" },
+          ];
+          return (
+            <div key={row.key} className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">{row.label}</span>
+              <div className="flex gap-1.5">
+                {opts.map((o) => {
+                  const on = value === o.v;
+                  return (
+                    <button
+                      key={o.v}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setState((s) => ({ ...s, [row.key]: on ? null : o.v }))
+                      }
+                      className={
+                        on
+                          ? "rounded-full border border-primary bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-colors"
+                          : "rounded-full border border-input bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      }
+                    >
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" onClick={onSave} disabled={!dirty || patch.isPending}>
+          {patch.isPending ? "Saving…" : "Save amenities"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setState(initial);
+            setError(null);
+          }}
+          disabled={!dirty || patch.isPending}
+        >
+          Cancel
+        </Button>
       </div>
     </section>
   );

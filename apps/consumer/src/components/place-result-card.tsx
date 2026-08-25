@@ -193,7 +193,7 @@ export function PlaceResultCard({
 
             {facts.length > 0 && <FactsStrip facts={facts} />}
 
-            <AmenityBadges profile={place.halal_profile} />
+            <AmenityBadges place={place} />
 
             {addressLine && (
               <p className="mt-auto truncate text-xs text-muted-foreground">
@@ -375,12 +375,8 @@ function MetadataStrip({
 // have" context rather than trust evidence. Renders nothing when the
 // place has no positive amenity signal.
 // ---------------------------------------------------------------------------
-function AmenityBadges({
-  profile,
-}: {
-  profile: PlaceSearchResult["halal_profile"];
-}) {
-  const badges = amenityBadgesFor(profile);
+function AmenityBadges({ place }: { place: PlaceSearchResult }) {
+  const badges = amenityBadgesFor(place);
   if (badges.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1">
