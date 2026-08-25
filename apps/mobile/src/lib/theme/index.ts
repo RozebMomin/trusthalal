@@ -24,6 +24,11 @@ export const light = {
   accentSoft: "#E6F7F0",
   amber: "#B45309",
   amberSoft: "#FEF3E2",
+  // Informational indigo — for the slaughter/zabihah method chips. Neutral on
+  // purpose: this is a relayed fact, not our approval, so it must NOT read as
+  // the emerald "verified" green.
+  info: "#4338CA",
+  infoSoft: "#ECECFB",
   zinc: "#52525B",
   zincSoft: "#F2F2F4",
   danger: "#E02424",
@@ -65,6 +70,8 @@ export const dark: typeof light = {
   accentSoft: "rgba(52,211,153,0.12)",
   amber: "#FBBF24",
   amberSoft: "rgba(251,191,36,0.12)",
+  info: "#A5B4FC",
+  infoSoft: "rgba(129,140,248,0.14)",
   zinc: "#A1A1AA",
   zincSoft: "rgba(161,161,170,0.12)",
   danger: "#F87171",

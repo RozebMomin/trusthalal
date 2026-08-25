@@ -615,13 +615,15 @@ function GroupedSourcing({
                     key={`${pr.product_name}-${i}`}
                     style={{ paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: t.line }}
                   >
-                    <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: space.sm }}>
+                    <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: space.sm }}>
                       <Text style={[ty.body, { color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 16, flexShrink: 1 }]} numberOfLines={2}>
                         {pr.product_name}
                       </Text>
-                      <Text style={[ty.small, { color: t.sub, fontFamily: "Inter_700Bold", fontSize: 13, textAlign: "right" }]}>
-                        {productMethodText(pr.meat_type, pr.slaughter_method)}
-                      </Text>
+                      <View style={{ backgroundColor: t.infoSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                        <Text style={{ color: t.info, fontFamily: "Inter_700Bold", fontSize: 12.5, letterSpacing: 0.2 }}>
+                          {productMethodText(pr.meat_type, pr.slaughter_method)}
+                        </Text>
+                      </View>
                     </View>
                     {supplierLine ? (
                       <Text style={[ty.small, { color: t.sub, fontSize: 12.5, marginTop: 3 }]}>
