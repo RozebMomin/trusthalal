@@ -156,8 +156,7 @@ export function FiltersSheet({
             <Feather name="clock" size={20} color={t.accentDeep} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: t.ink }}>Open now</Text>
-            <Text style={[ty.small, { color: t.sub, marginTop: 2, fontSize: 13 }]}>Only show places confirmed open right now.</Text>
+            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: t.ink }}>Places Open Now</Text>
           </View>
           <Switch
             value={!!filters.open_now}
