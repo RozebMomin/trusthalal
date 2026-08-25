@@ -968,22 +968,28 @@ function AmenityRow({ place }: { place: AmenitySource }) {
         <Feather name="users" size={16} color={t.accentDeep} />
         <Text style={[ty.label, { color: t.ink, fontSize: 13 }]}>For families</Text>
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {badges.map((b) => (
           <View
             key={b.label}
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 5,
+              width: 76,
+              height: 76,
               backgroundColor: t.zincSoft,
               borderRadius: radii.md,
-              paddingHorizontal: 9,
-              paddingVertical: 5,
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              paddingHorizontal: 4,
             }}
           >
-            <MaterialCommunityIcons name={b.icon} size={13} color={t.zinc} />
-            <Text style={{ color: t.zinc, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{b.label}</Text>
+            <MaterialCommunityIcons name={b.icon} size={24} color={t.zinc} />
+            <Text
+              numberOfLines={2}
+              style={{ color: t.zinc, fontFamily: "Inter_600SemiBold", fontSize: 10.5, lineHeight: 13, textAlign: "center" }}
+            >
+              {b.label}
+            </Text>
           </View>
         ))}
       </View>
