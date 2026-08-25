@@ -3,7 +3,7 @@
  * Query keys are tuples (sacred convention); apiFetch handles bearer +
  * refresh transparently.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import { capture, identify, resetAnalytics } from "@/lib/analytics";
 import { tokenStore } from "@/lib/auth/token-store";
@@ -228,7 +228,10 @@ export function useLogout() {
   });
 }
 
-function searchParamsToQuery(p: SearchPlacesParams): string {
+function searchParamsToQuery(
+  p: SearchPlacesParams,
+  page?: { limit: number; offset: number },
+): string {
   const u = new URLSearchParams();
   if (p.q) u.set("q", p.q);
   if (p.lat !== undefined && p.lng !== undefined && p.radius !== undefined) {
@@ -250,17 +253,31 @@ function searchParamsToQuery(p: SearchPlacesParams): string {
   for (const m of p.lamb_zabihah ?? []) u.append("lamb_zabihah", m);
   for (const m of p.goat_zabihah ?? []) u.append("goat_zabihah", m);
   for (const a of p.boost_amenities ?? []) u.append("boost_amenities", a);
+  if (page) {
+    u.set("limit", String(page.limit));
+    u.set("offset", String(page.offset));
+  }
   return u.toString();
 }
+
+/** One page of search results. The backend caps a request at 50; we page by
+ *  offset so Explore can load more as the user scrolls. */
+export const SEARCH_PAGE_SIZE = 50;
 
 export function useSearchPlaces(params: SearchPlacesParams) {
   const hasText = Boolean(params.q && params.q.length > 0);
   const hasGeo =
     params.lat !== undefined && params.lng !== undefined && params.radius !== undefined;
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["places", "search", params],
-    queryFn: () =>
-      apiFetch<PlaceSearchResult[]>(`/places?${searchParamsToQuery(params)}`),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      apiFetch<PlaceSearchResult[]>(
+        `/places?${searchParamsToQuery(params, { limit: SEARCH_PAGE_SIZE, offset: pageParam })}`,
+      ),
+    // A full page means there may be more; a short page is the last one.
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === SEARCH_PAGE_SIZE ? allPages.length * SEARCH_PAGE_SIZE : undefined,
     enabled: hasText || hasGeo,
   });
 }

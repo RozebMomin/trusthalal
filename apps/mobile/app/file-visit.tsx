@@ -634,7 +634,7 @@ export default function FileVisit() {
   // Picker rows: text-search results as-is, or nearby suggestions sorted by
   // distance (closest first) with a mileage label. Normalized to one shape.
   const suggestions = useMemo(() => {
-    const rows = search.data ?? [];
+    const rows = search.data?.pages.flat() ?? [];
     if (typed || !coords) return rows.map((p) => ({ p, mi: null as number | null }));
     return rows
       .map((p) => ({ p, mi: milesAway(coords, { lat: p.lat, lng: p.lng }) }))

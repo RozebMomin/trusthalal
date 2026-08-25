@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   FlatList,
   Pressable,
@@ -182,10 +183,16 @@ export default function Explore() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Infinite query — flatten the loaded pages into one list.
+  const flat = useMemo<PlaceSearchResult[]>(
+    () => search.data?.pages.flat() ?? [],
+    [search.data],
+  );
+
   const results = useMemo<
     Array<{ place: PlaceSearchResult; distanceMeters?: number }>
   >(() => {
-    const data = search.data ?? [];
+    const data = flat;
     if (!coords) return data.map((place) => ({ place }));
     const boostCodes = filters.boost_amenities ?? [];
     return data
@@ -205,7 +212,7 @@ export default function Explore() {
         }
         return (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0);
       });
-  }, [search.data, coords, filters.boost_amenities]);
+  }, [flat, coords, filters.boost_amenities]);
 
   // Context line for the "prioritize for families" boost — it re-ranks rather
   // than filters, so without a line the reordering looks arbitrary. Empty
@@ -221,7 +228,7 @@ export default function Explore() {
   // queries, and no reason to pay for them on a search that worked.
   const WIDER_RADIUS_M = 40234; // 25 mi
   const diagnostics = useSearchDiagnostics(searchParams, {
-    enabled: Boolean(search.data && search.data.length === 0),
+    enabled: Boolean(search.data && flat.length === 0),
     widerRadiusM: coords && radiusMi < 25 ? WIDER_RADIUS_M : undefined,
   });
 
@@ -233,11 +240,14 @@ export default function Explore() {
 
   // Result count for the map's floating bar — pluralized, with the radius
   // when it's a geo search. Undefined when there's nothing to count.
+  // A trailing "+" when more pages remain, so the count doesn't claim to be the
+  // total while there are still unloaded results.
+  const more = search.hasNextPage ? "+" : "";
   const countLabel =
     results.length > 0
       ? coords
-        ? `${results.length} ${results.length === 1 ? "spot" : "spots"} within ${radiusMi} mi`
-        : `${results.length} ${results.length === 1 ? "spot" : "spots"}`
+        ? `${results.length}${more} ${results.length === 1 ? "spot" : "spots"} within ${radiusMi} mi`
+        : `${results.length}${more} ${results.length === 1 ? "spot" : "spots"}`
       : undefined;
 
   // Map view owns all of its states — cold-start, loading, empty, error,
@@ -523,6 +533,10 @@ export default function Explore() {
           data={results}
           keyExtractor={(item) => item.place.id}
           contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 110 }}
+          onEndReachedThreshold={0.5}
+          onEndReached={() => {
+            if (search.hasNextPage && !search.isFetchingNextPage) void search.fetchNextPage();
+          }}
           ListHeaderComponent={
             boostPhrase ? (
               <BoostBanner
@@ -532,6 +546,13 @@ export default function Explore() {
                     : `No places here list ${boostPhrase} yet — showing all`
                 }
               />
+            ) : null
+          }
+          ListFooterComponent={
+            search.isFetchingNextPage ? (
+              <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                <ActivityIndicator color={t.accent} />
+              </View>
             ) : null
           }
           renderItem={({ item }) => (
