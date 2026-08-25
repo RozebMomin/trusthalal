@@ -968,12 +968,12 @@ function AmenityRow({ place }: { place: AmenitySource }) {
         <Feather name="users" size={16} color={t.accentDeep} />
         <Text style={[ty.label, { color: t.ink, fontSize: 13 }]}>For families</Text>
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      <View style={{ flexDirection: "row", gap: 8 }}>
         {badges.map((b) => (
           <View
             key={b.label}
             style={{
-              width: 76,
+              flex: 1,
               height: 76,
               backgroundColor: t.zincSoft,
               borderRadius: radii.md,
