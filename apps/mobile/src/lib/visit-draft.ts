@@ -12,10 +12,7 @@ import type {
  * SecureStore's Android size ceiling on a very long note) just means no
  * draft that session, never a crash. Cleared on successful submit.
  */
-// v2: the deep-dive step moved from per-product supplier rows to per-meat
-// {items[], one supplier}. Bumping the key drops any half-finished v1 draft
-// rather than trying to migrate the old shape into the new guided flow.
-const KEY = "visit_draft_v2";
+const KEY = "visit_draft_v1";
 
 export type VisitDraft = {
   step: number;
@@ -29,8 +26,8 @@ export type VisitDraft = {
   menuNote?: string;
   // Per-meat findings from the observe step. Optional so drafts saved by a
   // build before this feature still hydrate cleanly.
-  meatChecks?: Record<string, { finding: string; evidence: string; items?: string[]; supplier?: string }>;
-  otherChecks?: { label: string; finding: string; evidence: string; items?: string[]; supplier?: string }[];
+  meatChecks?: Record<string, { finding: string; evidence: string; supplier?: string }>;
+  otherChecks?: { label: string; finding: string; evidence: string; supplier?: string }[];
   // Family/cleanliness amenities checked (code -> YES/NO/UNSURE).
   amenities?: Record<string, string>;
   photos: { uri: string; name: string; type: string; tag?: string }[];

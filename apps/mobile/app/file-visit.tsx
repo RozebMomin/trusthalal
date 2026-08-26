@@ -34,18 +34,16 @@ import { visitDraft } from "@/lib/visit-draft";
 import { mockupPx, radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { Card, Cell, Chip, IcBox, Seg, Steps, Tag } from "@/ui/kit";
-import { Mascot } from "@/components/Mascot";
 
 /** Stepped "file a visit" wizard, wired to POST /me/verification-visits.
- *  A friendly guide (Hilal, the crescent mascot) walks the verifier through
- *  one decision per step with a progress bar up top and a thank-you at the end:
- *    0 Place · 1 Photos · 2 Order · 3 Observe · 4 Deep dive (per-meat) ·
- *    5 Amenities · 6 Disclosure · 7 Review → 8 Submitted
- *  The deep-dive step is the one that needs real hand-holding, so it's a
- *  guided add-a-meat sub-flow: pick a meat → method → items → supplier,
- *  then repeat for the next meat. */
+ *  Mirrors the mockup flow (docs/2026-07-06-mobile-app-mockups.html,
+ *  screens 19–22): one step per decision, a progress bar up top, and a
+ *  confirmation screen at the end. Steps we can back with real data:
+ *    0 Place · 1 Observe · 2 Disclosure · 3 Review → 4 Submitted
+ *  Photo evidence (the API supports it) joins as its own step once the
+ *  camera picker ships. */
 
-const TOTAL = 8; // decision steps (0–7); step 8 is the success screen
+const TOTAL = 7; // decision steps; step 7 is the success screen
 const MAX_PHOTOS = 10; // matches the API's per-visit attachment cap
 const M_PER_MI = 1609.34;
 
@@ -161,51 +159,37 @@ const MEATS = [
 type MeatKey = (typeof MEATS)[number]["v"];
 const findingsFor = (m: MeatKey): Finding[] =>
   MEATS.find((x) => x.v === m)?.findings ?? SLAUGHTER_FINDINGS;
+// Neutral for a recorded method (the label carries the fact); amber flags
+// "unsure" as needing follow-up.
+const findingTone = (f: Finding): "zinc" | "amber" => (f === "UNSURE" ? "amber" : "zinc");
 
 type Evidence = "VERBAL" | "INVOICE" | "CERTIFICATE";
-// Conversational phrasing for the guided deep-dive chips.
-const EVIDENCE_GUIDED_LABEL: Record<Evidence, string> = {
-  VERBAL: "They told me",
-  INVOICE: "Saw an invoice",
-  CERTIFICATE: "Saw a cert",
+const EVIDENCE_LABEL: Record<Evidence, string> = {
+  VERBAL: "Verbal",
+  INVOICE: "Invoice",
+  CERTIFICATE: "Cert",
 };
 const EVIDENCE_CYCLE: Evidence[] = ["VERBAL", "INVOICE", "CERTIFICATE"];
+// Evidence strengthens verbal -> invoice -> cert; the tag colour tracks it.
+const evidenceTone = (e: Evidence): "zinc" | "wash" | "solid" =>
+  e === "CERTIFICATE" ? "solid" : e === "INVOICE" ? "wash" : "zinc";
 
-/** One entry in the guided deep-dive — a core meat or a custom "other" item,
- *  reduced to a flat config the shared card renderer consumes. */
-type DeepCfg = {
-  focusKey: string; // "meat:CHICKEN" | "other:0" — also the item-draft key
-  label: string;
-  methods: Finding[];
-  finding: Finding;
-  evidence: Evidence;
-  items: string[];
-  supplier: string;
-  onFinding: (f: Finding) => void;
-  onEvidence: (e: Evidence) => void;
-  onAddItem: (name: string) => void;
-  onRemoveItem: (name: string) => void;
-  onSupplier: (name: string) => void;
-  onRemove: () => void;
-};
-
-/** One meat the verifier asked about: the method they observed, how they know,
- *  the specific items it applied to (thighs, breast…), and — if staff named one
- *  — a single supplier for that meat. Items and supplier are both optional; a
- *  verifier can log "beef is zabihah, they just said so" with neither. */
-type MeatCheck = { finding: Finding; evidence: Evidence; items: string[]; supplier?: string };
-type OtherCheck = { label: string; finding: Finding; evidence: Evidence; items: string[]; supplier?: string };
+/** One product + supplier row under a meat — parity with the owner's
+ *  per-product sourcing, so a meat can name several suppliers. */
+type ProductRow = { product_name: string; supplier?: string };
+type MeatCheck = { finding: Finding; evidence: Evidence; products: ProductRow[] };
+type OtherCheck = { label: string; finding: Finding; evidence: Evidence; products: ProductRow[] };
+// Supplier is only asked once the verifier has a document to read it off.
+const evidenceShowsSupplier = (e: Evidence) => e === "INVOICE" || e === "CERTIFICATE";
 // "Other" items (duck, fish, a specific dish) use the same observable vocab.
 const OTHER_FINDINGS: Finding[] = SLAUGHTER_FINDINGS;
-// The guided deep-dive offers a meat's methods minus NOT_SERVED — you only add a
-// meat here because you *did* observe it, so "not served" would be contradictory.
-const methodChoices = (findings: Finding[]): Finding[] => findings.filter((f) => f !== "NOT_SERVED");
 
 // Menu coverage: Yes (fully halal) or Partial. There is no "No" — a place
 // with no halal food has no reason to be on the platform; a false claim is a
 // data problem handled in notes, not a menu state.
 type MenuHalal = "YES" | "PARTIAL";
 type MenuScope = "MEAT_GROUP" | "SPECIFIC_ITEMS" | "ON_REQUEST";
+const MENU_SCOPES: MenuScope[] = ["MEAT_GROUP", "SPECIFIC_ITEMS", "ON_REQUEST"];
 const MENU_SCOPE_LABEL: Record<MenuScope, string> = {
   MEAT_GROUP: "A meat group",
   SPECIFIC_ITEMS: "Specific dishes",
@@ -285,9 +269,6 @@ export default function FileVisit() {
   const [otherChecks, setOtherChecks] = useState<OtherCheck[]>([]);
   const [addingOther, setAddingOther] = useState(false);
   const [otherDraft, setOtherDraft] = useState("");
-  // Per-entry "add an item" text, keyed by focus key ("meat:CHICKEN" / "other:0").
-  const [itemDrafts, setItemDrafts] = useState<Record<string, string>>({});
-  const setDeepItemDraft = (key: string, v: string) => setItemDrafts((d) => ({ ...d, [key]: v }));
   const [amenities, setAmenities] = useState<Partial<Record<AmenityKey, AmenityVal>>>({});
   const [photos, setPhotos] = useState<VisitPhoto[]>([]);
   // Stamp the visit at open time — shown on the report card and sent as visited_at.
@@ -340,58 +321,72 @@ export default function FileVisit() {
       return copy;
     });
 
-  // --- Guided deep-dive: add a meat, then set its fields ------------------
-  // Adding a meat seeds it with its first method (hand-cut / zabihah) so the
-  // card opens already showing a sensible default the verifier can change.
-  const addMeat = (m: MeatKey) =>
-    setMeatChecks((c) =>
-      c[m] ? c : { ...c, [m]: { finding: methodChoices(findingsFor(m))[0], evidence: "VERBAL", items: [] } },
-    );
-  const removeMeat = (m: MeatKey) =>
+  // Per-meat: tap the row to cycle the method (…→ hand-cut → machine → not
+  // served → unsure → cleared); tap the sub-line to cycle the evidence.
+  const cycleMeatFinding = (m: MeatKey) =>
     setMeatChecks((c) => {
-      const copy = { ...c };
-      delete copy[m];
-      return copy;
+      // Cleared is the first stop, then this meat's own vocabulary.
+      const cycle: (Finding | undefined)[] = [undefined, ...findingsFor(m)];
+      const i = cycle.indexOf(c[m]?.finding);
+      const next = cycle[(i + 1) % cycle.length];
+      if (!next) {
+        const copy = { ...c };
+        delete copy[m];
+        return copy;
+      }
+      return { ...c, [m]: { finding: next, evidence: c[m]?.evidence ?? "VERBAL", products: c[m]?.products ?? [] } };
     });
-  const setMeatFinding = (m: MeatKey, finding: Finding) =>
-    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], finding } } : c));
-  const setMeatEvidence = (m: MeatKey, evidence: Evidence) =>
-    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], evidence } } : c));
-  const setMeatSupplier = (m: MeatKey, supplier: string) =>
-    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], supplier } } : c));
-  const addMeatItem = (m: MeatKey, name: string) => {
-    const v = name.trim();
-    if (!v) return;
+  const cycleMeatEvidence = (m: MeatKey) =>
+    setMeatChecks((c) => {
+      const cur = c[m];
+      if (!cur) return c;
+      const i = EVIDENCE_CYCLE.indexOf(cur.evidence);
+      return { ...c, [m]: { ...cur, evidence: EVIDENCE_CYCLE[(i + 1) % EVIDENCE_CYCLE.length] } };
+    });
+  // Per-meat product/supplier rows.
+  const addMeatProduct = (m: MeatKey) =>
+    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], products: [...c[m].products, { product_name: "" }] } } : c));
+  const patchMeatProduct = (m: MeatKey, i: number, patch: Partial<ProductRow>) =>
     setMeatChecks((c) =>
-      c[m] ? { ...c, [m]: { ...c[m], items: c[m].items.includes(v) ? c[m].items : [...c[m].items, v] } } : c,
+      c[m] ? { ...c, [m]: { ...c[m], products: c[m].products.map((p, j) => (j === i ? { ...p, ...patch } : p)) } } : c,
     );
-  };
-  const removeMeatItem = (m: MeatKey, name: string) =>
-    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], items: c[m].items.filter((x) => x !== name) } } : c));
+  const removeMeatProduct = (m: MeatKey, i: number) =>
+    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], products: c[m].products.filter((_, j) => j !== i) } } : c));
 
   const addOther = () => {
     const v = otherDraft.trim();
-    if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "HAND_CUT", evidence: "VERBAL", items: [] }]);
+    if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "HAND_CUT", evidence: "VERBAL", products: [] }]);
     setOtherDraft("");
     setAddingOther(false);
   };
   const removeOther = (i: number) =>
     setOtherChecks((xs) => xs.filter((_, j) => j !== i));
-  const setOtherFinding = (i: number, finding: Finding) =>
-    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, finding } : o)));
-  const setOtherEvidence = (i: number, evidence: Evidence) =>
-    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, evidence } : o)));
-  const setOtherSupplier = (i: number, supplier: string) =>
-    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, supplier } : o)));
-  const addOtherItem = (i: number, name: string) => {
-    const v = name.trim();
-    if (!v) return;
+  // "Other" rows always carry a finding (Remove deletes them), so their cycle
+  // skips the cleared state.
+  const cycleOtherFinding = (i: number) =>
     setOtherChecks((xs) =>
-      xs.map((o, j) => (j === i ? { ...o, items: o.items.includes(v) ? o.items : [...o.items, v] } : o)),
+      xs.map((o, j) => {
+        if (j !== i) return o;
+        const k = OTHER_FINDINGS.indexOf(o.finding);
+        return { ...o, finding: OTHER_FINDINGS[(k + 1) % OTHER_FINDINGS.length] };
+      }),
     );
-  };
-  const removeOtherItem = (i: number, name: string) =>
-    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, items: o.items.filter((x) => x !== name) } : o)));
+  const cycleOtherEvidence = (i: number) =>
+    setOtherChecks((xs) =>
+      xs.map((o, j) => {
+        if (j !== i) return o;
+        const k = EVIDENCE_CYCLE.indexOf(o.evidence);
+        return { ...o, evidence: EVIDENCE_CYCLE[(k + 1) % EVIDENCE_CYCLE.length] };
+      }),
+    );
+  const addOtherProduct = (i: number) =>
+    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, products: [...o.products, { product_name: "" }] } : o)));
+  const patchOtherProduct = (i: number, r: number, patch: Partial<ProductRow>) =>
+    setOtherChecks((xs) =>
+      xs.map((o, j) => (j === i ? { ...o, products: o.products.map((p, k) => (k === r ? { ...p, ...patch } : p)) } : o)),
+    );
+  const removeOtherProduct = (i: number, r: number) =>
+    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, products: o.products.filter((_, k) => k !== r) } : o)));
 
   // --- Supplier autocomplete against the registry ------------------------
   // Only the focused supplier input queries + shows suggestions. Focus key is
@@ -400,11 +395,12 @@ export default function FileVisit() {
   const [supplierFocus, setSupplierFocus] = useState<string | null>(null);
   const activeSupplierText = (() => {
     if (!supplierFocus) return "";
-    // Focus key: "meat:<KEY>" or "other:<idx>" — one supplier per meat now.
-    const [kind, key] = supplierFocus.split(":");
+    // Focus key: "meat:<KEY>:<row>" or "other:<idx>:<row>".
+    const [kind, key, rowStr] = supplierFocus.split(":");
+    const row = Number(rowStr);
     return kind === "meat"
-      ? meatChecks[key as MeatKey]?.supplier ?? ""
-      : otherChecks[Number(key)]?.supplier ?? "";
+      ? meatChecks[key as MeatKey]?.products[row]?.supplier ?? ""
+      : otherChecks[Number(key)]?.products[row]?.supplier ?? "";
   })();
   const [supplierQuery, setSupplierQuery] = useState("");
   useEffect(() => {
@@ -475,6 +471,17 @@ export default function FileVisit() {
     );
   };
 
+  // Menu coverage is a single Yes/Partial pick; tapping the active one clears
+  // it. Leaving Partial drops the follow-up so we never ship a stale scope.
+  const pickMenu = (v: MenuHalal) =>
+    setMenuHalal((cur) => {
+      const next = cur === v ? null : v;
+      if (next !== "PARTIAL") {
+        setMenuScope(null);
+        setMenuNote("");
+      }
+      return next;
+    });
   const cycleAmenity = (k: AmenityKey) =>
     setAmenities((a) => {
       // Cleared is the first stop, then this amenity's own value set (prayer
@@ -511,30 +518,25 @@ export default function FileVisit() {
       ordered_items: ordered,
       checks: checksOut,
     };
-    // Map internal {finding, evidence, items[], supplier} → API shape. Each
-    // named item becomes a product row carrying the meat's single supplier
-    // (verbal or documented — a supplier the verifier heard still counts, we
-    // reconcile it to the registry later). When staff named a supplier but no
-    // specific item, it rides the legacy meat-level supplier_name field so the
-    // signal isn't lost.
-    const applySupplier = (
-      out: VerifierMeatCheck,
-      items: string[],
-      supplier: string | undefined,
-    ) => {
-      const sup = supplier?.trim() || null;
-      const names = items.map((s) => s.trim()).filter(Boolean);
-      if (names.length) {
-        out.products = names.map((product_name) => ({ product_name, supplier_name: sup }));
-      } else if (sup) {
-        out.supplier_name = sup;
-      }
-    };
+    // Map internal {finding, evidence, products[]} → API shape. Product rows
+    // only ride along when the verifier had a document to read them off
+    // (invoice / cert); a stale name from a later switch to "verbal" isn't sent.
+    // Only rows with a product name are kept.
+    const productsOut = (rows: ProductRow[], ev: Evidence) =>
+      evidenceShowsSupplier(ev)
+        ? rows
+            .filter((p) => p.product_name.trim())
+            .map((p) => ({
+              product_name: p.product_name.trim(),
+              supplier_name: p.supplier?.trim() || null,
+            }))
+        : [];
     if (meatEntries.length) {
       obs.meat_checks = Object.fromEntries(
         meatEntries.map(([k, mc]) => {
           const out: VerifierMeatCheck = { finding: mc.finding, evidence: mc.evidence };
-          applySupplier(out, mc.items, mc.supplier);
+          const products = productsOut(mc.products, mc.evidence);
+          if (products.length) out.products = products;
           return [k, out];
         }),
       ) as Record<string, VerifierMeatCheck>;
@@ -546,7 +548,8 @@ export default function FileVisit() {
           finding: o.finding,
           evidence: o.evidence,
         };
-        applySupplier(out, o.items, o.supplier);
+        const products = productsOut(o.products, o.evidence);
+        if (products.length) out.products = products;
         return out;
       });
     }
@@ -581,25 +584,22 @@ export default function FileVisit() {
         setMenuHalal((d.menuHalal ?? null) as MenuHalal | null);
         setMenuScope((d.menuScope ?? null) as MenuScope | null);
         setMenuNote(d.menuNote ?? "");
-        // v2 drafts store items[] + one supplier per meat directly.
-        const rawMeat = (d.meatChecks ?? {}) as Record<string, MeatCheck>;
+        // Normalize older drafts (single `supplier`) into the products[] shape.
+        const normProducts = (mc: { products?: ProductRow[]; supplier?: string }): ProductRow[] =>
+          Array.isArray(mc.products)
+            ? mc.products
+            : mc.supplier
+              ? [{ product_name: "", supplier: mc.supplier }]
+              : [];
+        const rawMeat = (d.meatChecks ?? {}) as Record<string, MeatCheck & { supplier?: string }>;
         setMeatChecks(
           Object.fromEntries(
-            Object.entries(rawMeat).map(([k, mc]) => [
-              k,
-              { finding: mc.finding, evidence: mc.evidence, items: mc.items ?? [], supplier: mc.supplier },
-            ]),
+            Object.entries(rawMeat).map(([k, mc]) => [k, { finding: mc.finding, evidence: mc.evidence, products: normProducts(mc) }]),
           ) as Partial<Record<MeatKey, MeatCheck>>,
         );
-        const rawOther = (d.otherChecks ?? []) as OtherCheck[];
+        const rawOther = (d.otherChecks ?? []) as Array<OtherCheck & { supplier?: string }>;
         setOtherChecks(
-          rawOther.map((o) => ({
-            label: o.label,
-            finding: o.finding,
-            evidence: o.evidence,
-            items: o.items ?? [],
-            supplier: o.supplier,
-          })),
+          rawOther.map((o) => ({ label: o.label, finding: o.finding, evidence: o.evidence, products: normProducts(o) })),
         );
         setAmenities((d.amenities ?? {}) as Partial<Record<AmenityKey, AmenityVal>>);
         setPhotos(d.photos ?? []);
@@ -714,110 +714,6 @@ export default function FileVisit() {
     fontSize: mockupPx(10.5),
   } as const;
 
-  // One guided card for a meat in the deep-dive step. Written as a plain
-  // function returning JSX (not a nested component) so its TextInputs keep
-  // focus across keystrokes instead of remounting each render.
-  const renderDeepCard = (cfg: DeepCfg) => {
-    const draft = itemDrafts[cfg.focusKey] ?? "";
-    const commitItem = () => {
-      cfg.onAddItem(draft);
-      setDeepItemDraft(cfg.focusKey, "");
-    };
-    return (
-      <Card key={cfg.focusKey} style={{ padding: space.lg, gap: 14 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(14), fontFamily: "Inter_800ExtraBold" }]}>
-            {cfg.label}
-          </Text>
-          <Pressable onPress={cfg.onRemove} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-            <Feather name="x" size={15} color={t.sub} />
-            <Text style={{ color: t.sub, fontFamily: "Inter_600SemiBold", fontSize: mockupPx(10) }}>Remove</Text>
-          </Pressable>
-        </View>
-
-        <View style={{ gap: 7 }}>
-          <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>
-            What did staff say about the {cfg.label.toLowerCase()}?
-          </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-            {cfg.methods.map((f) => (
-              <Chip
-                key={f}
-                label={FINDING_LABEL[f]}
-                on={cfg.finding === f}
-                accent={cfg.finding === f && f !== "UNSURE"}
-                amber={cfg.finding === f && f === "UNSURE"}
-                size={mockupPx(11)}
-                onPress={() => cfg.onFinding(f)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={{ gap: 7 }}>
-          <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>
-            Which items? Add any they named — or skip it.
-          </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-            {cfg.items.map((it) => (
-              <Chip key={it} label={it} on size={mockupPx(11)} onPress={() => cfg.onRemoveItem(it)} />
-            ))}
-            <TextInput
-              style={[outlinedField, { minWidth: 120 }]}
-              placeholder="e.g. thighs, wings"
-              placeholderTextColor={t.sub}
-              value={draft}
-              onChangeText={(v) => setDeepItemDraft(cfg.focusKey, v)}
-              onSubmitEditing={commitItem}
-              onBlur={commitItem}
-              onFocus={revealInput}
-              maxLength={120}
-              autoCapitalize="none"
-              returnKeyType="done"
-            />
-          </View>
-        </View>
-
-        <View style={{ gap: 7 }}>
-          <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>How did you know?</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-            {EVIDENCE_CYCLE.map((e) => (
-              <Chip
-                key={e}
-                label={EVIDENCE_GUIDED_LABEL[e]}
-                on={cfg.evidence === e}
-                accent={cfg.evidence === e}
-                size={mockupPx(11)}
-                onPress={() => cfg.onEvidence(e)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={{ gap: 6 }}>
-          <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>
-            Who supplies it? Optional — leave blank if they just said &ldquo;it&apos;s halal.&rdquo;
-          </Text>
-          <TextInput
-            style={outlinedField}
-            placeholder="Supplier name (e.g. Crescent Foods)"
-            placeholderTextColor={t.sub}
-            value={cfg.supplier}
-            onChangeText={cfg.onSupplier}
-            onFocus={() => {
-              setSupplierFocus(cfg.focusKey);
-              revealInput();
-            }}
-            onBlur={() => blurSupplier(cfg.focusKey)}
-            maxLength={200}
-            autoCapitalize="words"
-          />
-          {renderSupplierSuggestions(cfg.focusKey, (name) => pickSupplier(cfg.onSupplier, name))}
-        </View>
-      </Card>
-    );
-  };
-
   const next = () => setStep((s) => Math.min(s + 1, TOTAL));
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
@@ -861,24 +757,6 @@ export default function FileVisit() {
   }
 
   const isSuccess = step === TOTAL;
-
-  // A one-line-per-meat recap for the review + success cards: method, any items,
-  // and a supplier if one was named.
-  const meatSummary: { label: string; detail: string }[] = [
-    ...MEATS.filter((m) => meatChecks[m.v]).map((m) => {
-      const mc = meatChecks[m.v]!;
-      const parts = [FINDING_LABEL[mc.finding]];
-      if (mc.items.length) parts.push(mc.items.join(", "));
-      if (mc.supplier?.trim()) parts.push(`from ${mc.supplier.trim()}`);
-      return { label: m.label, detail: parts.join(" · ") };
-    }),
-    ...otherChecks.map((o) => {
-      const parts = [FINDING_LABEL[o.finding]];
-      if (o.items.length) parts.push(o.items.join(", "));
-      if (o.supplier?.trim()) parts.push(`from ${o.supplier.trim()}`);
-      return { label: o.label, detail: parts.join(" · ") };
-    }),
-  ];
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
@@ -928,10 +806,9 @@ export default function FileVisit() {
         {/* --- Step 0 · Place --------------------------------------------- */}
         {step === 0 ? (
           <>
-            <Mascot
-              title="Where are you eating?"
-              line="Salaam! Let's start with the spot you're reviewing — search for it or pick one nearby."
-            />
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              Where are you{"\n"}eating?
+            </Text>
             <View
               style={{
                 flexDirection: "row",
@@ -1010,10 +887,13 @@ export default function FileVisit() {
         {/* --- Step 1 · Photos -------------------------------------------- */}
         {step === 1 ? (
           <>
-            <Mascot
-              title="Snap what you saw"
-              line="The cert on the wall, the menu, your plate — grab a couple and tag each one. Totally optional, but photos make a visit far stronger."
-            />
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              Snap it while{"\n"}you're there.
+            </Text>
+            <Text style={[ty.body, { color: t.sub }]}>
+              Photos are your evidence — the cert on the wall, the menu, your meal. Optional, but
+              a couple of good shots make a visit far stronger.
+            </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {photos.length < MAX_PHOTOS ? (
                 <Pressable
@@ -1083,21 +963,14 @@ export default function FileVisit() {
                 : "Aim for the cert on the wall, the menu, and what you ordered."}
             </Text>
 
-            <Button title={photos.length ? "Continue" : "Skip for now"} onPress={next} />
-            <Text style={[ty.small, { color: t.sub, textAlign: "center", fontSize: mockupPx(9.5) }]}>
-              Photos stay on-device until you submit.
+            <View style={{ height: 1, backgroundColor: t.line, marginTop: mockupPx(10), marginBottom: mockupPx(4) }} />
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              What did{"\n"}you order?
             </Text>
-          </>
-        ) : null}
-
-        {/* --- Step 2 · Order -------------------------------------------- */}
-        {step === 2 ? (
-          <>
-            <Mascot
-              title="What did you order?"
-              line="Optional — the dishes you had help us know what your visit actually covered."
-            />
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5), marginTop: mockupPx(1) }]}>
+              Optional — the dishes you had, so admin knows what the visit covered.
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center", marginTop: mockupPx(4) }}>
               {ordered.map((item) => (
                 <Chip key={item} label={item} on size={mockupPx(11)} onPress={() => setOrdered((xs) => xs.filter((x) => x !== item))} />
               ))}
@@ -1114,24 +987,26 @@ export default function FileVisit() {
                   returnKeyType="done"
                 />
               ) : (
-                <Chip label="+ Add a dish" ghost size={mockupPx(11)} onPress={() => setAddingItem(true)} />
+                <Chip label="+ Add item" ghost size={mockupPx(11)} onPress={() => setAddingItem(true)} />
               )}
             </View>
             {ordered.length ? (
               <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10) }]}>Tap a dish to remove it.</Text>
             ) : null}
 
-            <Button title={ordered.length ? "Continue" : "Skip for now"} onPress={next} />
+            <Button title="Continue" onPress={next} />
+            <Text style={[ty.small, { color: t.sub, textAlign: "center", fontSize: mockupPx(9.5) }]}>
+              Photos stay on-device until you submit.
+            </Text>
           </>
         ) : null}
 
-        {/* --- Step 3 · Observe ------------------------------------------- */}
-        {step === 3 ? (
+        {/* --- Step 2 · Observe ------------------------------------------- */}
+        {step === 2 ? (
           <>
-            <Mascot
-              title="What did you notice?"
-              line="A few quick things you saw — tap through what applies. Skip any you're unsure about."
-            />
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              What did you{"\n"}observe?
+            </Text>
 
             <Seg size={mockupPx(10)}>Checks</Seg>
             <Card>
@@ -1152,65 +1027,42 @@ export default function FileVisit() {
               ))}
             </Card>
 
-            <Seg size={mockupPx(10)}>The menu</Seg>
-            <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(11), marginTop: -mockupPx(2) }]}>
-              Was everything halal, only a few things, or did it have to be made halal on request?
-            </Text>
-            {(
-              [
-                { key: "FULLY", label: "Fully halal", hint: "The whole menu is halal", on: menuHalal === "YES" },
-                {
-                  key: "SOME",
-                  label: "Only some of it",
-                  hint: "Certain meats or dishes are halal",
-                  on: menuHalal === "PARTIAL" && menuScope !== "ON_REQUEST",
-                },
-                {
-                  key: "REQUEST",
-                  label: "Only on request",
-                  hint: "You had to ask for it to be halal",
-                  on: menuHalal === "PARTIAL" && menuScope === "ON_REQUEST",
-                },
-              ] as const
-            ).map((opt) => (
-              <Pressable
-                key={opt.key}
-                onPress={() => {
-                  if (opt.key === "FULLY") {
-                    setMenuHalal("YES");
-                    setMenuScope(null);
-                    setMenuNote("");
-                  } else if (opt.key === "SOME") {
-                    setMenuHalal("PARTIAL");
-                    setMenuScope((s) => (s && s !== "ON_REQUEST" ? s : "SPECIFIC_ITEMS"));
-                  } else {
-                    setMenuHalal("PARTIAL");
-                    setMenuScope("ON_REQUEST");
-                  }
+            <Seg size={mockupPx(10)}>Menu</Seg>
+            <Card>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 13,
                 }}
               >
-                <Card style={{ padding: space.lg, borderWidth: opt.on ? 2 : 0, borderColor: t.accent }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[ty.label, { color: opt.on ? t.ink : t.zinc, fontSize: mockupPx(13) }]}>{opt.label}</Text>
-                      <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(9.5) }]}>{opt.hint}</Text>
-                    </View>
-                    {opt.on ? (
-                      <View style={{ width: 20, height: 20, borderRadius: 999, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-                        <Feather name="check" size={12} color={t.onAccent} />
-                      </View>
-                    ) : (
-                      <View style={{ width: 20, height: 20, borderRadius: 999, borderWidth: 2, borderColor: t.line }} />
-                    )}
-                  </View>
-                </Card>
-              </Pressable>
-            ))}
-            {menuHalal === "PARTIAL" ? (
-              <View style={{ gap: 9 }}>
-                {menuScope !== "ON_REQUEST" ? (
+                <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5), flex: 1 }]}>
+                  Is the menu fully halal?
+                </Text>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  <Chip label="Fully" on={menuHalal === "YES"} accent size={mockupPx(11)} onPress={() => pickMenu("YES")} />
+                  <Chip label="Partial" on={menuHalal === "PARTIAL"} amber size={mockupPx(11)} onPress={() => pickMenu("PARTIAL")} />
+                </View>
+              </View>
+              {menuHalal === "PARTIAL" ? (
+                <View
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingTop: 12,
+                    paddingBottom: 14,
+                    borderTopWidth: 1,
+                    borderTopColor: t.line,
+                    gap: 9,
+                  }}
+                >
+                  <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>
+                    What is the halal part?
+                  </Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                    {(["MEAT_GROUP", "SPECIFIC_ITEMS"] as MenuScope[]).map((s) => (
+                    {MENU_SCOPES.map((s) => (
                       <Chip
                         key={s}
                         label={MENU_SCOPE_LABEL[s]}
@@ -1220,107 +1072,271 @@ export default function FileVisit() {
                       />
                     ))}
                   </View>
-                ) : null}
-                <TextInput
-                  style={[field, { paddingVertical: 8 }]}
-                  placeholder={
-                    menuScope === "ON_REQUEST"
-                      ? "What's made halal on request? (e.g. chicken dishes)"
-                      : menuScope === "SPECIFIC_ITEMS"
+                  <TextInput
+                    style={[field, { paddingVertical: 8 }]}
+                    placeholder={
+                      menuScope === "SPECIFIC_ITEMS"
                         ? "Which dishes? (e.g. wings, not the burger)"
-                        : "Which meats? (e.g. all chicken is halal)"
-                  }
-                  placeholderTextColor={t.sub}
-                  value={menuNote}
-                  onChangeText={setMenuNote}
-                  onFocus={revealInput}
-                  maxLength={1000}
-                />
-              </View>
-            ) : null}
+                        : menuScope === "ON_REQUEST"
+                          ? "What's made halal on request? (e.g. chicken dishes)"
+                          : "Which meats? (e.g. all chicken is halal)"
+                    }
+                    placeholderTextColor={t.sub}
+                    value={menuNote}
+                    onChangeText={setMenuNote}
+                    onFocus={revealInput}
+                    maxLength={1000}
+                  />
+                </View>
+              ) : null}
+            </Card>
 
             <Button title="Continue" onPress={next} />
           </>
         ) : null}
 
-        {/* --- Step 4 · Per-meat deep dive (guided) ---------------------- */}
-        {step === 4 ? (
+        {/* --- Step 3 · Per-item deep dive -------------------------------- */}
+        {step === 3 ? (
           <>
-            <Mascot
-              title="Let's dive deeper"
-              line="This is the important part — and I've got you. Add each meat you asked about, one at a time."
-            />
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              Let&apos;s dive{"\n"}deeper.
+            </Text>
+            <Text style={[ty.body, { color: t.sub }]}>
+              What did staff say about each meat? Tap a meat to log the method and how you know.
+            </Text>
+            <Card>
+              {MEATS.map((m, mi) => {
+                const mc = meatChecks[m.v];
+                const showEv = Boolean(mc) && mc!.finding !== "NOT_SERVED";
+                return (
+                  <View
+                    key={m.v}
+                    style={{ borderBottomWidth: mi === MEATS.length - 1 ? 0 : 1, borderBottomColor: t.line }}
+                  >
+                    <Pressable
+                      onPress={() => cycleMeatFinding(m.v)}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        paddingHorizontal: 16,
+                        paddingTop: 13,
+                        paddingBottom: showEv ? 6 : 13,
+                      }}
+                    >
+                      <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]}>{m.label}</Text>
+                      {mc ? (
+                        <Tag label={FINDING_LABEL[mc.finding]} tone={findingTone(mc.finding)} size={mockupPx(9.5)} />
+                      ) : (
+                        <Tag label="TAP" tone="dashed" size={mockupPx(9.5)} />
+                      )}
+                    </Pressable>
+                    {showEv ? (
+                      <Pressable
+                        onPress={() => cycleMeatEvidence(m.v)}
+                        style={{
+                          marginHorizontal: 16,
+                          marginTop: 2,
+                          marginBottom: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingHorizontal: 12,
+                          paddingVertical: 9,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: t.line,
+                        }}
+                      >
+                        <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>How you know</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Tag label={EVIDENCE_LABEL[mc!.evidence]} tone={evidenceTone(mc!.evidence)} size={mockupPx(9)} />
+                          <MaterialCommunityIcons name="gesture-tap" size={mockupPx(15)} color={t.sub} />
+                        </View>
+                      </Pressable>
+                    ) : null}
+                    {showEv && evidenceShowsSupplier(mc!.evidence) ? (
+                      <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12, gap: 8 }}>
+                        {mc!.products.map((p, ri) => (
+                          <View key={ri} style={{ gap: 6 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                              <TextInput
+                                style={[outlinedField, { flex: 1 }]}
+                                placeholder="Product (e.g. ground beef)"
+                                placeholderTextColor={t.sub}
+                                value={p.product_name}
+                                onChangeText={(text) => patchMeatProduct(m.v, ri, { product_name: text })}
+                                onFocus={revealInput}
+                                maxLength={120}
+                                autoCapitalize="words"
+                              />
+                              <Pressable onPress={() => removeMeatProduct(m.v, ri)} hitSlop={8}>
+                                <Feather name="x" size={18} color={t.sub} />
+                              </Pressable>
+                            </View>
+                            <TextInput
+                              style={outlinedField}
+                              placeholder="Supplier name"
+                              placeholderTextColor={t.sub}
+                              value={p.supplier ?? ""}
+                              onChangeText={(text) => patchMeatProduct(m.v, ri, { supplier: text })}
+                              onFocus={() => {
+                                setSupplierFocus(`meat:${m.v}:${ri}`);
+                                revealInput();
+                              }}
+                              onBlur={() => blurSupplier(`meat:${m.v}:${ri}`)}
+                              maxLength={200}
+                              autoCapitalize="words"
+                            />
+                            {renderSupplierSuggestions(`meat:${m.v}:${ri}`, (name) =>
+                              pickSupplier((n) => patchMeatProduct(m.v, ri, { supplier: n }), name),
+                            )}
+                          </View>
+                        ))}
+                        <Pressable
+                          onPress={() => addMeatProduct(m.v)}
+                          style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}
+                        >
+                          <Feather name="plus" size={15} color={t.accentDeep} />
+                          <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: mockupPx(10.5) }]}>
+                            {mc!.products.length ? "Add another product / supplier" : "Add product / supplier"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
 
-            {/* Added meats, each an expanded guided card. */}
-            {MEATS.filter((m) => meatChecks[m.v]).map((m) => {
-              const mc = meatChecks[m.v]!;
-              return renderDeepCard({
-                focusKey: `meat:${m.v}`,
-                label: m.label,
-                methods: methodChoices(m.findings),
-                finding: mc.finding,
-                evidence: mc.evidence,
-                items: mc.items,
-                supplier: mc.supplier ?? "",
-                onFinding: (f) => setMeatFinding(m.v, f),
-                onEvidence: (e) => setMeatEvidence(m.v, e),
-                onAddItem: (name) => addMeatItem(m.v, name),
-                onRemoveItem: (name) => removeMeatItem(m.v, name),
-                onSupplier: (name) => setMeatSupplier(m.v, name),
-                onRemove: () => removeMeat(m.v),
-              });
-            })}
-            {otherChecks.map((o, i) =>
-              renderDeepCard({
-                focusKey: `other:${i}`,
-                label: o.label,
-                methods: methodChoices(OTHER_FINDINGS),
-                finding: o.finding,
-                evidence: o.evidence,
-                items: o.items,
-                supplier: o.supplier ?? "",
-                onFinding: (f) => setOtherFinding(i, f),
-                onEvidence: (e) => setOtherEvidence(i, e),
-                onAddItem: (name) => addOtherItem(i, name),
-                onRemoveItem: (name) => removeOtherItem(i, name),
-                onSupplier: (name) => setOtherSupplier(i, name),
-                onRemove: () => removeOther(i),
-              }),
-            )}
+              {otherChecks.map((o, i) => {
+                const showEv = o.finding !== "NOT_SERVED";
+                return (
+                  <View key={`other-${i}`} style={{ borderTopWidth: 1, borderTopColor: t.line }}>
+                    <Pressable
+                      onPress={() => cycleOtherFinding(i)}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        paddingHorizontal: 16,
+                        paddingTop: 13,
+                        paddingBottom: showEv ? 6 : 13,
+                      }}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                        <Text style={[ty.label, { color: t.ink, fontSize: mockupPx(12.5) }]} numberOfLines={1}>
+                          {o.label}
+                        </Text>
+                        <Pressable onPress={() => removeOther(i)} hitSlop={8}>
+                          <Text style={{ color: t.sub, fontFamily: "Inter_600SemiBold", fontSize: mockupPx(10) }}>Remove</Text>
+                        </Pressable>
+                      </View>
+                      <Tag label={FINDING_LABEL[o.finding]} tone={findingTone(o.finding)} size={mockupPx(9.5)} />
+                    </Pressable>
+                    {showEv ? (
+                      <Pressable
+                        onPress={() => cycleOtherEvidence(i)}
+                        style={{
+                          marginHorizontal: 16,
+                          marginTop: 2,
+                          marginBottom: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingHorizontal: 12,
+                          paddingVertical: 9,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: t.line,
+                        }}
+                      >
+                        <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>How you know</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Tag label={EVIDENCE_LABEL[o.evidence]} tone={evidenceTone(o.evidence)} size={mockupPx(9)} />
+                          <MaterialCommunityIcons name="gesture-tap" size={mockupPx(15)} color={t.sub} />
+                        </View>
+                      </Pressable>
+                    ) : null}
+                    {showEv && evidenceShowsSupplier(o.evidence) ? (
+                      <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12, gap: 8 }}>
+                        {o.products.map((p, ri) => (
+                          <View key={ri} style={{ gap: 6 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                              <TextInput
+                                style={[outlinedField, { flex: 1 }]}
+                                placeholder="Product"
+                                placeholderTextColor={t.sub}
+                                value={p.product_name}
+                                onChangeText={(text) => patchOtherProduct(i, ri, { product_name: text })}
+                                onFocus={revealInput}
+                                maxLength={120}
+                                autoCapitalize="words"
+                              />
+                              <Pressable onPress={() => removeOtherProduct(i, ri)} hitSlop={8}>
+                                <Feather name="x" size={18} color={t.sub} />
+                              </Pressable>
+                            </View>
+                            <TextInput
+                              style={outlinedField}
+                              placeholder="Supplier name"
+                              placeholderTextColor={t.sub}
+                              value={p.supplier ?? ""}
+                              onChangeText={(text) => patchOtherProduct(i, ri, { supplier: text })}
+                              onFocus={() => {
+                                setSupplierFocus(`other:${i}:${ri}`);
+                                revealInput();
+                              }}
+                              onBlur={() => blurSupplier(`other:${i}:${ri}`)}
+                              maxLength={200}
+                              autoCapitalize="words"
+                            />
+                            {renderSupplierSuggestions(`other:${i}:${ri}`, (name) =>
+                              pickSupplier((n) => patchOtherProduct(i, ri, { supplier: n }), name),
+                            )}
+                          </View>
+                        ))}
+                        <Pressable
+                          onPress={() => addOtherProduct(i)}
+                          style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}
+                        >
+                          <Feather name="plus" size={15} color={t.accentDeep} />
+                          <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: mockupPx(10.5) }]}>
+                            {o.products.length ? "Add another product / supplier" : "Add product / supplier"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
 
-            {/* Chooser — which meat to add (next). */}
-            <Seg size={mockupPx(10)}>
-              {Object.keys(meatChecks).length || otherChecks.length
-                ? "Any other meat you asked about?"
-                : "Which meat did you observe or ask about?"}
-            </Seg>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-              {MEATS.filter((m) => !meatChecks[m.v]).map((m) => (
-                <Chip key={m.v} label={`+ ${m.label}`} ghost size={mockupPx(11)} onPress={() => addMeat(m.v)} />
-              ))}
-              {addingOther ? (
-                <TextInput
-                  style={[field, { paddingVertical: 8, minWidth: 150 }]}
-                  placeholder="Other (e.g. duck, fish)"
-                  placeholderTextColor={t.sub}
-                  value={otherDraft}
-                  onChangeText={setOtherDraft}
-                  onSubmitEditing={addOther}
-                  onBlur={addOther}
-                  autoFocus
-                  returnKeyType="done"
-                />
-              ) : (
-                <Chip label="+ Other" ghost size={mockupPx(11)} onPress={() => setAddingOther(true)} />
-              )}
-            </View>
+              <View style={{ flexDirection: "row", paddingHorizontal: 16, paddingVertical: 13, borderTopWidth: 1, borderTopColor: t.line }}>
+                {addingOther ? (
+                  <TextInput
+                    style={[field, { paddingVertical: 8, flex: 1 }]}
+                    placeholder="Other item (e.g. duck, fish)"
+                    placeholderTextColor={t.sub}
+                    value={otherDraft}
+                    onChangeText={setOtherDraft}
+                    onSubmitEditing={addOther}
+                    onBlur={addOther}
+                    autoFocus
+                    returnKeyType="done"
+                  />
+                ) : (
+                  <Chip label="+ Add other" ghost size={mockupPx(11)} onPress={() => setAddingOther(true)} />
+                )}
+              </View>
+            </Card>
 
-            <Seg size={mockupPx(10)}>Anything else worth noting?</Seg>
+            <Seg size={mockupPx(10)}>Notes</Seg>
             <TextInput
-              style={[field, { minHeight: 100, textAlignVertical: "top" }]}
+              style={[field, { minHeight: 110, textAlignVertical: "top" }]}
               multiline
               maxLength={4000}
-              placeholder="e.g. The manager showed me the invoice for the chicken but wasn't sure about the beef."
+              placeholder="Kitchen manager showed the supplier invoice for the chicken — Crescent Foods…"
               placeholderTextColor={t.sub}
               value={notes}
               onChangeText={setNotes}
@@ -1334,13 +1350,16 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 5 · Amenities (optional) ------------------------------ */}
-        {step === 5 ? (
+        {/* --- Step 4 · Amenities (optional) ------------------------------ */}
+        {step === 4 ? (
           <>
-            <Mascot
-              title="Anything for families?"
-              line="The little things families and observant diners look for. Tap to cycle Yes / No / Unsure, or skip anything you didn't check."
-            />
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              Anything for{"\n"}families?
+            </Text>
+            <Text style={[ty.body, { color: t.sub }]}>
+              Optional. The small things families and observant diners look for. Tap to cycle
+              Yes / No / Unsure, or skip if you didn't check.
+            </Text>
             <Card>
               {AMENITIES.map((a, i) => {
                 const av = amenities[a.v];
@@ -1373,13 +1392,16 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 6 · Disclosure ---------------------------------------- */}
-        {step === 6 ? (
+        {/* --- Step 5 · Disclosure ---------------------------------------- */}
+        {step === 5 ? (
           <>
-            <Mascot
-              title="Who paid for the meal?"
-              line="Last thing! Nothing here disqualifies your visit — being upfront is what keeps it trustworthy. This shows on the public report."
-            />
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              Who paid for{"\n"}the meal?
+            </Text>
+            <Text style={[ty.body, { color: t.sub }]}>
+              Nothing here disqualifies your visit — hiding it does. This shows on the public
+              report.
+            </Text>
             {DISCLOSURES.map((d) => {
               const on = disclosure === d.value;
               return (
@@ -1425,13 +1447,12 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 7 · Review -------------------------------------------- */}
-        {step === 7 ? (
+        {/* --- Step 6 · Review -------------------------------------------- */}
+        {step === 6 ? (
           <>
-            <Mascot
-              title="Looks good?"
-              line="Here's everything you noted. Give it a once-over, then send it our way."
-            />
+            <Text style={[ty.title, { color: t.ink, fontSize: mockupPx(21), lineHeight: mockupPx(24) }]}>
+              Review your{"\n"}report
+            </Text>
 
             {/* Report card — a preview of how this reads once accepted. */}
             <Card style={{ padding: space.lg, gap: 12 }}>
@@ -1459,19 +1480,6 @@ export default function FileVisit() {
                 <Text style={[ty.small, { color: t.zinc, fontSize: mockupPx(11) }]}>
                   Ordered: {ordered.join(", ")}
                 </Text>
-              ) : null}
-
-              {meatSummary.length ? (
-                <View style={{ gap: 4 }}>
-                  {meatSummary.map((line) => (
-                    <View key={line.label} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Feather name="check-circle" size={mockupPx(12)} color={t.accentDeep} />
-                      <Text style={[ty.small, { color: t.ink, fontSize: mockupPx(11) }]}>
-                        <Text style={{ fontFamily: "Inter_700Bold" }}>{line.label}:</Text> {line.detail}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
               ) : null}
 
               {notes.trim() ? (
@@ -1521,7 +1529,7 @@ export default function FileVisit() {
           </>
         ) : null}
 
-        {/* --- Step 8 · Success ------------------------------------------- */}
+        {/* --- Step 7 · Success ------------------------------------------- */}
         {isSuccess ? (
           <View style={{ alignItems: "center", gap: space.md, paddingTop: 32 }}>
             <Image
@@ -1531,8 +1539,8 @@ export default function FileVisit() {
             />
             <Text style={[ty.title, { color: t.ink, textAlign: "center" }]}>Jazakallah khair!</Text>
             <Text style={[ty.body, { color: t.sub, textAlign: "center" }]}>
-              Your visit is in. Trust Halal reviews every one — I'll send you a notification the
-              moment it's accepted, usually within a few days.
+              Your visit is in. Trust Halal reviews every one — you'll get a notification the moment
+              it's accepted, usually within a few days.
             </Text>
             <Card style={{ padding: space.lg, alignSelf: "stretch", gap: 12 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -1541,15 +1549,6 @@ export default function FileVisit() {
                 </Text>
                 <Tag label="IN REVIEW" tone="amber" />
               </View>
-              {meatSummary.length ? (
-                <View style={{ gap: 4 }}>
-                  {meatSummary.map((line) => (
-                    <Text key={line.label} style={[ty.small, { color: t.sub, fontSize: mockupPx(11) }]}>
-                      <Text style={{ color: t.ink, fontFamily: "Inter_700Bold" }}>{line.label}:</Text> {line.detail}
-                    </Text>
-                  ))}
-                </View>
-              ) : null}
               <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 {photos.length ? (
                   <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(10.5) }]}>
