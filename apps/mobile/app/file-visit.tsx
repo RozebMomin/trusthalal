@@ -176,7 +176,7 @@ const evidenceTone = (e: Evidence): "zinc" | "wash" | "solid" =>
 
 /** One product + supplier row under a meat — parity with the owner's
  *  per-product sourcing, so a meat can name several suppliers. */
-type ProductRow = { product_name: string; supplier?: string; certifier?: string };
+type ProductRow = { product_name: string; supplier?: string };
 type MeatCheck = { finding: Finding; evidence: Evidence; products: ProductRow[] };
 type OtherCheck = { label: string; finding: Finding; evidence: Evidence; products: ProductRow[] };
 // Supplier is only asked once the verifier has a document to read it off.
@@ -531,7 +531,6 @@ export default function FileVisit() {
             .map((p) => ({
               product_name: p.product_name.trim(),
               supplier_name: p.supplier?.trim() || null,
-              certifying_body_name: p.certifier?.trim() || null,
             }))
         : [];
     if (meatEntries.length) {
@@ -1195,16 +1194,6 @@ export default function FileVisit() {
                             {renderSupplierSuggestions(`meat:${m.v}:${ri}`, (name) =>
                               pickSupplier((n) => patchMeatProduct(m.v, ri, { supplier: n }), name),
                             )}
-                            <TextInput
-                              style={outlinedField}
-                              placeholder="Certifying body (e.g. ISWA) — optional"
-                              placeholderTextColor={t.sub}
-                              value={p.certifier ?? ""}
-                              onChangeText={(text) => patchMeatProduct(m.v, ri, { certifier: text })}
-                              onFocus={revealInput}
-                              maxLength={200}
-                              autoCapitalize="characters"
-                            />
                           </View>
                         ))}
                         <Pressable
@@ -1308,16 +1297,6 @@ export default function FileVisit() {
                             {renderSupplierSuggestions(`other:${i}:${ri}`, (name) =>
                               pickSupplier((n) => patchOtherProduct(i, ri, { supplier: n }), name),
                             )}
-                            <TextInput
-                              style={outlinedField}
-                              placeholder="Certifying body — optional"
-                              placeholderTextColor={t.sub}
-                              value={p.certifier ?? ""}
-                              onChangeText={(text) => patchOtherProduct(i, ri, { certifier: text })}
-                              onFocus={revealInput}
-                              maxLength={200}
-                              autoCapitalize="characters"
-                            />
                           </View>
                         ))}
                         <Pressable

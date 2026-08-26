@@ -378,7 +378,6 @@ export default function VerificationVisitDetailPage() {
                       placeId={visit.place_id}
                       productName={p.product_name}
                       supplierName={p.supplier_name ?? undefined}
-                      certifyingBody={p.certifying_body_name ?? undefined}
                     />
                   ))}
                   {/* Legacy single-supplier visits (pre multi-supplier). */}
@@ -537,12 +536,10 @@ function SupplierReconcile({
   placeId,
   productName,
   supplierName,
-  certifyingBody,
 }: {
   placeId: string;
   productName?: string;
   supplierName?: string;
-  certifyingBody?: string;
 }) {
   return (
     <span className="mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -551,11 +548,6 @@ function SupplierReconcile({
         {productName && supplierName ? " · " : null}
         {supplierName ? <>Supplier: {supplierName}</> : null}
       </span>
-      {certifyingBody ? (
-        <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-700">
-          Certified by {certifyingBody}
-        </span>
-      ) : null}
       {supplierName ? (
         <Link
           href={`/places/${placeId}?linkSupplier=${encodeURIComponent(supplierName)}#sourcing`}

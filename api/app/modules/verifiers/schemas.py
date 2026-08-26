@@ -233,10 +233,6 @@ class VerifierMeatProduct(BaseModel):
 
     product_name: str = Field(..., min_length=1, max_length=120)
     supplier_name: Optional[str] = Field(default=None, max_length=200)
-    # The certifying body named on the certificate (e.g. ISWA, HMS) — distinct
-    # from the supplier. Captured separately so a cert body read off a
-    # certificate doesn't get stuffed into (and confused with) the supplier.
-    certifying_body_name: Optional[str] = Field(default=None, max_length=200)
 
 
 class VerifierMeatCheck(BaseModel):
