@@ -517,9 +517,9 @@ function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {provenanceMeatLabel(g.meat)}
                   </span>
-                  {prov && (
+                  {(prov || verifByMeat.get(g.meat)) && (
                     <ConfidenceChip
-                      confidence={prov.confidence}
+                      confidence={verifByMeat.get(g.meat) ? "VERIFIED" : prov!.confidence}
                       ownerAttested={profile.owner_attested ?? false}
                     />
                   )}
@@ -629,9 +629,9 @@ function GroupedProvenanceSourcing({ profile }: { profile: HalalProfileEmbed }) 
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {provenanceMeatLabel(meat)}
                   </span>
-                  {prov && (
+                  {(prov || verifByMeat.get(meat)) && (
                     <ConfidenceChip
-                      confidence={prov.confidence}
+                      confidence={verifByMeat.get(meat) ? "VERIFIED" : prov!.confidence}
                       ownerAttested={profile.owner_attested ?? false}
                     />
                   )}

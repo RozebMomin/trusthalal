@@ -472,6 +472,23 @@ function attributionLabel(
   return ownerAttested ? "as stated by owner" : "reported by community";
 }
 
+/** The attribution pill for one meat. An in-person verifier check outranks
+ *  the composed supplier confidence — a verified meat reads "verified" even
+ *  when its slaughter method is still only owner-stated (no registry link).
+ *  Returns null when there's nothing to attribute. */
+function attributionPill(
+  prov: SupplierProvenance | undefined,
+  ownerAttested: boolean,
+  verified: boolean,
+): { label: string; accent: boolean } | null {
+  if (verified) return { label: "verified", accent: true };
+  if (!prov) return null;
+  return {
+    label: attributionLabel(prov.confidence, ownerAttested),
+    accent: prov.confidence === "VERIFIED",
+  };
+}
+
 // Core meats with a profile column, for the "not served" footnote.
 const CORE_MEATS: ReadonlyArray<{ key: string; label: string; col: keyof HalalProfileEmbed }> = [
   { key: "CHICKEN", label: "chicken", col: "chicken_slaughter" },
@@ -535,12 +552,10 @@ function GroupedSourcing({
                   <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
                     {provenanceMeatLabel(g.meat)}
                   </Text>
-                  {prov ? (
-                    <Pill
-                      label={attributionLabel(prov.confidence, ownerAttested)}
-                      tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
-                    />
-                  ) : null}
+                  {(() => {
+                    const p = attributionPill(prov, ownerAttested, !!verifByMeat.get(g.meat));
+                    return p ? <Pill label={p.label} tone={p.accent ? "accent" : "zinc"} /> : null;
+                  })()}
                 </View>
                 {verifByMeat.get(g.meat) ? (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
@@ -676,12 +691,10 @@ function GroupedProvenanceSourcing({
                   <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
                     {provenanceMeatLabel(meat)}
                   </Text>
-                  {prov ? (
-                    <Pill
-                      label={attributionLabel(prov.confidence, ownerAttested)}
-                      tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
-                    />
-                  ) : null}
+                  {(() => {
+                    const p = attributionPill(prov, ownerAttested, !!verifByMeat.get(meat));
+                    return p ? <Pill label={p.label} tone={p.accent ? "accent" : "zinc"} /> : null;
+                  })()}
                 </View>
                 {verifByMeat.get(meat) ? (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
