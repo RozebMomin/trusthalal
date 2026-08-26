@@ -27,8 +27,10 @@ import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type CheckResult,
+  type PlaceSupplierLinkAdminRead,
   type VisitDisclosure,
   useMarkVisitUnderReview,
+  usePlaceSupplierLinks,
   useVerificationVisit,
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -142,6 +144,9 @@ export default function VerificationVisitDetailPage() {
   const markUnderReview = useMarkVisitUnderReview();
 
   const { data: visit, isLoading, error } = useVerificationVisit(visitId);
+  // The place's existing sourcing links, so a supplier the verifier named that
+  // is *already* linked reads as such instead of re-offering "Link to registry".
+  const { data: placeLinks } = usePlaceSupplierLinks(visit?.place_id);
 
   async function onMarkUnderReview() {
     if (!visit || markUnderReview.isPending) return;
@@ -378,6 +383,7 @@ export default function VerificationVisitDetailPage() {
                       placeId={visit.place_id}
                       productName={p.product_name}
                       supplierName={p.supplier_name ?? undefined}
+                      linkedTo={matchActiveLink(placeLinks, p.supplier_name, MEAT_LABELS[r.key] ? r.key : undefined)}
                     />
                   ))}
                   {/* Legacy single-supplier visits (pre multi-supplier). */}
@@ -385,6 +391,7 @@ export default function VerificationVisitDetailPage() {
                     <SupplierReconcile
                       placeId={visit.place_id}
                       supplierName={r.c.supplier_name}
+                      linkedTo={matchActiveLink(placeLinks, r.c.supplier_name, MEAT_LABELS[r.key] ? r.key : undefined)}
                     />
                   )}
                   {r.c.note && (
@@ -525,21 +532,47 @@ function BackLink() {
 }
 
 /**
- * A free-text supplier a verifier read off an invoice/cert during the visit,
- * plus a jump to reconcile it against the supplier registry. The link opens
- * the place's Sourcing links section with the Add-link dialog pre-searched for
- * this name — the admin then picks the matching registry supplier + product
- * line, or (no match) goes and creates it. This is the manual bridge until we
- * swap the verifier flow to a registry picker.
+ * Find the place's active sourcing link that already covers a supplier the
+ * verifier named, so we don't re-offer "Link to registry" for something linked.
+ *
+ * Mirrors the accept-time matcher (``match_supplier_product``): case-insensitive
+ * exact name equality, scoped to the same meat when we know it. Name-only when
+ * the row is an "other" meat outside the enum. Ended links don't count.
+ */
+function matchActiveLink(
+  links: PlaceSupplierLinkAdminRead[] | undefined,
+  supplierName: string | null | undefined,
+  meat: string | undefined,
+): PlaceSupplierLinkAdminRead | undefined {
+  const needle = (supplierName ?? "").trim().toLowerCase();
+  if (!needle || !links) return undefined;
+  return links.find(
+    (l) =>
+      !l.ended_at &&
+      l.supplier_name.trim().toLowerCase() === needle &&
+      (!meat || l.meat_type === meat),
+  );
+}
+
+/**
+ * A free-text supplier a verifier read off an invoice/cert during the visit.
+ * When the place already has an active link for that supplier (``linkedTo``),
+ * we show a "Linked" marker; otherwise a jump to reconcile it against the
+ * registry. The reconcile link opens the place's Sourcing links section with
+ * the Add-link dialog pre-searched for this name — the admin then picks the
+ * matching registry supplier + product line, or (no match) goes and creates it.
  */
 function SupplierReconcile({
   placeId,
   productName,
   supplierName,
+  linkedTo,
 }: {
   placeId: string;
   productName?: string;
   supplierName?: string;
+  /** The place's existing active link for this supplier, if any. */
+  linkedTo?: PlaceSupplierLinkAdminRead;
 }) {
   return (
     <span className="mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -548,7 +581,15 @@ function SupplierReconcile({
         {productName && supplierName ? " · " : null}
         {supplierName ? <>Supplier: {supplierName}</> : null}
       </span>
-      {supplierName ? (
+      {supplierName && linkedTo ? (
+        <Link
+          href={`/places/${placeId}#sourcing`}
+          className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700 hover:underline dark:bg-emerald-950 dark:text-emerald-400"
+          title={`Linked to ${linkedTo.supplier_name} · ${linkedTo.product_name}`}
+        >
+          ✓ Linked{linkedTo.product_name ? ` · ${linkedTo.product_name}` : ""}
+        </Link>
+      ) : supplierName ? (
         <Link
           href={`/places/${placeId}?linkSupplier=${encodeURIComponent(supplierName)}#sourcing`}
           className="text-primary hover:underline"
