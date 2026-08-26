@@ -428,9 +428,7 @@ export default function FileVisit() {
     return (
       <View
         style={{
-          marginHorizontal: 16,
-          marginTop: -6,
-          marginBottom: 12,
+          marginTop: 2,
           borderWidth: 1,
           borderColor: t.line,
           borderRadius: 10,
