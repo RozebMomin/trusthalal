@@ -434,54 +434,69 @@ def _refresh_profile_from_visit(profile: HalalProfile, visit: VerificationVisit)
 def _resolve_verifier_suppliers(
     db: Session, *, visit: VerificationVisit, profile: HalalProfile
 ) -> None:
-    """Turn a verifier's free-text supplier into real provenance.
+    """Turn a verifier's free-text suppliers into real provenance.
 
-    For each meat the verifier marked UNSURE but named a supplier for, if that
-    name matches the registry unambiguously, create a VERIFIER_CONFIRMED
-    sourcing link and fill the profile column from the supplier line's method —
-    pulling the meat out of NOT_DISCLOSED. Only UNSURE meats: an explicit
-    hand/machine finding stands (the verifier's eyes-on call wins over a
-    registry lookup), and no link is created there so read-time composition
-    can't override it either.
+    A meat can now name several suppliers (parity with the owner's per-product
+    sourcing). For EACH named supplier under a meat — the multi-row ``products``
+    list plus the legacy single ``supplier_name`` — that matches the registry
+    unambiguously, create a VERIFIER_CONFIRMED sourcing link. Multiple links per
+    meat are expected. For a meat the verifier left UNSURE, also fill the profile
+    column from the first matched supplier's method (gap-fill only — it never
+    overrides an explicit hand/machine finding).
     """
     obs = visit.observations or {}
     meat_checks = obs.get("meat_checks") or {}
     for meat_key, _attr in _MEAT_COLUMNS:
         mc = meat_checks.get(meat_key)
-        if not isinstance(mc, dict) or mc.get("finding") != "UNSURE":
+        if not isinstance(mc, dict):
             continue
-        supplier_name = mc.get("supplier_name")
-        if not supplier_name:
-            continue
-        product = match_supplier_product(db, name=supplier_name, meat_type=meat_key)
-        if product is None:
-            continue
-        # Idempotent: don't stack a second live link to the same product line.
-        existing = db.execute(
-            select(PlaceSupplierLink).where(
-                PlaceSupplierLink.place_id == visit.place_id,
-                PlaceSupplierLink.supplier_product_id == product.id,
-                PlaceSupplierLink.ended_at.is_(None),
-            )
-        ).scalar_one_or_none()
-        if existing is None:
-            db.add(
-                PlaceSupplierLink(
-                    place_id=visit.place_id,
-                    supplier_product_id=product.id,
-                    meat_type=str(meat_key),
-                    evidence_tier=SourcingEvidence.VERIFIER_CONFIRMED.value,
-                    source=LinkSource.VERIFIER_VISIT.value,
-                    source_visit_id=visit.id,
-                    note=f"Auto-linked from verifier visit (supplier: {supplier_name}).",
+
+        # Collect every supplier the verifier named for this meat: the per-
+        # product rows first, then the legacy single field.
+        names: list[str] = []
+        for p in mc.get("products") or []:
+            if isinstance(p, dict) and p.get("supplier_name"):
+                names.append(p["supplier_name"])
+        if mc.get("supplier_name"):
+            names.append(mc["supplier_name"])
+
+        is_unsure = mc.get("finding") == "UNSURE"
+        filled = False
+        seen_products: set = set()
+        for supplier_name in names:
+            product = match_supplier_product(db, name=supplier_name, meat_type=meat_key)
+            if product is None or product.id in seen_products:
+                continue
+            seen_products.add(product.id)
+            # Idempotent: don't stack a second live link to the same product line.
+            existing = db.execute(
+                select(PlaceSupplierLink).where(
+                    PlaceSupplierLink.place_id == visit.place_id,
+                    PlaceSupplierLink.supplier_product_id == product.id,
+                    PlaceSupplierLink.ended_at.is_(None),
                 )
-            )
-        fill_profile_method_from_supplier(
-            db,
-            place_id=visit.place_id,
-            meat_type=meat_key,
-            method=str(product.slaughter_method),
-        )
+            ).scalar_one_or_none()
+            if existing is None:
+                db.add(
+                    PlaceSupplierLink(
+                        place_id=visit.place_id,
+                        supplier_product_id=product.id,
+                        meat_type=str(meat_key),
+                        evidence_tier=SourcingEvidence.VERIFIER_CONFIRMED.value,
+                        source=LinkSource.VERIFIER_VISIT.value,
+                        source_visit_id=visit.id,
+                        note=f"Auto-linked from verifier visit (supplier: {supplier_name}).",
+                    )
+                )
+            # Gap-fill the profile column once, only for an UNSURE meat.
+            if is_unsure and not filled:
+                fill_profile_method_from_supplier(
+                    db,
+                    place_id=visit.place_id,
+                    meat_type=meat_key,
+                    method=str(product.slaughter_method),
+                )
+                filled = True
 
 
 # Photo-tag captions the verifier flow writes (see mobile PHOTO_TAGS).

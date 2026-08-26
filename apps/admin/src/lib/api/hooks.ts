@@ -1979,11 +1979,15 @@ export type VerifierMeatFinding =
   | "NOT_SERVED"
   | "UNSURE";
 export type MeatCheckEvidence = "VERBAL" | "INVOICE" | "CERTIFICATE";
+export type VerifierMeatProduct = { product_name: string; supplier_name?: string | null };
 export type VerifierMeatCheck = {
   finding: VerifierMeatFinding;
   evidence: MeatCheckEvidence;
   note?: string | null;
+  /** Legacy single supplier (pre-multi-supplier visits). */
   supplier_name?: string | null;
+  /** Per-product supplier rows — parity with the owner's multi-supplier sourcing. */
+  products?: VerifierMeatProduct[];
 };
 export type AmenityStatus = "YES" | "ON_REQUEST" | "NO" | "UNSURE";
 export type MenuPartialScope = "MEAT_GROUP" | "SPECIFIC_ITEMS" | "ON_REQUEST";

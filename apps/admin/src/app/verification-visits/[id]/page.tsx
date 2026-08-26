@@ -372,7 +372,16 @@ export default function VerificationVisitDetailPage() {
                       {EVIDENCE_LABELS[r.c.evidence] ?? r.c.evidence}
                     </span>
                   )}
-                  {r.c.supplier_name && (
+                  {(r.c.products ?? []).map((p, pi) => (
+                    <SupplierReconcile
+                      key={pi}
+                      placeId={visit.place_id}
+                      productName={p.product_name}
+                      supplierName={p.supplier_name ?? undefined}
+                    />
+                  ))}
+                  {/* Legacy single-supplier visits (pre multi-supplier). */}
+                  {(r.c.products ?? []).length === 0 && r.c.supplier_name && (
                     <SupplierReconcile
                       placeId={visit.place_id}
                       supplierName={r.c.supplier_name}
@@ -525,22 +534,28 @@ function BackLink() {
  */
 function SupplierReconcile({
   placeId,
+  productName,
   supplierName,
 }: {
   placeId: string;
-  supplierName: string;
+  productName?: string;
+  supplierName?: string;
 }) {
   return (
     <span className="mt-1 flex flex-wrap items-center gap-2 text-xs">
       <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
-        Supplier: {supplierName}
+        {productName ? <>{productName}</> : null}
+        {productName && supplierName ? " · " : null}
+        {supplierName ? <>Supplier: {supplierName}</> : null}
       </span>
-      <Link
-        href={`/places/${placeId}?linkSupplier=${encodeURIComponent(supplierName)}#sourcing`}
-        className="text-primary hover:underline"
-      >
-        Link to registry →
-      </Link>
+      {supplierName ? (
+        <Link
+          href={`/places/${placeId}?linkSupplier=${encodeURIComponent(supplierName)}#sourcing`}
+          className="text-primary hover:underline"
+        >
+          Link to registry →
+        </Link>
+      ) : null}
     </span>
   );
 }

@@ -174,8 +174,11 @@ const EVIDENCE_CYCLE: Evidence[] = ["VERBAL", "INVOICE", "CERTIFICATE"];
 const evidenceTone = (e: Evidence): "zinc" | "wash" | "solid" =>
   e === "CERTIFICATE" ? "solid" : e === "INVOICE" ? "wash" : "zinc";
 
-type MeatCheck = { finding: Finding; evidence: Evidence; supplier?: string };
-type OtherCheck = { label: string; finding: Finding; evidence: Evidence; supplier?: string };
+/** One product + supplier row under a meat — parity with the owner's
+ *  per-product sourcing, so a meat can name several suppliers. */
+type ProductRow = { product_name: string; supplier?: string };
+type MeatCheck = { finding: Finding; evidence: Evidence; products: ProductRow[] };
+type OtherCheck = { label: string; finding: Finding; evidence: Evidence; products: ProductRow[] };
 // Supplier is only asked once the verifier has a document to read it off.
 const evidenceShowsSupplier = (e: Evidence) => e === "INVOICE" || e === "CERTIFICATE";
 // "Other" items (duck, fish, a specific dish) use the same observable vocab.
@@ -331,7 +334,7 @@ export default function FileVisit() {
         delete copy[m];
         return copy;
       }
-      return { ...c, [m]: { ...c[m], finding: next, evidence: c[m]?.evidence ?? "VERBAL" } };
+      return { ...c, [m]: { finding: next, evidence: c[m]?.evidence ?? "VERBAL", products: c[m]?.products ?? [] } };
     });
   const cycleMeatEvidence = (m: MeatKey) =>
     setMeatChecks((c) => {
@@ -340,12 +343,19 @@ export default function FileVisit() {
       const i = EVIDENCE_CYCLE.indexOf(cur.evidence);
       return { ...c, [m]: { ...cur, evidence: EVIDENCE_CYCLE[(i + 1) % EVIDENCE_CYCLE.length] } };
     });
-  const setMeatSupplier = (m: MeatKey, text: string) =>
-    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], supplier: text } } : c));
+  // Per-meat product/supplier rows.
+  const addMeatProduct = (m: MeatKey) =>
+    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], products: [...c[m].products, { product_name: "" }] } } : c));
+  const patchMeatProduct = (m: MeatKey, i: number, patch: Partial<ProductRow>) =>
+    setMeatChecks((c) =>
+      c[m] ? { ...c, [m]: { ...c[m], products: c[m].products.map((p, j) => (j === i ? { ...p, ...patch } : p)) } } : c,
+    );
+  const removeMeatProduct = (m: MeatKey, i: number) =>
+    setMeatChecks((c) => (c[m] ? { ...c, [m]: { ...c[m], products: c[m].products.filter((_, j) => j !== i) } } : c));
 
   const addOther = () => {
     const v = otherDraft.trim();
-    if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "HAND_CUT", evidence: "VERBAL" }]);
+    if (v) setOtherChecks((xs) => [...xs, { label: v, finding: "HAND_CUT", evidence: "VERBAL", products: [] }]);
     setOtherDraft("");
     setAddingOther(false);
   };
@@ -369,8 +379,14 @@ export default function FileVisit() {
         return { ...o, evidence: EVIDENCE_CYCLE[(k + 1) % EVIDENCE_CYCLE.length] };
       }),
     );
-  const setOtherSupplier = (i: number, text: string) =>
-    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, supplier: text } : o)));
+  const addOtherProduct = (i: number) =>
+    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, products: [...o.products, { product_name: "" }] } : o)));
+  const patchOtherProduct = (i: number, r: number, patch: Partial<ProductRow>) =>
+    setOtherChecks((xs) =>
+      xs.map((o, j) => (j === i ? { ...o, products: o.products.map((p, k) => (k === r ? { ...p, ...patch } : p)) } : o)),
+    );
+  const removeOtherProduct = (i: number, r: number) =>
+    setOtherChecks((xs) => xs.map((o, j) => (j === i ? { ...o, products: o.products.filter((_, k) => k !== r) } : o)));
 
   // --- Supplier autocomplete against the registry ------------------------
   // Only the focused supplier input queries + shows suggestions. Focus key is
@@ -379,10 +395,12 @@ export default function FileVisit() {
   const [supplierFocus, setSupplierFocus] = useState<string | null>(null);
   const activeSupplierText = (() => {
     if (!supplierFocus) return "";
-    const [kind, key] = supplierFocus.split(":");
+    // Focus key: "meat:<KEY>:<row>" or "other:<idx>:<row>".
+    const [kind, key, rowStr] = supplierFocus.split(":");
+    const row = Number(rowStr);
     return kind === "meat"
-      ? meatChecks[key as MeatKey]?.supplier ?? ""
-      : otherChecks[Number(key)]?.supplier ?? "";
+      ? meatChecks[key as MeatKey]?.products[row]?.supplier ?? ""
+      : otherChecks[Number(key)]?.products[row]?.supplier ?? "";
   })();
   const [supplierQuery, setSupplierQuery] = useState("");
   useEffect(() => {
@@ -495,15 +513,22 @@ export default function FileVisit() {
       ordered_items: ordered,
       checks: checksOut,
     };
-    // Map internal {finding, evidence, supplier} → API shape. Supplier only
-    // rides along when the verifier had a document to read it off (invoice /
-    // cert), so a stale name from a later switch to "verbal" isn't submitted.
+    // Map internal {finding, evidence, products[]} → API shape. Product rows
+    // only ride along when the verifier had a document to read them off
+    // (invoice / cert); a stale name from a later switch to "verbal" isn't sent.
+    // Only rows with a product name are kept.
+    const productsOut = (rows: ProductRow[], ev: Evidence) =>
+      evidenceShowsSupplier(ev)
+        ? rows
+            .filter((p) => p.product_name.trim())
+            .map((p) => ({ product_name: p.product_name.trim(), supplier_name: p.supplier?.trim() || null }))
+        : [];
     if (meatEntries.length) {
       obs.meat_checks = Object.fromEntries(
         meatEntries.map(([k, mc]) => {
           const out: VerifierMeatCheck = { finding: mc.finding, evidence: mc.evidence };
-          const sup = mc.supplier?.trim();
-          if (sup && evidenceShowsSupplier(mc.evidence)) out.supplier_name = sup;
+          const products = productsOut(mc.products, mc.evidence);
+          if (products.length) out.products = products;
           return [k, out];
         }),
       ) as Record<string, VerifierMeatCheck>;
@@ -515,8 +540,8 @@ export default function FileVisit() {
           finding: o.finding,
           evidence: o.evidence,
         };
-        const sup = o.supplier?.trim();
-        if (sup && evidenceShowsSupplier(o.evidence)) out.supplier_name = sup;
+        const products = productsOut(o.products, o.evidence);
+        if (products.length) out.products = products;
         return out;
       });
     }
@@ -551,8 +576,23 @@ export default function FileVisit() {
         setMenuHalal((d.menuHalal ?? null) as MenuHalal | null);
         setMenuScope((d.menuScope ?? null) as MenuScope | null);
         setMenuNote(d.menuNote ?? "");
-        setMeatChecks((d.meatChecks ?? {}) as Partial<Record<MeatKey, MeatCheck>>);
-        setOtherChecks((d.otherChecks ?? []) as OtherCheck[]);
+        // Normalize older drafts (single `supplier`) into the products[] shape.
+        const normProducts = (mc: { products?: ProductRow[]; supplier?: string }): ProductRow[] =>
+          Array.isArray(mc.products)
+            ? mc.products
+            : mc.supplier
+              ? [{ product_name: "", supplier: mc.supplier }]
+              : [];
+        const rawMeat = (d.meatChecks ?? {}) as Record<string, MeatCheck & { supplier?: string }>;
+        setMeatChecks(
+          Object.fromEntries(
+            Object.entries(rawMeat).map(([k, mc]) => [k, { finding: mc.finding, evidence: mc.evidence, products: normProducts(mc) }]),
+          ) as Partial<Record<MeatKey, MeatCheck>>,
+        );
+        const rawOther = (d.otherChecks ?? []) as Array<OtherCheck & { supplier?: string }>;
+        setOtherChecks(
+          rawOther.map((o) => ({ label: o.label, finding: o.finding, evidence: o.evidence, products: normProducts(o) })),
+        );
         setAmenities((d.amenities ?? {}) as Partial<Record<AmenityKey, AmenityVal>>);
         setPhotos(d.photos ?? []);
         setDisclosure(d.disclosure ?? "SELF_FUNDED");
@@ -1109,27 +1149,53 @@ export default function FileVisit() {
                       </Pressable>
                     ) : null}
                     {showEv && evidenceShowsSupplier(mc!.evidence) ? (
-                      <>
-                        <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12 }}>
-                          <TextInput
-                            style={outlinedField}
-                            placeholder="Supplier name"
-                            placeholderTextColor={t.sub}
-                            value={mc!.supplier ?? ""}
-                            onChangeText={(text) => setMeatSupplier(m.v, text)}
-                            onFocus={() => {
-                              setSupplierFocus(`meat:${m.v}`);
-                              revealInput();
-                            }}
-                            onBlur={() => blurSupplier(`meat:${m.v}`)}
-                            maxLength={200}
-                            autoCapitalize="words"
-                          />
-                        </View>
-                        {renderSupplierSuggestions(`meat:${m.v}`, (name) =>
-                          pickSupplier((n) => setMeatSupplier(m.v, n), name),
-                        )}
-                      </>
+                      <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12, gap: 8 }}>
+                        {mc!.products.map((p, ri) => (
+                          <View key={ri} style={{ gap: 6 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                              <TextInput
+                                style={[outlinedField, { flex: 1 }]}
+                                placeholder="Product (e.g. ground beef)"
+                                placeholderTextColor={t.sub}
+                                value={p.product_name}
+                                onChangeText={(text) => patchMeatProduct(m.v, ri, { product_name: text })}
+                                onFocus={revealInput}
+                                maxLength={120}
+                                autoCapitalize="words"
+                              />
+                              <Pressable onPress={() => removeMeatProduct(m.v, ri)} hitSlop={8}>
+                                <Feather name="x" size={18} color={t.sub} />
+                              </Pressable>
+                            </View>
+                            <TextInput
+                              style={outlinedField}
+                              placeholder="Supplier name"
+                              placeholderTextColor={t.sub}
+                              value={p.supplier ?? ""}
+                              onChangeText={(text) => patchMeatProduct(m.v, ri, { supplier: text })}
+                              onFocus={() => {
+                                setSupplierFocus(`meat:${m.v}:${ri}`);
+                                revealInput();
+                              }}
+                              onBlur={() => blurSupplier(`meat:${m.v}:${ri}`)}
+                              maxLength={200}
+                              autoCapitalize="words"
+                            />
+                            {renderSupplierSuggestions(`meat:${m.v}:${ri}`, (name) =>
+                              pickSupplier((n) => patchMeatProduct(m.v, ri, { supplier: n }), name),
+                            )}
+                          </View>
+                        ))}
+                        <Pressable
+                          onPress={() => addMeatProduct(m.v)}
+                          style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}
+                        >
+                          <Feather name="plus" size={15} color={t.accentDeep} />
+                          <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: mockupPx(10.5) }]}>
+                            {mc!.products.length ? "Add another product / supplier" : "Add product / supplier"}
+                          </Text>
+                        </Pressable>
+                      </View>
                     ) : null}
                   </View>
                 );
@@ -1186,27 +1252,53 @@ export default function FileVisit() {
                       </Pressable>
                     ) : null}
                     {showEv && evidenceShowsSupplier(o.evidence) ? (
-                      <>
-                        <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12 }}>
-                          <TextInput
-                            style={outlinedField}
-                            placeholder="Supplier name"
-                            placeholderTextColor={t.sub}
-                            value={o.supplier ?? ""}
-                            onChangeText={(text) => setOtherSupplier(i, text)}
-                            onFocus={() => {
-                              setSupplierFocus(`other:${i}`);
-                              revealInput();
-                            }}
-                            onBlur={() => blurSupplier(`other:${i}`)}
-                            maxLength={200}
-                            autoCapitalize="words"
-                          />
-                        </View>
-                        {renderSupplierSuggestions(`other:${i}`, (name) =>
-                          pickSupplier((n) => setOtherSupplier(i, n), name),
-                        )}
-                      </>
+                      <View style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 12, gap: 8 }}>
+                        {o.products.map((p, ri) => (
+                          <View key={ri} style={{ gap: 6 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                              <TextInput
+                                style={[outlinedField, { flex: 1 }]}
+                                placeholder="Product"
+                                placeholderTextColor={t.sub}
+                                value={p.product_name}
+                                onChangeText={(text) => patchOtherProduct(i, ri, { product_name: text })}
+                                onFocus={revealInput}
+                                maxLength={120}
+                                autoCapitalize="words"
+                              />
+                              <Pressable onPress={() => removeOtherProduct(i, ri)} hitSlop={8}>
+                                <Feather name="x" size={18} color={t.sub} />
+                              </Pressable>
+                            </View>
+                            <TextInput
+                              style={outlinedField}
+                              placeholder="Supplier name"
+                              placeholderTextColor={t.sub}
+                              value={p.supplier ?? ""}
+                              onChangeText={(text) => patchOtherProduct(i, ri, { supplier: text })}
+                              onFocus={() => {
+                                setSupplierFocus(`other:${i}:${ri}`);
+                                revealInput();
+                              }}
+                              onBlur={() => blurSupplier(`other:${i}:${ri}`)}
+                              maxLength={200}
+                              autoCapitalize="words"
+                            />
+                            {renderSupplierSuggestions(`other:${i}:${ri}`, (name) =>
+                              pickSupplier((n) => patchOtherProduct(i, ri, { supplier: n }), name),
+                            )}
+                          </View>
+                        ))}
+                        <Pressable
+                          onPress={() => addOtherProduct(i)}
+                          style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}
+                        >
+                          <Feather name="plus" size={15} color={t.accentDeep} />
+                          <Text style={[ty.small, { color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: mockupPx(10.5) }]}>
+                            {o.products.length ? "Add another product / supplier" : "Add product / supplier"}
+                          </Text>
+                        </Pressable>
+                      </View>
                     ) : null}
                   </View>
                 );

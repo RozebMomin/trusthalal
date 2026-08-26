@@ -223,6 +223,18 @@ class VerificationVisitAttachmentRead(BaseModel):
     uploaded_at: datetime
 
 
+class VerifierMeatProduct(BaseModel):
+    """One product + its supplier the verifier observed under a meat — mirrors
+    the owner's per-product sourcing so a meat can name several suppliers (e.g.
+    beef: ground beef from A, brisket from B). Free-text; admin reconciles the
+    supplier to a registry product line later."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    product_name: str = Field(..., min_length=1, max_length=120)
+    supplier_name: Optional[str] = Field(default=None, max_length=200)
+
+
 class VerifierMeatCheck(BaseModel):
     """A verifier's on-the-spot finding for one meat.
 
@@ -231,6 +243,10 @@ class VerifierMeatCheck(BaseModel):
     let a visit speak to a *single meat* rather than the whole kitchen,
     and map onto the confidence tiers so a cert-backed finding outweighs a
     verbal one.
+
+    ``products`` carries per-product supplier rows (parity with the owner's
+    multi-supplier sourcing). Empty for a plain finding; the legacy single
+    ``supplier_name`` is still honoured when present so old visits stay valid.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -238,12 +254,14 @@ class VerifierMeatCheck(BaseModel):
     finding: VerifierMeatFinding
     evidence: MeatCheckEvidence = MeatCheckEvidence.VERBAL
     note: Optional[str] = Field(default=None, max_length=500)
-    # Free-text supplier the verifier saw named on an invoice / certificate /
-    # packaging (e.g. "Crescent Foods"). Captured as a plain string, not a
-    # registry FK — admin reconciles it to a supplier product line later. Only
-    # meaningful when ``evidence`` is INVOICE/CERTIFICATE (the app only asks
-    # then), but not enforced so a verbal "they told me the supplier" survives.
+    # Legacy single free-text supplier (pre-multi-supplier visits + older app
+    # builds). New builds send ``products`` instead. Kept so the accept path and
+    # admin display can read either shape.
     supplier_name: Optional[str] = Field(default=None, max_length=200)
+    # Per-product supplier rows the verifier saw on invoices / certificates /
+    # packaging. Multiple entries per meat are expected (different products,
+    # different suppliers).
+    products: list[VerifierMeatProduct] = Field(default_factory=list, max_length=12)
 
 
 class VerifierOtherMeatCheck(VerifierMeatCheck):
