@@ -674,7 +674,11 @@ def _apply_acceptance(
         HalalProfileEvent(
             profile_id=profile.id,
             event_type=HalalProfileEventType.VERIFIER_VISIT_ACCEPTED.value,
-            actor_user_id=decided_by_user_id,
+            # Attribute the VISITING verifier (the friend who did the visit) —
+            # the consumer/mobile timeline resolves this actor into the "Verified
+            # by … · <name>" line. NOT decided_by_user_id, which is the admin who
+            # merely approved it.
+            actor_user_id=visit.verifier_user_id,
             related_claim_id=None,  # the visit isn't a claim
             description=description,
         )
