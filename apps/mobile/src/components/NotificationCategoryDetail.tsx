@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { useEffect, useRef } from "react";
-import { Animated, Easing, Linking, Modal, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Linking, Modal, Pressable, ScrollView, Switch, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { radii, space, type as ty } from "@/lib/theme";
@@ -75,25 +75,47 @@ export function NotificationCategoryDetail({
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
-  const tx = useRef(new Animated.Value(60)).current;
-  const op = useRef(new Animated.Value(0)).current;
+  // Wipe, not fade: the detail slides fully in from the right edge and slides
+  // back out on close — no opacity crossfade. `render` keeps the panel mounted
+  // through the exit slide; `held` retains the last props so the toggles don't
+  // flicker to off while it's sliding away (the parent clears `row` on close).
+  const tx = useRef(new Animated.Value(width)).current;
+  const [render, setRender] = useState(false);
+  const held = useRef({ row, push, email, emailLocked, osBlocked });
+  if (row) held.current = { row, push, email, emailLocked, osBlocked };
+
   useEffect(() => {
     if (row) {
-      tx.setValue(60);
-      op.setValue(0);
-      Animated.parallel([
-        Animated.timing(tx, { toValue: 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(op, { toValue: 1, duration: 240, useNativeDriver: true }),
-      ]).start();
+      setRender(true);
+      tx.setValue(width);
+      Animated.timing(tx, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    } else if (render) {
+      Animated.timing(tx, {
+        toValue: width,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setRender(false);
+      });
     }
-  }, [row, tx, op]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row, width]);
 
-  if (!row) return null;
+  if (!render) return null;
+  const view = held.current;
+  if (!view.row) return null;
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <Animated.View style={{ flex: 1, backgroundColor: t.bg, opacity: op, transform: [{ translateX: tx }] }}>
+      <Animated.View style={{ flex: 1, backgroundColor: t.bg, transform: [{ translateX: tx }] }}>
         <View style={{ flex: 1, paddingTop: insets.top + space.md }}>
           <ScrollView contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: insets.bottom + 24, gap: 12 }}>
             <Pressable
@@ -117,15 +139,15 @@ export function NotificationCategoryDetail({
                   justifyContent: "center",
                 }}
               >
-                <Feather name={row.icon} size={28} color={t.accentDeep} />
+                <Feather name={view.row.icon} size={28} color={t.accentDeep} />
               </View>
-              <Text style={[ty.title, { color: t.ink, fontSize: 24, textAlign: "center" }]}>{row.title}</Text>
+              <Text style={[ty.title, { color: t.ink, fontSize: 24, textAlign: "center" }]}>{view.row.title}</Text>
               <Text style={[ty.small, { color: t.sub, fontSize: 14, lineHeight: 20, textAlign: "center", paddingHorizontal: 10 }]}>
-                {row.blurb}
+                {view.row.blurb}
               </Text>
             </View>
 
-            {osBlocked ? (
+            {view.osBlocked ? (
               <View
                 style={{
                   flexDirection: "row",
@@ -155,17 +177,17 @@ export function NotificationCategoryDetail({
             <View style={{ backgroundColor: t.card, borderRadius: radii.xl, paddingHorizontal: 18, paddingVertical: 8, gap: 4 }}>
               <ToggleRow
                 label="Push notifications"
-                hint={osBlocked ? "Blocked in system settings" : "Instant alerts on your phone."}
-                value={push}
+                hint={view.osBlocked ? "Blocked in system settings" : "Instant alerts on your phone."}
+                value={view.push}
                 disabled={pending}
                 onValueChange={(v) => onToggle("PUSH", v)}
               />
               <View style={{ height: 1, backgroundColor: t.line }} />
               <ToggleRow
                 label="Email"
-                hint={emailLocked ? "Always sent — these are receipts for your account." : "Updates in your inbox."}
-                value={email}
-                disabled={emailLocked || pending}
+                hint={view.emailLocked ? "Always sent — these are receipts for your account." : "Updates in your inbox."}
+                value={view.email}
+                disabled={view.emailLocked || pending}
                 onValueChange={(v) => onToggle("EMAIL", v)}
               />
             </View>
