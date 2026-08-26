@@ -343,6 +343,9 @@ export type SupplierSuggestion = {
   name: string;
   city?: string | null;
   region?: string | null;
+  /** The supplier's certifier — shown as a subtitle so it's never mistaken for
+   *  the supplier itself (a certifier like ISWA is not a supplier). */
+  certifying_body_name?: string | null;
 };
 
 /** Registry supplier search (any signed-in user). Powers the verifier flow's

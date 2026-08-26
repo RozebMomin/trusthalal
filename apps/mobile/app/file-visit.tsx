@@ -452,9 +452,16 @@ export default function FileVisit() {
             }}
           >
             <MaterialCommunityIcons name="check-decagram-outline" size={mockupPx(14)} color={t.accentDeep} />
-            <Text style={[ty.small, { color: t.ink, fontSize: mockupPx(11), flex: 1 }]} numberOfLines={1}>
-              {s.name}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[ty.small, { color: t.ink, fontSize: mockupPx(11) }]} numberOfLines={1}>
+                {s.name}
+              </Text>
+              {s.certifying_body_name ? (
+                <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(9) }]} numberOfLines={1}>
+                  certified by {s.certifying_body_name}
+                </Text>
+              ) : null}
+            </View>
             {s.city ? (
               <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(9.5) }]} numberOfLines={1}>
                 {s.city}
