@@ -1,4 +1,4 @@
-import { ImageBackground, Pressable, Text, View } from "react-native";
+import { Image, ImageBackground, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -17,13 +17,21 @@ function miles(m?: number) {
 }
 const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase().replaceAll("_", " ");
 
+/** First+second word initials for the photo-less avatar tile. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "•";
+}
+
 /** Mockup-1 card: edge-to-edge photo, tier tag riding top-left, glass
  *  distance chip top-right, name over a bottom scrim. Places without a
- *  photo collapse to the mockup-5 compact row. */
+ *  photo collapse to the mockup-5 compact row, as does every place when
+ *  the diner has chosen compact list density. */
 export function PlaceCard({
   place,
   distanceMeters,
   showUnknownHours = false,
+  compact = false,
 }: {
   place: PlaceSearchResult;
   distanceMeters?: number;
@@ -32,6 +40,9 @@ export function PlaceCard({
    *  filter is active so a diner can tell a confirmed-open place apart
    *  from one we simply don't have hours for. */
   showUnknownHours?: boolean;
+  /** Compact density: always render the row layout (no hero image), with
+   *  a square photo thumbnail — or initials when the place has no photo. */
+  compact?: boolean;
 }) {
   const t = useTheme();
   const signal = primaryHalalSignal(place.halal_profile);
@@ -51,7 +62,7 @@ export function PlaceCard({
   const open = () => router.push(`/places/${place.id}`);
   const a11y = `${place.name} — ${signal.label}`;
 
-  if (!place.hero_photo_url) {
+  if (compact || !place.hero_photo_url) {
     return (
       <Pressable
         accessibilityRole="button"
@@ -59,11 +70,36 @@ export function PlaceCard({
         onPress={open}
         style={({ pressed }) => [card(t), { padding: space.lg, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
       >
-        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: space.sm }}>
+        <View style={{ flexDirection: "row", gap: space.md }}>
+          {place.hero_photo_url ? (
+            <Image
+              source={{ uri: place.hero_photo_url }}
+              style={{ width: 46, height: 46, borderRadius: 10, backgroundColor: t.accentSoft }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 10,
+                backgroundColor: t.accentSoft,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: t.accentDeep, fontFamily: "Inter_700Bold", fontSize: 15 }}>
+                {initials(place.name)}
+              </Text>
+            </View>
+          )}
           <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={[ty.label, { color: t.ink, fontSize: 15 }]}>
-              {place.name}
-            </Text>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", gap: space.sm }}>
+              <Text numberOfLines={1} style={[ty.label, { color: t.ink, fontSize: 15, flex: 1 }]}>
+                {place.name}
+              </Text>
+              <TierTag signal={signal} />
+            </View>
             <Text style={[ty.small, { color: t.sub, marginTop: 3 }]} numberOfLines={1}>
               {openState === "open" ? (
                 <Text style={{ color: "#16A34A", fontFamily: "Inter_700Bold" }}>Open</Text>
@@ -82,7 +118,6 @@ export function PlaceCard({
             </Text>
             {amenities.length ? <AmenityBadges badges={amenities} /> : null}
           </View>
-          <TierTag signal={signal} />
         </View>
       </Pressable>
     );

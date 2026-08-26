@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import * as SecureStore from "expo-secure-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -105,6 +106,8 @@ function prefsToFilters(p: ConsumerPreferences): Filters {
   return f;
 }
 
+const DENSITY_KEY = "list_density_v1";
+
 export default function Explore() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -127,6 +130,25 @@ export default function Explore() {
     Animated.timing(fade, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => {
       setView(next);
       Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+    });
+  }
+
+  // List density (card ⇄ compact). Local-only preference persisted in
+  // SecureStore, matching the recent-locations idiom; never leaves the device.
+  const [density, setDensity] = useState<"card" | "compact">("card");
+  useEffect(() => {
+    SecureStore.getItemAsync(DENSITY_KEY)
+      .then((v) => {
+        if (v === "compact" || v === "card") setDensity(v);
+      })
+      .catch(() => undefined);
+  }, []);
+  function toggleDensity() {
+    setDensity((d) => {
+      const next = d === "card" ? "compact" : "card";
+      capture("list_density_toggled", { to: next });
+      SecureStore.setItemAsync(DENSITY_KEY, next).catch(() => undefined);
+      return next;
     });
   }
   const [manualLabel, setManualLabel] = useState<string | null>(null);
@@ -307,6 +329,13 @@ export default function Explore() {
               twice meant hunting for a control that had swapped places under
               your thumb. Keep these two in sync. */}
           <View style={{ flexDirection: "row", gap: 8 }}>
+          {view === "list" ? (
+            <HeaderPill
+              icon={density === "compact" ? "list" : "image"}
+              a11y={density === "compact" ? "Switch to card view" : "Switch to compact view"}
+              onPress={toggleDensity}
+            />
+          ) : null}
           <HeaderPill
             icon="sliders"
             label="Filters"
@@ -590,6 +619,7 @@ export default function Explore() {
               place={item.place}
               distanceMeters={item.distanceMeters}
               showUnknownHours={!!filters.open_now}
+              compact={density === "compact"}
             />
           )}
         />
@@ -728,7 +758,8 @@ function HeaderPill({
   onPress,
 }: {
   icon: keyof typeof Feather.glyphMap;
-  label: string;
+  /** Omit for an icon-only pill (e.g. the density toggle). */
+  label?: string;
   a11y: string;
   count?: number;
   onPress: () => void;
@@ -742,10 +773,12 @@ function HeaderPill({
       style={{
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        justifyContent: "center",
+        gap: label ? 6 : 0,
         backgroundColor: t.card,
         borderRadius: 999,
-        paddingHorizontal: 13,
+        paddingHorizontal: label ? 13 : 0,
+        minWidth: label ? undefined : 40,
         minHeight: 40,
         shadowColor: "#000",
         shadowOpacity: 0.06,
@@ -754,8 +787,10 @@ function HeaderPill({
         elevation: 2,
       }}
     >
-      <Feather name={icon} size={14} color={t.ink} />
-      <Text style={{ color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{label}</Text>
+      <Feather name={icon} size={label ? 14 : 16} color={t.ink} />
+      {label ? (
+        <Text style={{ color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{label}</Text>
+      ) : null}
       {count && count > 0 ? (
         <View style={{ backgroundColor: t.accent, borderRadius: 999, minWidth: 17, height: 17, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}>
           <Text style={{ color: t.onAccent, fontSize: 9.5, fontFamily: "Inter_700Bold" }}>{count}</Text>
