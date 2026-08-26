@@ -9,7 +9,7 @@ import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { CertViewer } from "@/components/CertViewer";
 import { TierTag } from "@/components/TierTag";
-import type { HalalHistoryEvent, HalalProfileEmbed, PlaceDetail, SupplierProvenance } from "@/lib/api/types";
+import type { HalalHistoryEvent, HalalProfileEmbed, MeatVerification, PlaceDetail, SupplierProvenance } from "@/lib/api/types";
 
 const TEST_FORCE_PORK = false;
 
@@ -443,6 +443,24 @@ function provenanceMeatLabel(meat: string): string {
   return meat.charAt(0) + meat.slice(1).toLowerCase();
 }
 
+/** Map meat_type → its per-meat verifier verification, for the "verified in
+ *  person" line on the sourcing group headers. */
+function verificationsByMeat(profile: HalalProfileEmbed): Map<string, MeatVerification> {
+  const m = new Map<string, MeatVerification>();
+  for (const v of profile.meat_verifications ?? []) m.set(v.meat_type, v);
+  return m;
+}
+
+/** "Verified in person Aug 25 · @handle" from a per-meat verification. */
+function verifiedInPersonText(v: MeatVerification): string {
+  const d = new Date(v.verified_at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `Verified in person ${d}${v.verifier_handle ? ` · @${v.verifier_handle}` : ""}`;
+}
+
 /** Weakest-tier attribution, matching the consumer ConfidenceChip: name the
  *  source when it's only self-stated (owner's word vs. community). */
 function attributionLabel(
@@ -482,6 +500,7 @@ function GroupedSourcing({
   for (const x of profile.supplier_provenance ?? []) {
     if (x.source === "supplier") provByMeat.set(x.meat_type, x);
   }
+  const verifByMeat = verificationsByMeat(profile);
 
   const groups = SOURCING_MEAT_ORDER.map((meat) => ({
     meat,
@@ -508,19 +527,28 @@ function GroupedSourcing({
             <View key={g.meat} style={{ backgroundColor: t.card, borderRadius: radii.xl, overflow: "hidden" }}>
               <View
                 style={{
-                  flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                  gap: space.sm, paddingHorizontal: 18, paddingVertical: 12,
+                  gap: 6, paddingHorizontal: 18, paddingVertical: 12,
                   borderBottomWidth: 1, borderBottomColor: t.line,
                 }}
               >
-                <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
-                  {provenanceMeatLabel(g.meat)}
-                </Text>
-                {prov ? (
-                  <Pill
-                    label={attributionLabel(prov.confidence, ownerAttested)}
-                    tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
-                  />
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm }}>
+                  <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
+                    {provenanceMeatLabel(g.meat)}
+                  </Text>
+                  {prov ? (
+                    <Pill
+                      label={attributionLabel(prov.confidence, ownerAttested)}
+                      tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
+                    />
+                  ) : null}
+                </View>
+                {verifByMeat.get(g.meat) ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <Feather name="shield" size={12} color={t.accentDeep} />
+                    <Text style={{ color: t.accentDeep, fontFamily: "Inter_600SemiBold", fontSize: 11.5 }}>
+                      {verifiedInPersonText(verifByMeat.get(g.meat)!)}
+                    </Text>
+                  </View>
                 ) : null}
               </View>
               {g.items.map((pr, i) => {
@@ -600,6 +628,7 @@ function GroupedProvenanceSourcing({
   for (const x of profile.supplier_provenance ?? []) {
     if (x.source === "supplier") provByMeat.set(x.meat_type, x);
   }
+  const verifByMeat = verificationsByMeat(profile);
 
   // Method per column meat, and which are served.
   const methodByMeat = new Map<string, string>();
@@ -639,19 +668,28 @@ function GroupedProvenanceSourcing({
             <View key={meat} style={{ backgroundColor: t.card, borderRadius: radii.xl, overflow: "hidden" }}>
               <View
                 style={{
-                  flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                  gap: space.sm, paddingHorizontal: 18, paddingVertical: 12,
+                  gap: 6, paddingHorizontal: 18, paddingVertical: 12,
                   borderBottomWidth: 1, borderBottomColor: t.line,
                 }}
               >
-                <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
-                  {provenanceMeatLabel(meat)}
-                </Text>
-                {prov ? (
-                  <Pill
-                    label={attributionLabel(prov.confidence, ownerAttested)}
-                    tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
-                  />
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm }}>
+                  <Text style={[ty.seg, { color: t.sub, fontSize: 13, letterSpacing: 0.4 }]}>
+                    {provenanceMeatLabel(meat)}
+                  </Text>
+                  {prov ? (
+                    <Pill
+                      label={attributionLabel(prov.confidence, ownerAttested)}
+                      tone={prov.confidence === "VERIFIED" ? "accent" : "zinc"}
+                    />
+                  ) : null}
+                </View>
+                {verifByMeat.get(meat) ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <Feather name="shield" size={12} color={t.accentDeep} />
+                    <Text style={{ color: t.accentDeep, fontFamily: "Inter_600SemiBold", fontSize: 11.5 }}>
+                      {verifiedInPersonText(verifByMeat.get(meat)!)}
+                    </Text>
+                  </View>
                 ) : null}
               </View>
               <View style={{ paddingHorizontal: 18, paddingVertical: 14 }}>

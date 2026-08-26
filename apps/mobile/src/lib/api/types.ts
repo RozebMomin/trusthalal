@@ -93,6 +93,16 @@ export type HalalProfileEmbed = {
   /** True when the profile's self-attested data came from an owner claim;
    *  false when a verifier / the community established it (no owner). */
   owner_attested?: boolean;
+  /** Per-meat verification recency — which meats a verifier confirmed in
+   *  person, when, and who. Detail-only. */
+  meat_verifications?: MeatVerification[] | null;
+};
+
+export type MeatVerification = {
+  meat_type: string;
+  verified_at: string;
+  verifier_name?: string | null;
+  verifier_handle?: string | null;
 };
 
 /** One served meat's composed method + confidence. Render the caveat from

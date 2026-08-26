@@ -400,3 +400,43 @@ class PlacePhoto(Base):
     )
 
     place = relationship("Place", back_populates="photos")
+
+
+class PlaceMeatVerification(Base):
+    """When a verifier last confirmed a specific meat in person, and who.
+
+    A verifier visit that only checks beef shouldn't make the whole kitchen
+    read as "verified" for every meat. This records per-meat verification
+    recency (latest visit wins, upserted on ``(place_id, meat_type)``) so the
+    trust profile can say "Beef · verified in person Aug 25" and leave the
+    unchecked meats attributed to the owner.
+    """
+
+    __tablename__ = "place_meat_verifications"
+    __table_args__ = (
+        UniqueConstraint("place_id", "meat_type", name="uq_place_meat_verification"),
+        {"schema": "app"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    place_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.places.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Plain VARCHAR (no strict enum) so any meat the verifier checked — including
+    # turkey/duck/fish — can be recorded without a migration.
+    meat_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    verifier_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )

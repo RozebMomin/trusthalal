@@ -54,7 +54,7 @@ from app.modules.places.enums import (
     PlaceEventType,
     PlacePhotoSource,
 )
-from app.modules.places.models import Place, PlacePhoto
+from app.modules.places.models import Place, PlaceMeatVerification, PlacePhoto
 from app.modules.places.photos.repo import has_active_hero_for_place
 from app.modules.places.repo import log_place_event
 from app.modules.suppliers.enums import LinkSource, SourcingEvidence
@@ -431,6 +431,39 @@ def _refresh_profile_from_visit(profile: HalalProfile, visit: VerificationVisit)
         _apply_amenities(db, place_id=profile.place_id, obs=obs)
 
 
+def _stamp_meat_verifications(db: Session, *, visit: VerificationVisit) -> None:
+    """Upsert a per-meat verification (place, meat) → verified_at + verifier for
+    each meat the verifier gave a DEFINITIVE finding on. UNSURE (looked but
+    couldn't confirm) and NOT_SERVED don't count — only meats actually
+    confirmed in person. Latest visit wins."""
+    obs = visit.observations or {}
+    meat_checks = obs.get("meat_checks") or {}
+    for meat_key, mc in meat_checks.items():
+        if not isinstance(mc, dict):
+            continue
+        finding = mc.get("finding")
+        if finding in (None, "UNSURE", "NOT_SERVED"):
+            continue
+        existing = db.execute(
+            select(PlaceMeatVerification).where(
+                PlaceMeatVerification.place_id == visit.place_id,
+                PlaceMeatVerification.meat_type == str(meat_key),
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            db.add(
+                PlaceMeatVerification(
+                    place_id=visit.place_id,
+                    meat_type=str(meat_key),
+                    verified_at=visit.visited_at,
+                    verifier_user_id=visit.verifier_user_id,
+                )
+            )
+        else:
+            existing.verified_at = visit.visited_at
+            existing.verifier_user_id = visit.verifier_user_id
+
+
 def _resolve_verifier_suppliers(
     db: Session, *, visit: VerificationVisit, profile: HalalProfile
 ) -> None:
@@ -650,6 +683,11 @@ def _apply_acceptance(
     # Always refresh last_verified_at — the visit confirms the
     # current data even if the tier was already at the top.
     profile.last_verified_at = visit.visited_at
+
+    # Per-meat verification recency: stamp each meat the verifier actually
+    # confirmed, so the trust profile can say "Beef · verified in person Aug 25"
+    # rather than implying the whole kitchen was checked.
+    _stamp_meat_verifications(db, visit=visit)
 
     if bootstrapped:
         description = (

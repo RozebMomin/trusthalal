@@ -392,7 +392,24 @@ class HalalProfileEmbed(BaseModel):
     owner_attested: bool = False
     # NOTE: family amenities moved OFF the profile onto the place read
     # (PlaceRead / PlaceSearchResult) — they're a place attribute now.
+    #
+    # Per-meat verification recency: when a verifier last confirmed each meat in
+    # person + who. Detail-only (None on surfaces that don't compute it). Lets
+    # the trust profile say "Beef · verified in person <date>" instead of
+    # implying a single-meat visit verified the whole kitchen.
+    meat_verifications: "list[MeatVerificationRead] | None" = None
     updated_at: datetime
+
+
+class MeatVerificationRead(BaseModel):
+    """When a verifier last confirmed one meat in person, and who."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    meat_type: str
+    verified_at: datetime
+    verifier_name: str | None = None
+    verifier_handle: str | None = None
 
 
 class HalalHistoryEventRead(BaseModel):

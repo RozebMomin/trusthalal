@@ -22,7 +22,7 @@ from app.modules.verifiers.models import VerificationVisit
 from app.modules.disputes.models import ConsumerDispute
 from app.modules.places.signals import PlaceSignalRow
 from app.modules.places.enums import DelistReason, ExternalIdProvider, PlaceEventType
-from app.modules.places.models import Place, PlaceEvent, PlaceExternalId
+from app.modules.places.models import Place, PlaceEvent, PlaceExternalId, PlaceMeatVerification
 from app.modules.places.repo import (
     LIKE_ESCAPE,
     escape_like,
@@ -72,6 +72,7 @@ def admin_reset_trust_profile(
     # Order is not FK-critical (children cascade from these parents, and the few
     # cross-refs are ON DELETE SET NULL), but we go inner→outer for clarity.
     for label, model in (
+        ("meat_verifications", PlaceMeatVerification),
         ("supplier_links", PlaceSupplierLink),
         ("disputes", ConsumerDispute),
         ("verification_visits", VerificationVisit),

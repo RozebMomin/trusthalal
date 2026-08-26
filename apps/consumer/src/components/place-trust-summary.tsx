@@ -62,6 +62,7 @@ import type {
   AlcoholPolicy,
   HalalProfileEmbed,
   MeatProduct,
+  MeatVerification,
   MenuPosture,
   SlaughterMethod,
   SupplierProvenance,
@@ -451,6 +452,31 @@ const CORE_MEATS: ReadonlyArray<{ key: string; label: string; col: keyof HalalPr
  * Replaces the old per-product list + separate composed box, which duplicated
  * the same data and collapsed multiple suppliers for one meat into one row.
  */
+function verifsByMeat(profile: HalalProfileEmbed): Map<string, MeatVerification> {
+  const m = new Map<string, MeatVerification>();
+  for (const v of profile.meat_verifications ?? []) m.set(v.meat_type, v);
+  return m;
+}
+
+/** "Verified in person Aug 25, 2026 · @handle" from a per-meat verification. */
+function verifiedInPersonText(v: MeatVerification): string {
+  const d = new Date(v.verified_at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `Verified in person ${d}${v.verifier_handle ? ` · @${v.verifier_handle}` : ""}`;
+}
+
+function VerifiedInPersonLine({ v }: { v: MeatVerification }) {
+  return (
+    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+      <ShieldCheck className="h-3 w-3" />
+      {verifiedInPersonText(v)}
+    </span>
+  );
+}
+
 function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
   const products = profile.meat_products ?? [];
   if (products.length === 0) return null;
@@ -460,6 +486,8 @@ function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
   for (const p of profile.supplier_provenance ?? []) {
     if (p.source === "supplier") provByMeat.set(p.meat_type, p);
   }
+
+  const verifByMeat = verifsByMeat(profile);
 
   const groups = SOURCING_MEAT_ORDER.map((meat) => ({
     meat,
@@ -484,15 +512,20 @@ function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
           const prov = provByMeat.get(g.meat);
           return (
             <div key={g.meat} className="overflow-hidden rounded-md border">
-              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-muted/40 px-2.5 py-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {provenanceMeatLabel(g.meat)}
-                </span>
-                {prov && (
-                  <ConfidenceChip
-                    confidence={prov.confidence}
-                    ownerAttested={profile.owner_attested ?? false}
-                  />
+              <div className="space-y-1 border-b bg-muted/40 px-2.5 py-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {provenanceMeatLabel(g.meat)}
+                  </span>
+                  {prov && (
+                    <ConfidenceChip
+                      confidence={prov.confidence}
+                      ownerAttested={profile.owner_attested ?? false}
+                    />
+                  )}
+                </div>
+                {verifByMeat.get(g.meat) && (
+                  <VerifiedInPersonLine v={verifByMeat.get(g.meat)!} />
                 )}
               </div>
               <ul>
@@ -548,6 +581,7 @@ function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
  * each meat card holds a single row, but the look matches the owner view.
  */
 function GroupedProvenanceSourcing({ profile }: { profile: HalalProfileEmbed }) {
+  const verifByMeat = verifsByMeat(profile);
   const provByMeat = new Map<string, SupplierProvenance>();
   for (const p of profile.supplier_provenance ?? []) {
     if (p.source === "supplier") provByMeat.set(p.meat_type, p);
@@ -590,15 +624,20 @@ function GroupedProvenanceSourcing({ profile }: { profile: HalalProfileEmbed }) 
             (prov ? productMethodText(meat, prov.method) : "");
           return (
             <div key={meat} className="overflow-hidden rounded-md border">
-              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-muted/40 px-2.5 py-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {provenanceMeatLabel(meat)}
-                </span>
-                {prov && (
-                  <ConfidenceChip
-                    confidence={prov.confidence}
-                    ownerAttested={profile.owner_attested ?? false}
-                  />
+              <div className="space-y-1 border-b bg-muted/40 px-2.5 py-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {provenanceMeatLabel(meat)}
+                  </span>
+                  {prov && (
+                    <ConfidenceChip
+                      confidence={prov.confidence}
+                      ownerAttested={profile.owner_attested ?? false}
+                    />
+                  )}
+                </div>
+                {verifByMeat.get(meat) && (
+                  <VerifiedInPersonLine v={verifByMeat.get(meat)!} />
                 )}
               </div>
               <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 px-2.5 py-2">

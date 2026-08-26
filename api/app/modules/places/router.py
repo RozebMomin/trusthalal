@@ -60,6 +60,7 @@ from app.modules.places.schemas import (
     HalalHistoryEventRead,
     HalalProfileEmbed,
     MeatProductRead,
+    MeatVerificationRead,
     OwnedPlaceRead,
     OwnedPlaceUpdate,
     SlaughterProvenanceRead,
@@ -72,7 +73,7 @@ from app.modules.places.schemas import (
     SearchDiagnosticsResponse,
     ReverseGeocodeResult,
 )
-from app.modules.places.models import Place, PlaceEvent
+from app.modules.places.models import Place, PlaceEvent, PlaceMeatVerification
 from app.modules.places.enums import PlaceEventType
 from app.modules.places.vocab_compat import (
     apply_legacy_slaughter_vocab,
@@ -211,6 +212,30 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
         )
 
     embed.supplier_provenance = provenance
+
+    # Per-meat verification recency — which meats a verifier confirmed in person,
+    # when, and who. Detail-only; the sourcing rows surface it so a single-meat
+    # visit doesn't read as a whole-kitchen verification.
+    verif_rows = db.execute(
+        select(
+            PlaceMeatVerification.meat_type,
+            PlaceMeatVerification.verified_at,
+            User.display_name,
+            VerifierProfile.public_handle,
+        )
+        .outerjoin(User, User.id == PlaceMeatVerification.verifier_user_id)
+        .outerjoin(VerifierProfile, VerifierProfile.user_id == PlaceMeatVerification.verifier_user_id)
+        .where(PlaceMeatVerification.place_id == profile.place_id)
+    ).all()
+    embed.meat_verifications = [
+        MeatVerificationRead(
+            meat_type=str(mt),
+            verified_at=va,
+            verifier_name=name,
+            verifier_handle=handle,
+        )
+        for (mt, va, name, handle) in verif_rows
+    ]
     return embed
 
 
