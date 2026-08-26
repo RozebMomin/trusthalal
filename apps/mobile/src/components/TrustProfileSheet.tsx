@@ -473,15 +473,16 @@ function attributionLabel(
 }
 
 /** The attribution pill for one meat. An in-person verifier check outranks
- *  the composed supplier confidence — a verified meat reads "verified" even
- *  when its slaughter method is still only owner-stated (no registry link).
- *  Returns null when there's nothing to attribute. */
+ *  the composed supplier confidence — a checked meat reads "community verified"
+ *  (a volunteer verifier saw it, as opposed to a registry link we composed)
+ *  even when its slaughter method is still only owner-stated. Returns null
+ *  when there's nothing to attribute. */
 function attributionPill(
   prov: SupplierProvenance | undefined,
   ownerAttested: boolean,
   verified: boolean,
 ): { label: string; accent: boolean } | null {
-  if (verified) return { label: "verified", accent: true };
+  if (verified) return { label: "community verified", accent: true };
   if (!prov) return null;
   return {
     label: attributionLabel(prov.confidence, ownerAttested),

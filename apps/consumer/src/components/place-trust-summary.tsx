@@ -355,9 +355,14 @@ function provenanceMeatLabel(meat: string): string {
 function ConfidenceChip({
   confidence,
   ownerAttested,
+  communityVerified = false,
 }: {
   confidence: "SELF_STATED" | "DOCUMENTED" | "VERIFIED";
   ownerAttested: boolean;
+  /** A volunteer verifier confirmed this meat in person. Outranks the composed
+   *  confidence and reads "community verified" — distinct from registry
+   *  "verified" (which is a supplier link we composed). */
+  communityVerified?: boolean;
 }) {
   const map = {
     VERIFIED: {
@@ -376,7 +381,12 @@ function ConfidenceChip({
       cls: "border-border text-muted-foreground",
     },
   } as const;
-  const { label, cls } = map[confidence];
+  const { label, cls } = communityVerified
+    ? {
+        label: "community verified",
+        cls: "border-emerald-500/40 text-emerald-700 dark:text-emerald-400",
+      }
+    : map[confidence];
   return (
     <span className={cn("rounded-full border px-1.5 py-0.5 text-[11px]", cls)}>
       {label}
@@ -519,8 +529,9 @@ function GroupedSourcing({ profile }: { profile: HalalProfileEmbed }) {
                   </span>
                   {(prov || verifByMeat.get(g.meat)) && (
                     <ConfidenceChip
-                      confidence={verifByMeat.get(g.meat) ? "VERIFIED" : prov!.confidence}
+                      confidence={prov?.confidence ?? "SELF_STATED"}
                       ownerAttested={profile.owner_attested ?? false}
+                      communityVerified={!!verifByMeat.get(g.meat)}
                     />
                   )}
                 </div>
@@ -631,8 +642,9 @@ function GroupedProvenanceSourcing({ profile }: { profile: HalalProfileEmbed }) 
                   </span>
                   {(prov || verifByMeat.get(meat)) && (
                     <ConfidenceChip
-                      confidence={verifByMeat.get(meat) ? "VERIFIED" : prov!.confidence}
+                      confidence={prov?.confidence ?? "SELF_STATED"}
                       ownerAttested={profile.owner_attested ?? false}
+                      communityVerified={!!verifByMeat.get(meat)}
                     />
                   )}
                 </div>
