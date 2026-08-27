@@ -237,11 +237,19 @@ export function TrustProfileSheet({
                 <SheetRow label="Alcohol in cooking" last right={<Value text={p.alcohol_in_cooking ? "Yes" : "No"} />} />
               </Section>
 
-              {p.has_certification ? (
+              {/* Only surface the Certificate section when we actually hold
+                  something to show — a named certifier, an uploaded document,
+                  or an expiry. The `has_certification` flag alone (a claim with
+                  no details) must not read as "On file", which implies we hold
+                  a viewable cert. */}
+              {p.has_certification &&
+              (p.certifying_body_name || p.certificate_url || p.certificate_expires_at) ? (
                 <Section title="Certificate">
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.md, paddingVertical: 4 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[ty.label, { color: t.ink, fontSize: 17 }]}>{p.certifying_body_name ?? "On file"}</Text>
+                      <Text style={[ty.label, { color: t.ink, fontSize: 17 }]}>
+                        {p.certifying_body_name ?? (p.certificate_url ? "Certificate on file" : "Certified")}
+                      </Text>
                       {p.certificate_expires_at ? (
                         <Text style={[ty.small, { color: t.sub, fontSize: 13, marginTop: 3 }]}>
                           expires {new Date(p.certificate_expires_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
