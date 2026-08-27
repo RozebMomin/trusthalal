@@ -388,7 +388,7 @@ def admin_visit_attachment_signed_url(
     return {"url": url, "expires_in_seconds": _VISIT_ATTACHMENT_SIGNED_URL_TTL}
 
 
-@router.post(
+@visits_router.post(
     "/{visit_id}/attachments/{attachment_id}/publish",
     summary="Publish a visit photo into the place gallery",
     description=(
