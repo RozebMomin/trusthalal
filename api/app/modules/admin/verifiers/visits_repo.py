@@ -56,6 +56,7 @@ from app.modules.places.enums import (
 )
 from app.modules.places.models import Place, PlaceMeatVerification, PlacePhoto
 from app.modules.places.photos.repo import has_active_hero_for_place
+from app.modules.places.photos.processor import ImageProcessingError, process_image
 from app.modules.places.repo import log_place_event
 from app.modules.suppliers.enums import LinkSource, SourcingEvidence
 from app.modules.suppliers.models import PlaceSupplierLink
@@ -565,10 +566,15 @@ def _copy_attachment_to_gallery(
     whether it was made the hero (the first gallery photo on a place with no
     hero). Raises on a storage failure — callers decide whether to swallow it."""
     body = evidence_storage.download_bytes(att.storage_path)
+    # Run the same pipeline the owner/consumer upload route uses: HEIC→JPEG
+    # (iPhone photos are HEIC, which Supabase rejects and browsers can't
+    # render), EXIF strip (privacy — phone photos carry GPS), auto-rotate, and
+    # downsize. Uploading the raw attachment bytes here was what 400'd the
+    # place-photos write.
+    processed = process_image(body, source_content_type=att.content_type or "")
     photo_id = uuid.uuid4()
-    ext = _ext_from(att.original_filename, att.content_type)
-    dest = f"{place_id}/{photo_id}.{ext}"
-    photos_storage.upload_bytes(dest, body, content_type=att.content_type)
+    dest = f"{place_id}/{photo_id}.{processed.extension}"
+    photos_storage.upload_bytes(dest, processed.bytes_, content_type=processed.content_type)
     make_hero = not hero_taken
     photo = PlacePhoto(
         id=photo_id,
@@ -576,8 +582,10 @@ def _copy_attachment_to_gallery(
         uploaded_by_user_id=uploaded_by_user_id,
         source=PlacePhotoSource.VERIFIER.value,
         storage_path=dest,
-        content_type=att.content_type,
-        size_bytes=len(body),
+        content_type=processed.content_type,
+        size_bytes=len(processed.bytes_),
+        width_px=processed.width_px,
+        height_px=processed.height_px,
         is_hero=make_hero and PlacePhotoSource.VERIFIER in HERO_ELIGIBLE_SOURCES,
     )
     db.add(photo)
@@ -628,6 +636,11 @@ def admin_publish_visit_attachment(
             evidence_storage=evidence_storage,
             photos_storage=photos_storage,
             hero_taken=hero_taken,
+        )
+    except ImageProcessingError as exc:
+        raise ConflictError(
+            "PLACE_PHOTO_UNREADABLE",
+            f"Couldn't read that image. ({exc})",
         )
     except StorageError as exc:
         raise ConflictError(
