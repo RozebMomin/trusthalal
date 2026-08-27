@@ -583,6 +583,16 @@ def _publish_visit_photos(
     for att in attachments:
         tag = (att.caption or "").strip().lower()
 
+        # Diagnostic: a gallery-worthy photo that can't publish because the
+        # place-photos bucket isn't configured would otherwise fail silently.
+        if tag in _GALLERY_TAGS and photos_storage is None:
+            logger.warning(
+                "Skipping gallery publish of visit attachment %s (tag=%s): "
+                "place-photos storage not configured (SUPABASE_PHOTOS_BUCKET).",
+                att.id,
+                tag,
+            )
+
         if tag in _GALLERY_TAGS and photos_storage is not None:
             try:
                 body = evidence_storage.download_bytes(att.storage_path)
