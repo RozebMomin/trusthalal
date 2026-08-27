@@ -20,11 +20,14 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
+import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   fetchVisitAttachmentUrl,
+  usePublishVisitAttachment,
   useVisitAttachments,
   type VerificationVisitAttachmentAdmin,
 } from "@/lib/api/hooks";
+import { useToast } from "@/lib/hooks/use-toast";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -49,12 +52,38 @@ function TagChip({ caption }: { caption: string | null }) {
 
 export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
   const { data, isLoading, error } = useVisitAttachments(visitId);
+  const { toast } = useToast();
+  const publish = usePublishVisitAttachment(visitId);
 
   // Signed URL per attachment, resolved on load. `null` = failed.
   const [urls, setUrls] = React.useState<Record<string, string | null>>({});
   const [active, setActive] =
     React.useState<VerificationVisitAttachmentAdmin | null>(null);
   const [activeUrl, setActiveUrl] = React.useState<string | null>(null);
+  // Which attachments have been pushed to the place gallery this session, so
+  // the button reflects it and guards against an accidental double-publish.
+  const [published, setPublished] = React.useState<Record<string, boolean>>({});
+  const [publishingId, setPublishingId] = React.useState<string | null>(null);
+
+  async function onPublish(a: VerificationVisitAttachmentAdmin) {
+    if (publishingId || published[a.id]) return;
+    setPublishingId(a.id);
+    try {
+      const res = await publish.mutateAsync(a.id);
+      setPublished((prev) => ({ ...prev, [a.id]: true }));
+      toast({
+        title: res.is_hero ? "Added as the place's cover photo" : "Added to place gallery",
+        description: "The photo now appears on the place.",
+      });
+    } catch (err) {
+      toast({
+        ...friendlyApiError(err, { defaultTitle: "Couldn't publish the photo" }),
+        variant: "destructive",
+      });
+    } finally {
+      setPublishingId(null);
+    }
+  }
 
   React.useEffect(() => {
     if (!data) return;
@@ -153,9 +182,27 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
                     <TagChip caption={a.caption} />
                   </span>
                 </button>
-                <p className="truncate px-2 py-1.5 text-xs text-muted-foreground">
+                <p className="truncate px-2 pt-1.5 text-xs text-muted-foreground">
                   {a.content_type} · {formatBytes(a.size_bytes)}
                 </p>
+                {isImage ? (
+                  <div className="px-2 pb-1.5 pt-1">
+                    {published[a.id] ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                        ✓ On the place
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void onPublish(a)}
+                        disabled={publishingId !== null}
+                        className="text-[11px] font-medium text-primary hover:underline disabled:opacity-50"
+                      >
+                        {publishingId === a.id ? "Adding…" : "Add to place gallery"}
+                      </button>
+                    )}
+                  </div>
+                ) : null}
               </li>
             );
           })}

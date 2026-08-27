@@ -2123,6 +2123,21 @@ export function fetchVisitAttachmentUrl(
   );
 }
 
+/**
+ * POST a single visit attachment into the place's public photo gallery — a
+ * manual recovery for when the automatic publish-on-accept didn't run. Returns
+ * the new place-photo id and whether it became the hero.
+ */
+export function usePublishVisitAttachment(visitId: string) {
+  return useMutation({
+    mutationFn: (attachmentId: string) =>
+      apiFetch<{ photo_id: string; is_hero: boolean }>(
+        `/admin/verification-visits/${visitId}/attachments/${attachmentId}/publish`,
+        { method: "POST" },
+      ),
+  });
+}
+
 // ---- Mutations -----------------------------------------------------------
 
 /**

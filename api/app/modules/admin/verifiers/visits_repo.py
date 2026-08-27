@@ -39,7 +39,7 @@ from sqlalchemy.orm import Session, object_session
 
 from app.core.analytics import track
 from app.core.exceptions import ConflictError, NotFoundError
-from app.core.storage import StorageClient
+from app.core.storage import StorageClient, StorageError
 from app.modules.halal_profiles.enums import (
     AlcoholPolicy,
     HalalProfileEventType,
@@ -550,6 +550,95 @@ def _ext_from(filename: str, content_type: str) -> str:
     }.get((content_type or "").lower(), "jpg")
 
 
+def _copy_attachment_to_gallery(
+    db: Session,
+    *,
+    att,
+    place_id: uuid.UUID,
+    uploaded_by_user_id,
+    evidence_storage: StorageClient,
+    photos_storage: StorageClient,
+    hero_taken: bool,
+) -> tuple[PlacePhoto, bool]:
+    """Copy one visit attachment from the private evidence bucket into the
+    public place-photos gallery as a VERIFIER photo. Returns the new photo and
+    whether it was made the hero (the first gallery photo on a place with no
+    hero). Raises on a storage failure — callers decide whether to swallow it."""
+    body = evidence_storage.download_bytes(att.storage_path)
+    photo_id = uuid.uuid4()
+    ext = _ext_from(att.original_filename, att.content_type)
+    dest = f"{place_id}/{photo_id}.{ext}"
+    photos_storage.upload_bytes(dest, body, content_type=att.content_type)
+    make_hero = not hero_taken
+    photo = PlacePhoto(
+        id=photo_id,
+        place_id=place_id,
+        uploaded_by_user_id=uploaded_by_user_id,
+        source=PlacePhotoSource.VERIFIER.value,
+        storage_path=dest,
+        content_type=att.content_type,
+        size_bytes=len(body),
+        is_hero=make_hero and PlacePhotoSource.VERIFIER in HERO_ELIGIBLE_SOURCES,
+    )
+    db.add(photo)
+    return photo, make_hero
+
+
+def admin_publish_visit_attachment(
+    db: Session,
+    *,
+    visit_id: UUID,
+    attachment_id: UUID,
+    evidence_storage: StorageClient | None,
+    photos_storage: StorageClient | None,
+) -> PlacePhoto:
+    """Manually publish a single visit photo into the place gallery.
+
+    A recovery hatch for when the automatic publish-on-accept didn't run (e.g.
+    an accept that errored before reaching the copy). Admin picks a specific
+    image attachment; it's copied into the public place-photos gallery as a
+    VERIFIER photo (becoming the hero if the place has none). Idempotency isn't
+    enforced — publishing twice makes two gallery photos — so the UI guards
+    against a double tap.
+    """
+    if evidence_storage is None or photos_storage is None:
+        raise ConflictError(
+            "PLACE_PHOTOS_STORAGE_UNCONFIGURED",
+            "Place-photos storage isn't configured, so photos can't be published.",
+        )
+    visit = admin_get_visit(db, visit_id=visit_id)
+    att = next((a for a in visit.attachments if a.id == attachment_id), None)
+    if att is None:
+        raise NotFoundError(
+            "VERIFICATION_VISIT_ATTACHMENT_NOT_FOUND",
+            "Attachment not found on this visit.",
+        )
+    if not (att.content_type or "").lower().startswith("image/"):
+        raise ConflictError(
+            "VERIFICATION_VISIT_ATTACHMENT_NOT_IMAGE",
+            "Only image attachments can be added to the place gallery.",
+        )
+    hero_taken = has_active_hero_for_place(db, place_id=visit.place_id)
+    try:
+        photo, _ = _copy_attachment_to_gallery(
+            db,
+            att=att,
+            place_id=visit.place_id,
+            uploaded_by_user_id=visit.verifier_user_id,
+            evidence_storage=evidence_storage,
+            photos_storage=photos_storage,
+            hero_taken=hero_taken,
+        )
+    except StorageError as exc:
+        raise ConflictError(
+            "PLACE_PHOTO_PUBLISH_FAILED",
+            f"Couldn't publish the photo. ({exc})",
+        )
+    db.commit()
+    db.refresh(photo)
+    return photo
+
+
 def _publish_visit_photos(
     db: Session,
     *,
@@ -595,25 +684,16 @@ def _publish_visit_photos(
 
         if tag in _GALLERY_TAGS and photos_storage is not None:
             try:
-                body = evidence_storage.download_bytes(att.storage_path)
-                photo_id = uuid.uuid4()
-                ext = _ext_from(att.original_filename, att.content_type)
-                dest = f"{place_id}/{photo_id}.{ext}"
-                photos_storage.upload_bytes(dest, body, content_type=att.content_type)
-                make_hero = not hero_taken
-                db.add(
-                    PlacePhoto(
-                        id=photo_id,
-                        place_id=place_id,
-                        uploaded_by_user_id=visit.verifier_user_id,
-                        source=PlacePhotoSource.VERIFIER.value,
-                        storage_path=dest,
-                        content_type=att.content_type,
-                        size_bytes=len(body),
-                        is_hero=make_hero and PlacePhotoSource.VERIFIER in HERO_ELIGIBLE_SOURCES,
-                    )
+                _, made_hero = _copy_attachment_to_gallery(
+                    db,
+                    att=att,
+                    place_id=place_id,
+                    uploaded_by_user_id=visit.verifier_user_id,
+                    evidence_storage=evidence_storage,
+                    photos_storage=photos_storage,
+                    hero_taken=hero_taken,
                 )
-                if make_hero:
+                if made_hero:
                     hero_taken = True
             except Exception:  # noqa: BLE001 — best-effort publish
                 logger.warning(

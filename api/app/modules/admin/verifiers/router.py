@@ -55,6 +55,7 @@ from app.modules.admin.verifiers.visits_repo import (
     admin_get_visit,
     admin_list_visits,
     admin_mark_under_review,
+    admin_publish_visit_attachment,
 )
 from app.modules.users.enums import UserRole
 from app.modules.verifiers.enums import (
@@ -385,6 +386,38 @@ def admin_visit_attachment_signed_url(
             f"Couldn't sign the URL. ({exc})",
         )
     return {"url": url, "expires_in_seconds": _VISIT_ATTACHMENT_SIGNED_URL_TTL}
+
+
+@router.post(
+    "/{visit_id}/attachments/{attachment_id}/publish",
+    summary="Publish a visit photo into the place gallery",
+    description=(
+        "Copies one image attachment from this visit into the place's public "
+        "photo gallery as a verifier photo (becoming the hero if the place has "
+        "none). A manual recovery for when the automatic publish-on-accept "
+        "didn't run. Publishing twice creates two gallery photos.\n\n"
+        "Errors:\n"
+        "  * 404 ``VERIFICATION_VISIT_ATTACHMENT_NOT_FOUND``\n"
+        "  * 409 ``VERIFICATION_VISIT_ATTACHMENT_NOT_IMAGE`` — non-image file.\n"
+        "  * 409 ``PLACE_PHOTOS_STORAGE_UNCONFIGURED`` — bucket not configured."
+    ),
+)
+def admin_publish_visit_attachment_route(
+    visit_id: UUID,
+    attachment_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+    evidence_storage: StorageClient | None = Depends(get_storage_client_optional),
+    photos_storage: StorageClient | None = Depends(get_photos_storage_client_optional),
+) -> dict:
+    photo = admin_publish_visit_attachment(
+        db,
+        visit_id=visit_id,
+        attachment_id=attachment_id,
+        evidence_storage=evidence_storage,
+        photos_storage=photos_storage,
+    )
+    return {"photo_id": str(photo.id), "is_hero": bool(photo.is_hero)}
 
 
 # ---------------------------------------------------------------------------
