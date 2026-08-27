@@ -368,6 +368,8 @@ export const qk = {
   users: {
     list: (params: { q?: string; role?: string; isActive?: string }) =>
       ["users", "list", params] as const,
+    count: (params: { q?: string; role?: string; isActive?: string }) =>
+      ["users", "count", params] as const,
     detail: (id: string) => ["users", "detail", id] as const,
   },
   suppliers: {
@@ -1534,6 +1536,20 @@ export function useAdminUsers(
           is_active: isActive,
           limit: 200,
         },
+      }),
+  });
+}
+
+export function useAdminUsersCount(
+  params: { q?: string; role?: UserRole; isActive?: boolean } = {},
+) {
+  const isActive =
+    params.isActive === undefined ? undefined : String(params.isActive);
+  return useQuery({
+    queryKey: qk.users.count({ q: params.q, role: params.role, isActive }),
+    queryFn: () =>
+      apiFetch<{ total: number }>("/admin/users/count", {
+        searchParams: { q: params.q, role: params.role, is_active: isActive },
       }),
   });
 }

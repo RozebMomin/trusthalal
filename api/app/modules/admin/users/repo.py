@@ -214,6 +214,29 @@ def admin_create_user(
     )
 
 
+def admin_count_users(
+    db: Session,
+    *,
+    role: UserRole | None = None,
+    is_active: bool | None = None,
+    q: str | None = None,
+) -> int:
+    """Total users matching the same filters as ``admin_list_users`` (minus
+    order/limit/offset). Powers the count readout on the admin Users list."""
+    stmt = select(func.count()).select_from(User)
+    if role is not None:
+        stmt = stmt.where(User.role == role.value)
+    if is_active is not None:
+        stmt = stmt.where(User.is_active.is_(is_active))
+    if q:
+        like = f"%{q.strip().lower()}%"
+        stmt = stmt.where(
+            (func.lower(User.email).like(like))
+            | (func.lower(func.coalesce(User.display_name, "")).like(like))
+        )
+    return int(db.execute(stmt).scalar_one())
+
+
 def admin_list_users(
     db: Session,
     *,

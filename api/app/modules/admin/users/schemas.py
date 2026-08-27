@@ -8,6 +8,12 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.modules.users.enums import UserAccountState, UserRole
 
 
+class UserCountResponse(BaseModel):
+    """Total users matching the admin list filters."""
+
+    total: int
+
+
 class UserAdminCreate(BaseModel):
     email: EmailStr
     role: UserRole = UserRole.CONSUMER

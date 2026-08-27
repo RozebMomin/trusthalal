@@ -10,6 +10,7 @@ from app.db.deps import get_db
 from app.modules.admin.organizations.repo import admin_list_user_memberships
 from app.modules.admin.users.repo import (
     UserWithAccountState,
+    admin_count_users,
     admin_create_user,
     admin_get_user,
     admin_list_users,
@@ -22,6 +23,7 @@ from app.modules.admin.users.schemas import (
     UserAdminCreateResponse,
     UserAdminPatch,
     UserAdminRead,
+    UserCountResponse,
     UserOrganizationMembershipRead,
     UserOrganizationSummary,
 )
@@ -91,6 +93,23 @@ def create_user_admin(
         invite_token=result.invite_token,
         invite_url=result.invite_url,
         invite_expires_at=result.invite_expires_at,
+    )
+
+
+@router.get(
+    "/count",
+    response_model=UserCountResponse,
+    summary="Total users matching the list filters",
+)
+def count_users_admin(
+    role: UserRole | None = Query(default=None),
+    is_active: bool | None = Query(default=None),
+    q: str | None = Query(default=None, max_length=200),
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> UserCountResponse:
+    return UserCountResponse(
+        total=admin_count_users(db, role=role, is_active=is_active, q=q)
     )
 
 

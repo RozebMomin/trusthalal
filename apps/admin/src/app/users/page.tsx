@@ -34,6 +34,7 @@ import {
   type UserAdminRead,
   type UserRole,
   useAdminUsers,
+  useAdminUsersCount,
 } from "@/lib/api/hooks";
 
 import { AccountStateBadge } from "./_components/account-state-badge";
@@ -77,13 +78,31 @@ export default function UsersPage() {
   });
   const rows = data ?? [];
 
+  const { data: countData } = useAdminUsersCount({
+    q: query || undefined,
+    role: effectiveRole,
+    isActive: effectiveIsActive,
+  });
+  const total = countData?.total;
+  const filtered =
+    Boolean(query) || effectiveRole !== undefined || activeFilter !== "all";
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Users</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Users</h1>
+            {total != null && (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-sm font-semibold tabular-nums text-muted-foreground">
+                {total.toLocaleString()}
+              </span>
+            )}
+          </div>
           <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            Manage internal roles and audit actor history.
+            {total != null
+              ? `${total.toLocaleString()} user${total === 1 ? "" : "s"} ${filtered ? "match your filters" : "in total"}. Manage roles and audit actor history.`
+              : "Manage internal roles and audit actor history."}
           </p>
         </div>
         <Button onClick={() => setInviteOpen(true)} className="w-full sm:w-auto">
