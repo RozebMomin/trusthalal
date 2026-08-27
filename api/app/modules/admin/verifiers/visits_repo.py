@@ -479,7 +479,7 @@ def _resolve_verifier_suppliers(
     """
     obs = visit.observations or {}
     meat_checks = obs.get("meat_checks") or {}
-    for meat_key, _attr in _MEAT_COLUMNS:
+    for meat_key, _attr in (*_POULTRY_COLUMNS, *_REDMEAT_COLUMNS):
         mc = meat_checks.get(meat_key)
         if not isinstance(mc, dict):
             continue
