@@ -223,6 +223,24 @@ class VerificationVisitAttachmentRead(BaseModel):
     uploaded_at: datetime
 
 
+class VisitNoteCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    body: str = Field(min_length=1, max_length=4000)
+
+
+class VisitNoteRead(BaseModel):
+    """An admin note on a visit, with the author resolved for display."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    body: str
+    created_at: datetime
+    author_name: Optional[str] = None
+    author_email: Optional[str] = None
+
+
 class VerifierMeatProduct(BaseModel):
     """One product + its supplier the verifier observed under a meat — mirrors
     the owner's per-product sourcing so a meat can name several suppliers (e.g.

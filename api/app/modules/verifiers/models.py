@@ -353,3 +353,35 @@ class VerificationVisitAttachment(Base):
     visit: Mapped["VerificationVisit"] = relationship(
         back_populates="attachments"
     )
+
+
+class VerificationVisitNote(Base):
+    """An append-only admin note on a verification visit — an internal log
+    ('called the restaurant', 'waiting on a cert', 'looks like a duplicate').
+    Distinct from ``notes_for_admin`` (the verifier's own note) and
+    ``decision_note`` (recorded with the accept/reject)."""
+
+    __tablename__ = "verification_visit_notes"
+    __table_args__ = {"schema": "app"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    visit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.verification_visits.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Who wrote it. SET NULL so removing a staff account doesn't erase the log.
+    author_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )

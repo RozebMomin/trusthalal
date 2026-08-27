@@ -51,8 +51,10 @@ from app.modules.admin.verifiers.repo import (
     admin_set_verifier_status,
 )
 from app.modules.admin.verifiers.visits_repo import (
+    admin_add_visit_note,
     admin_decide_visit,
     admin_get_visit,
+    admin_list_visit_notes,
     admin_list_visits,
     admin_mark_under_review,
     admin_publish_visit_attachment,
@@ -69,6 +71,8 @@ from app.modules.verifiers.schemas import (
     VerifierApplicationDecision,
     VerifierApplicationRead,
     VerifierProfileRead,
+    VisitNoteCreate,
+    VisitNoteRead,
 )
 
 
@@ -418,6 +422,36 @@ def admin_publish_visit_attachment_route(
         photos_storage=photos_storage,
     )
     return {"photo_id": str(photo.id), "is_hero": bool(photo.is_hero)}
+
+
+@visits_router.get(
+    "/{visit_id}/notes",
+    response_model=list[VisitNoteRead],
+    summary="The visit's admin note log (newest first)",
+)
+def list_visit_notes_admin(
+    visit_id: UUID,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> list[VisitNoteRead]:
+    return admin_list_visit_notes(db, visit_id=visit_id)
+
+
+@visits_router.post(
+    "/{visit_id}/notes",
+    response_model=VisitNoteRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Append an admin note to a visit",
+)
+def add_visit_note_admin(
+    visit_id: UUID,
+    payload: VisitNoteCreate,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> VisitNoteRead:
+    return admin_add_visit_note(
+        db, visit_id=visit_id, author_user_id=user.id, body=payload.body
+    )
 
 
 # ---------------------------------------------------------------------------

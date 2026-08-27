@@ -38,6 +38,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { ApproveDialog } from "../_components/approve-dialog";
 import { RejectDialog } from "../_components/reject-dialog";
 import { VisitAttachmentsSection } from "../_components/visit-attachments-section";
+import { VisitNotesSection } from "../_components/visit-notes-section";
 
 type Action = "approve" | "reject" | null;
 
@@ -453,6 +454,9 @@ export default function VerificationVisitDetailPage() {
 
       {/* Photos */}
       <VisitAttachmentsSection visitId={visit.id} />
+
+      {/* Admin note log */}
+      <VisitNotesSection visitId={visit.id} />
 
       {/* Decision note (from a prior decision) */}
       {visit.decision_note && (

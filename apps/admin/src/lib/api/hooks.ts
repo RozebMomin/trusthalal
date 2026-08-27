@@ -2080,6 +2080,7 @@ export const verificationVisitsQk = {
   detail: (id: string) => ["verification-visits", "detail", id] as const,
   attachments: (id: string) =>
     ["verification-visits", "attachments", id] as const,
+  notes: (id: string) => ["verification-visits", "notes", id] as const,
 };
 
 function invalidateVerificationVisits(qc: ReturnType<typeof useQueryClient>) {
@@ -2151,6 +2152,40 @@ export function usePublishVisitAttachment(visitId: string) {
         `/admin/verification-visits/${visitId}/attachments/${attachmentId}/publish`,
         { method: "POST" },
       ),
+  });
+}
+
+export type VisitNote = {
+  id: string;
+  body: string;
+  created_at: string;
+  author_name?: string | null;
+  author_email?: string | null;
+};
+
+/** The visit's append-only admin note log, newest first. */
+export function useVisitNotes(visitId: string | null | undefined) {
+  return useQuery<VisitNote[]>({
+    queryKey: verificationVisitsQk.notes(visitId ?? "__nil__"),
+    queryFn: () =>
+      apiFetch<VisitNote[]>(`/admin/verification-visits/${visitId}/notes`),
+    enabled: typeof visitId === "string" && visitId.length > 0,
+  });
+}
+
+/** Append one admin note; invalidates the note log on success. */
+export function useAddVisitNote(visitId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) =>
+      apiFetch<VisitNote>(`/admin/verification-visits/${visitId}/notes`, {
+        method: "POST",
+        json: { body },
+      }),
+    onSuccess: () =>
+      void qc.invalidateQueries({
+        queryKey: verificationVisitsQk.notes(visitId),
+      }),
   });
 }
 

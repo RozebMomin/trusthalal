@@ -64,9 +64,13 @@ from app.modules.suppliers.repo import (
     fill_profile_method_from_supplier,
     match_supplier_product,
 )
+from app.modules.users.models import User
 from app.modules.verifiers.enums import VerificationVisitStatus
-from app.modules.verifiers.models import VerificationVisit
-from app.modules.verifiers.schemas import VerificationVisitDecision
+from app.modules.verifiers.models import VerificationVisit, VerificationVisitNote
+from app.modules.verifiers.schemas import (
+    VerificationVisitDecision,
+    VisitNoteRead,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +81,48 @@ _DECIDABLE_STATUSES: tuple[str, ...] = (
     VerificationVisitStatus.SUBMITTED.value,
     VerificationVisitStatus.UNDER_REVIEW.value,
 )
+
+
+def admin_list_visit_notes(db: Session, *, visit_id: UUID) -> list[VisitNoteRead]:
+    """The visit's admin note log, newest first, with each author resolved."""
+    admin_get_visit(db, visit_id=visit_id)  # 404 if the visit is missing
+    rows = db.execute(
+        select(VerificationVisitNote, User.display_name, User.email)
+        .outerjoin(User, User.id == VerificationVisitNote.author_user_id)
+        .where(VerificationVisitNote.visit_id == visit_id)
+        .order_by(VerificationVisitNote.created_at.desc())
+    ).all()
+    return [
+        VisitNoteRead(
+            id=note.id,
+            body=note.body,
+            created_at=note.created_at,
+            author_name=display_name,
+            author_email=email,
+        )
+        for note, display_name, email in rows
+    ]
+
+
+def admin_add_visit_note(
+    db: Session, *, visit_id: UUID, author_user_id: UUID, body: str
+) -> VisitNoteRead:
+    """Append one admin note to a visit's log."""
+    admin_get_visit(db, visit_id=visit_id)  # 404 if the visit is missing
+    note = VerificationVisitNote(
+        visit_id=visit_id, author_user_id=author_user_id, body=body.strip()
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    author = db.get(User, author_user_id)
+    return VisitNoteRead(
+        id=note.id,
+        body=note.body,
+        created_at=note.created_at,
+        author_name=author.display_name if author else None,
+        author_email=author.email if author else None,
+    )
 
 
 def admin_get_visit(db: Session, *, visit_id: UUID) -> VerificationVisit:
