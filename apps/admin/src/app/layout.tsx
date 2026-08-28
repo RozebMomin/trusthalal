@@ -34,8 +34,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <body className="h-full bg-background text-foreground antialiased">
+        {/*
+          Set the theme before the page paints so dark mode never flashes
+          light. Runs synchronously as the first thing in <body> (from the
+          server-rendered HTML), reading an explicit choice from localStorage
+          else the OS preference. ThemeToggle keeps this class in sync after.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d);}catch(e){}})();",
+          }}
+        />
         <Providers>
           {/*
             AppShell is the client-side gatekeeper: it calls /me via

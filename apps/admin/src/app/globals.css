@@ -59,10 +59,12 @@
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    /* Lift cards / sidebar / popovers off the near-black page so panels
+       read as distinct surfaces instead of one flat wall of black. */
+    --card: 222 40% 11%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 40% 11%;
     --popover-foreground: 210 40% 98%;
 
     /* Brighter olive in dark mode — bumped saturation + lightness

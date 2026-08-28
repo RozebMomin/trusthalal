@@ -33,6 +33,7 @@ import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
 import { AppNav } from "@/components/app-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { VersionTag } from "@/components/version-tag";
@@ -297,6 +298,9 @@ function AuthedShell({
             <span className="text-xs text-muted-foreground">Admin portal</span>
           </div>
         </div>
+        <div className="ml-auto">
+          <ThemeToggle iconOnly />
+        </div>
       </header>
 
       {/* Backdrop: only rendered on mobile when drawer is open. Click
@@ -331,6 +335,9 @@ function AuthedShell({
           </button>
         </div>
         <AppNav />
+        <div className="mt-auto border-t p-2">
+          <ThemeToggle />
+        </div>
         <CurrentUserFooter
           email={undefined /* see SignedInIndicator */}
         />
