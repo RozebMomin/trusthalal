@@ -14,6 +14,7 @@ import {
   MessageSquareWarning,
   ShieldCheck,
   Store,
+  TrendingUp,
   UserPlus,
   Users,
   type LucideIcon,
@@ -34,7 +35,10 @@ type NavSection = { title?: string; items: NavItem[] };
 // add its PATH_ALLOWED_ROLES entry (panel-access.ts).
 const sections: NavSection[] = [
   {
-    items: [{ href: "/", label: "Dashboard", icon: LayoutDashboard }],
+    items: [
+      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/insights", label: "Trending", icon: TrendingUp },
+    ],
   },
   {
     title: "Review queues",

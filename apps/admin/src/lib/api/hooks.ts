@@ -2155,6 +2155,52 @@ export function usePublishVisitAttachment(visitId: string) {
   });
 }
 
+export type TrendingPlace = {
+  place_id: string;
+  name: string;
+  city?: string | null;
+  region?: string | null;
+  is_deleted: boolean;
+  views: number;
+  directions: number;
+  called: number;
+  shared: number;
+  favorited: number;
+  reviewed: number;
+  total: number;
+  score: number;
+  prev_total: number;
+};
+
+export type TrendingSummary = {
+  window_days: number;
+  active_places: number;
+  total_views: number;
+  total_directions: number;
+  total_signals: number;
+};
+
+export type TrendingResponse = {
+  summary: TrendingSummary;
+  places: TrendingPlace[];
+};
+
+/** Top places by weighted engagement over a recent window (first-party
+ *  place_signals). */
+export function useAdminTrending(
+  params: { window?: number; limit?: number } = {},
+) {
+  const window = params.window ?? 7;
+  const limit = params.limit ?? 25;
+  return useQuery<TrendingResponse>({
+    queryKey: ["insights", "trending", { window, limit }],
+    queryFn: () =>
+      apiFetch<TrendingResponse>("/admin/insights/trending", {
+        searchParams: { window: String(window), limit: String(limit) },
+      }),
+  });
+}
+
 export type VisitNote = {
   id: string;
   body: string;
