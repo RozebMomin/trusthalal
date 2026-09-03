@@ -257,6 +257,10 @@ export default function FileVisit() {
   const [notes, setNotes] = useState("");
   const [reviewUrl, setReviewUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Covers the WHOLE submit (create the visit + upload every photo), not just
+  // the visit POST — otherwise the button looks idle while photos still upload.
+  const [submitting, setSubmitting] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [ordered, setOrdered] = useState<string[]>([]);
   const [addingItem, setAddingItem] = useState(false);
@@ -718,8 +722,10 @@ export default function FileVisit() {
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
   async function onSubmit() {
-    if (!selected) return;
+    if (!selected || submitting) return;
     setError(null);
+    setSubmitting(true);
+    setSubmitPhase("Submitting your visit…");
     try {
       const visit = await submit.mutateAsync({
         place_id: selected.id,
@@ -736,9 +742,10 @@ export default function FileVisit() {
       // Photos stay on-device until submit, then upload to the created
       // visit. Best-effort per file — a failed photo doesn't undo a filed
       // visit; the verifier can add more from the visit later.
-      for (const photo of photos) {
+      for (let i = 0; i < photos.length; i++) {
+        setSubmitPhase(`Uploading photo ${i + 1} of ${photos.length}…`);
         try {
-          await uploadVisitAttachment(visit.id, photo);
+          await uploadVisitAttachment(visit.id, photos[i]);
         } catch {
           // skip this file
         }
@@ -753,6 +760,9 @@ export default function FileVisit() {
             ? e.message
             : "Something went wrong. Try again in a moment.",
       );
+    } finally {
+      setSubmitting(false);
+      setSubmitPhase(null);
     }
   }
 
@@ -1522,10 +1532,23 @@ export default function FileVisit() {
 
             {error ? <Text style={[ty.small, { color: t.danger }]}>{error}</Text> : null}
 
-            <Button title="Submit report" variant="accent" loading={submit.isPending} onPress={onSubmit} />
-            <Pressable onPress={() => router.back()} hitSlop={8} style={{ alignItems: "center", paddingVertical: 4 }}>
-              <Text style={[ty.label, { color: t.sub, fontSize: mockupPx(12) }]}>Save as draft</Text>
-            </Pressable>
+            <Button
+              title={submitting ? "Submitting…" : "Submit report"}
+              variant="accent"
+              loading={submitting}
+              disabled={submitting}
+              onPress={onSubmit}
+            />
+            {submitting && submitPhase ? (
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 2 }}>
+                <ActivityIndicator size="small" color={t.accent} />
+                <Text style={[ty.small, { color: t.sub, fontSize: mockupPx(11) }]}>{submitPhase}</Text>
+              </View>
+            ) : (
+              <Pressable onPress={() => router.back()} hitSlop={8} style={{ alignItems: "center", paddingVertical: 4 }}>
+                <Text style={[ty.label, { color: t.sub, fontSize: mockupPx(12) }]}>Save as draft</Text>
+              </Pressable>
+            )}
           </>
         ) : null}
 
