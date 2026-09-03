@@ -358,6 +358,8 @@ def admin_list_visit_attachments(
             "size_bytes": att.size_bytes,
             "caption": att.caption,
             "uploaded_at": att.uploaded_at.isoformat(),
+            "published_at": att.published_at.isoformat() if att.published_at else None,
+            "published_kind": att.published_kind,
         }
         for att in visit.attachments
     ]
@@ -402,16 +404,14 @@ def admin_visit_attachment_signed_url(
 
 @visits_router.post(
     "/{visit_id}/attachments/{attachment_id}/publish",
-    summary="Publish a visit photo into the place gallery",
+    summary="Publish a visit attachment (cert → certificate, else → gallery)",
     description=(
-        "Copies one image attachment from this visit into the place's public "
-        "photo gallery as a verifier photo (becoming the hero if the place has "
-        "none). A manual recovery for when the automatic publish-on-accept "
-        "didn't run. Publishing twice creates two gallery photos.\n\n"
-        "Errors:\n"
-        "  * 404 ``VERIFICATION_VISIT_ATTACHMENT_NOT_FOUND``\n"
-        "  * 409 ``VERIFICATION_VISIT_ATTACHMENT_NOT_IMAGE`` — non-image file.\n"
-        "  * 409 ``PLACE_PHOTOS_STORAGE_UNCONFIGURED`` — bucket not configured."
+        "Routed by the attachment's tag: a Cert-tagged file is bound to the "
+        "profile's certificate (certs bucket + certificate_url); anything else "
+        "is copied into the place's public photo gallery as a verifier photo "
+        "(becoming the hero if the place has none). A manual recovery for when "
+        "the automatic publish-on-accept didn't run.\n\n"
+        "Returns `{kind: 'cert'}` or `{kind: 'gallery', photo_id, is_hero}`."
     ),
 )
 def admin_publish_visit_attachment_route(
@@ -421,15 +421,18 @@ def admin_publish_visit_attachment_route(
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
     evidence_storage: StorageClient | None = Depends(get_storage_client_optional),
     photos_storage: StorageClient | None = Depends(get_photos_storage_client_optional),
+    certs_storage: StorageClient | None = Depends(
+        get_certificates_storage_client_optional
+    ),
 ) -> dict:
-    photo = admin_publish_visit_attachment(
+    return admin_publish_visit_attachment(
         db,
         visit_id=visit_id,
         attachment_id=attachment_id,
         evidence_storage=evidence_storage,
         photos_storage=photos_storage,
+        certs_storage=certs_storage,
     )
-    return {"photo_id": str(photo.id), "is_hero": bool(photo.is_hero)}
 
 
 @visits_router.get(

@@ -731,7 +731,36 @@ def _copy_attachment_to_gallery(
         is_hero=make_hero and PlacePhotoSource.VERIFIER in HERO_ELIGIBLE_SOURCES,
     )
     db.add(photo)
+    att.published_at = datetime.now(timezone.utc)
+    att.published_kind = "gallery"
     return photo, make_hero
+
+
+def _bind_attachment_as_cert(
+    db: Session,
+    *,
+    att,
+    profile: HalalProfile,
+    evidence_storage: StorageClient,
+    certs_storage: StorageClient,
+) -> None:
+    """Copy one visit attachment into the public certificates bucket and point
+    the profile's certificate at it. Kept raw (no image pipeline) — a cert may
+    be a PDF, and we want the exact document. Replaces any existing cert doc for
+    the profile."""
+    body = evidence_storage.download_bytes(att.storage_path)
+    ext = _ext_from(att.original_filename, att.content_type)
+    dest = f"{profile.id}.{ext}"
+    try:
+        certs_storage.upload_bytes(dest, body, content_type=att.content_type)
+    except Exception:  # noqa: BLE001 — path may already exist; replace
+        certs_storage.delete_object(dest)
+        certs_storage.upload_bytes(dest, body, content_type=att.content_type)
+    profile.certificate_url = certs_storage.public_url(dest)
+    profile.certificate_content_type = att.content_type
+    profile.has_certification = True
+    att.published_at = datetime.now(timezone.utc)
+    att.published_kind = "cert"
 
 
 def admin_publish_visit_attachment(
@@ -741,27 +770,63 @@ def admin_publish_visit_attachment(
     attachment_id: UUID,
     evidence_storage: StorageClient | None,
     photos_storage: StorageClient | None,
-) -> PlacePhoto:
-    """Manually publish a single visit photo into the place gallery.
+    certs_storage: StorageClient | None,
+) -> dict:
+    """Manually publish a single visit attachment, routed by its tag.
 
-    A recovery hatch for when the automatic publish-on-accept didn't run (e.g.
-    an accept that errored before reaching the copy). Admin picks a specific
-    image attachment; it's copied into the public place-photos gallery as a
-    VERIFIER photo (becoming the hero if the place has none). Idempotency isn't
-    enforced — publishing twice makes two gallery photos — so the UI guards
-    against a double tap.
+    A recovery hatch for when the automatic publish-on-accept didn't run. A
+    Cert-tagged attachment is bound to the profile's certificate (certs bucket +
+    ``certificate_url``); anything else is copied into the public place-photos
+    gallery as a VERIFIER photo (becoming the hero if the place has none).
+    Returns ``{"kind": "cert"}`` or ``{"kind": "gallery", "photo_id", "is_hero"}``.
+    Idempotency isn't enforced — the UI guards against a double tap.
     """
-    if evidence_storage is None or photos_storage is None:
-        raise ConflictError(
-            "PLACE_PHOTOS_STORAGE_UNCONFIGURED",
-            "Place-photos storage isn't configured, so photos can't be published.",
-        )
     visit = admin_get_visit(db, visit_id=visit_id)
     att = next((a for a in visit.attachments if a.id == attachment_id), None)
     if att is None:
         raise NotFoundError(
             "VERIFICATION_VISIT_ATTACHMENT_NOT_FOUND",
             "Attachment not found on this visit.",
+        )
+    # Idempotent: if this attachment was already published (on accept or by a
+    # prior click), don't upload it again — just report what happened. Stops the
+    # "blindly re-upload and create a duplicate" case.
+    if att.published_at is not None:
+        return {"kind": att.published_kind or "gallery", "already": True}
+    is_cert = (att.caption or "").strip().lower() == _CERT_TAG
+
+    if is_cert:
+        if evidence_storage is None or certs_storage is None:
+            raise ConflictError(
+                "CERTS_STORAGE_UNCONFIGURED",
+                "Certificate storage isn't configured, so the cert can't be attached.",
+            )
+        profile = db.execute(
+            select(HalalProfile).where(
+                HalalProfile.place_id == visit.place_id,
+                HalalProfile.revoked_at.is_(None),
+            )
+        ).scalar_one_or_none()
+        if profile is None:
+            raise ConflictError(
+                "PLACE_HAS_NO_PROFILE",
+                "This place has no halal profile to attach a certificate to.",
+            )
+        try:
+            _bind_attachment_as_cert(
+                db, att=att, profile=profile,
+                evidence_storage=evidence_storage, certs_storage=certs_storage,
+            )
+        except StorageError as exc:
+            raise ConflictError("CERT_PUBLISH_FAILED", f"Couldn't attach the cert. ({exc})")
+        db.commit()
+        return {"kind": "cert"}
+
+    # Gallery path — images only.
+    if evidence_storage is None or photos_storage is None:
+        raise ConflictError(
+            "PLACE_PHOTOS_STORAGE_UNCONFIGURED",
+            "Place-photos storage isn't configured, so photos can't be published.",
         )
     if not (att.content_type or "").lower().startswith("image/"):
         raise ConflictError(
@@ -791,7 +856,7 @@ def admin_publish_visit_attachment(
         )
     db.commit()
     db.refresh(photo)
-    return photo
+    return {"kind": "gallery", "photo_id": str(photo.id), "is_hero": bool(photo.is_hero)}
 
 
 def publish_visit_photos_bg(visit_id: UUID) -> None:
@@ -915,17 +980,10 @@ def _publish_visit_photos(
 
     if latest_cert is not None and certs_storage is not None:
         try:
-            body = evidence_storage.download_bytes(latest_cert.storage_path)
-            ext = _ext_from(latest_cert.original_filename, latest_cert.content_type)
-            dest = f"{profile.id}.{ext}"
-            try:
-                certs_storage.upload_bytes(dest, body, content_type=latest_cert.content_type)
-            except Exception:  # noqa: BLE001 — path may already exist; replace
-                certs_storage.delete_object(dest)
-                certs_storage.upload_bytes(dest, body, content_type=latest_cert.content_type)
-            profile.certificate_url = certs_storage.public_url(dest)
-            profile.certificate_content_type = latest_cert.content_type
-            profile.has_certification = True
+            _bind_attachment_as_cert(
+                db, att=latest_cert, profile=profile,
+                evidence_storage=evidence_storage, certs_storage=certs_storage,
+            )
         except Exception:  # noqa: BLE001 — best-effort publish
             logger.warning(
                 "verifier cert publish failed; skipping",

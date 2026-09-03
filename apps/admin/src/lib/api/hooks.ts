@@ -2038,6 +2038,10 @@ export type VerificationVisitAttachmentAdmin = {
   size_bytes: number;
   caption: string | null;
   uploaded_at: string;
+  /** Set once this attachment has been pushed to the place. */
+  published_at: string | null;
+  /** "gallery" | "cert" — what it was published as. */
+  published_kind: string | null;
 };
 
 export type VerificationVisitAttachmentSignedUrl = {
@@ -2145,13 +2149,27 @@ export function fetchVisitAttachmentUrl(
  * manual recovery for when the automatic publish-on-accept didn't run. Returns
  * the new place-photo id and whether it became the hero.
  */
+export type PublishAttachmentResult = {
+  kind: "cert" | "gallery";
+  photo_id?: string;
+  is_hero?: boolean;
+  already?: boolean;
+};
+
 export function usePublishVisitAttachment(visitId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (attachmentId: string) =>
-      apiFetch<{ photo_id: string; is_hero: boolean }>(
+      apiFetch<PublishAttachmentResult>(
         `/admin/verification-visits/${visitId}/attachments/${attachmentId}/publish`,
         { method: "POST" },
       ),
+    // Refresh the attachment list so published status (and the disabled
+    // button) reflects reality across reloads, not just this session.
+    onSuccess: () =>
+      void qc.invalidateQueries({
+        queryKey: verificationVisitsQk.attachments(visitId),
+      }),
   });
 }
 

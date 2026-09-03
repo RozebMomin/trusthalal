@@ -60,24 +60,29 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
   const [active, setActive] =
     React.useState<VerificationVisitAttachmentAdmin | null>(null);
   const [activeUrl, setActiveUrl] = React.useState<string | null>(null);
-  // Which attachments have been pushed to the place gallery this session, so
-  // the button reflects it and guards against an accidental double-publish.
-  const [published, setPublished] = React.useState<Record<string, boolean>>({});
   const [publishingId, setPublishingId] = React.useState<string | null>(null);
 
   async function onPublish(a: VerificationVisitAttachmentAdmin) {
-    if (publishingId || published[a.id]) return;
+    if (publishingId || a.published_at) return;
     setPublishingId(a.id);
     try {
       const res = await publish.mutateAsync(a.id);
-      setPublished((prev) => ({ ...prev, [a.id]: true }));
+      const title =
+        res.kind === "cert"
+          ? "Attached as the certificate"
+          : res.is_hero
+            ? "Added as the place's cover photo"
+            : "Added to place gallery";
       toast({
-        title: res.is_hero ? "Added as the place's cover photo" : "Added to place gallery",
-        description: "The photo now appears on the place.",
+        title,
+        description:
+          res.kind === "cert"
+            ? "This document is now the place's halal certificate."
+            : "The photo now appears on the place.",
       });
     } catch (err) {
       toast({
-        ...friendlyApiError(err, { defaultTitle: "Couldn't publish the photo" }),
+        ...friendlyApiError(err, { defaultTitle: "Couldn't publish this attachment" }),
         variant: "destructive",
       });
     } finally {
@@ -185,24 +190,39 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
                 <p className="truncate px-2 pt-1.5 text-xs text-muted-foreground">
                   {a.content_type} · {formatBytes(a.size_bytes)}
                 </p>
-                {isImage ? (
-                  <div className="px-2 pb-1.5 pt-1">
-                    {published[a.id] ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                        ✓ On the place
-                      </span>
-                    ) : (
+                {(() => {
+                  const isCert = (a.caption ?? "").trim().toLowerCase() === "cert";
+                  // Cert docs can be PDFs, so allow non-images for the cert path.
+                  const canPublish = isImage || isCert;
+                  if (a.published_at) {
+                    return (
+                      <div className="px-2 pb-1.5 pt-1">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                          ✓ {a.published_kind === "cert" ? "Certificate" : "In gallery"}
+                        </span>
+                      </div>
+                    );
+                  }
+                  if (!canPublish) return null;
+                  return (
+                    <div className="px-2 pb-1.5 pt-1">
                       <button
                         type="button"
                         onClick={() => void onPublish(a)}
                         disabled={publishingId !== null}
                         className="text-[11px] font-medium text-primary hover:underline disabled:opacity-50"
                       >
-                        {publishingId === a.id ? "Adding…" : "Add to place gallery"}
+                        {publishingId === a.id
+                          ? isCert
+                            ? "Attaching…"
+                            : "Adding…"
+                          : isCert
+                            ? "Set as certificate"
+                            : "Add to place gallery"}
                       </button>
-                    )}
-                  </div>
-                ) : null}
+                    </div>
+                  );
+                })()}
               </li>
             );
           })}

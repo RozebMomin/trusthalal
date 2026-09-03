@@ -350,6 +350,16 @@ class VerificationVisitAttachment(Base):
         server_default=text("now()"),
     )
 
+    # Publication record: set once this attachment has been pushed to the place
+    # (gallery photo or the profile certificate), so the admin can see what's
+    # already published and we don't blindly re-upload it. NULL = not published.
+    published_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    published_kind: Mapped[Optional[str]] = mapped_column(
+        String(16), nullable=True  # "gallery" | "cert"
+    )
+
     visit: Mapped["VerificationVisit"] = relationship(
         back_populates="attachments"
     )
