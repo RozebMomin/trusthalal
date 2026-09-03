@@ -58,6 +58,7 @@ from app.modules.admin.verifiers.visits_repo import (
     admin_list_visits,
     admin_mark_under_review,
     admin_publish_visit_attachment,
+    admin_visit_supplier_link_status,
     publish_visit_photos_bg,
 )
 from app.modules.users.enums import UserRole
@@ -74,6 +75,7 @@ from app.modules.verifiers.schemas import (
     VerifierProfileRead,
     VisitNoteCreate,
     VisitNoteRead,
+    VisitSupplierLinkStatus,
 )
 
 
@@ -428,6 +430,19 @@ def admin_publish_visit_attachment_route(
         photos_storage=photos_storage,
     )
     return {"photo_id": str(photo.id), "is_hero": bool(photo.is_hero)}
+
+
+@visits_router.get(
+    "/{visit_id}/supplier-link-status",
+    response_model=list[VisitSupplierLinkStatus],
+    summary="Which named suppliers on this visit are already linked",
+)
+def visit_supplier_link_status_admin(
+    visit_id: UUID,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> list[VisitSupplierLinkStatus]:
+    return admin_visit_supplier_link_status(db, visit_id=visit_id)
 
 
 @visits_router.get(

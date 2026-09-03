@@ -223,6 +223,19 @@ class VerificationVisitAttachmentRead(BaseModel):
     uploaded_at: datetime
 
 
+class VisitSupplierLinkStatus(BaseModel):
+    """Whether a supplier a verifier named on a visit is already reconciled to a
+    live registry link — resolved server-side (canonical name + alias matcher)
+    so the admin UI doesn't false-negative on an aliased or renamed supplier."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    meat_type: Optional[str] = None  # None for a custom "other" meat
+    supplier_name: str
+    linked: bool
+    product_name: Optional[str] = None
+
+
 class VisitNoteCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

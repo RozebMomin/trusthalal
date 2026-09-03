@@ -27,11 +27,11 @@ import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
 import {
   type CheckResult,
-  type PlaceSupplierLinkAdminRead,
   type VisitDisclosure,
+  type VisitSupplierLinkStatus,
   useMarkVisitUnderReview,
-  usePlaceSupplierLinks,
   useVerificationVisit,
+  useVisitLinkStatus,
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
 
@@ -145,9 +145,33 @@ export default function VerificationVisitDetailPage() {
   const markUnderReview = useMarkVisitUnderReview();
 
   const { data: visit, isLoading, error } = useVerificationVisit(visitId);
-  // The place's existing sourcing links, so a supplier the verifier named that
-  // is *already* linked reads as such instead of re-offering "Link to registry".
-  const { data: placeLinks } = usePlaceSupplierLinks(visit?.place_id);
+  // Server-resolved link status per named supplier, so an already-linked
+  // supplier reads as linked even when the verifier typed an alias of it
+  // (rather than the canonical registry name).
+  const { data: linkStatus } = useVisitLinkStatus(visitId);
+  const linkedFor = React.useMemo(() => {
+    const byMeat = new Map<string, VisitSupplierLinkStatus>();
+    const byName = new Map<string, VisitSupplierLinkStatus>();
+    for (const s of linkStatus ?? []) {
+      const name = s.supplier_name.trim().toLowerCase();
+      if (s.meat_type) byMeat.set(`${s.meat_type}|${name}`, s);
+      else byName.set(name, s);
+    }
+    return { byMeat, byName };
+  }, [linkStatus]);
+
+  function linkedProductFor(
+    meat: string | undefined,
+    supplierName: string | null | undefined,
+  ): string | null | undefined {
+    const name = (supplierName ?? "").trim().toLowerCase();
+    if (!name) return undefined;
+    const hit = meat
+      ? linkedFor.byMeat.get(`${meat}|${name}`)
+      : linkedFor.byName.get(name);
+    if (!hit || !hit.linked) return undefined;
+    return hit.product_name ?? "";
+  }
 
   async function onMarkUnderReview() {
     if (!visit || markUnderReview.isPending) return;
@@ -384,7 +408,7 @@ export default function VerificationVisitDetailPage() {
                       placeId={visit.place_id}
                       productName={p.product_name}
                       supplierName={p.supplier_name ?? undefined}
-                      linkedTo={matchActiveLink(placeLinks, p.supplier_name, MEAT_LABELS[r.key] ? r.key : undefined)}
+                      linkedProduct={linkedProductFor(MEAT_LABELS[r.key] ? r.key : undefined, p.supplier_name)}
                     />
                   ))}
                   {/* Legacy single-supplier visits (pre multi-supplier). */}
@@ -392,7 +416,7 @@ export default function VerificationVisitDetailPage() {
                     <SupplierReconcile
                       placeId={visit.place_id}
                       supplierName={r.c.supplier_name}
-                      linkedTo={matchActiveLink(placeLinks, r.c.supplier_name, MEAT_LABELS[r.key] ? r.key : undefined)}
+                      linkedProduct={linkedProductFor(MEAT_LABELS[r.key] ? r.key : undefined, r.c.supplier_name)}
                     />
                   )}
                   {r.c.note && (
@@ -536,48 +560,28 @@ function BackLink() {
 }
 
 /**
- * Find the place's active sourcing link that already covers a supplier the
- * verifier named, so we don't re-offer "Link to registry" for something linked.
- *
- * Mirrors the accept-time matcher (``match_supplier_product``): case-insensitive
- * exact name equality, scoped to the same meat when we know it. Name-only when
- * the row is an "other" meat outside the enum. Ended links don't count.
- */
-function matchActiveLink(
-  links: PlaceSupplierLinkAdminRead[] | undefined,
-  supplierName: string | null | undefined,
-  meat: string | undefined,
-): PlaceSupplierLinkAdminRead | undefined {
-  const needle = (supplierName ?? "").trim().toLowerCase();
-  if (!needle || !links) return undefined;
-  return links.find(
-    (l) =>
-      !l.ended_at &&
-      l.supplier_name.trim().toLowerCase() === needle &&
-      (!meat || l.meat_type === meat),
-  );
-}
-
-/**
  * A free-text supplier a verifier read off an invoice/cert during the visit.
- * When the place already has an active link for that supplier (``linkedTo``),
- * we show a "Linked" marker; otherwise a jump to reconcile it against the
- * registry. The reconcile link opens the place's Sourcing links section with
- * the Add-link dialog pre-searched for this name — the admin then picks the
- * matching registry supplier + product line, or (no match) goes and creates it.
+ * When the place already has an active link for that supplier
+ * (``linkedProduct`` is defined — resolved server-side, so aliases count), we
+ * show a "Linked" marker; otherwise a jump to reconcile it against the registry.
+ * The reconcile link opens the place's Sourcing links section with the Add-link
+ * dialog pre-searched for this name — the admin then picks the matching registry
+ * supplier + product line, or (no match) goes and creates it.
  */
 function SupplierReconcile({
   placeId,
   productName,
   supplierName,
-  linkedTo,
+  linkedProduct,
 }: {
   placeId: string;
   productName?: string;
   supplierName?: string;
-  /** The place's existing active link for this supplier, if any. */
-  linkedTo?: PlaceSupplierLinkAdminRead;
+  /** The linked product-line name when this supplier is already reconciled;
+   *  undefined when it isn't. (Empty string = linked but product name unknown.) */
+  linkedProduct?: string | null;
 }) {
+  const isLinked = linkedProduct !== undefined && linkedProduct !== null;
   return (
     <span className="mt-1 flex flex-wrap items-center gap-2 text-xs">
       <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
@@ -585,13 +589,13 @@ function SupplierReconcile({
         {productName && supplierName ? " · " : null}
         {supplierName ? <>Supplier: {supplierName}</> : null}
       </span>
-      {supplierName && linkedTo ? (
+      {supplierName && isLinked ? (
         <Link
           href={`/places/${placeId}#sourcing`}
           className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700 hover:underline dark:bg-emerald-950 dark:text-emerald-400"
-          title={`Linked to ${linkedTo.supplier_name} · ${linkedTo.product_name}`}
+          title="Already linked to the registry"
         >
-          ✓ Linked{linkedTo.product_name ? ` · ${linkedTo.product_name}` : ""}
+          ✓ Linked{linkedProduct ? ` · ${linkedProduct}` : ""}
         </Link>
       ) : supplierName ? (
         <Link

@@ -67,7 +67,7 @@ from app.modules.places.photos.repo import has_active_hero_for_place
 from app.modules.places.photos.processor import ImageProcessingError, process_image
 from app.modules.places.repo import log_place_event
 from app.modules.suppliers.enums import LinkSource, SourcingEvidence
-from app.modules.suppliers.models import PlaceSupplierLink
+from app.modules.suppliers.models import PlaceSupplierLink, Supplier, SupplierProduct
 from app.modules.suppliers.repo import (
     fill_profile_method_from_supplier,
     match_supplier_product,
@@ -78,6 +78,7 @@ from app.modules.verifiers.models import VerificationVisit, VerificationVisitNot
 from app.modules.verifiers.schemas import (
     VerificationVisitDecision,
     VisitNoteRead,
+    VisitSupplierLinkStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -89,6 +90,93 @@ _DECIDABLE_STATUSES: tuple[str, ...] = (
     VerificationVisitStatus.SUBMITTED.value,
     VerificationVisitStatus.UNDER_REVIEW.value,
 )
+
+
+def admin_visit_supplier_link_status(
+    db: Session, *, visit_id: UUID
+) -> list[VisitSupplierLinkStatus]:
+    """For each supplier a verifier named on a visit, whether the place already
+    has a live sourcing link that covers it.
+
+    Robust against the name gap that the old client-side check tripped on: a
+    supplier is considered linked if an active link's *canonical* name matches
+    the typed name, OR the registry matcher (name / slug / alias) resolves the
+    typed name to a product that's linked. That catches beef (exact name) and
+    chicken (typed an alias of the linked supplier) alike.
+    """
+    visit = admin_get_visit(db, visit_id=visit_id)
+    obs = visit.observations or {}
+
+    rows = db.execute(
+        select(
+            PlaceSupplierLink.meat_type,
+            PlaceSupplierLink.supplier_product_id,
+            Supplier.name,
+            SupplierProduct.product_name,
+        )
+        .join(SupplierProduct, SupplierProduct.id == PlaceSupplierLink.supplier_product_id)
+        .join(Supplier, Supplier.id == SupplierProduct.supplier_id)
+        .where(
+            PlaceSupplierLink.place_id == visit.place_id,
+            PlaceSupplierLink.ended_at.is_(None),
+        )
+    ).all()
+
+    linked_product_ids = {pid for (_m, pid, _s, _p) in rows}
+    by_meat: dict[str, list[tuple[str, str]]] = {}
+    any_name: dict[str, str] = {}
+    for meat_t, _pid, sname, pname in rows:
+        by_meat.setdefault(meat_t, []).append((sname.strip().lower(), pname))
+        any_name[sname.strip().lower()] = pname
+
+    out: list[VisitSupplierLinkStatus] = []
+
+    def resolve(meat: str | None, typed: str) -> tuple[bool, str | None] | None:
+        t = (typed or "").strip()
+        if not t:
+            return None
+        tl = t.lower()
+        if meat:
+            for sname_l, pname in by_meat.get(meat, []):
+                if sname_l == tl:
+                    return True, pname
+            prod = match_supplier_product(db, name=t, meat_type=meat)
+            if prod is not None and prod.id in linked_product_ids:
+                return True, prod.product_name
+            return False, None
+        # "Other" meat (custom label): name-only match across any meat.
+        if tl in any_name:
+            return True, any_name[tl]
+        return False, None
+
+    def add(meat: str | None, typed: str | None) -> None:
+        if not typed or not typed.strip():
+            return
+        r = resolve(meat, typed)
+        if r is None:
+            return
+        out.append(
+            VisitSupplierLinkStatus(
+                meat_type=meat, supplier_name=typed.strip(),
+                linked=r[0], product_name=r[1],
+            )
+        )
+
+    for meat_t, mc in (obs.get("meat_checks") or {}).items():
+        if not isinstance(mc, dict):
+            continue
+        for p in mc.get("products") or []:
+            if isinstance(p, dict):
+                add(meat_t, p.get("supplier_name"))
+        add(meat_t, mc.get("supplier_name"))
+    for o in obs.get("other_meat_checks") or []:
+        if not isinstance(o, dict):
+            continue
+        for p in o.get("products") or []:
+            if isinstance(p, dict):
+                add(None, p.get("supplier_name"))
+        add(None, o.get("supplier_name"))
+    return out
 
 
 def admin_list_visit_notes(db: Session, *, visit_id: UUID) -> list[VisitNoteRead]:

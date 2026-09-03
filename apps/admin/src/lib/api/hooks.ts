@@ -2209,6 +2209,27 @@ export type VisitNote = {
   author_email?: string | null;
 };
 
+export type VisitSupplierLinkStatus = {
+  meat_type: string | null;
+  supplier_name: string;
+  linked: boolean;
+  product_name: string | null;
+};
+
+/** Server-resolved “is this named supplier already linked?” per meat — matches
+ *  by canonical name AND the registry alias matcher, so an aliased/renamed
+ *  supplier still reads as linked. */
+export function useVisitLinkStatus(visitId: string | null | undefined) {
+  return useQuery<VisitSupplierLinkStatus[]>({
+    queryKey: ["verification-visits", "link-status", visitId ?? "__nil__"],
+    queryFn: () =>
+      apiFetch<VisitSupplierLinkStatus[]>(
+        `/admin/verification-visits/${visitId}/supplier-link-status`,
+      ),
+    enabled: typeof visitId === "string" && visitId.length > 0,
+  });
+}
+
 /** The visit's append-only admin note log, newest first. */
 export function useVisitNotes(visitId: string | null | undefined) {
   return useQuery<VisitNote[]>({
