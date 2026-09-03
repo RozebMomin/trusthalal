@@ -58,6 +58,7 @@ from app.modules.admin.verifiers.visits_repo import (
     admin_list_visits,
     admin_mark_under_review,
     admin_publish_visit_attachment,
+    publish_visit_photos_bg,
 )
 from app.modules.users.enums import UserRole
 from app.modules.verifiers.enums import (
@@ -321,6 +322,11 @@ def admin_decide_verification_visit(
     )
     if accepted and not was_verified:
         notify_place_verified_savers(background, db, place_id=visit.place_id)
+    if accepted:
+        # Publish the verifier's photos AFTER the response, one image at a time
+        # in its own session — image decoding is memory-heavy and must not be
+        # able to OOM the accept request (which would roll it back).
+        background.add_task(publish_visit_photos_bg, visit.id)
     return VerificationVisitRead.model_validate(visit)
 
 

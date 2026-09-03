@@ -27,6 +27,7 @@ trivially atomic.
 """
 from __future__ import annotations
 
+import gc
 import logging
 import os
 import uuid
@@ -39,7 +40,14 @@ from sqlalchemy.orm import Session, object_session
 
 from app.core.analytics import track
 from app.core.exceptions import ConflictError, NotFoundError
-from app.core.storage import StorageClient, StorageError
+from app.core.storage import (
+    StorageClient,
+    StorageError,
+    get_certificates_storage_client_optional,
+    get_photos_storage_client_optional,
+    get_storage_client_optional,
+)
+from app.db.session import SessionLocal
 from app.modules.halal_profiles.enums import (
     AlcoholPolicy,
     HalalProfileEventType,
@@ -698,6 +706,54 @@ def admin_publish_visit_attachment(
     return photo
 
 
+def publish_visit_photos_bg(visit_id: UUID) -> None:
+    """Publish an accepted visit's photos, off the request path.
+
+    The router schedules this as a background task once the acceptance has
+    committed. It opens its own short-lived session and re-acquires the storage
+    clients, so image decoding (the memory-heavy part) happens one photo at a
+    time, after the response is sent — a heavy photo can slow or fail this task
+    but can no longer roll back or block the acceptance itself. Fully
+    best-effort: any failure is logged, and an admin can still publish a missed
+    photo by hand from the visit.
+    """
+    evidence_storage = get_storage_client_optional()
+    photos_storage = get_photos_storage_client_optional()
+    certs_storage = get_certificates_storage_client_optional()
+    if evidence_storage is None:
+        return
+
+    db = SessionLocal()
+    try:
+        visit = db.get(VerificationVisit, visit_id)
+        if visit is None:
+            return
+        profile = db.execute(
+            select(HalalProfile).where(
+                HalalProfile.place_id == visit.place_id,
+                HalalProfile.revoked_at.is_(None),
+            )
+        ).scalar_one_or_none()
+        if profile is None:
+            return
+        _publish_visit_photos(
+            db,
+            visit=visit,
+            profile=profile,
+            evidence_storage=evidence_storage,
+            photos_storage=photos_storage,
+            certs_storage=certs_storage,
+        )
+        db.commit()
+    except Exception:  # noqa: BLE001 — background best-effort
+        logger.warning(
+            "Background photo publish failed for visit %s", visit_id, exc_info=True
+        )
+        db.rollback()
+    finally:
+        db.close()
+
+
 def _publish_visit_photos(
     db: Session,
     *,
@@ -763,6 +819,11 @@ def _publish_visit_photos(
 
         elif tag == _CERT_TAG:
             latest_cert = att  # newest wins (attachments are visit-ordered)
+
+        # Reclaim the decoded-image memory before the next photo so peak usage
+        # stays at ~one image, not the whole batch (a full-res phone photo can
+        # be 100 MB+ decoded).
+        gc.collect()
 
     if latest_cert is not None and certs_storage is not None:
         try:
@@ -884,16 +945,13 @@ def _apply_acceptance(
         properties={"place_id": str(visit.place_id), "visit_id": str(visit.id)},
     )
 
-    # Publish the verifier's tagged photos: Menu/Meal → public gallery, Cert →
-    # profile certificate. Best-effort — never fails the acceptance.
-    _publish_visit_photos(
-        db,
-        visit=visit,
-        profile=profile,
-        evidence_storage=evidence_storage,
-        photos_storage=photos_storage,
-        certs_storage=certs_storage,
-    )
+    # NOTE: publishing the verifier's photos (decode + HEIC→JPEG + upload) is
+    # deliberately NOT done here. Doing it inline made accepting a visit with
+    # several full-size phone photos spike memory enough to OOM the worker,
+    # which rolled back the whole acceptance — so the accept could never land.
+    # The router schedules publish_visit_photos_bg() as a background task after
+    # this transaction commits; it processes one image at a time in its own
+    # session, so a heavy photo can't take the acceptance down with it.
 
 
 def _apply_rejection(

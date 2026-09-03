@@ -95,6 +95,17 @@ def process_image(data: bytes, *, source_content_type: str) -> ProcessedImage:
 
     try:
         with Image.open(io.BytesIO(data)) as img:
+            # Slash peak decode memory on huge photos. For JPEG, ``draft`` tells
+            # the decoder to emit at a reduced scale (1/2, 1/4, 1/8) so a 48 MP
+            # image never fully materialises in RAM — the difference between
+            # ~140 MB and ~20 MB per photo, which is what was OOM-ing the small
+            # instance. No-op for formats that don't support it (incl. HEIC),
+            # which is why photo publishing also runs one-at-a-time off-request.
+            try:
+                img.draft("RGB", (MAX_DIMENSION_PX, MAX_DIMENSION_PX))
+            except Exception:  # noqa: BLE001 — draft is a best-effort hint
+                pass
+
             # exif_transpose applies any EXIF Orientation flag and
             # then the returned image has it stripped. This is the
             # idiomatic Pillow way to fix the iPhone-portrait-shows-
