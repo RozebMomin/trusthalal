@@ -67,6 +67,7 @@ from app.core.storage import (
     StorageError,
     get_photos_storage_client,
 )
+from app.core.config import settings
 from app.db.deps import get_db
 from app.modules.organizations.deps import assert_can_manage_place
 from app.modules.places.enums import (
@@ -84,7 +85,7 @@ from app.modules.places.models import Place, PlacePhoto
 from app.modules.places.photos.processor import (
     ImageProcessingError,
     ProcessedImage,
-    process_image,
+    process_image_maybe_isolated,
 )
 from app.modules.places.photos.repo import (
     MAX_PHOTOS_PER_PLACE,
@@ -359,11 +360,15 @@ def upload_place_photo(
             ),
         )
 
-    # CPU-bound: HEIC convert + EXIF strip + dimensions. Wrap in
-    # try/except to translate Pillow errors into a clean 422.
+    # CPU/memory-bound: HEIC convert + EXIF strip + dimensions. Runs in a
+    # disposable subprocess (when enabled) so the big decoded bitmap's memory is
+    # returned to the OS after the request instead of inflating the web worker's
+    # RSS. Wrap in try/except to translate Pillow errors into a clean 422.
     try:
-        processed: ProcessedImage = process_image(
-            raw_bytes, source_content_type=declared_type
+        processed: ProcessedImage = process_image_maybe_isolated(
+            raw_bytes,
+            source_content_type=declared_type,
+            isolated=settings.IMAGE_PROCESSING_ISOLATED,
         )
     except ImageProcessingError as exc:
         raise BadRequestError(

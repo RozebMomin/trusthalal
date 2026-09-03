@@ -31,10 +31,15 @@ first upload — same posture as the Google Places client.
 from __future__ import annotations
 
 import io
+import logging
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from typing import Optional
 
 from PIL import Image, ImageOps
+
+logger = logging.getLogger(__name__)
 
 # pillow-heif registers HEIC/HEIF openers on Pillow's plugin
 # registry as a side effect of ``register_heif_opener()``. The
@@ -173,6 +178,69 @@ def process_image(data: bytes, *, source_content_type: str) -> ProcessedImage:
         raise ImageProcessingError(
             f"Could not decode or re-encode image: {exc}"
         ) from exc
+
+
+def process_image_isolated(
+    data: bytes, *, source_content_type: str
+) -> ProcessedImage:
+    """Same result as :func:`process_image`, but the decode/encode runs in a
+    disposable subprocess that is torn down the moment it finishes.
+
+    Why this exists: decoding a HEIC or a large JPEG materialises an
+    uncompressed bitmap that can be tens to 100+ MB. Python frees it promptly,
+    but glibc's allocator keeps the freed pages on its own free lists rather
+    than returning them to the kernel, so a long-lived web worker's RSS ratchets
+    upward with each photo. Publishing a second photo then stacks another spike
+    on top of an already-inflated baseline and OOM-kills the worker, which is
+    what was restarting the service mid-publish.
+
+    Running the heavy work in a child process moves that spike out of the web
+    worker entirely: when the child exits, the kernel reclaims 100% of its
+    memory, so nothing accumulates in the API process. It also contains
+    failure — if a single monster image can't be processed within the memory
+    budget, only the child dies (surfaced here as ``ImageProcessingError``),
+    not the API worker. This is the memory isolation of a separate image
+    service without any additional infrastructure.
+
+    ``spawn`` (not ``fork``) is used so the child is a clean, minimal
+    interpreter rather than a copy-on-write image of the parent's large heap,
+    and so native imaging libraries (libheif via pillow-heif) start from a
+    fresh state.
+    """
+    ctx = multiprocessing.get_context("spawn")
+    try:
+        # A fresh single-use executor per call: the worker is created for this
+        # one image and destroyed (memory fully reclaimed) when the block exits.
+        with ProcessPoolExecutor(max_workers=1, mp_context=ctx) as executor:
+            future = executor.submit(
+                process_image, data, source_content_type=source_content_type
+            )
+            return future.result()
+    except ImageProcessingError:
+        # Decode/encode failure raised inside the child and re-raised here.
+        raise
+    except Exception as exc:  # noqa: BLE001
+        # BrokenProcessPool (child crashed / was OOM-killed), pickling issues,
+        # or spawn failure. Fold into the typed error so callers handle it the
+        # same as any other unreadable image instead of the API worker dying.
+        logger.warning("Isolated image processing failed: %s", exc, exc_info=True)
+        raise ImageProcessingError(
+            f"Image processing subprocess failed: {exc}"
+        ) from exc
+
+
+def process_image_maybe_isolated(
+    data: bytes, *, source_content_type: str, isolated: bool
+) -> ProcessedImage:
+    """Dispatch to :func:`process_image_isolated` when ``isolated`` is set,
+    else run in-process. Kept as a thin helper so callers pass a single flag
+    (from settings) rather than branching at each call site; ``processor`` stays
+    infrastructure-free (no settings import) and unit-testable."""
+    if isolated:
+        return process_image_isolated(
+            data, source_content_type=source_content_type
+        )
+    return process_image(data, source_content_type=source_content_type)
 
 
 def _final_mode(img: Image.Image, *, prefer_rgb: bool) -> str:

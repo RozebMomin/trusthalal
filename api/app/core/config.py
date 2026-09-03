@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     DB_POOL_RECYCLE: int = 1800  # recycle conns after 30 min to avoid staleness
     DB_POOL_TIMEOUT: int = 10  # wait up to 10s for a free conn before erroring
 
+    # Run image decode/encode (HEIC→JPEG, downsize, EXIF strip) in a short-lived
+    # subprocess that exits after each image, so the OS reclaims the big decoded
+    # bitmap's memory instead of it ratcheting up the web worker's RSS (which
+    # OOM-restarted the small Render instance when publishing several photos in
+    # a row). Set false to fall back to in-process decoding (lower latency, but
+    # the memory-accumulation risk returns).
+    IMAGE_PROCESSING_ISOLATED: bool = True
+
     # ------------------------------------------------------------------
     # Domain configuration
     # ------------------------------------------------------------------

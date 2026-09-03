@@ -69,7 +69,11 @@ from app.modules.places.models import (
     PlacePhoto,
 )
 from app.modules.places.photos.repo import has_active_hero_for_place
-from app.modules.places.photos.processor import ImageProcessingError, process_image
+from app.core.config import settings
+from app.modules.places.photos.processor import (
+    ImageProcessingError,
+    process_image_maybe_isolated,
+)
 from app.modules.places.repo import log_place_event
 from app.modules.suppliers.enums import LinkSource, SourcingEvidence
 from app.modules.suppliers.models import PlaceSupplierLink, Supplier, SupplierProduct
@@ -718,7 +722,15 @@ def _copy_attachment_to_gallery(
     # render), EXIF strip (privacy — phone photos carry GPS), auto-rotate, and
     # downsize. Uploading the raw attachment bytes here was what 400'd the
     # place-photos write.
-    processed = process_image(body, source_content_type=att.content_type or "")
+    # Decode/encode in a disposable subprocess so the big decoded bitmap's
+    # memory is reclaimed by the OS after each photo instead of ratcheting up
+    # the web worker's RSS (which OOM-restarted the instance when several photos
+    # were published in a row). See process_image_isolated for the full why.
+    processed = process_image_maybe_isolated(
+        body,
+        source_content_type=att.content_type or "",
+        isolated=settings.IMAGE_PROCESSING_ISOLATED,
+    )
     photo_id = uuid.uuid4()
     dest = f"{place_id}/{photo_id}.{processed.extension}"
     photos_storage.upload_bytes(dest, processed.bytes_, content_type=processed.content_type)
