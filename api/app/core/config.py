@@ -32,6 +32,16 @@ class Settings(BaseSettings):
     # Database (future use)
     # ------------------------------------------------------------------
     DATABASE_URL: str | None = None
+    # Connection-pool ceiling. Kept well under Supabase's session-mode pooler
+    # limit (15 clients) so migrations, the photo-publish background task, a
+    # health check, or Supabase Studio can't starve the request path. Total max
+    # connections opened by this process = DB_POOL_SIZE + DB_MAX_OVERFLOW.
+    # (For real scale, point DATABASE_URL at the transaction-mode pooler, port
+    # 6543, which multiplexes many clients over few Postgres connections.)
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 3
+    DB_POOL_RECYCLE: int = 1800  # recycle conns after 30 min to avoid staleness
+    DB_POOL_TIMEOUT: int = 10  # wait up to 10s for a free conn before erroring
 
     # ------------------------------------------------------------------
     # Domain configuration
