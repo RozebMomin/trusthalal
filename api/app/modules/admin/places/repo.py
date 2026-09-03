@@ -537,6 +537,78 @@ def _log_profile_event(
     )
 
 
+_CORRECTABLE_PROFILE_FIELDS = frozenset({
+    "alcohol_policy",
+    "alcohol_in_cooking",
+    "menu_posture",
+    "chicken_slaughter",
+    "beef_zabihah",
+    "lamb_zabihah",
+    "goat_zabihah",
+    "has_certification",
+    "certifying_body_name",
+})
+
+
+def admin_correct_halal_profile(
+    db: Session,
+    *,
+    place_id: UUID,
+    changes: dict,
+    actor_user_id: UUID,
+) -> list[str]:
+    """Directly correct a place's halal profile — the admin data-change pathway
+    for ownerless, verifier-established places (e.g. resolving a dispute that a
+    place doesn't actually serve alcohol). Applies only the fields provided,
+    writes an audit trail on both the profile timeline (consumer-visible) and
+    the place event log, and returns a human-readable list of what changed.
+    """
+    if not changes:
+        return []
+    profile = db.execute(
+        select(HalalProfile).where(
+            HalalProfile.place_id == place_id,
+            HalalProfile.revoked_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if profile is None:
+        raise ConflictError(
+            "PLACE_HAS_NO_PROFILE",
+            "This place has no halal profile to correct.",
+        )
+    applied: list[str] = []
+    for field, raw in changes.items():
+        if field not in _CORRECTABLE_PROFILE_FIELDS:
+            continue
+        new = getattr(raw, "value", raw)  # StrEnum → its value
+        old = getattr(profile, field)
+        old_cmp = getattr(old, "value", old)
+        if old_cmp == new:
+            continue
+        setattr(profile, field, new)
+        applied.append(f"{field}: {old_cmp} → {new}")
+    if not applied:
+        return []
+    description = "Admin correction — " + "; ".join(applied)
+    db.add(
+        HalalProfileEvent(
+            profile_id=profile.id,
+            event_type=HalalProfileEventType.UPDATED.value,
+            actor_user_id=actor_user_id,
+            description=description,
+        )
+    )
+    log_place_event(
+        db,
+        place_id=place_id,
+        event_type=PlaceEventType.EDITED,
+        actor_user_id=actor_user_id,
+        message=description,
+    )
+    db.commit()
+    return applied
+
+
 def admin_delist_place(
     db: Session,
     *,

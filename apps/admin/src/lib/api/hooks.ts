@@ -1672,6 +1672,25 @@ export type ConsumerDisputeAdminRead = {
   updated_at: string;
 };
 
+/** Direct halal-profile correction applied when upholding a dispute. Only
+ *  the fields set are changed. */
+export type ProfileCorrection = {
+  alcohol_policy?: "NONE" | "BEER_AND_WINE_ONLY" | "FULL_BAR";
+  alcohol_in_cooking?: boolean;
+  menu_posture?:
+    | "FULLY_HALAL"
+    | "MIXED_SEPARATE_KITCHENS"
+    | "HALAL_OPTIONS_ADVERTISED"
+    | "HALAL_UPON_REQUEST"
+    | "MIXED_SHARED_KITCHEN";
+  chicken_slaughter?: "HAND_CUT" | "MACHINE_CUT" | "NOT_SERVED" | "NOT_DISCLOSED";
+  beef_zabihah?: "ZABIHAH" | "NOT_ZABIHAH" | "UNSURE" | "NOT_SERVED";
+  lamb_zabihah?: "ZABIHAH" | "NOT_ZABIHAH" | "UNSURE" | "NOT_SERVED";
+  goat_zabihah?: "ZABIHAH" | "NOT_ZABIHAH" | "UNSURE" | "NOT_SERVED";
+  has_certification?: boolean;
+  certifying_body_name?: string;
+};
+
 /** POST /admin/disputes/{id}/resolve. */
 export type DisputeResolve = {
   decision: "RESOLVED_UPHELD" | "RESOLVED_DISMISSED";
@@ -1683,6 +1702,8 @@ export type DisputeResolve = {
    * ``RESOLVED_DISMISSED``.
    */
   delist?: { reason: DelistReason; note?: string | null } | null;
+  /** When present, apply these profile field changes (uphold only). */
+  correction?: ProfileCorrection | null;
 };
 
 /** POST /admin/disputes/{id}/request-owner-reconciliation. */

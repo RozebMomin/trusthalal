@@ -31,7 +31,10 @@ from app.modules.admin.disputes.schemas import (
     DisputeRequestReconciliation,
     DisputeResolve,
 )
-from app.modules.admin.places.repo import admin_delist_place
+from app.modules.admin.places.repo import (
+    admin_correct_halal_profile,
+    admin_delist_place,
+)
 from app.modules.disputes.enums import DisputeStatus
 from app.modules.disputes.models import ConsumerDisputeAttachment
 from app.modules.disputes.repo import (
@@ -129,6 +132,11 @@ def resolve_dispute_admin(
             "DISPUTE_DELIST_REQUIRES_UPHELD",
             "A place can only be de-listed when the dispute is upheld.",
         )
+    if payload.correction is not None and payload.decision != DisputeStatus.RESOLVED_UPHELD:
+        raise ConflictError(
+            "DISPUTE_CORRECTION_REQUIRES_UPHELD",
+            "A profile correction can only be applied when the dispute is upheld.",
+        )
 
     dispute = admin_resolve_dispute(
         db,
@@ -137,6 +145,16 @@ def resolve_dispute_admin(
         decision=payload.decision,
         admin_decision_note=payload.admin_decision_note,
     )
+    # Data correction: apply the profile changes in the same action (the
+    # "uphold & correct" path for ownerless, verifier-established places). Runs
+    # after the resolve commits; a failure here doesn't unwind the resolution.
+    if payload.correction is not None:
+        admin_correct_halal_profile(
+            db,
+            place_id=dispute.place_id,
+            changes=payload.correction.changes(),
+            actor_user_id=user.id,
+        )
     # Escalation: de-list the place in the same action when requested. Runs
     # after the resolve commits — if it fails, the dispute is still resolved
     # and the admin can de-list manually from the place page.

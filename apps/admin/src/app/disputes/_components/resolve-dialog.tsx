@@ -39,11 +39,34 @@ import {
   DELIST_REASON_OPTIONS,
   type ConsumerDisputeAdminRead,
   type DelistReason,
+  type ProfileCorrection,
   useResolveDispute,
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
 
 type Decision = "RESOLVED_UPHELD" | "RESOLVED_DISMISSED";
+
+// Radix Select can't hold an empty value, so "leave as-is" uses a sentinel we
+// translate back to "field omitted" when building the correction payload.
+const KEEP = "__keep__";
+type Opt = readonly [value: string, label: string];
+const ALCOHOL_OPTS: Opt[] = [["NONE", "No alcohol"], ["BEER_AND_WINE_ONLY", "Beer & wine only"], ["FULL_BAR", "Full bar"]];
+const MENU_OPTS: Opt[] = [["FULLY_HALAL", "Fully halal"], ["MIXED_SEPARATE_KITCHENS", "Mixed · separate kitchens"], ["HALAL_OPTIONS_ADVERTISED", "Halal options advertised"], ["HALAL_UPON_REQUEST", "Halal upon request"], ["MIXED_SHARED_KITCHEN", "Mixed · shared kitchen"]];
+const SLAUGHTER_OPTS: Opt[] = [["HAND_CUT", "Hand-cut"], ["MACHINE_CUT", "Machine-cut"], ["NOT_SERVED", "Not served"], ["NOT_DISCLOSED", "Not disclosed"]];
+const ZABIHAH_OPTS: Opt[] = [["ZABIHAH", "Zabihah"], ["NOT_ZABIHAH", "Not zabihah"], ["UNSURE", "Unsure"], ["NOT_SERVED", "Not served"]];
+const BOOL_OPTS: Opt[] = [["true", "Yes"], ["false", "No"]];
+
+// (state key on the profile, label, options). Booleans use BOOL_OPTS.
+const CORRECTION_FIELDS: ReadonlyArray<readonly [keyof ProfileCorrection, string, Opt[]]> = [
+  ["alcohol_policy", "Alcohol served", ALCOHOL_OPTS],
+  ["alcohol_in_cooking", "Alcohol in cooking", BOOL_OPTS],
+  ["menu_posture", "Menu posture", MENU_OPTS],
+  ["chicken_slaughter", "Chicken", SLAUGHTER_OPTS],
+  ["beef_zabihah", "Beef", ZABIHAH_OPTS],
+  ["lamb_zabihah", "Lamb", ZABIHAH_OPTS],
+  ["goat_zabihah", "Goat", ZABIHAH_OPTS],
+  ["has_certification", "Has certificate", BOOL_OPTS],
+];
 
 const DECISION_OPTIONS: ReadonlyArray<{
   value: Decision;
@@ -54,7 +77,7 @@ const DECISION_OPTIONS: ReadonlyArray<{
     value: "RESOLVED_UPHELD",
     label: "Uphold",
     description:
-      "Consumer was right. The place's halal profile is wrong. Data correction happens through a follow-up RECONCILIATION halal claim from the owner, this endpoint just clears the dispute badge.",
+      "Consumer was right — the profile is wrong. Optionally correct the data right here (below), or leave it for an owner reconciliation claim. Either way the dispute badge clears.",
   },
   {
     value: "RESOLVED_DISMISSED",
@@ -80,6 +103,11 @@ export function ResolveDialog({
   const [delistReason, setDelistReason] =
     React.useState<DelistReason>("NOT_HALAL");
   const [delistNote, setDelistNote] = React.useState<string>("");
+  // Optional "also correct the profile data" side-effect (UPHELD-only). Each
+  // field holds KEEP ("leave as-is") until the admin picks a new value.
+  const [correctEnabled, setCorrectEnabled] = React.useState(false);
+  const [corr, setCorr] = React.useState<Record<string, string>>({});
+  const [certName, setCertName] = React.useState<string>("");
   const { toast } = useToast();
   const resolve = useResolveDispute();
 
@@ -90,15 +118,34 @@ export function ResolveDialog({
       setDelistEnabled(false);
       setDelistReason("NOT_HALAL");
       setDelistNote("");
+      setCorrectEnabled(false);
+      setCorr({});
+      setCertName("");
     }
   }, [open, dispute.id]);
+
+  // Assemble the correction payload from the fields the admin actually changed.
+  function buildCorrection(): ProfileCorrection | undefined {
+    if (!correctEnabled) return undefined;
+    const out: Record<string, unknown> = {};
+    for (const [key, , opts] of CORRECTION_FIELDS) {
+      const v = corr[key];
+      if (!v || v === KEEP) continue;
+      out[key] = opts === BOOL_OPTS ? v === "true" : v;
+    }
+    if (certName.trim()) out.certifying_body_name = certName.trim();
+    return Object.keys(out).length ? (out as ProfileCorrection) : undefined;
+  }
 
   // The de-list side-effect is UPHELD-only (server 409s otherwise).
   // Clear it the moment the admin flips back to DISMISSED so a stale
   // toggle can't ride along in the payload.
   const isUpheld = decision === "RESOLVED_UPHELD";
   React.useEffect(() => {
-    if (!isUpheld) setDelistEnabled(false);
+    if (!isUpheld) {
+      setDelistEnabled(false);
+      setCorrectEnabled(false);
+    }
   }, [isUpheld]);
 
   // Server requires a non-trivial note on DISMISSED (the consumer
@@ -125,6 +172,7 @@ export function ResolveDialog({
             isUpheld && delistEnabled
               ? { reason: delistReason, note: delistNote.trim() || null }
               : undefined,
+          correction: isUpheld ? buildCorrection() : undefined,
         },
       });
       toast({
@@ -155,6 +203,16 @@ export function ResolveDialog({
             title: "De-list needs an upheld decision",
             description:
               "You can only de-list the place when upholding the dispute. Switch to Uphold or clear the de-list option.",
+          },
+          DISPUTE_CORRECTION_REQUIRES_UPHELD: {
+            title: "Correction needs an upheld decision",
+            description:
+              "You can only correct the profile when upholding the dispute. Switch to Uphold or clear the correction.",
+          },
+          PLACE_HAS_NO_PROFILE: {
+            title: "No profile to correct",
+            description:
+              "This place doesn't have a halal profile yet, so there's nothing to correct.",
           },
         },
       });
@@ -301,6 +359,78 @@ export function ResolveDialog({
                         onChange={(e) => setDelistNote(e.target.value)}
                         placeholder="Optional context saved on the audit event."
                         maxLength={500}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/*
+              Optional profile correction, UPHELD-only. The data-change pathway
+              for ownerless, verifier-established places: fix the wrong field(s)
+              directly (e.g. alcohol → not served) instead of waiting on an
+              owner reconciliation claim. Only changed fields are sent.
+            */}
+            {isUpheld && (
+              <div className="space-y-3 rounded-md border p-3">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={correctEnabled}
+                    onChange={(e) => setCorrectEnabled(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      Also correct the profile data
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Apply the fix directly to the halal profile. For places
+                      with no owner to file a reconciliation claim. Only the
+                      fields you change are updated.
+                    </p>
+                  </div>
+                </label>
+
+                {correctEnabled && (
+                  <div className="grid grid-cols-1 gap-3 pl-7 sm:grid-cols-2">
+                    {CORRECTION_FIELDS.map(([key, label, opts]) => (
+                      <div key={key} className="space-y-1.5">
+                        <Label htmlFor={`corr-${key}`} className="text-xs">
+                          {label}
+                        </Label>
+                        <Select
+                          value={corr[key] ?? KEEP}
+                          onValueChange={(v) =>
+                            setCorr((prev) => ({ ...prev, [key]: v }))
+                          }
+                        >
+                          <SelectTrigger id={`corr-${key}`} className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={KEEP}>Leave as-is</SelectItem>
+                            {opts.map(([v, l]) => (
+                              <SelectItem key={v} value={v}>
+                                {l}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label htmlFor="corr-cert-name" className="text-xs">
+                        Certifier name (leave blank to keep)
+                      </Label>
+                      <input
+                        id="corr-cert-name"
+                        value={certName}
+                        onChange={(e) => setCertName(e.target.value)}
+                        placeholder="e.g. Halal Monitoring Services"
+                        maxLength={255}
+                        className="h-9 w-full rounded-md border bg-background px-3 text-sm"
                       />
                     </div>
                   </div>

@@ -12,7 +12,37 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.disputes.enums import DisputeStatus
+from app.modules.halal_profiles.enums import (
+    AlcoholPolicy,
+    MenuPosture,
+    SlaughterMethod,
+    ZabihahStatus,
+)
 from app.modules.places.enums import DelistReason
+
+
+class ProfileCorrection(BaseModel):
+    """Direct admin correction to a place's halal profile, applied when a
+    dispute is upheld. Every field is optional — only the ones set are changed.
+    The pathway for ownerless, verifier-established profiles where the data is
+    wrong and there's no owner to file a reconciliation claim.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    alcohol_policy: Optional[AlcoholPolicy] = None
+    alcohol_in_cooking: Optional[bool] = None
+    menu_posture: Optional[MenuPosture] = None
+    chicken_slaughter: Optional[SlaughterMethod] = None
+    beef_zabihah: Optional[ZabihahStatus] = None
+    lamb_zabihah: Optional[ZabihahStatus] = None
+    goat_zabihah: Optional[ZabihahStatus] = None
+    has_certification: Optional[bool] = None
+    certifying_body_name: Optional[str] = Field(default=None, max_length=255)
+
+    def changes(self) -> dict:
+        """Only the explicitly-set fields, as column-writable values."""
+        return self.model_dump(exclude_none=True)
 
 
 class DisputeResolveDelist(BaseModel):
@@ -65,6 +95,14 @@ class DisputeResolve(BaseModel):
             "Optional. When set on an UPHELD resolution, also de-lists the "
             "place (public tombstone) in the same action. Ignored/invalid on "
             "a DISMISSED resolution."
+        ),
+    )
+    correction: Optional[ProfileCorrection] = Field(
+        default=None,
+        description=(
+            "Optional. When set on an UPHELD resolution, apply these profile "
+            "field changes directly (the 'uphold & correct' path for ownerless "
+            "places). Only valid alongside RESOLVED_UPHELD."
         ),
     )
 
