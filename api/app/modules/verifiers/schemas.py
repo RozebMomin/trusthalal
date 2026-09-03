@@ -223,6 +223,17 @@ class VerificationVisitAttachmentRead(BaseModel):
     uploaded_at: datetime
 
 
+class VisitAttachmentPublishBody(BaseModel):
+    """Optional metadata for publishing a Cert-tagged attachment: which meats it
+    covers, the certifier, and expiry. Ignored on the gallery path."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    meat_types: list[str] = []
+    certifier_name: Optional[str] = Field(default=None, max_length=255)
+    expires_at: Optional[datetime] = None
+
+
 class VisitSupplierLinkStatus(BaseModel):
     """Whether a supplier a verifier named on a visit is already reconciled to a
     live registry link — resolved server-side (canonical name + alias matcher)

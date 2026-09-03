@@ -64,6 +64,7 @@ import type {
   MeatProduct,
   MeatVerification,
   MenuPosture,
+  PlaceCertificate,
   SlaughterMethod,
   SupplierProvenance,
   ValidationTier,
@@ -1165,34 +1166,106 @@ function CertificateDialog({
   onOpenChange: (next: boolean) => void;
   profile: HalalProfileEmbed;
 }) {
+  // A place can hold several certificates (chicken from one body, beef from
+  // another). Prefer the multi-cert list when present; fall back to the single
+  // legacy cert synthesized from the profile's flat fields so older profiles
+  // (and surfaces that don't load the list) still render.
+  const listed = profile.certificates ?? [];
+  const certs: PlaceCertificate[] =
+    listed.length > 0
+      ? listed
+      : profile.certificate_url || profile.certifying_body_name
+        ? [
+            {
+              id: "legacy",
+              certifier_name: profile.certifying_body_name,
+              meat_types: [],
+              certificate_url: profile.certificate_url,
+              certificate_content_type: profile.certificate_content_type,
+              expires_at: profile.certificate_expires_at,
+            },
+          ]
+        : [];
+
+  const multiple = certs.length > 1;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Halal certification</DialogTitle>
+          <DialogTitle>
+            {multiple ? "Halal certificates" : "Halal certification"}
+          </DialogTitle>
           <DialogDescription>
-            What Trust Halal has on file for this restaurant.
+            {multiple
+              ? `${certs.length} certificates Trust Halal has on file for this restaurant.`
+              : "What Trust Halal has on file for this restaurant."}
           </DialogDescription>
         </DialogHeader>
 
-        <dl className="space-y-3 text-sm">
-          {profile.certifying_body_name && (
-            <Row label="Issued by">{profile.certifying_body_name}</Row>
-          )}
-          {profile.certificate_expires_at && (
-            <Row label="Valid through">
-              {formatDateOnly(profile.certificate_expires_at)}
-            </Row>
-          )}
-          <Row label="Validation tier">
-            {TIER_HEADLINE[profile.validation_tier]},{" "}
-            {TIER_DESCRIPTION[profile.validation_tier]}
-          </Row>
-        </dl>
+        <p className="text-xs text-muted-foreground">
+          {TIER_HEADLINE[profile.validation_tier]},{" "}
+          {TIER_DESCRIPTION[profile.validation_tier]}
+        </p>
 
-        <CertificateViewer profile={profile} />
+        <div className="space-y-5">
+          {certs.map((cert) => (
+            <CertificateCard key={cert.id} cert={cert} />
+          ))}
+        </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const CERT_MEAT_LABEL: Record<string, string> = {
+  CHICKEN: "Chicken",
+  BEEF: "Beef",
+  LAMB: "Lamb",
+  GOAT: "Goat",
+};
+
+/**
+ * One certificate: the meats it covers, issuer, expiry, then the document.
+ * The meat chips let a visitor see at a glance that (say) the chicken and beef
+ * carry separate certs from different bodies.
+ */
+function CertificateCard({ cert }: { cert: PlaceCertificate }) {
+  const meats =
+    cert.meat_types.length > 0
+      ? cert.meat_types.map((m) => CERT_MEAT_LABEL[m] ?? m)
+      : null;
+  return (
+    <div className="space-y-2 rounded-lg border p-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {meats ? (
+          meats.map((label) => (
+            <span
+              key={label}
+              className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground"
+            >
+              {label}
+            </span>
+          ))
+        ) : (
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
+            Whole restaurant
+          </span>
+        )}
+      </div>
+      <dl className="space-y-1.5 text-sm">
+        {cert.certifier_name && (
+          <Row label="Issued by">{cert.certifier_name}</Row>
+        )}
+        {cert.expires_at && (
+          <Row label="Valid through">{formatDateOnly(cert.expires_at)}</Row>
+        )}
+      </dl>
+      <CertificateViewer
+        url={cert.certificate_url}
+        contentType={cert.certificate_content_type}
+      />
+    </div>
   );
 }
 
@@ -1216,12 +1289,13 @@ function CertificateDialog({
  * complete instead of empty.
  */
 function CertificateViewer({
-  profile,
+  url,
+  contentType,
 }: {
-  profile: HalalProfileEmbed;
+  url: string | null;
+  contentType: string | null;
 }) {
-  const url = profile.certificate_url;
-  const ct = profile.certificate_content_type ?? "";
+  const ct = contentType ?? "";
 
   if (!url) {
     return (
@@ -1413,7 +1487,8 @@ function ProvenanceFooter({ profile }: { profile: HalalProfileEmbed }) {
 
         {/* Only offered when there's something to look at. A button that opens
             a dialog saying "no document" is worse than no button. */}
-        {profile.has_certification && (
+        {(profile.has_certification ||
+          (profile.certificates?.length ?? 0) > 0) && (
           <button
             type="button"
             onClick={() => setCertOpen(true)}

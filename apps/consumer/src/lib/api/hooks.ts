@@ -345,6 +345,24 @@ export type HalalProfileEmbed = {
   /** Per-meat verification recency — which meats a verifier confirmed in
    *  person, when, and who. Detail-only. */
   meat_verifications?: MeatVerification[] | null;
+  /** Every halal certificate the place holds — a place can carry several
+   *  (a chicken cert from one body, a beef cert from another). Each is scoped
+   *  to the meats it covers (`meat_types` empty = whole place). When present
+   *  and non-empty this supersedes the single legacy `certificate_*` fields
+   *  above for display. Hand-added pending codegen; `null` on surfaces that
+   *  don't load it. */
+  certificates?: PlaceCertificate[] | null;
+};
+
+/** One certificate a place holds. Mirrors server ``CertificateRead``. */
+export type PlaceCertificate = {
+  id: string;
+  certifier_name: string | null;
+  /** Meats this cert covers (CHICKEN/BEEF/LAMB/GOAT). Empty = whole place. */
+  meat_types: string[];
+  certificate_url: string | null;
+  certificate_content_type: string | null;
+  expires_at: string | null;
 };
 
 export type MeatVerification = {

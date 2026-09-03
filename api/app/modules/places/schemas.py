@@ -398,7 +398,23 @@ class HalalProfileEmbed(BaseModel):
     # the trust profile say "Beef · verified in person <date>" instead of
     # implying a single-meat visit verified the whole kitchen.
     meat_verifications: "list[MeatVerificationRead] | None" = None
+    # All certificates held for the place, each scoped to the meats it covers.
+    # Supersedes the single certificate_url above (which stays for back-compat).
+    certificates: "list[CertificateRead] | None" = None
     updated_at: datetime
+
+
+class CertificateRead(BaseModel):
+    """One halal certificate a place holds, scoped to the meats it covers."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    certifier_name: str | None = None
+    meat_types: list[str] = []
+    certificate_url: str | None = None
+    certificate_content_type: str | None = None
+    expires_at: datetime | None = None
 
 
 class MeatVerificationRead(BaseModel):

@@ -73,6 +73,7 @@ from app.modules.verifiers.schemas import (
     VerifierApplicationDecision,
     VerifierApplicationRead,
     VerifierProfileRead,
+    VisitAttachmentPublishBody,
     VisitNoteCreate,
     VisitNoteRead,
     VisitSupplierLinkStatus,
@@ -417,6 +418,7 @@ def admin_visit_attachment_signed_url(
 def admin_publish_visit_attachment_route(
     visit_id: UUID,
     attachment_id: UUID,
+    payload: VisitAttachmentPublishBody | None = None,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
     evidence_storage: StorageClient | None = Depends(get_storage_client_optional),
@@ -432,6 +434,9 @@ def admin_publish_visit_attachment_route(
         evidence_storage=evidence_storage,
         photos_storage=photos_storage,
         certs_storage=certs_storage,
+        meat_types=payload.meat_types if payload else None,
+        certifier_name=payload.certifier_name if payload else None,
+        expires_at=payload.expires_at if payload else None,
     )
 
 

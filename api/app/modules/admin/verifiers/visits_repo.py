@@ -62,7 +62,12 @@ from app.modules.places.enums import (
     PlaceEventType,
     PlacePhotoSource,
 )
-from app.modules.places.models import Place, PlaceMeatVerification, PlacePhoto
+from app.modules.places.models import (
+    Place,
+    PlaceCertificate,
+    PlaceMeatVerification,
+    PlacePhoto,
+)
 from app.modules.places.photos.repo import has_active_hero_for_place
 from app.modules.places.photos.processor import ImageProcessingError, process_image
 from app.modules.places.repo import log_place_event
@@ -736,31 +741,46 @@ def _copy_attachment_to_gallery(
     return photo, make_hero
 
 
-def _bind_attachment_as_cert(
+def _publish_attachment_as_certificate(
     db: Session,
     *,
     att,
-    profile: HalalProfile,
+    place_id: uuid.UUID,
+    profile: HalalProfile | None,
     evidence_storage: StorageClient,
     certs_storage: StorageClient,
-) -> None:
-    """Copy one visit attachment into the public certificates bucket and point
-    the profile's certificate at it. Kept raw (no image pipeline) — a cert may
-    be a PDF, and we want the exact document. Replaces any existing cert doc for
-    the profile."""
+    meat_types: list | None = None,
+    certifier_name: str | None = None,
+    expires_at: datetime | None = None,
+    source: str = "VERIFIER",
+) -> PlaceCertificate:
+    """Copy one visit attachment into the certificates bucket and record it as a
+    PlaceCertificate — one of possibly several the place holds, scoped to the
+    meats it covers. Kept raw (no image pipeline): a cert may be a PDF and we
+    want the exact document. Each cert gets its own object (place_id/cert_id) so
+    multiples never overwrite each other."""
     body = evidence_storage.download_bytes(att.storage_path)
     ext = _ext_from(att.original_filename, att.content_type)
-    dest = f"{profile.id}.{ext}"
-    try:
-        certs_storage.upload_bytes(dest, body, content_type=att.content_type)
-    except Exception:  # noqa: BLE001 — path may already exist; replace
-        certs_storage.delete_object(dest)
-        certs_storage.upload_bytes(dest, body, content_type=att.content_type)
-    profile.certificate_url = certs_storage.public_url(dest)
-    profile.certificate_content_type = att.content_type
-    profile.has_certification = True
+    cert_id = uuid.uuid4()
+    dest = f"{place_id}/{cert_id}.{ext}"
+    certs_storage.upload_bytes(dest, body, content_type=att.content_type)
+    cert = PlaceCertificate(
+        id=cert_id,
+        place_id=place_id,
+        certifier_name=(certifier_name or "").strip() or None,
+        meat_types=meat_types or [],
+        certificate_url=certs_storage.public_url(dest),
+        certificate_content_type=att.content_type,
+        storage_path=dest,
+        expires_at=expires_at,
+        source=source,
+    )
+    db.add(cert)
+    if profile is not None:
+        profile.has_certification = True
     att.published_at = datetime.now(timezone.utc)
     att.published_kind = "cert"
+    return cert
 
 
 def admin_publish_visit_attachment(
@@ -771,6 +791,9 @@ def admin_publish_visit_attachment(
     evidence_storage: StorageClient | None,
     photos_storage: StorageClient | None,
     certs_storage: StorageClient | None,
+    meat_types: list | None = None,
+    certifier_name: str | None = None,
+    expires_at: datetime | None = None,
 ) -> dict:
     """Manually publish a single visit attachment, routed by its tag.
 
@@ -813,14 +836,16 @@ def admin_publish_visit_attachment(
                 "This place has no halal profile to attach a certificate to.",
             )
         try:
-            _bind_attachment_as_cert(
-                db, att=att, profile=profile,
+            cert = _publish_attachment_as_certificate(
+                db, att=att, place_id=visit.place_id, profile=profile,
                 evidence_storage=evidence_storage, certs_storage=certs_storage,
+                meat_types=meat_types, certifier_name=certifier_name,
+                expires_at=expires_at, source="VERIFIER",
             )
         except StorageError as exc:
             raise ConflictError("CERT_PUBLISH_FAILED", f"Couldn't attach the cert. ({exc})")
         db.commit()
-        return {"kind": "cert"}
+        return {"kind": "cert", "certificate_id": str(cert.id)}
 
     # Gallery path — images only.
     if evidence_storage is None or photos_storage is None:
@@ -935,7 +960,6 @@ def _publish_visit_photos(
 
     place_id = visit.place_id
     hero_taken = has_active_hero_for_place(db, place_id=place_id)
-    latest_cert = None  # keep only the newest cert if several were attached
 
     for att in attachments:
         tag = (att.caption or "").strip().lower()
@@ -970,26 +994,27 @@ def _publish_visit_photos(
                     exc_info=True,
                 )
 
-        elif tag == _CERT_TAG:
-            latest_cert = att  # newest wins (attachments are visit-ordered)
+        elif tag == _CERT_TAG and certs_storage is not None:
+            # Each cert-tagged attachment becomes its own place certificate
+            # (untagged for meats — an admin can tag which meats it covers
+            # later). Multiples no longer overwrite one another.
+            try:
+                _publish_attachment_as_certificate(
+                    db, att=att, place_id=place_id, profile=profile,
+                    evidence_storage=evidence_storage, certs_storage=certs_storage,
+                    source="VERIFIER",
+                )
+            except Exception:  # noqa: BLE001 — best-effort publish
+                logger.warning(
+                    "verifier cert publish failed; skipping",
+                    extra={"visit_id": str(visit.id), "attachment_id": str(att.id)},
+                    exc_info=True,
+                )
 
         # Reclaim the decoded-image memory before the next photo so peak usage
         # stays at ~one image, not the whole batch (a full-res phone photo can
         # be 100 MB+ decoded).
         gc.collect()
-
-    if latest_cert is not None and certs_storage is not None:
-        try:
-            _bind_attachment_as_cert(
-                db, att=latest_cert, profile=profile,
-                evidence_storage=evidence_storage, certs_storage=certs_storage,
-            )
-        except Exception:  # noqa: BLE001 — best-effort publish
-            logger.warning(
-                "verifier cert publish failed; skipping",
-                extra={"visit_id": str(visit.id)},
-                exc_info=True,
-            )
 
 
 def _apply_acceptance(

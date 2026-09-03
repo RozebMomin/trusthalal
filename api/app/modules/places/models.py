@@ -440,3 +440,46 @@ class PlaceMeatVerification(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
+
+class PlaceCertificate(Base):
+    """One halal certificate document held for a place, scoped to the meats it
+    covers. A place can hold several — a chicken cert from one body, a beef cert
+    from another, multiples of each. Replaces the single ``certificate_url`` on
+    the profile (which is backfilled into this table as the first entry)."""
+
+    __tablename__ = "place_certificates"
+    __table_args__ = ({"schema": "app"},)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    place_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.places.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Canonical certifier when we can resolve one; free-text name otherwise.
+    certifier_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app.certifiers.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    certifier_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Which meats this cert covers, e.g. ["CHICKEN", "LAMB"]. Empty = whole place.
+    meat_types: Mapped[list] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    certificate_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    certificate_content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Object path in the certs bucket, kept so the doc can be replaced/deleted.
+    storage_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Who added it: VERIFIER | ADMIN | OWNER.
+    source: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )

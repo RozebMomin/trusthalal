@@ -343,6 +343,7 @@ export const qk = {
     events: (id: string) => ["places", "events", id] as const,
     owners: (id: string) => ["places", "owners", id] as const,
     externalIds: (id: string) => ["places", "external-ids", id] as const,
+    certificates: (id: string) => ["places", "certificates", id] as const,
     countries: () => ["places", "countries"] as const,
     count: (params: { q?: string; city?: string; country?: string; deleted?: string }) =>
       ["places", "count", params] as const,
@@ -503,6 +504,67 @@ export function useAdminPlaceOwners(id: string | undefined) {
     queryFn: () =>
       apiFetch<PlaceOwnerAdminRead[]>(`/admin/places/${id}/owners`),
     enabled: Boolean(id),
+  });
+}
+
+/** One certificate a place holds (admin shape). A place can hold several —
+ * a chicken cert and a beef cert from different bodies; ``meat_types`` scopes
+ * which meats each covers ([] = all). */
+export type PlaceCertificateAdmin = {
+  id: string;
+  certifier_id: string | null;
+  certifier_name: string | null;
+  meat_types: string[];
+  certificate_url: string | null;
+  certificate_content_type: string | null;
+  expires_at: string | null;
+  source: string | null;
+  created_at: string | null;
+};
+
+export function useAdminPlaceCertificates(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.places.certificates(id ?? ""),
+    queryFn: () =>
+      apiFetch<PlaceCertificateAdmin[]>(`/admin/places/${id}/certificates`),
+    enabled: Boolean(id),
+  });
+}
+
+export type PlaceCertificatePatch = {
+  certifier_id?: string | null;
+  certifier_name?: string | null;
+  meat_types?: string[];
+  expires_at?: string | null;
+};
+
+export function useUpdatePlaceCertificate(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { certificateId: string; changes: PlaceCertificatePatch }) =>
+      apiFetch<PlaceCertificateAdmin>(
+        `/admin/places/${placeId}/certificates/${args.certificateId}`,
+        { method: "PATCH", json: args.changes },
+      ),
+    onSuccess: () =>
+      void qc.invalidateQueries({
+        queryKey: qk.places.certificates(placeId),
+      }),
+  });
+}
+
+export function useDeletePlaceCertificate(placeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (certificateId: string) =>
+      apiFetch<void>(
+        `/admin/places/${placeId}/certificates/${certificateId}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () =>
+      void qc.invalidateQueries({
+        queryKey: qk.places.certificates(placeId),
+      }),
   });
 }
 
@@ -2175,16 +2237,33 @@ export type PublishAttachmentResult = {
   photo_id?: string;
   is_hero?: boolean;
   already?: boolean;
+  certificate_id?: string;
+};
+
+/** Optional metadata for publishing a Cert-tagged attachment. Ignored on the
+ * gallery path, so a plain photo publish can pass `attachmentId` alone. */
+export type PublishAttachmentOptions = {
+  meat_types?: string[];
+  certifier_name?: string | null;
+  expires_at?: string | null;
 };
 
 export function usePublishVisitAttachment(visitId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (attachmentId: string) =>
-      apiFetch<PublishAttachmentResult>(
+    mutationFn: (
+      arg: string | { attachmentId: string; options?: PublishAttachmentOptions },
+    ) => {
+      const attachmentId = typeof arg === "string" ? arg : arg.attachmentId;
+      const options = typeof arg === "string" ? undefined : arg.options;
+      return apiFetch<PublishAttachmentResult>(
         `/admin/verification-visits/${visitId}/attachments/${attachmentId}/publish`,
-        { method: "POST" },
-      ),
+        {
+          method: "POST",
+          ...(options ? { json: options } : {}),
+        },
+      );
+    },
     // Refresh the attachment list so published status (and the disabled
     // button) reflects reality across reloads, not just this session.
     onSuccess: () =>

@@ -9,7 +9,14 @@ import { radii, space, type as ty } from "@/lib/theme";
 import { useTheme } from "@/lib/theme/useTheme";
 import { CertViewer } from "@/components/CertViewer";
 import { TierTag } from "@/components/TierTag";
-import type { HalalHistoryEvent, HalalProfileEmbed, MeatVerification, PlaceDetail, SupplierProvenance } from "@/lib/api/types";
+import type { HalalHistoryEvent, HalalProfileEmbed, MeatVerification, PlaceCertificate, PlaceDetail, SupplierProvenance } from "@/lib/api/types";
+
+const CERT_MEAT_LABEL: Record<string, string> = {
+  CHICKEN: "Chicken",
+  BEEF: "Beef",
+  LAMB: "Lamb",
+  GOAT: "Goat",
+};
 
 const TEST_FORCE_PORK = false;
 
@@ -148,7 +155,9 @@ export function TrustProfileSheet({
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const p = place.halal_profile;
-  const [certOpen, setCertOpen] = useState(false);
+  // The certificate currently open in the full-screen viewer, or null. A place
+  // can hold several certs, so we track which one is open rather than a boolean.
+  const [activeCert, setActiveCert] = useState<PlaceCertificate | null>(null);
   // History opens as a layer ON TOP of this sheet (both are modals), so
   // backing out of history returns here — the evidence — not to place detail.
   // That preserves the flow the user actually took (place → evidence → history).
@@ -237,39 +246,90 @@ export function TrustProfileSheet({
                 <SheetRow label="Alcohol in cooking" last right={<Value text={p.alcohol_in_cooking ? "Yes" : "No"} />} />
               </Section>
 
-              {/* Only surface the Certificate section when we actually hold
-                  something to show — a named certifier, an uploaded document,
-                  or an expiry. The `has_certification` flag alone (a claim with
-                  no details) must not read as "On file", which implies we hold
-                  a viewable cert. */}
-              {p.has_certification &&
-              (p.certifying_body_name || p.certificate_url || p.certificate_expires_at) ? (
-                <Section title="Certificate">
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.md, paddingVertical: 4 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[ty.label, { color: t.ink, fontSize: 17 }]}>
-                        {p.certifying_body_name ?? (p.certificate_url ? "Certificate on file" : "Certified")}
-                      </Text>
-                      {p.certificate_expires_at ? (
-                        <Text style={[ty.small, { color: t.sub, fontSize: 13, marginTop: 3 }]}>
-                          expires {new Date(p.certificate_expires_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
-                        </Text>
-                      ) : null}
-                    </View>
-                    {p.certificate_url ? (
-                      <Pressable
-                        onPress={() => {
-                          capture("certificate_viewed", { place_id: place.id, place_name: place.name });
-                          setCertOpen(true);
-                        }}
-                        style={{ backgroundColor: t.bg, borderRadius: 999, borderWidth: 1, borderColor: t.line, paddingHorizontal: 18, paddingVertical: 10 }}
-                      >
-                        <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 13 }}>View cert</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                </Section>
-              ) : null}
+              {/* Certificates. A place can hold several — one per meat, or one
+                  covering everything. Prefer the multi-cert list when present;
+                  fall back to the flat legacy cert fields for older profiles.
+                  Only surfaced when we actually hold something to show — a named
+                  certifier, a document, or an expiry — so the `has_certification`
+                  flag alone (a claim with no details) never reads as "on file". */}
+              {(() => {
+                const listed = p.certificates ?? [];
+                const certs: PlaceCertificate[] =
+                  listed.length > 0
+                    ? listed
+                    : p.has_certification &&
+                        (p.certifying_body_name || p.certificate_url || p.certificate_expires_at)
+                      ? [
+                          {
+                            id: "legacy",
+                            certifier_name: p.certifying_body_name,
+                            meat_types: [],
+                            certificate_url: p.certificate_url,
+                            certificate_content_type: p.certificate_content_type,
+                            expires_at: p.certificate_expires_at,
+                          },
+                        ]
+                      : [];
+                if (certs.length === 0) return null;
+                return (
+                  <Section title={certs.length > 1 ? "Certificates" : "Certificate"}>
+                    {certs.map((cert, i) => {
+                      const meats =
+                        cert.meat_types.length > 0
+                          ? cert.meat_types.map((m) => CERT_MEAT_LABEL[m] ?? m)
+                          : null;
+                      return (
+                        <View
+                          key={cert.id}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: space.md,
+                            paddingVertical: 10,
+                            borderTopWidth: i === 0 ? 0 : 1,
+                            borderTopColor: t.line,
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            {meats ? (
+                              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+                                {meats.map((label) => (
+                                  <View
+                                    key={label}
+                                    style={{ backgroundColor: t.bg, borderRadius: 999, borderWidth: 1, borderColor: t.line, paddingHorizontal: 10, paddingVertical: 3 }}
+                                  >
+                                    <Text style={{ color: t.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{label}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            ) : null}
+                            <Text style={[ty.label, { color: t.ink, fontSize: 17 }]}>
+                              {cert.certifier_name ?? (cert.certificate_url ? "Certificate on file" : "Certified")}
+                            </Text>
+                            {cert.expires_at ? (
+                              <Text style={[ty.small, { color: t.sub, fontSize: 13, marginTop: 3 }]}>
+                                expires {new Date(cert.expires_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+                              </Text>
+                            ) : null}
+                          </View>
+                          {cert.certificate_url ? (
+                            <Pressable
+                              onPress={() => {
+                                capture("certificate_viewed", { place_id: place.id, place_name: place.name });
+                                setActiveCert(cert);
+                              }}
+                              style={{ backgroundColor: t.bg, borderRadius: 999, borderWidth: 1, borderColor: t.line, paddingHorizontal: 18, paddingVertical: 10 }}
+                            >
+                              <Text style={{ color: t.ink, fontFamily: "Inter_700Bold", fontSize: 13 }}>View cert</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                  </Section>
+                );
+              })()}
             </>
           ) : (
             <Text style={[ty.body, { color: t.sub }]}>No halal profile yet.</Text>
@@ -312,17 +372,17 @@ export function TrustProfileSheet({
         </ScrollView>
       </Animated.View>
 
-      {certOpen && p?.certificate_url ? (
+      {activeCert?.certificate_url ? (
         <CertViewer
-          url={p.certificate_url}
-          contentType={p.certificate_content_type}
-          title={p.certifying_body_name ?? "Certificate"}
+          url={activeCert.certificate_url}
+          contentType={activeCert.certificate_content_type}
+          title={activeCert.certifier_name ?? "Certificate"}
           subtitle={
-            p.certificate_expires_at
-              ? `Expires ${new Date(p.certificate_expires_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })}`
+            activeCert.expires_at
+              ? `Expires ${new Date(activeCert.expires_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })}`
               : "No expiry on file"
           }
-          onClose={() => setCertOpen(false)}
+          onClose={() => setActiveCert(null)}
         />
       ) : null}
 

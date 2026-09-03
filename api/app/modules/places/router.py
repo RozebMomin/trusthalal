@@ -56,6 +56,7 @@ from app.modules.places.repo import (
 )
 from app.modules.suppliers.repo import place_supplier_certifiers, resolve_place_method
 from app.modules.places.schemas import (
+    CertificateRead,
     GoogleAutocompletePrediction,
     HalalHistoryEventRead,
     HalalProfileEmbed,
@@ -73,7 +74,8 @@ from app.modules.places.schemas import (
     SearchDiagnosticsResponse,
     ReverseGeocodeResult,
 )
-from app.modules.places.models import Place, PlaceEvent, PlaceMeatVerification
+from app.modules.places.models import Place, PlaceCertificate, PlaceEvent, PlaceMeatVerification
+from app.modules.certifiers.models import Certifier
 from app.modules.places.enums import PlaceEventType
 from app.modules.places.vocab_compat import (
     apply_legacy_slaughter_vocab,
@@ -235,6 +237,27 @@ def _embed_with_products(db: Session, profile) -> "HalalProfileEmbed | None":
             verifier_handle=handle,
         )
         for (mt, va, name, handle) in verif_rows
+    ]
+
+    # All certificates held for the place, each scoped to the meats it covers.
+    # certifier_name resolves from the registry when linked, else the free-text
+    # name stored on the row.
+    cert_rows = db.execute(
+        select(PlaceCertificate, Certifier.name)
+        .outerjoin(Certifier, Certifier.id == PlaceCertificate.certifier_id)
+        .where(PlaceCertificate.place_id == profile.place_id)
+        .order_by(PlaceCertificate.created_at.asc())
+    ).all()
+    embed.certificates = [
+        CertificateRead(
+            id=cert.id,
+            certifier_name=reg_name or cert.certifier_name,
+            meat_types=list(cert.meat_types or []),
+            certificate_url=cert.certificate_url,
+            certificate_content_type=cert.certificate_content_type,
+            expires_at=cert.expires_at,
+        )
+        for (cert, reg_name) in cert_rows
     ]
     return embed
 

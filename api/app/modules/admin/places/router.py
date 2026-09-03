@@ -9,8 +9,10 @@ from app.db.deps import get_db
 from app.modules.admin.places.repo import (
     admin_bulk_preview_places,
     admin_count_places,
+    admin_delete_place_certificate,
     admin_delist_place,
     admin_get_place_by_id,
+    admin_list_place_certificates,
     admin_list_place_countries,
     admin_list_place_events,
     admin_list_place_external_ids,
@@ -19,6 +21,7 @@ from app.modules.admin.places.repo import (
     admin_patch_place,
     admin_relist_place,
     admin_reset_trust_profile,
+    admin_update_place_certificate,
     admin_restore_place,
     admin_revoke_place_owner,
     admin_soft_delete_place,
@@ -37,6 +40,8 @@ from app.modules.admin.places.schemas import (
     PlaceBulkPreviewRequest,
     PlaceBulkPreviewResponse,
     PlaceBulkPreviewStatus,
+    PlaceCertificateAdminRead,
+    PlaceCertificatePatch,
     PlaceDeleteRequest,
     PlaceDelistRequest,
     PlaceEventRead,
@@ -669,6 +674,80 @@ def reset_place_trust_profile_admin(
 ) -> dict[str, int]:
     return admin_reset_trust_profile(
         db, place_id=place_id, actor_user_id=user.id
+    )
+
+
+@router.get(
+    "/{place_id}/certificates",
+    response_model=list[PlaceCertificateAdminRead],
+    summary="List the certificates a place holds",
+    description=(
+        "Every halal certificate attached to this place, oldest first. A place "
+        "can hold several (e.g. a chicken cert and a beef cert from different "
+        "bodies); `meat_types` scopes which meats each covers ([] = all)."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Place not found."},
+    },
+)
+def list_place_certificates_admin(
+    place_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> list[PlaceCertificateAdminRead]:
+    return [
+        PlaceCertificateAdminRead(**row)
+        for row in admin_list_place_certificates(db, place_id=place_id)
+    ]
+
+
+@router.patch(
+    "/{place_id}/certificates/{certificate_id}",
+    response_model=PlaceCertificateAdminRead,
+    summary="Edit a certificate's metadata",
+    description=(
+        "Update which meats a certificate covers, its certifier, or its expiry. "
+        "The document itself is not changed. Only supplied fields are applied; "
+        "`meat_types` replaces the set wholesale."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Place or certificate not found."},
+    },
+)
+def update_place_certificate_admin(
+    place_id: UUID,
+    certificate_id: UUID,
+    payload: PlaceCertificatePatch,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> PlaceCertificateAdminRead:
+    changes = payload.model_dump(exclude_unset=True)
+    row = admin_update_place_certificate(
+        db, place_id=place_id, certificate_id=certificate_id, changes=changes
+    )
+    return PlaceCertificateAdminRead(**row)
+
+
+@router.delete(
+    "/{place_id}/certificates/{certificate_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a certificate from a place",
+    description=(
+        "Detaches a certificate so it stops showing in the consumer apps. The "
+        "stored document object is left in the bucket."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Place or certificate not found."},
+    },
+)
+def delete_place_certificate_admin(
+    place_id: UUID,
+    certificate_id: UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(UserRole.ADMIN)),
+) -> None:
+    admin_delete_place_certificate(
+        db, place_id=place_id, certificate_id=certificate_id
     )
 
 

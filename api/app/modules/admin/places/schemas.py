@@ -438,6 +438,44 @@ class PlaceEventRead(BaseModel):
     created_at: datetime
 
 
+class PlaceCertificateAdminRead(BaseModel):
+    """One ``place_certificates`` row, admin-facing.
+
+    A place can hold several — a chicken cert from one body, a beef cert from
+    another. ``meat_types`` scopes which meats the document covers ([] = all).
+    ``certifier_name`` resolves the registry name when ``certifier_id`` is set,
+    else falls back to the free-text name captured at publish time.
+    """
+
+    model_config = ConfigDict(from_attributes=False)
+
+    id: UUID
+    certifier_id: UUID | None = None
+    certifier_name: str | None = None
+    meat_types: list[str] = Field(default_factory=list)
+    certificate_url: str | None = None
+    certificate_content_type: str | None = None
+    expires_at: datetime | None = None
+    source: str | None = None
+    created_at: datetime | None = None
+
+
+class PlaceCertificatePatch(BaseModel):
+    """Edit a certificate's metadata (not the document itself).
+
+    All fields optional — only supplied keys are applied. ``meat_types`` is
+    replaced wholesale when present (send the full desired set). ``certifier_id``
+    may be cleared by sending null, which reverts display to ``certifier_name``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    certifier_id: UUID | None = None
+    certifier_name: str | None = Field(default=None, max_length=255)
+    meat_types: list[str] | None = None
+    expires_at: datetime | None = None
+
+
 class OrganizationSummaryAdmin(BaseModel):
     """Compact org view nested inside a place-owner row.
 

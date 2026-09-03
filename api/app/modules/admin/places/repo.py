@@ -22,7 +22,13 @@ from app.modules.verifiers.models import VerificationVisit
 from app.modules.disputes.models import ConsumerDispute
 from app.modules.places.signals import PlaceSignalRow
 from app.modules.places.enums import DelistReason, ExternalIdProvider, PlaceEventType
-from app.modules.places.models import Place, PlaceEvent, PlaceExternalId, PlaceMeatVerification
+from app.modules.places.models import (
+    Place,
+    PlaceCertificate,
+    PlaceEvent,
+    PlaceExternalId,
+    PlaceMeatVerification,
+)
 from app.modules.places.repo import (
     LIKE_ESCAPE,
     escape_like,
@@ -72,6 +78,7 @@ def admin_reset_trust_profile(
     # Order is not FK-critical (children cascade from these parents, and the few
     # cross-refs are ON DELETE SET NULL), but we go inner→outer for clarity.
     for label, model in (
+        ("certificates", PlaceCertificate),
         ("meat_verifications", PlaceMeatVerification),
         ("supplier_links", PlaceSupplierLink),
         ("disputes", ConsumerDispute),
@@ -97,6 +104,102 @@ def admin_reset_trust_profile(
 
     db.commit()
     return counts
+
+
+def admin_list_place_certificates(db: Session, *, place_id: UUID) -> list[dict]:
+    """Every certificate a place holds, oldest first, with the certifier name
+    resolved from the registry when linked (else the free-text name)."""
+    from app.modules.certifiers.models import Certifier
+
+    place = db.get(Place, place_id)
+    if place is None:
+        raise NotFoundError("PLACE_NOT_FOUND", "Place not found.")
+
+    rows = db.execute(
+        select(PlaceCertificate, Certifier.name)
+        .outerjoin(Certifier, Certifier.id == PlaceCertificate.certifier_id)
+        .where(PlaceCertificate.place_id == place_id)
+        .order_by(PlaceCertificate.created_at.asc())
+    ).all()
+    return [
+        {
+            "id": cert.id,
+            "certifier_id": cert.certifier_id,
+            "certifier_name": reg_name or cert.certifier_name,
+            "meat_types": list(cert.meat_types or []),
+            "certificate_url": cert.certificate_url,
+            "certificate_content_type": cert.certificate_content_type,
+            "expires_at": cert.expires_at,
+            "source": cert.source,
+            "created_at": cert.created_at,
+        }
+        for (cert, reg_name) in rows
+    ]
+
+
+def admin_update_place_certificate(
+    db: Session, *, place_id: UUID, certificate_id: UUID, changes: dict
+) -> dict:
+    """Patch a certificate's metadata (meats covered, certifier, expiry). Only
+    the keys present in ``changes`` are applied; ``meat_types`` replaces the set
+    wholesale. Returns the updated row in list-read shape."""
+    cert = db.get(PlaceCertificate, certificate_id)
+    if cert is None or cert.place_id != place_id:
+        raise NotFoundError("CERTIFICATE_NOT_FOUND", "Certificate not found.")
+
+    if "certifier_id" in changes:
+        cert.certifier_id = changes["certifier_id"]
+    if "certifier_name" in changes:
+        cert.certifier_name = changes["certifier_name"]
+    if "meat_types" in changes and changes["meat_types"] is not None:
+        cert.meat_types = list(changes["meat_types"])
+    if "expires_at" in changes:
+        cert.expires_at = changes["expires_at"]
+
+    db.commit()
+    return admin_get_place_certificate(db, place_id=place_id, certificate_id=certificate_id)
+
+
+def admin_get_place_certificate(
+    db: Session, *, place_id: UUID, certificate_id: UUID
+) -> dict:
+    from app.modules.certifiers.models import Certifier
+
+    row = db.execute(
+        select(PlaceCertificate, Certifier.name)
+        .outerjoin(Certifier, Certifier.id == PlaceCertificate.certifier_id)
+        .where(
+            PlaceCertificate.id == certificate_id,
+            PlaceCertificate.place_id == place_id,
+        )
+    ).first()
+    if row is None:
+        raise NotFoundError("CERTIFICATE_NOT_FOUND", "Certificate not found.")
+    cert, reg_name = row
+    return {
+        "id": cert.id,
+        "certifier_id": cert.certifier_id,
+        "certifier_name": reg_name or cert.certifier_name,
+        "meat_types": list(cert.meat_types or []),
+        "certificate_url": cert.certificate_url,
+        "certificate_content_type": cert.certificate_content_type,
+        "expires_at": cert.expires_at,
+        "source": cert.source,
+        "created_at": cert.created_at,
+    }
+
+
+def admin_delete_place_certificate(
+    db: Session, *, place_id: UUID, certificate_id: UUID
+) -> None:
+    """Remove one certificate from a place. The stored document object is left
+    in the bucket (cheap, and keeps deletes fast + non-failing); the row is what
+    the consumer apps read from, so dropping it hides the cert everywhere."""
+    cert = db.get(PlaceCertificate, certificate_id)
+    if cert is None or cert.place_id != place_id:
+        raise NotFoundError("CERTIFICATE_NOT_FOUND", "Certificate not found.")
+    db.delete(cert)
+    db.commit()
 
 
 def admin_bulk_preview_places(

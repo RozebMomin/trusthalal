@@ -12,12 +12,16 @@
  */
 import * as React from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
@@ -28,6 +32,13 @@ import {
   type VerificationVisitAttachmentAdmin,
 } from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
+
+const MEAT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "CHICKEN", label: "Chicken" },
+  { value: "BEEF", label: "Beef" },
+  { value: "LAMB", label: "Lamb" },
+  { value: "GOAT", label: "Goat" },
+];
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -62,14 +73,56 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
   const [activeUrl, setActiveUrl] = React.useState<string | null>(null);
   const [publishingId, setPublishingId] = React.useState<string | null>(null);
 
+  // Cert-publish dialog: a cert-tagged attachment gets metadata (which meats it
+  // covers, certifier, expiry) before it becomes one of the place's certs.
+  const [certDraft, setCertDraft] =
+    React.useState<VerificationVisitAttachmentAdmin | null>(null);
+  const [certMeats, setCertMeats] = React.useState<string[]>([]);
+  const [certBody, setCertBody] = React.useState("");
+  const [certExpiry, setCertExpiry] = React.useState("");
+
+  function openCertDialog(a: VerificationVisitAttachmentAdmin) {
+    setCertDraft(a);
+    setCertMeats([]);
+    setCertBody("");
+    setCertExpiry("");
+  }
+
+  function toggleCertMeat(value: string) {
+    setCertMeats((prev) =>
+      prev.includes(value)
+        ? prev.filter((m) => m !== value)
+        : [...prev, value],
+    );
+  }
+
+  // Gallery photos publish in one click; cert docs open the metadata dialog.
   async function onPublish(a: VerificationVisitAttachmentAdmin) {
     if (publishingId || a.published_at) return;
+    const isCert = (a.caption ?? "").trim().toLowerCase() === "cert";
+    if (isCert) {
+      openCertDialog(a);
+      return;
+    }
+    await runPublish(a);
+  }
+
+  async function runPublish(
+    a: VerificationVisitAttachmentAdmin,
+    options?: {
+      meat_types?: string[];
+      certifier_name?: string | null;
+      expires_at?: string | null;
+    },
+  ) {
     setPublishingId(a.id);
     try {
-      const res = await publish.mutateAsync(a.id);
+      const res = await publish.mutateAsync(
+        options ? { attachmentId: a.id, options } : a.id,
+      );
       const title =
         res.kind === "cert"
-          ? "Attached as the certificate"
+          ? "Added as a certificate"
           : res.is_hero
             ? "Added as the place's cover photo"
             : "Added to place gallery";
@@ -77,9 +130,10 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
         title,
         description:
           res.kind === "cert"
-            ? "This document is now the place's halal certificate."
+            ? "This document now appears in the place's certificates."
             : "The photo now appears on the place.",
       });
+      setCertDraft(null);
     } catch (err) {
       toast({
         ...friendlyApiError(err, { defaultTitle: "Couldn't publish this attachment" }),
@@ -88,6 +142,15 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
     } finally {
       setPublishingId(null);
     }
+  }
+
+  async function onConfirmCert() {
+    if (!certDraft) return;
+    await runPublish(certDraft, {
+      meat_types: certMeats,
+      certifier_name: certBody.trim() || null,
+      expires_at: certExpiry ? new Date(certExpiry).toISOString() : null,
+    });
   }
 
   React.useEffect(() => {
@@ -217,7 +280,7 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
                             ? "Attaching…"
                             : "Adding…"
                           : isCert
-                            ? "Set as certificate"
+                            ? "Add as certificate…"
                             : "Add to place gallery"}
                       </button>
                     </div>
@@ -274,6 +337,98 @@ export function VisitAttachmentsSection({ visitId }: { visitId: string }) {
               <Skeleton className="h-72 w-full" />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={certDraft !== null}
+        onOpenChange={(o) => {
+          if (!o && publishingId === null) setCertDraft(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Add as a certificate</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              This document will appear in the place&apos;s certificates across
+              the consumer apps. A place can hold several — one per meat, or one
+              covering everything.
+            </p>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Covers which meats?</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {MEAT_OPTIONS.map((m) => {
+                  const on = certMeats.includes(m.value);
+                  return (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={() => toggleCertMeat(m.value)}
+                      className={
+                        "rounded-full border px-3 py-1 text-xs font-medium transition " +
+                        (on
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input bg-background text-muted-foreground hover:bg-muted")
+                      }
+                    >
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Leave all unselected if the certificate covers the whole place.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cert-body" className="text-xs">
+                Certifying body{" "}
+                <span className="font-normal text-muted-foreground">
+                  (optional)
+                </span>
+              </Label>
+              <Input
+                id="cert-body"
+                value={certBody}
+                onChange={(e) => setCertBody(e.target.value)}
+                placeholder="e.g. HMA, HFA"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cert-expiry" className="text-xs">
+                Expires{" "}
+                <span className="font-normal text-muted-foreground">
+                  (optional)
+                </span>
+              </Label>
+              <Input
+                id="cert-expiry"
+                type="date"
+                value={certExpiry}
+                onChange={(e) => setCertExpiry(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCertDraft(null)}
+              disabled={publishingId !== null}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void onConfirmCert()}
+              disabled={publishingId !== null}
+            >
+              {publishingId !== null ? "Adding…" : "Add certificate"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </section>
