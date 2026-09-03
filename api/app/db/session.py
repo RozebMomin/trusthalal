@@ -9,6 +9,11 @@ if not settings.DATABASE_URL:
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
+    # Disable psycopg's server-side prepared statements. Harmless on the
+    # session-mode pooler, and REQUIRED for the transaction-mode pooler
+    # (port 6543), which can't carry a prepared statement across transactions.
+    # Setting it now means moving DATABASE_URL to 6543 is a pure env change.
+    connect_args={"prepare_threshold": None},
     # Cap connections below Supabase's session-mode pooler limit (15) so a
     # burst — several requests plus the photo-publish background task — can't
     # exhaust it and 500 the auth path. Default is 5 + 10 = 15, which sat
