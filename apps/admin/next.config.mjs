@@ -86,20 +86,27 @@ const nextConfig = {
   },
 };
 
-// withSentryConfig is a no-op when SENTRY_DSN isn't set — safe to
-// keep on for local dev. Source-map upload only happens in CI when
-// SENTRY_AUTH_TOKEN is present (Vercel build).
+// Sentry build plugin (v8). Uploads source maps at build time so events show
+// real file/line/function names instead of minified soup. Gated on
+// SENTRY_AUTH_TOKEN: absent (local dev, PR previews) → upload disabled, so
+// those builds don't contact Sentry or fail. The token lives only in the
+// Vercel build env, never in the repo. release.name is aligned with the
+// client SDK's release so uploaded maps match incoming events.
 export default withSentryConfig(nextConfig, {
-  // Project + org are read from the Sentry env vars at build time:
-  //   SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN
-  // No-op if they're absent so local builds don't error.
+  org: "trust-halal-llc",
+  project: "trusthalal-admin",
+  authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: !process.env.SENTRY_AUTH_TOKEN,
-  // Skip source-map upload outside Vercel CI builds; uploading from
-  // local dev wastes time and pollutes the release artifacts.
-  dryRun: !process.env.SENTRY_AUTH_TOKEN,
-  // Hide the Sentry SDK from the bundled output by default — keeps
-  // the bundle tree-shakable.
-  hideSourceMaps: true,
-  // Disable telemetry pings the wizard would otherwise send.
   telemetry: false,
+  widenClientFileUpload: true,
+  release: {
+    name:
+      process.env.NEXT_PUBLIC_APP_RELEASE_SHA ||
+      process.env.VERCEL_GIT_COMMIT_SHA ||
+      undefined,
+  },
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+    deleteSourcemapsAfterUpload: true,
+  },
 });

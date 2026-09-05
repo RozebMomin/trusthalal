@@ -65,12 +65,30 @@ const nextConfig = {
   },
 };
 
-// Same posture as apps/admin's next.config.mjs — withSentryConfig
-// silently no-ops when the build env doesn't have a Sentry auth
-// token, so local dev and PR previews don't churn or fail.
+// Sentry build plugin (v8). Uploads source maps at build time so events show
+// real file/line/function names instead of minified soup. Gated on
+// SENTRY_AUTH_TOKEN: absent (local dev, PR previews) → upload disabled, so
+// those builds don't contact Sentry or fail. The token lives only in the
+// Vercel build env, never in the repo. release.name is aligned with the
+// client SDK's release (NEXT_PUBLIC_APP_RELEASE_SHA / the Vercel commit SHA)
+// so uploaded maps match the release stamped on incoming events.
 export default withSentryConfig(nextConfig, {
+  org: "trust-halal-llc",
+  project: "trusthalal-owner",
+  authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: !process.env.SENTRY_AUTH_TOKEN,
-  dryRun: !process.env.SENTRY_AUTH_TOKEN,
-  hideSourceMaps: true,
   telemetry: false,
+  widenClientFileUpload: true,
+  release: {
+    name:
+      process.env.NEXT_PUBLIC_APP_RELEASE_SHA ||
+      process.env.VERCEL_GIT_COMMIT_SHA ||
+      undefined,
+  },
+  sourcemaps: {
+    // No token → skip upload entirely. When we do upload, delete the emitted
+    // .map files afterward so they're never served to browsers.
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+    deleteSourcemapsAfterUpload: true,
+  },
 });
