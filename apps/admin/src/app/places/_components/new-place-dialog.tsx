@@ -34,9 +34,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { friendlyApiError } from "@/lib/api/friendly-errors";
-import { useIngestPlace, useRestorePlace } from "@/lib/api/hooks";
+import {
+  useCreatePlaceManual,
+  useIngestPlace,
+  useRestorePlace,
+} from "@/lib/api/hooks";
 import { useToast } from "@/lib/hooks/use-toast";
 
 import {
@@ -71,17 +76,60 @@ const INGEST_ERROR_OVERRIDES = {
 // to the base copy for auth/validation.
 const RESTORE_ERROR_OVERRIDES = {} as const;
 
+/**
+ * Pull latitude/longitude out of whatever the admin pastes in the manual-add
+ * flow. Accepts, in priority order:
+ *
+ *   1. A full Google Maps URL with the precise place marker (``!3d<lat>!4d<lng>``).
+ *      This is the actual pin location and is preferred over the ``@`` viewport
+ *      center when both are present.
+ *   2. A Maps URL's ``@<lat>,<lng>`` viewport center — the common desktop URL
+ *      shape (``/maps/place/Name/@40.71,-74.00,17z``).
+ *   3. A raw ``<lat>, <lng>`` pair (e.g. from right-clicking the pin in Maps).
+ *
+ * Short share links (``maps.app.goo.gl/...``) carry no coordinates until they
+ * redirect, so they return null and the UI asks for the expanded URL instead.
+ */
+export function parseLatLng(
+  input: string,
+): { lat: number; lng: number } | null {
+  const s = (input || "").trim();
+  if (!s) return null;
+
+  const num = "(-?\\d+(?:\\.\\d+)?)";
+  const pin = s.match(new RegExp(`!3d${num}!4d${num}`));
+  const viewport = s.match(new RegExp(`@${num},${num}`));
+  const raw = s.match(new RegExp(`^${num}\\s*,\\s*${num}$`));
+  const hit = pin ?? viewport ?? raw;
+  if (!hit) return null;
+
+  const lat = Number(hit[1]);
+  const lng = Number(hit[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
+
 export function NewPlaceDialog({ open, onOpenChange }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const ingest = useIngestPlace();
   const restore = useRestorePlace();
+  const createManual = useCreatePlaceManual();
 
   const [picked, setPicked] = React.useState<PickedPlace | null>(null);
   const [softDeleted, setSoftDeleted] = React.useState<SoftDeletedMatch | null>(
     null,
   );
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+
+  // Manual-add mode: for a place Google can't find yet (too new to be in the
+  // Places API index). Off by default — Autocomplete → ingest is the norm.
+  const [manual, setManual] = React.useState(false);
+  const [mName, setMName] = React.useState("");
+  const [mAddress, setMAddress] = React.useState("");
+  const [mCoords, setMCoords] = React.useState("");
+  const parsedCoords = React.useMemo(() => parseLatLng(mCoords), [mCoords]);
 
   // Reset internal state every time the dialog opens, so stale picks from
   // an abandoned session don't pre-fill the form or offer Restore on a
@@ -91,13 +139,64 @@ export function NewPlaceDialog({ open, onOpenChange }: Props) {
       setPicked(null);
       setSoftDeleted(null);
       setErrorMsg(null);
+      setManual(false);
+      setMName("");
+      setMAddress("");
+      setMCoords("");
     }
   }, [open]);
 
-  const busy = ingest.isPending || restore.isPending;
+  const busy = ingest.isPending || restore.isPending || createManual.isPending;
+
+  function switchMode(toManual: boolean) {
+    setManual(toManual);
+    setErrorMsg(null);
+    setSoftDeleted(null);
+  }
+
+  async function onSubmitManual() {
+    if (busy) return;
+    setErrorMsg(null);
+    if (!mName.trim()) {
+      setErrorMsg("Enter the place name.");
+      return;
+    }
+    if (!parsedCoords) {
+      setErrorMsg(
+        "Couldn't read coordinates. Paste the Google Maps link (the one with " +
+          "@lat,lng in it) or type \"lat, lng\".",
+      );
+      return;
+    }
+    try {
+      const place = await createManual.mutateAsync({
+        name: mName.trim(),
+        address: mAddress.trim() || null,
+        lat: parsedCoords.lat,
+        lng: parsedCoords.lng,
+      });
+      toast({
+        title: "Place added by hand",
+        description: `${place.name} was seeded manually. Once Google can find it, use "Link to Google" on its page to enrich it.`,
+        variant: "success",
+      });
+      onOpenChange(false);
+      router.push(`/places/${place.id}`);
+    } catch (err) {
+      const msg = friendlyApiError(err, {
+        defaultTitle: "Couldn't add place",
+      });
+      setErrorMsg(msg.description);
+      toast({ ...msg, variant: "destructive" });
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (manual) {
+      void onSubmitManual();
+      return;
+    }
     if (!picked || busy) return;
     setErrorMsg(null);
 
@@ -198,59 +297,133 @@ export function NewPlaceDialog({ open, onOpenChange }: Props) {
           <DialogHeader>
             <DialogTitle>Add a place</DialogTitle>
             <DialogDescription>
-              Search Google Places, then pick a result. We&apos;ll pull the
-              canonical name, address, and coordinates straight from Google,
-              no typing required.
+              {manual
+                ? "Seed a place by hand when Google can't find it yet — a brand-new listing that's live on Google Maps but not in the Places API. You can link it to Google later to enrich it."
+                : "Search Google Places, then pick a result. We'll pull the canonical name, address, and coordinates straight from Google, no typing required."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="mt-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-place-search">Place</Label>
-              <GooglePlacesAutocomplete
-                id="new-place-search"
-                autoFocus
-                disabled={busy}
-                placeholder="e.g. Halal Guys, 53rd & 6th"
-                onPick={(p) => {
-                  setPicked(p);
-                  setSoftDeleted(null);
-                  setErrorMsg(null);
-                }}
-                // Clearing the input should invalidate a prior pick so the
-                // admin can't submit stale data after editing the textbox.
-                onTextChange={() => {
-                  if (picked) setPicked(null);
-                  if (softDeleted) setSoftDeleted(null);
-                }}
-              />
-              {picked && (
-                <div
-                  className="rounded-md border bg-muted/30 p-3"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Selected venue
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-foreground">
-                    {picked.name || (
-                      <span className="italic text-muted-foreground">
-                        Unnamed place
-                      </span>
-                    )}
-                  </p>
-                  {picked.formatted_address && (
-                    <p className="text-sm text-muted-foreground">
-                      {picked.formatted_address}
+            {!manual && (
+              <div className="space-y-2">
+                <Label htmlFor="new-place-search">Place</Label>
+                <GooglePlacesAutocomplete
+                  id="new-place-search"
+                  autoFocus
+                  disabled={busy}
+                  placeholder="e.g. Halal Guys, 53rd & 6th"
+                  onPick={(p) => {
+                    setPicked(p);
+                    setSoftDeleted(null);
+                    setErrorMsg(null);
+                  }}
+                  // Clearing the input should invalidate a prior pick so the
+                  // admin can't submit stale data after editing the textbox.
+                  onTextChange={() => {
+                    if (picked) setPicked(null);
+                    if (softDeleted) setSoftDeleted(null);
+                  }}
+                />
+                {picked && (
+                  <div
+                    className="rounded-md border bg-muted/30 p-3"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Selected venue
                     </p>
-                  )}
-                  <p className="mt-2 font-mono text-[11px] text-muted-foreground/70">
-                    {picked.place_id}
-                  </p>
+                    <p className="mt-1 text-sm font-medium text-foreground">
+                      {picked.name || (
+                        <span className="italic text-muted-foreground">
+                          Unnamed place
+                        </span>
+                      )}
+                    </p>
+                    {picked.formatted_address && (
+                      <p className="text-sm text-muted-foreground">
+                        {picked.formatted_address}
+                      </p>
+                    )}
+                    <p className="mt-2 font-mono text-[11px] text-muted-foreground/70">
+                      {picked.place_id}
+                    </p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => switchMode(true)}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Can&apos;t find it on Google? Add it manually →
+                </button>
+              </div>
+            )}
+
+            {manual && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="manual-name">Name</Label>
+                  <Input
+                    id="manual-name"
+                    autoFocus
+                    value={mName}
+                    onChange={(e) => setMName(e.target.value)}
+                    disabled={busy}
+                    placeholder="e.g. Zaytoon Grill"
+                  />
                 </div>
-              )}
-            </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="manual-address">
+                    Address{" "}
+                    <span className="font-normal text-muted-foreground">
+                      (optional)
+                    </span>
+                  </Label>
+                  <Input
+                    id="manual-address"
+                    value={mAddress}
+                    onChange={(e) => setMAddress(e.target.value)}
+                    disabled={busy}
+                    placeholder="123 Main St, Springfield, IL"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="manual-coords">Location</Label>
+                  <Input
+                    id="manual-coords"
+                    value={mCoords}
+                    onChange={(e) => setMCoords(e.target.value)}
+                    disabled={busy}
+                    placeholder="Paste the Google Maps link, or 40.7128, -74.0060"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Open the place in Google Maps and copy the URL (it has
+                    <code className="mx-1 font-mono">@lat,lng</code>), or
+                    right-click the pin and click the coordinates to copy them.
+                  </p>
+                  {mCoords.trim() &&
+                    (parsedCoords ? (
+                      <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                        ✓ {parsedCoords.lat.toFixed(6)},{" "}
+                        {parsedCoords.lng.toFixed(6)}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-destructive">
+                        Couldn&apos;t read coordinates from that. Paste the full
+                        Maps URL or &ldquo;lat, lng&rdquo;.
+                      </p>
+                    ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => switchMode(false)}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  ← Search Google instead
+                </button>
+              </div>
+            )}
 
             {softDeleted && (
               <div
@@ -308,9 +481,13 @@ export function NewPlaceDialog({ open, onOpenChange }: Props) {
             </Button>
             <Button
               type="submit"
-              disabled={!picked || busy || Boolean(softDeleted)}
+              disabled={
+                busy ||
+                Boolean(softDeleted) ||
+                (manual ? !mName.trim() || !parsedCoords : !picked)
+              }
             >
-              {ingest.isPending ? "Adding…" : "Add place"}
+              {busy ? "Adding…" : "Add place"}
             </Button>
           </DialogFooter>
         </form>

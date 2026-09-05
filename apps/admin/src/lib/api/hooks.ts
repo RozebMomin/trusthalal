@@ -757,6 +757,42 @@ export function useIngestPlace() {
   });
 }
 
+/** Body for the legacy hand-seed create path (POST /places). Used only when
+ *  Google can't find a place yet — a brand-new listing that's live on Google
+ *  Maps but not yet in the Places API index (so Autocomplete + the Place ID
+ *  Finder can't see it). Address is optional; coordinates are required. */
+export type ManualPlaceCreate = {
+  name: string;
+  address?: string | null;
+  lat: number;
+  lng: number;
+};
+
+/**
+ * Seed a place by hand, bypassing Google ingest.
+ *
+ * The admin normally adds places via Autocomplete → ingest, which enriches the
+ * row with Google's canonical fields. That path is impossible for a place the
+ * Places API hasn't indexed yet, so this hits the legacy ``POST /places``
+ * endpoint with name/address/lat/lng. The row lands with no ``canonical_source``
+ * (no Google link), so the place-detail page still offers "Link to Google" for
+ * later, once Google finally indexes it. Returns the created place (with id) so
+ * the caller can navigate to it.
+ */
+export function useCreatePlaceManual() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ManualPlaceCreate) =>
+      apiFetch<{ id: string; name: string }>("/places", {
+        method: "POST",
+        json: payload,
+      }),
+    onSuccess: () => {
+      void invalidatePlaces(qc);
+    },
+  });
+}
+
 /**
  * Bulk preview, cheap dedup check for a staged batch of Google IDs.
  *
