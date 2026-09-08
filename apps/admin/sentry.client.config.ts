@@ -42,6 +42,24 @@ function eventIsExtensionOnly(event: Sentry.ErrorEvent): boolean {
   );
 }
 
+// Bots / scrapers that run the page in a non-browser JS runtime (Deno-based
+// headless tools, etc.) and spoof a Chrome UA. Their stacks carry runtime
+// internals a real browser never has — Deno's "ext:core/..." / "ext:...",
+// "deno:", or Node "node:" module paths. Not real users; drop them.
+const NON_BROWSER_FRAME_PREFIXES = ["ext:", "deno:", "node:"];
+
+function eventIsNonBrowserRuntime(event: Sentry.ErrorEvent): boolean {
+  return (event.exception?.values ?? [])
+    .flatMap((v) => v.stacktrace?.frames ?? [])
+    .some(
+      (f) =>
+        typeof f.filename === "string" &&
+        NON_BROWSER_FRAME_PREFIXES.some((p) =>
+          (f.filename as string).startsWith(p),
+        ),
+    );
+}
+
 Sentry.init({
   dsn,
   enabled: !!dsn,
@@ -64,6 +82,7 @@ Sentry.init({
   ],
   beforeSend(event) {
     if (eventIsExtensionOnly(event)) return null;
+    if (eventIsNonBrowserRuntime(event)) return null;
     return event;
   },
   // Strip query strings from breadcrumb URLs so an accidental
